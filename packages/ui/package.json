@@ -1,0 +1,51 @@
+{
+  "name": "@vuagent/ui",
+  "version": "0.1.0",
+  "description": "Agent Ops UI components for Vue 3 — plans, approvals, tool calls, context, inboxes.",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./tokens.css": "./src/styles/tokens.css",
+    "./styles.css": "./dist/vuagent-ui.css"
+  },
+  "main": "./src/index.ts",
+  "files": [
+    "dist",
+    "src/styles"
+  ],
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "exports": {
+      ".": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./tokens.css": "./src/styles/tokens.css",
+      "./styles.css": "./dist/vuagent-ui.css"
+    }
+  },
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "typescript": "~5.9.2",
+    "vite": "^7.1.0",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^3.2.4",
+    "vue": "^3.5.21",
+    "vue-tsc": "^3.0.0"
+  }
+}

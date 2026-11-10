@@ -1,0 +1,18 @@
+{
+  "name": "vuagent-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "pnpm --filter @vuagent/ui build && pnpm --filter @vuagent/playground build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @vuagent/ui test",
+    "registry": "node scripts/build-registry.mjs",
+    "llms": "node scripts/build-llms.mjs",
+    "docs:dev": "pnpm --filter @vuagent/docs dev",
+    "docs:build": "pnpm --filter @vuagent/docs build",
+    "dev": "pnpm --filter @vuagent/playground dev"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}

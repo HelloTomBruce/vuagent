@@ -1,0 +1,28 @@
+/* VaTextReveal — 逐词/逐字浮现 */
+.va-reveal { display: inline-block; }
+
+.va-reveal__piece {
+  display: inline-block;
+  white-space: pre;
+  opacity: 0;
+  transform: translateY(6px);
+  filter: blur(4px);
+  transition-property: opacity, transform, filter;
+  transition-timing-function: var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+.va-reveal__piece[data-space] { white-space: pre; }
+
+.va-reveal[data-shown] .va-reveal__piece {
+  opacity: 1;
+  transform: none;
+  filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-reveal__piece {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+}

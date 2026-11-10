@@ -1,0 +1,64 @@
+/* VaComposer — 任务输入框 */
+.va-cmp {
+  --_edge: var(--va-cmp-edge, var(--va-edge, rgba(26, 25, 23, 0.12)));
+  --_ink: var(--va-cmp-ink, var(--va-ink, #1a1917));
+  --_muted: var(--va-cmp-muted, var(--va-muted, #6f6d66));
+  --_accent: var(--va-cmp-accent, var(--va-accent, #c2410c));
+
+  background: var(--va-card, #fff);
+  border: 1px solid var(--_edge);
+  border-radius: var(--va-radius-m, 10px);
+  padding: var(--va-s2, 4px) var(--va-s2, 4px) var(--va-s2, 4px) var(--va-s4, 12px);
+  display: flex;
+  align-items: flex-end;
+  gap: var(--va-s3, 8px);
+  font-family: var(--va-font, system-ui, sans-serif);
+  transition: border-color var(--va-dur-2, 200ms) ease, box-shadow var(--va-dur-2, 200ms) ease;
+}
+.va-cmp:focus-within {
+  border-color: color-mix(in srgb, var(--_accent) 45%, var(--_edge));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--_accent) 12%, transparent);
+}
+.va-cmp--busy { opacity: 0.75; }
+
+.va-cmp__prefix { display: inline-flex; align-items: center; padding-bottom: var(--va-s2, 4px); flex: none; }
+
+.va-cmp__area {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--_ink);
+  padding: var(--va-s3, 8px) 0;
+  height: auto;
+  max-height: 160px;
+}
+.va-cmp__area::placeholder { color: var(--_muted); }
+.va-cmp__area:disabled { cursor: not-allowed; }
+
+.va-cmp__foot { display: flex; align-items: flex-end; gap: var(--va-s2, 4px); padding-bottom: var(--va-s2, 4px); flex: none; }
+.va-cmp__actions { display: inline-flex; gap: 4px; }
+
+.va-cmp__send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: var(--va-radius-m, 10px);
+  background: var(--_ink);
+  color: var(--va-card, #fff);
+  cursor: pointer;
+  transition: opacity var(--va-dur-1, 120ms) ease, transform var(--va-dur-1, 120ms) ease;
+}
+.va-cmp__send:hover:not(:disabled) { opacity: 0.88; }
+.va-cmp__send:active:not(:disabled) { transform: scale(0.95); }
+.va-cmp__send:disabled { opacity: 0.35; cursor: default; }
+.va-cmp__send:focus-visible { outline: 2px solid var(--_accent); outline-offset: 2px; }
+.va-cmp__send svg { width: 15px; height: 15px; }

@@ -1,0 +1,25 @@
+/* VaSkeleton — 共享一道扫光的骨架块（底色/高光用中性半透明，亮暗主题都能与卡片区分） */
+.va-skel {
+  display: inline-block;
+  vertical-align: middle;
+  background:
+    linear-gradient(
+      100deg,
+      var(--va-skel-bg, rgba(128, 128, 128, 0.28)) 40%,
+      var(--va-skel-hl, rgba(255, 255, 255, 0.55)) 50%,
+      var(--va-skel-bg, rgba(128, 128, 128, 0.28)) 60%
+    )
+    var(--va-skel-bg, rgba(128, 128, 128, 0.28));
+  background-size: 200% 100%;
+  background-position: 200% 0;
+  animation: va-skel-shimmer 1.6s linear infinite;
+}
+
+@keyframes va-skel-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-skel { animation: none; }
+}

@@ -1,0 +1,99 @@
+/* VaMessageActions — AI 消息操作条 */
+.va-msg {
+  --_edge: var(--va-msg-edge, var(--va-edge, rgba(26, 25, 23, 0.12)));
+  --_muted: var(--va-msg-muted, var(--va-muted, #6f6d66));
+  --_ink: var(--va-msg-ink, var(--va-ink, #1a1917));
+  --_success: var(--va-msg-success, var(--va-success, #1a7f4b));
+  --_danger: var(--va-msg-danger, var(--va-danger, #d5453c));
+  font-family: var(--va-font, system-ui, sans-serif);
+}
+
+/* 安静模式：淡显，悬停本条时显现 */
+.va-msg--quiet { opacity: 0.4; transition: opacity var(--va-dur-2, 200ms) ease; }
+.va-msg--quiet:hover, .va-msg--quiet:focus-within, .va-msg--panel { opacity: 1; }
+
+.va-msg__bar { display: flex; align-items: center; gap: 2px; }
+
+.va-msg__act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: var(--va-radius-s, 8px);
+  background: none;
+  color: var(--_muted);
+  cursor: pointer;
+  transition: color var(--va-dur-1, 120ms) ease, background var(--va-dur-1, 120ms) ease;
+}
+.va-msg__act:hover:not(:disabled) { background: var(--va-bg-subtle, #efede7); color: var(--_ink); }
+.va-msg__act:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: 1px; }
+.va-msg__act:disabled { opacity: 0.35; cursor: default; }
+.va-msg__act--on { color: var(--va-accent, #c2410c); }
+.va-msg__act svg { width: 15px; height: 15px; }
+
+.va-msg__spin { animation: va-msg-spin 0.9s linear infinite; }
+@keyframes va-msg-spin { to { transform: rotate(360deg); } }
+
+/* 版本切换 */
+.va-msg__versions { display: inline-flex; align-items: center; gap: 0; }
+.va-msg__ver-label {
+  min-width: 34px;
+  text-align: center;
+  font-family: var(--va-font-mono, monospace);
+  font-size: 11px;
+  color: var(--_muted);
+  font-variant-numeric: tabular-nums;
+}
+.va-msg__sep { width: 1px; height: 14px; background: var(--_edge); margin: 0 6px; }
+
+/* 原因面板 */
+.va-msg__panel {
+  margin-top: var(--va-s2, 4px);
+  padding: var(--va-s3, 8px);
+  border: 1px solid var(--_edge);
+  border-radius: var(--va-radius-m, 10px);
+  background: var(--va-card, #fff);
+  box-shadow: var(--va-shadow-2, none);
+}
+.va-msg__panel-title { margin: 0 0 var(--va-s2, 4px); font-size: 12px; font-weight: 600; color: var(--_ink); }
+.va-msg__reasons { display: flex; gap: 4px; flex-wrap: wrap; }
+.va-msg__reason {
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--_edge);
+  border-radius: var(--va-radius-pill, 999px);
+  background: var(--va-card, #fff);
+  color: var(--va-ink-2, #43413c);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.va-msg__reason:hover { border-color: var(--va-edge-strong, rgba(26, 25, 23, 0.22)); }
+.va-msg__reason:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: 1px; }
+.va-msg__reason--go { color: var(--_ink); font-weight: 600; }
+.va-msg__reason--go:disabled { opacity: 0.4; cursor: default; }
+
+.va-msg__other { display: flex; align-items: center; gap: 4px; margin-top: var(--va-s2, 4px); }
+.va-msg__other-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--_edge);
+  border-radius: var(--va-radius-pill, 999px);
+  padding: 3px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--_ink);
+  background: var(--va-card, #fff);
+}
+.va-msg__other-input:focus { outline: none; border-color: var(--va-accent, #c2410c); }
+
+.va-msg-panel-enter-active, .va-msg-panel-leave-active { transition: opacity var(--va-dur-1, 120ms) ease, transform var(--va-dur-1, 120ms) var(--va-ease, ease); }
+.va-msg-panel-enter-from, .va-msg-panel-leave-to { opacity: 0; transform: translateY(-2px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-msg--quiet { transition: none; }
+  .va-msg__spin { animation-duration: 2s; }
+  .va-msg-panel-enter-active, .va-msg-panel-leave-active { transition: none; }
+}

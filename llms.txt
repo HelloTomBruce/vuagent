@@ -1,0 +1,44 @@
+# Vuagent
+
+> Vue 生态第一个 Agent Ops 组件库：为 AI agent 产品的运行时操作界面（计划 / 审批 / 工具调用 / 上下文 / 收件箱）而生的 Vue 3 组件。
+> 每个组件 = 薄模板 + 独立样式 + 强类型 + composable 逻辑；零运行时依赖（peer 仅 vue ^3.5），亮暗双主题（跟随 [data-theme="dark"] / .dark），全部动效尊重 prefers-reduced-motion。
+
+## 安装与使用
+
+- npm：`npm i @vuagent/ui`，从 `@vuagent/ui` 导入组件，并引入 `@vuagent/ui/tokens.css`
+- shadcn-vue registry：注册 `"@vuagent": "<registry 地址>/{name}.json"` 后 `npx shadcn-vue add @vuagent/<name>`（文件落到 components/ui/<name>/）
+- 基础约定：Props 枚举对齐 affectUI（size: sm/md/lg，status: running/success/error）；时间统一毫秒；事件名 camelCase
+- 主题：覆盖 `:root` 上的 `--va-*` 设计令牌即可全库换肤；组件级覆盖用局部变量（如 --va-btn-ink）
+- llms-full.txt：全部组件的 props 明细表
+
+## Agent-Ops
+
+- [Tool Call / Group](https://vuagent.dev/components/tool-call): agent 的一次工具调用：实时秒表、失败自动展开并给出重试；Group 自动汇总多张卡。（VaToolCallCard / VaToolCallGroup）
+- [Agent Plan](https://vuagent.dev/components/agent-plan): 执行计划：编辑态可重命名/排序/增删，运行态逐项计时打勾、失败可重试。（VaAgentPlan）
+- [Approval Card](https://vuagent.dev/components/approval-card): 审批门：风险徽章 + 命令预览 + 倒计时自动拒绝（悬停暂停）+ Enter/Esc 快捷键，决策后 morph 成结果行。（VaApprovalCard）
+- [Decision Inbox](https://vuagent.dev/components/decision-inbox): 业务决策收件箱：每条两个答案，选完确认并折叠离开列表。（VaDecisionInbox）
+- [Agent Inbox](https://vuagent.dev/components/agent-inbox): 后台任务收件箱：过滤 tab 带计数、live 时钟、行展开看步骤与操作，排序变化平滑滑动。（VaAgentInbox）
+- [Context Window](https://vuagent.dev/components/context-window): 上下文可视化：按 token 占比的格子场，悬停点亮、文件可移除、压缩对话时历史微光收缩。（VaContextWindow）
+- [Inline Diff](https://vuagent.dev/components/inline-diff): AI 文案修改逐词接受/拒绝：CJK 逐字分词的零依赖 diff、撤销栈、全部决断后应用。（VaInlineDiff）
+- [Memory Panel](https://vuagent.dev/components/memory-panel): 助手记忆面板：分类过滤、就地编辑、暂停/遗忘（带撤销托盘）、总开关。（VaMemoryPanel）
+
+## Chat
+
+- [Thinking Loader](https://vuagent.dev/components/thinking-loader): 思考态加载器：阶段轮播 + 微光标签；完成后转为对勾与用时。（VaThinkingLoader）
+- [Composer](https://vuagent.dev/components/composer): 任务输入框：自动增高、Enter 发送（Shift+Enter 换行、中文输入法安全）、可插入模型选择等前缀。（VaComposer）
+- [Model Picker](https://vuagent.dev/components/model-picker): 模型选择菜单：触发按钮 + 键盘可导航的下拉列表。（VaModelPicker）
+- [Stream Answer](https://vuagent.dev/components/stream-answer): 流式回答：按节奏逐字吐出 source，带流式光标，完成后 emit complete，支持重放。（VaStreamAnswer）
+- [Message Actions / Text](https://vuagent.dev/components/message-actions): AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输入）、版本切换；MessageText 提供版本交叉淡入。（VaMessageActions / VaMessageText）
+
+## 基础
+
+- [Button](https://vuagent.dev/components/button): 语义按钮：四变体 × 三尺寸，加载态标签微光。（VaButton）
+- [Segmented Control](https://vuagent.dev/components/segmented-control): 分段控件：滑块指示器平滑滑动，完整键盘导航。（VaSegmentedControl）
+- [Toaster](https://vuagent.dev/components/toaster): 全局通知：vaToaster.add() 任意位置发通知，宿主组件渲染堆叠，自动消失可手动关。（VaToaster）
+- [Skeleton / Shimmer Text](https://vuagent.dev/components/skeleton): 骨架屏与微光文字：共享一道柔和扫光。（VaSkeleton / VaShimmerText）
+- [Number Ticker](https://vuagent.dev/components/number-ticker): 里程表数字滚动：进视口从零数起，数值变化每一位独立滚动。（VaNumberTicker）
+
+## 动效
+
+- [Text Reveal](https://vuagent.dev/components/text-reveal): 文本入场：逐词/逐字从轻微模糊与位移中浮现，滚动进视口触发。（VaTextReveal）
+- [Grid Background](https://vuagent.dev/components/grid-background): 缓慢漂移的细网格背景，边缘渐隐，可作 Hero 底纹；内容放默认插槽。（VaGridBackground）

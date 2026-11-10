@@ -1,0 +1,169 @@
+/* VaMemoryPanel — 助手记忆的管理面板 */
+.va-mem {
+  --_edge: var(--va-mem-edge, var(--va-edge, rgba(26, 25, 23, 0.12)));
+  --_muted: var(--va-mem-muted, var(--va-muted, #6f6d66));
+  --_ink: var(--va-mem-ink, var(--va-ink, #1a1917));
+  --_accent: var(--va-mem-accent, var(--va-accent, #c2410c));
+  --_danger: var(--va-mem-danger, var(--va-danger, #d5453c));
+  font-family: var(--va-font, system-ui, sans-serif);
+}
+
+.va-mem__head { display: flex; align-items: center; justify-content: space-between; gap: var(--va-s3, 8px); }
+.va-mem__title { margin: 0; font-size: 13.5px; font-weight: 650; color: var(--_ink); }
+
+/* 总开关 */
+.va-mem__switch {
+  flex: none;
+  width: 36px;
+  height: 21px;
+  border-radius: var(--va-radius-pill, 999px);
+  border: 0;
+  background: var(--va-edge, rgba(26, 25, 23, 0.12));
+  cursor: pointer;
+  position: relative;
+  transition: background var(--va-dur-2, 200ms) ease;
+}
+.va-mem__switch[aria-checked="true"] { background: var(--_accent); }
+.va-mem__switch:focus-visible { outline: 2px solid var(--_accent); outline-offset: 2px; }
+.va-mem__knob {
+  position: absolute;
+  top: 2.5px;
+  left: 2.5px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--va-shadow-1, none);
+  transition: transform var(--va-dur-2, 200ms) var(--va-ease, ease);
+}
+.va-mem__switch[aria-checked="true"] .va-mem__knob { transform: translateX(15px); }
+
+/* 过滤 chips */
+.va-mem__filters { display: flex; gap: 4px; flex-wrap: wrap; margin: var(--va-s3, 8px) 0; }
+.va-mem__chip {
+  border: 0;
+  background: none;
+  padding: 3px 9px;
+  border-radius: var(--va-radius-pill, 999px);
+  font-size: 11.5px;
+  color: var(--_muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background var(--va-dur-1, 120ms) ease, color var(--va-dur-1, 120ms) ease;
+}
+.va-mem__chip:hover { background: var(--va-bg-subtle, #efede7); color: var(--_ink); }
+.va-mem__chip:focus-visible { outline: 2px solid var(--_accent); outline-offset: 1px; }
+.va-mem__chip--on { background: var(--va-bg-subtle, #efede7); color: var(--_ink); font-weight: 600; }
+
+/* 列表 */
+.va-mem__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--va-s2, 4px); position: relative; }
+.va-mem__row {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s3, 8px);
+  padding: var(--va-s2, 4px) var(--va-s3, 8px);
+  border: 1px solid var(--_edge);
+  border-radius: var(--va-radius-m, 10px);
+  background: var(--va-card, #fff);
+}
+.va-mem__row[data-paused] { opacity: 0.55; }
+
+.va-mem__cat {
+  flex: none;
+  font-size: 10.5px;
+  color: var(--_muted);
+  background: var(--va-bg-subtle, #efede7);
+  border-radius: var(--va-radius-pill, 999px);
+  padding: 2px 8px;
+}
+
+.va-mem__text {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--_ink);
+  cursor: text;
+  padding: 3px 2px;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.va-mem__text:hover { background: var(--va-bg-subtle, #efede7); }
+.va-mem__text:focus-visible { outline: 2px solid var(--_accent); }
+
+.va-mem__input {
+  flex: 1;
+  min-width: 0;
+  border: 1.5px solid var(--_accent);
+  border-radius: var(--va-radius-s, 8px);
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 12.5px;
+  background: var(--va-card, #fff);
+  color: var(--_ink);
+}
+.va-mem__input:focus { outline: none; }
+
+.va-mem__ops { display: inline-flex; gap: 2px; flex: none; }
+.va-mem__op {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--va-radius-s, 8px);
+  background: none;
+  color: var(--_muted);
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+}
+.va-mem__op:hover { background: var(--va-bg-subtle, #efede7); color: var(--_ink); }
+.va-mem__op:focus-visible { outline: 2px solid var(--_accent); }
+.va-mem__op--danger:hover { color: var(--_danger); }
+
+.va-mem__empty { margin: 0; font-size: 12px; color: var(--_muted); text-align: center; padding: var(--va-s3, 8px); }
+
+/* 撤销托盘 */
+.va-mem__tray {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s3, 8px);
+  margin-top: var(--va-s3, 8px);
+  padding: var(--va-s2, 4px) var(--va-s4, 12px);
+  border-radius: var(--va-radius-m, 10px);
+  background: var(--va-ink, #1a1917);
+  color: var(--va-card, #fff);
+  font-size: 12px;
+}
+.va-mem__undo {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: var(--va-accent, #e8925e);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.va-mem__undo:focus-visible { outline: 2px solid currentColor; }
+
+.va-mem__off-hint { margin: var(--va-s3, 8px) 0 0; font-size: 12px; color: var(--_muted); }
+.va-mem[data-off] { opacity: 0.72; }
+
+/* 进出与滑动 */
+.va-mem-move { transition: transform var(--va-dur-3, 300ms) var(--va-ease, ease); }
+.va-mem-leave-active { position: absolute; left: 0; right: 0; transition: opacity var(--va-dur-2, 200ms) ease; }
+.va-mem-leave-to { opacity: 0; }
+.va-mem-tray-enter-active, .va-mem-tray-leave-active { transition: opacity var(--va-dur-2, 200ms) ease, transform var(--va-dur-2, 200ms) var(--va-ease, ease); }
+.va-mem-tray-enter-from, .va-mem-tray-leave-to { opacity: 0; transform: translateY(4px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-mem__switch, .va-mem__knob { transition: none; }
+  .va-mem-move, .va-mem-leave-active, .va-mem-tray-enter-active, .va-mem-tray-leave-active { transition: none; }
+}

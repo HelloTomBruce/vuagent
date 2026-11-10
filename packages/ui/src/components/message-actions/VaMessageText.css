@@ -1,0 +1,11 @@
+/* VaMessageText — 版本交叉淡入的消息正文 */
+.va-msg-text { min-width: 0; }
+
+.va-msg-text__inner { font-size: 14px; line-height: 1.8; color: var(--va-ink, #1a1917); white-space: pre-wrap; word-break: break-word; }
+
+.va-msg-text-enter-active, .va-msg-text-leave-active { transition: opacity var(--va-dur-2, 200ms) ease; }
+.va-msg-text-enter-from, .va-msg-text-leave-to { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-msg-text-enter-active, .va-msg-text-leave-active { transition: none; }
+}

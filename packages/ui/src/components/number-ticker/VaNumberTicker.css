@@ -1,0 +1,33 @@
+/* VaNumberTicker — 里程表式数字滚动 */
+.va-ticker {
+  display: inline-flex;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.va-ticker__col {
+  display: inline-block;
+  height: 1em;
+  overflow: hidden;
+}
+
+/* 数字列等宽（tabular-nums 下 1ch 即数字宽） */
+.va-ticker__col:not([data-static]) { min-width: 1ch; text-align: center; }
+
+.va-ticker__reel {
+  display: block;
+  transition-property: transform;
+  transition-timing-function: var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  will-change: transform;
+}
+
+.va-ticker__num,
+.va-ticker__char {
+  display: block;
+  height: 1em;
+  line-height: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-ticker__reel { transition: none; }
+}

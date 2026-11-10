@@ -1,0 +1,270 @@
+# Vuagent
+
+> Vue 生态第一个 Agent Ops 组件库：为 AI agent 产品的运行时操作界面（计划 / 审批 / 工具调用 / 上下文 / 收件箱）而生的 Vue 3 组件。
+> 每个组件 = 薄模板 + 独立样式 + 强类型 + composable 逻辑；零运行时依赖（peer 仅 vue ^3.5），亮暗双主题（跟随 [data-theme="dark"] / .dark），全部动效尊重 prefers-reduced-motion。
+
+## 安装与使用
+
+- npm：`npm i @vuagent/ui`，从 `@vuagent/ui` 导入组件，并引入 `@vuagent/ui/tokens.css`
+- shadcn-vue registry：注册 `"@vuagent": "<registry 地址>/{name}.json"` 后 `npx shadcn-vue add @vuagent/<name>`（文件落到 components/ui/<name>/）
+- 基础约定：Props 枚举对齐 affectUI（size: sm/md/lg，status: running/success/error）；时间统一毫秒；事件名 camelCase
+- 主题：覆盖 `:root` 上的 `--va-*` 设计令牌即可全库换肤；组件级覆盖用局部变量（如 --va-btn-ink）
+- llms-full.txt：全部组件的 props 明细表
+
+## Agent-Ops
+
+### Tool Call / Group
+
+agent 的一次工具调用：实时秒表、失败自动展开并给出重试；Group 自动汇总多张卡。
+
+组件：VaToolCallCard、VaToolCallGroup
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `name` | `string` | - | 工具名，等宽展示 |
+| `status` | `"running" | "success" | "error"` | - | 调用状态 |
+| `args / result` | `unknown` | - | 对象自动美化，JSON 字符串自动解析 |
+| `startedAt / duration` | `number` | - | 开始时间戳 / 最终耗时 ms |
+| `error` | `string` | - | 错误信息 + 重试按钮 |
+| `v-model:open` | `boolean` | false | 展开状态；失败会自动展开 |
+
+### Agent Plan
+
+执行计划：编辑态可重命名/排序/增删，运行态逐项计时打勾、失败可重试。
+
+组件：VaAgentPlan
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `steps` | `PlanStep[]` | - | 步骤（id/title/detail/status/startedAt/duration） |
+| `editable` | `boolean` | false | 审阅编辑模式 |
+| `@update:steps` | `-` | - | 编辑后的完整步骤数组 |
+| `@retry` | `-` | - | 点击失败步骤的重试 |
+
+### Approval Card
+
+审批门：风险徽章 + 命令预览 + 倒计时自动拒绝（悬停暂停）+ Enter/Esc 快捷键，决策后 morph 成结果行。
+
+组件：VaApprovalCard
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `title` | `string` | - | 请求文案 |
+| `risk` | `"low" | "medium" | "high"` | "medium" | 风险等级徽章 |
+| `preview` | `string` | - | 命令/代码预览 |
+| `countdown` | `number` | - | 秒数，到 0 自动拒绝 |
+| `@approve / @deny` | `-` | - | 决策回调（deny 带原因） |
+
+### Decision Inbox
+
+业务决策收件箱：每条两个答案，选完确认并折叠离开列表。
+
+组件：VaDecisionInbox
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `decisions` | `Decision[]` | - | id/title/detail/primary/secondary/collapsed |
+| `@decide` | `-` | - | 回调（决策与所选答案） |
+
+### Agent Inbox
+
+后台任务收件箱：过滤 tab 带计数、live 时钟、行展开看步骤与操作，排序变化平滑滑动。
+
+组件：VaAgentInbox
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `tasks` | `AgentTask[]` | - | queued/running/waiting/done/error |
+| `@open / @retry / @cancel` | `-` | - | 行内操作 |
+
+### Context Window
+
+上下文可视化：按 token 占比的格子场，悬停点亮、文件可移除、压缩对话时历史微光收缩。
+
+组件：VaContextWindow
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `parts` | `ContextPart[]` | - | id/label/tokens/kind(system|file|history|tools) |
+| `capacity` | `number` | - | 容量 tokens，如 128_000 |
+| `compacting` | `boolean` | false | 压缩动画进行中 |
+| `@remove / @compact` | `-` | - | 移除文件 / 请求压缩 |
+
+### Inline Diff
+
+AI 文案修改逐词接受/拒绝：CJK 逐字分词的零依赖 diff、撤销栈、全部决断后应用。
+
+组件：VaInlineDiff
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `original / revised` | `string` | - | 原文与修改稿 |
+| `@apply` | `-` | - | 全部决断后回调，携带合成文本 |
+
+### Memory Panel
+
+助手记忆面板：分类过滤、就地编辑、暂停/遗忘（带撤销托盘）、总开关。
+
+组件：VaMemoryPanel
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `memories` | `MemoryItem[]` | - | id/text/category/paused |
+| `v-model:enabled` | `boolean` | true | 记忆总开关 |
+| `@edit / @pause / @forget / @restore` | `-` | - | 数据操作回调 |
+
+
+## Chat
+
+### Thinking Loader
+
+思考态加载器：阶段轮播 + 微光标签；完成后转为对勾与用时。
+
+组件：VaThinkingLoader
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `phases` | `string[]` | ["思考中", …] | 轮播的阶段文案 |
+| `interval` | `number` | 1600 | 每阶段毫秒数 |
+| `done / doneLabel` | `boolean / string` | - | 完成态 |
+
+### Composer
+
+任务输入框：自动增高、Enter 发送（Shift+Enter 换行、中文输入法安全）、可插入模型选择等前缀。
+
+组件：VaComposer
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `v-model:text` | `string` | "" | 输入内容 |
+| `placeholder` | `string` | "给 agent 一个任务…" | 占位文案 |
+| `busy` | `boolean` | false | 运行中禁发 |
+| `@send` | `-` | - | 携带文本 |
+
+### Model Picker
+
+模型选择菜单：触发按钮 + 键盘可导航的下拉列表。
+
+组件：VaModelPicker
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `models` | `ModelItem[]` | 内置主流模型 | id/name/tag |
+| `v-model:selected` | `string` | - | 选中模型 id |
+
+### Stream Answer
+
+流式回答：按节奏逐字吐出 source，带流式光标，完成后 emit complete，支持重放。
+
+组件：VaStreamAnswer
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `source` | `string` | - | 完整回答文本 |
+| `autoPlay` | `boolean` | true | 挂载即播放 |
+| `interval` | `number` | 24 | 逐字间隔 ms |
+| `@complete` | `-` | - | 播放完成 |
+
+### Message Actions / Text
+
+AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输入）、版本切换；MessageText 提供版本交叉淡入。
+
+组件：VaMessageActions、VaMessageText
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `text` | `string` | - | 复制的内容 |
+| `versions` | `number` | - | 版本数，≥2 显示切换器 |
+| `v-model:version` | `number` | - | 当前版本下标 |
+| `@copy / @regenerate / @feedback` | `-` | - | 操作回调 |
+
+
+## 基础
+
+### Button
+
+语义按钮：四变体 × 三尺寸，加载态标签微光。
+
+组件：VaButton
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `variant` | `"primary" | "secondary" | "ghost" | "destructive"` | "primary" | 语义变体 |
+| `size` | `"sm" | "md" | "lg"` | "md" | 尺寸 |
+| `loading` | `boolean` | false | 加载态并阻止点击 |
+
+### Segmented Control
+
+分段控件：滑块指示器平滑滑动，完整键盘导航。
+
+组件：VaSegmentedControl
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `options` | `SegmentOption[]` | - | value/label/disabled |
+| `v-model` | `string` | - | 选中值 |
+| `fullWidth` | `boolean` | false | 等分撑满 |
+
+### Toaster
+
+全局通知：vaToaster.add() 任意位置发通知，宿主组件渲染堆叠，自动消失可手动关。
+
+组件：VaToaster
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `position` | `"bottom-right" | "top-center"` | "bottom-right" | 堆叠位置 |
+| `vaToaster.add()` | `-` | - | { title, description?, kind?, duration? } |
+
+### Skeleton / Shimmer Text
+
+骨架屏与微光文字：共享一道柔和扫光。
+
+组件：VaSkeleton、VaShimmerText
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `width / height / radius` | `number | string` | - | 尺寸与圆角 |
+| `circle` | `boolean` | false | 圆形（头像） |
+
+### Number Ticker
+
+里程表数字滚动：进视口从零数起，数值变化每一位独立滚动。
+
+组件：VaNumberTicker
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `value` | `number` | - | 目标数字 |
+| `format` | `Intl.NumberFormatOptions` | - | 如货币/千分位 |
+| `duration / delay` | `number` | 900 / 0 | 滚动时长与延迟 |
+
+
+## 动效
+
+### Text Reveal
+
+文本入场：逐词/逐字从轻微模糊与位移中浮现，滚动进视口触发。
+
+组件：VaTextReveal
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `text` | `string` | - | 文本内容 |
+| `by` | `"word" | "char"` | "word" | 切分粒度 |
+| `stagger / duration` | `number` | 40 / 600 | 间隔与单段时长 ms |
+| `as` | `"span" | "p" | "h1"…"h3"` | "span" | 渲染标签 |
+
+### Grid Background
+
+缓慢漂移的细网格背景，边缘渐隐，可作 Hero 底纹；内容放默认插槽。
+
+组件：VaGridBackground
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `size` | `number` | 44 | 格子边长 px |
+| `speed` | `number` | 2.4 | 每格漂移秒数，0 静止 |
+| `direction` | `"diagonal" | "up" | "down" | "left" | "right"` | "diagonal" | 漂移方向 |
+| `fade` | `number` | 70 | 边缘渐隐强度 % |
+

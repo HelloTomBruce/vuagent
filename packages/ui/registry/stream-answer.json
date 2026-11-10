@@ -1,0 +1,30 @@
+{
+  "$schema": "https://shadcn-vue.com/schema/registry-item.json",
+  "name": "stream-answer",
+  "title": "Stream Answer",
+  "description": "流式回答：按节奏逐字吐出 source，带流式光标，完成后 emit complete，支持重放。",
+  "type": "registry:ui",
+  "dependencies": [],
+  "registryDependencies": [],
+  "docs": "- `source` (string，默认 -)：完整回答文本\n- `autoPlay` (boolean，默认 true)：挂载即播放\n- `interval` (number，默认 24)：逐字间隔 ms\n- `@complete` (-，默认 -)：播放完成",
+  "files": [
+    {
+      "path": "components/ui/stream-answer/VaStreamAnswer.vue",
+      "type": "registry:ui",
+      "target": "components/ui/stream-answer/VaStreamAnswer.vue",
+      "content": "<script setup lang=\"ts\">\nimport type { StreamAnswerProps } from \"./types\";\nimport { useStreamAnswer } from \"./useStreamAnswer\";\n\nconst props = withDefaults(defineProps<StreamAnswerProps>(), {\n  autoPlay: true,\n  interval: 24,\n  chunk: 2,\n});\n\nconst emit = defineEmits<{ complete: [] }>();\n\nconst { text, done, playing, replay } = useStreamAnswer(props, {\n  complete: () => emit(\"complete\"),\n});\n\ndefineExpose({ replay });\n</script>\n\n<template>\n  <div class=\"va-stream\" :data-streaming=\"playing || undefined\">\n    <span class=\"va-stream__text\">{{ text }}</span><span v-if=\"playing\" class=\"va-stream__caret\" aria-hidden=\"true\" />\n  </div>\n</template>\n\n<style>\n/* VaStreamAnswer — 流式回答 */\n.va-stream {\n  font-family: var(--va-font, system-ui, sans-serif);\n  font-size: 14px;\n  line-height: 1.8;\n  color: var(--va-ink, #1a1917);\n  white-space: pre-wrap;\n  word-break: break-word;\n}\n\n.va-stream__caret {\n  display: inline-block;\n  width: 2px;\n  height: 1em;\n  margin-left: 2px;\n  vertical-align: -0.15em;\n  background: var(--va-accent, #c2410c);\n  animation: va-stream-caret 0.9s steps(1) infinite;\n}\n@keyframes va-stream-caret {\n  50% { opacity: 0; }\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .va-stream__caret { animation: none; opacity: 1; }\n}\n</style>\n"
+    },
+    {
+      "path": "components/ui/stream-answer/types.ts",
+      "type": "registry:ui",
+      "target": "components/ui/stream-answer/types.ts",
+      "content": "/** VaStreamAnswer 的类型定义 */\n\nexport interface StreamAnswerProps {\n  /** 完整回答文本（按节奏逐字吐出） */\n  source: string;\n  /** 挂载即播放 */\n  autoPlay?: boolean;\n  /** 逐字间隔 ms */\n  interval?: number;\n  /** 每次吐出的字符数 */\n  chunk?: number;\n}\n"
+    },
+    {
+      "path": "components/ui/stream-answer/useStreamAnswer.ts",
+      "type": "registry:ui",
+      "target": "components/ui/stream-answer/useStreamAnswer.ts",
+      "content": "import { computed, onBeforeUnmount, ref, watch } from \"vue\";\nimport type { StreamAnswerProps } from \"./types\";\n\n/** VaStreamAnswer 的状态逻辑：逐字播放 / 光标 / 完成回调 / 重放 */\nexport function useStreamAnswer(\n  props: StreamAnswerProps,\n  emit: { complete: () => void },\n) {\n  const shown = ref(0);\n  const playing = ref(false);\n  let timer: number | undefined;\n\n  const text = computed(() => props.source.slice(0, shown.value));\n  const done = computed(() => shown.value >= props.source.length);\n\n  function stop() {\n    if (timer !== undefined) {\n      window.clearInterval(timer);\n      timer = undefined;\n    }\n    playing.value = false;\n  }\n\n  function play() {\n    stop();\n    if (typeof window === \"undefined\") return;\n    if (window.matchMedia?.(\"(prefers-reduced-motion: reduce)\").matches) {\n      shown.value = props.source.length;\n      return;\n    }\n    playing.value = true;\n    timer = window.setInterval(() => {\n      shown.value = Math.min(props.source.length, shown.value + Math.max(1, props.chunk ?? 2));\n      if (shown.value >= props.source.length) {\n        stop();\n        emit.complete();\n      }\n    }, Math.max(8, props.interval ?? 24));\n  }\n\n  function replay() {\n    shown.value = 0;\n    play();\n  }\n\n  watch(\n    () => props.source,\n    () => {\n      // source 替换（如重新生成）→ 从头播放\n      shown.value = 0;\n      if (props.autoPlay) play();\n    },\n  );\n\n  if (props.autoPlay) play();\n  else shown.value = props.source.length;\n\n  onBeforeUnmount(stop);\n\n  return { text, done, playing, replay, stop };\n}\n"
+    }
+  ]
+}

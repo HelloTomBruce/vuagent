@@ -1,0 +1,85 @@
+/* ============================================================
+   Vuagent design tokens — Calm palette
+   亮色为 :root 默认；暗色用 [data-theme="dark"] 或 .dark 双选择器。
+   宿主应用负责切换属性；"跟随系统"由宿主监听 prefers-color-scheme 实现。
+   ============================================================ */
+
+:root {
+  /* 色彩 · 亮色（暖纸底 + 墨色） */
+  --va-bg: #f7f6f2;
+  --va-bg-subtle: #efede7;
+  --va-card: #ffffff;
+  --va-ink: #1a1917;
+  --va-ink-2: #43413c;
+  --va-muted: #6f6d66;
+  --va-edge: rgba(26, 25, 23, 0.12);
+  --va-edge-strong: rgba(26, 25, 23, 0.22);
+  --va-accent: #c2410c;
+  --va-accent-hover: #9a3412;
+  --va-accent-soft: rgba(194, 65, 12, 0.1);
+  --va-success: #1a7f4b;
+  --va-warning: #b45309;
+  --va-danger: #d5453c;
+  --va-info: #2563eb;
+
+  /* 圆角 */
+  --va-radius-s: 8px;
+  --va-radius-m: 10px;
+  --va-radius-l: 16px;
+  --va-radius-pill: 999px;
+
+  /* 间距（4px 栅格） */
+  --va-s1: 2px;
+  --va-s2: 4px;
+  --va-s3: 8px;
+  --va-s4: 12px;
+  --va-s5: 16px;
+  --va-s6: 24px;
+  --va-s7: 32px;
+
+  /* 阴影 */
+  --va-shadow-1: 0 1px 2px rgba(26, 25, 23, 0.06);
+  --va-shadow-2: 0 4px 12px rgba(26, 25, 23, 0.08);
+  --va-shadow-3: 0 12px 32px rgba(26, 25, 23, 0.12);
+
+  /* 动效 */
+  --va-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --va-dur-1: 120ms;
+  --va-dur-2: 200ms;
+  --va-dur-3: 300ms;
+
+  /* 字体 */
+  --va-font:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Helvetica Neue", sans-serif;
+  --va-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ---------- 暗色（暖黑） ---------- */
+
+[data-theme="dark"],
+.dark {
+  --va-bg: #141311;
+  --va-bg-subtle: #1b1917;
+  --va-card: #1e1c1a;
+  --va-ink: #f0eee9;
+  --va-ink-2: #c9c6bf;
+  --va-muted: #98948b;
+  --va-edge: rgba(240, 238, 233, 0.14);
+  --va-edge-strong: rgba(240, 238, 233, 0.26);
+  --va-accent: #e8925e;
+  --va-accent-hover: #f0a87d;
+  --va-accent-soft: rgba(232, 146, 94, 0.14);
+  --va-success: #4cc38a;
+  --va-warning: #e5a53a;
+  --va-danger: #f07168;
+  --va-info: #7ab0f5;
+
+  --va-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --va-shadow-2: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --va-shadow-3: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+  /* 暗色专属：骨架屏用白色叠加，与深色卡片可辨 */
+  --va-skel-bg: rgba(255, 255, 255, 0.09);
+  --va-skel-hl: rgba(255, 255, 255, 0.22);
+}

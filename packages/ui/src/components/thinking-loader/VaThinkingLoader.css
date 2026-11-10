@@ -1,0 +1,61 @@
+/* VaThinkingLoader — 思考态加载胶囊 */
+.va-think {
+  --_accent: var(--va-think-accent, var(--va-accent, #c2410c));
+  --_muted: var(--va-think-muted, var(--va-muted, #6f6d66));
+  --_success: var(--va-think-success, var(--va-success, #1a7f4b));
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--va-s3, 8px);
+  padding: 5px 12px;
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-pill, 999px);
+  background: var(--va-card, #fff);
+  font-family: var(--va-font, system-ui, sans-serif);
+}
+.va-think--sm { padding: 3px 10px; }
+.va-think--sm .va-think__label { font-size: 12px; }
+
+.va-think__icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--_accent);
+}
+.va-think--done .va-think__icon { color: var(--_success); }
+.va-think__icon svg { width: 14px; height: 14px; }
+
+.va-think__spin {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--_accent) 25%, transparent);
+  border-top-color: var(--_accent);
+  animation: va-think-spin 0.9s linear infinite;
+}
+@keyframes va-think-spin { to { transform: rotate(360deg); } }
+
+.va-think__label { font-size: 13px; color: var(--va-ink-2, #43413c); white-space: nowrap; }
+.va-think--done .va-think__label { color: var(--_success); font-weight: 600; }
+
+.va-think__label[data-shine] {
+  background: linear-gradient(100deg, var(--_muted) 40%, var(--va-ink, #1a1917) 50%, var(--_muted) 60%);
+  background-size: 200% 100%;
+  background-position: 200% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: va-think-shine 1.5s linear infinite;
+}
+@keyframes va-think-shine {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-think__spin { animation-duration: 2s; }
+  .va-think__label[data-shine] { animation: none; color: var(--_muted); background: none; }
+}

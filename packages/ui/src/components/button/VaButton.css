@@ -1,0 +1,105 @@
+/* VaButton — 四变体 × 三尺寸 + 加载微光 */
+.va-btn {
+  /* 局部覆盖变量（全部带 fallback，单文件拷走可用） */
+  --_ink: var(--va-btn-ink, var(--va-ink, #1a1917));
+  --_card: var(--va-btn-card, var(--va-card, #ffffff));
+  --_edge: var(--va-btn-edge, var(--va-edge, rgba(26, 25, 23, 0.12)));
+  --_danger: var(--va-btn-danger, var(--va-danger, #d5453c));
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--va-s3, 8px);
+  border: 1px solid transparent;
+  border-radius: var(--va-radius-m, 10px);
+  font-family: var(--va-font, system-ui, sans-serif);
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background var(--va-dur-2, 200ms) var(--va-ease, ease),
+    border-color var(--va-dur-2, 200ms) var(--va-ease, ease),
+    color var(--va-dur-2, 200ms) var(--va-ease, ease),
+    box-shadow var(--va-dur-2, 200ms) var(--va-ease, ease),
+    transform var(--va-dur-1, 120ms) var(--va-ease, ease);
+}
+
+/* 尺寸 */
+.va-btn--sm { height: 30px; padding: 0 var(--va-s4, 12px); font-size: 13px; }
+.va-btn--md { height: 36px; padding: 0 var(--va-s5, 16px); font-size: 14px; }
+.va-btn--lg { height: 44px; padding: 0 var(--va-s6, 24px); font-size: 15px; }
+
+/* 变体 */
+.va-btn--primary {
+  background: var(--_ink);
+  color: var(--_card);
+  box-shadow: var(--va-shadow-1, none);
+}
+.va-btn--primary:hover:not(:disabled) { opacity: 0.88; }
+
+.va-btn--secondary {
+  background: var(--_card);
+  border-color: var(--_edge);
+  color: var(--va-ink, #1a1917);
+  box-shadow: var(--va-shadow-1, none);
+}
+.va-btn--secondary:hover:not(:disabled) { border-color: var(--va-edge-strong, rgba(26, 25, 23, 0.22)); }
+
+.va-btn--ghost {
+  background: transparent;
+  color: var(--va-ink-2, #43413c);
+}
+.va-btn--ghost:hover:not(:disabled) { background: var(--va-bg-subtle, #efede7); color: var(--va-ink, #1a1917); }
+
+.va-btn--destructive {
+  background: var(--_danger);
+  color: #fff;
+}
+.va-btn--destructive:hover:not(:disabled) { opacity: 0.9; }
+
+/* 交互 */
+.va-btn:focus-visible {
+  outline: 2px solid var(--va-accent, #c2410c);
+  outline-offset: 2px;
+}
+.va-btn:active:not(:disabled) { transform: translateY(0.5px) scale(0.985); }
+
+.va-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.va-btn--block { display: flex; width: 100%; }
+
+/* 图标 */
+.va-btn__icon { display: inline-flex; align-items: center; }
+.va-btn__icon svg { width: 1em; height: 1em; }
+
+/* 加载态：左侧小转圈 + 标签降透明（任何变体/主题下都可见） */
+.va-btn--loading { cursor: progress; position: relative; padding-left: calc(var(--va-s5, 16px) + 2px); }
+.va-btn--loading::before {
+  content: "";
+  position: absolute;
+  left: var(--va-s3, 8px);
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-top-color: currentColor;
+  animation: va-btn-spin 0.9s linear infinite;
+}
+.va-btn--loading .va-btn__label { opacity: 0.6; }
+
+@keyframes va-btn-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-btn { transition: none; }
+  .va-btn:active:not(:disabled) { transform: none; }
+  .va-btn--loading::before { animation-duration: 2s; }
+}

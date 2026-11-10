@@ -1,0 +1,30 @@
+{
+  "$schema": "https://shadcn-vue.com/schema/registry-item.json",
+  "name": "number-ticker",
+  "title": "Number Ticker",
+  "description": "里程表数字滚动：进视口从零数起，数值变化每一位独立滚动。",
+  "type": "registry:ui",
+  "dependencies": [],
+  "registryDependencies": [],
+  "docs": "- `value` (number，默认 -)：目标数字\n- `format` (Intl.NumberFormatOptions，默认 -)：如货币/千分位\n- `duration / delay` (number，默认 900 / 0)：滚动时长与延迟",
+  "files": [
+    {
+      "path": "components/ui/number-ticker/VaNumberTicker.vue",
+      "type": "registry:ui",
+      "target": "components/ui/number-ticker/VaNumberTicker.vue",
+      "content": "<script setup lang=\"ts\">\nimport { useTemplateRef } from \"vue\";\nimport type { NumberTickerProps } from \"./types\";\nimport { useNumberTicker } from \"./useNumberTicker\";\n\nconst props = withDefaults(defineProps<NumberTickerProps>(), { duration: 900, delay: 0 });\n\nconst root = useTemplateRef<HTMLElement>(\"root\");\nconst { rolled, parts, formatted } = useNumberTicker(props, root);\n</script>\n\n<template>\n  <span ref=\"root\" class=\"va-ticker\" role=\"img\" :aria-label=\"formatted\">\n    <span\n      v-for=\"p in parts\"\n      :key=\"p.key\"\n      class=\"va-ticker__col\"\n      :data-static=\"p.digit === undefined || undefined\"\n    >\n      <span\n        v-if=\"p.digit !== undefined\"\n        class=\"va-ticker__reel\"\n        :style=\"{\n          transform: rolled ? `translateY(${(-p.digit / 11) * 100}%)` : 'translateY(0)',\n          transitionDuration: `${duration}ms`,\n        }\"\n      >\n        <span v-for=\"n in 11\" :key=\"n\" class=\"va-ticker__num\">{{ (n - 1) % 10 }}</span>\n      </span>\n      <span v-else class=\"va-ticker__char\">{{ p.char }}</span>\n    </span>\n  </span>\n</template>\n\n<style>\n/* VaNumberTicker — 里程表式数字滚动 */\n.va-ticker {\n  display: inline-flex;\n  line-height: 1.1;\n  font-variant-numeric: tabular-nums;\n}\n\n.va-ticker__col {\n  display: inline-block;\n  height: 1em;\n  overflow: hidden;\n}\n\n/* 数字列等宽（tabular-nums 下 1ch 即数字宽） */\n.va-ticker__col:not([data-static]) { min-width: 1ch; text-align: center; }\n\n.va-ticker__reel {\n  display: block;\n  transition-property: transform;\n  transition-timing-function: var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));\n  will-change: transform;\n}\n\n.va-ticker__num,\n.va-ticker__char {\n  display: block;\n  height: 1em;\n  line-height: 1;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .va-ticker__reel { transition: none; }\n}\n</style>\n"
+    },
+    {
+      "path": "components/ui/number-ticker/types.ts",
+      "type": "registry:ui",
+      "target": "components/ui/number-ticker/types.ts",
+      "content": "/** VaNumberTicker 的类型定义 */\n\nexport interface NumberTickerProps {\n  /** 要展示的数字 */\n  value: number;\n  /** Intl.NumberFormat 选项，如 { style: \"currency\", currency: \"USD\" } */\n  format?: Intl.NumberFormatOptions;\n  /** 地区，如 \"en-US\"；默认跟随浏览器 */\n  locale?: string;\n  /** 一次滚动的毫秒数 */\n  duration?: number;\n  /** 首次进入视口后的等待毫秒数 */\n  delay?: number;\n}\n\n/** 数字滚筒的单列 */\nexport interface TickerPart {\n  key: string;\n  digit?: number;\n  char?: string;\n}\n"
+    },
+    {
+      "path": "components/ui/number-ticker/useNumberTicker.ts",
+      "type": "registry:ui",
+      "target": "components/ui/number-ticker/useNumberTicker.ts",
+      "content": "import { computed, onBeforeUnmount, onMounted, ref, type Ref } from \"vue\";\nimport type { NumberTickerProps, TickerPart } from \"./types\";\n\n/**\n * VaNumberTicker 的状态逻辑：\n * 进视口时 rolled=false→true（数字从 0 滚到目标），value 变化时各位独立滚动；\n * reduced-motion / 无 IntersectionObserver 时直接静态显示。\n * root 由 SFC 通过 useTemplateRef 创建后传入。\n */\nexport function useNumberTicker(props: NumberTickerProps, root: Ref<HTMLElement | null>) {\n  const rolled = ref(false);\n  let io: IntersectionObserver | null = null;\n  let timer: number | undefined;\n\n  const nf = computed(() => new Intl.NumberFormat(props.locale ?? undefined, props.format));\n  const formatted = computed(() => nf.value.format(props.value));\n\n  /** \"48,240\" → 从右往左拆列：数字列带 key（保持数位身份），其余为静态字符列 */\n  const parts = computed<TickerPart[]>(() => {\n    const out: TickerPart[] = [];\n    let d = 0;\n    let s = 0;\n    for (let i = formatted.value.length - 1; i >= 0; i--) {\n      const c = formatted.value[i]!;\n      if (c >= \"0\" && c <= \"9\") out.unshift({ key: `d${d++}`, digit: c.charCodeAt(0) - 48 });\n      else out.unshift({ key: `s${s++}`, char: c });\n    }\n    return out;\n  });\n\n  function roll() {\n    if (rolled.value) return;\n    timer = window.setTimeout(() => (rolled.value = true), props.delay);\n  }\n\n  onMounted(() => {\n    if (window.matchMedia?.(\"(prefers-reduced-motion: reduce)\").matches) {\n      rolled.value = true;\n      return;\n    }\n    if (typeof IntersectionObserver === \"undefined\") {\n      roll();\n      return;\n    }\n    io = new IntersectionObserver(\n      (entries) => {\n        if (entries.some((e) => e.isIntersecting)) {\n          roll();\n          io?.disconnect();\n          io = null;\n        }\n      },\n      { threshold: 0.3 },\n    );\n    io.observe(root.value!);\n  });\n\n  onBeforeUnmount(() => {\n    io?.disconnect();\n    if (timer !== undefined) window.clearTimeout(timer);\n  });\n\n  return { rolled, parts, formatted };\n}\n"
+    }
+  ]
+}

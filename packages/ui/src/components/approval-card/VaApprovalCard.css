@@ -1,0 +1,119 @@
+/* VaApprovalCard — agent 的审批门 */
+.va-acd {
+  --_card: var(--va-acd-card, var(--va-card, #ffffff));
+  --_edge: var(--va-acd-edge, var(--va-edge, rgba(26, 25, 23, 0.12)));
+  --_ink: var(--va-acd-ink, var(--va-ink, #1a1917));
+  --_muted: var(--va-acd-muted, var(--va-muted, #6f6d66));
+  --_danger: var(--va-acd-danger, var(--va-danger, #d5453c));
+  --_risk: var(--va-warning, #b45309);
+
+  position: relative;
+  background: var(--_card);
+  border: 1px solid var(--_edge);
+  border-radius: var(--va-radius-m, 10px);
+  overflow: hidden;
+  font-family: var(--va-font, system-ui, sans-serif);
+  transition: border-color var(--va-dur-2, 200ms) ease;
+}
+.va-acd--high { --_risk: var(--_danger); }
+.va-acd--low { --_risk: var(--va-success, #1a7f4b); }
+.va-acd:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: 2px; }
+
+.va-acd__count {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: color-mix(in srgb, var(--_risk) 15%, transparent);
+}
+.va-acd__count-fill {
+  display: block;
+  height: 100%;
+  margin-left: auto; /* 剩余时间从右向左消退，更符合直觉 */
+  background: var(--_risk);
+  border-radius: var(--va-radius-pill, 999px) 0 0 var(--va-radius-pill, 999px);
+  transition: width 0.1s linear;
+}
+
+.va-acd__main { padding: var(--va-s4, 12px); }
+
+.va-acd__head { display: flex; align-items: center; gap: var(--va-s3, 8px); }
+.va-acd__risk {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--_risk);
+  background: color-mix(in srgb, var(--_risk) 12%, transparent);
+  border-radius: var(--va-radius-pill, 999px);
+  padding: 2px 8px;
+}
+.va-acd__title { margin: 0; font-size: 13.5px; font-weight: 650; color: var(--_ink); }
+.va-acd__detail { margin: var(--va-s2, 4px) 0 0; font-size: 12.5px; color: var(--_muted); }
+
+.va-acd__preview {
+  margin: var(--va-s3, 8px) 0 0;
+  padding: var(--va-s3, 8px) var(--va-s4, 12px);
+  background: var(--va-bg-subtle, #efede7);
+  border-radius: var(--va-radius-s, 8px);
+  font-family: var(--va-font-mono, monospace);
+  font-size: 12px;
+  color: var(--va-ink-2, #43413c);
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.va-acd__actions { display: flex; align-items: center; gap: var(--va-s2, 4px); margin-top: var(--va-s4, 12px); }
+.va-acd__btn {
+  height: 30px;
+  padding: 0 var(--va-s5, 16px);
+  border-radius: var(--va-radius-m, 10px);
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform var(--va-dur-1, 120ms) ease, opacity var(--va-dur-1, 120ms) ease;
+}
+.va-acd__btn:active { transform: scale(0.97); }
+.va-acd__btn:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: 1px; }
+.va-acd__btn--deny { background: none; border: 1px solid var(--_edge); color: var(--_ink); }
+.va-acd__btn--deny:hover { border-color: var(--va-edge-strong, rgba(26, 25, 23, 0.22)); }
+.va-acd__btn--confirm { background: var(--_ink); border: 1px solid var(--_ink); color: var(--va-card, #fff); }
+.va-acd__btn--confirm:hover { opacity: 0.88; }
+
+.va-acd__kbd-hint { margin-left: auto; font-size: 11px; color: var(--_muted); }
+.va-acd__kbd-hint kbd {
+  font-family: var(--va-font-mono, monospace);
+  font-size: 10.5px;
+  border: 1px solid var(--_edge);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 4px;
+  background: var(--_card);
+}
+
+/* 决策后的结果行 */
+.va-acd__done {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s2, 4px);
+  padding: var(--va-s3, 8px) var(--va-s4, 12px);
+  font-size: 12.5px;
+  animation: va-acd-in var(--va-dur-2, 200ms) var(--va-ease, ease);
+}
+.va-acd--approved .va-acd__done { color: var(--va-success, #1a7f4b); }
+.va-acd--denied .va-acd__done { color: var(--_danger); }
+.va-acd__done svg { width: 14px; height: 14px; flex: none; }
+.va-acd__done-detail { color: var(--_muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@keyframes va-acd-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-acd__done { animation: none; }
+  .va-acd__btn:active { transform: none; }
+}

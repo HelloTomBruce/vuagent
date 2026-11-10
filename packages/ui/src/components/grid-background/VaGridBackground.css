@@ -1,0 +1,26 @@
+/* VaGridBackground — 缓慢漂移的网格底纹 */
+.va-grid { position: relative; overflow: hidden; }
+
+.va-grid__lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.va-grid[data-moving] .va-grid__lines {
+  animation-name: va-grid-drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* drift 距离与周期由 useGridBackground 以 CSS 变量注入 */
+@keyframes va-grid-drift {
+  from { background-position: var(--va-grid-from, 0 0); }
+  to { background-position: var(--va-grid-to, 0 0); }
+}
+
+.va-grid__content { position: relative; }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-grid[data-moving] .va-grid__lines { animation: none; }
+}

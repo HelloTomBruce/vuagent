@@ -1,0 +1,83 @@
+/* VaToolCallGroup — 多张工具卡的汇总折叠组 */
+.va-tclg {
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-m, 10px);
+  overflow: hidden;
+  font-family: var(--va-font, system-ui, sans-serif);
+}
+.va-tclg[data-running] { border-color: color-mix(in srgb, var(--va-accent, #c2410c) 40%, transparent); }
+
+.va-tclg__head {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s3, 8px);
+  width: 100%;
+  padding: var(--va-s3, 8px) var(--va-s4, 12px);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+.va-tclg__head:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; }
+
+.va-tclg__stack { display: inline-flex; }
+.va-tclg__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--va-radius-s, 8px);
+  background: var(--va-bg-subtle, #efede7);
+  color: var(--va-ink-2, #43413c);
+  border: 1.5px solid var(--va-card, #fff);
+  margin-left: -6px;
+}
+.va-tclg__icon:first-child { margin-left: 0; }
+.va-tclg__icon svg { width: 12px; height: 12px; }
+
+.va-tclg__title { flex: 1; min-width: 0; text-align: left; }
+.va-tclg__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--va-ink, #1a1917);
+}
+.va-tclg__label[data-shine] {
+  background: linear-gradient(100deg, var(--va-muted, #6f6d66) 40%, var(--va-accent, #c2410c) 50%, var(--va-muted, #6f6d66) 60%);
+  background-size: 200% 100%;
+  background-position: 200% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: va-tclg-shine 1.6s linear infinite;
+}
+@keyframes va-tclg-shine {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+.va-tclg__chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--va-muted, #6f6d66);
+  flex: none;
+  transition: transform var(--va-dur-2, 200ms) var(--va-ease, ease);
+}
+.va-tclg--open .va-tclg__chevron { transform: rotate(90deg); }
+
+.va-tclg__body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--va-dur-3, 300ms) var(--va-ease, ease);
+}
+.va-tclg--open .va-tclg__body { grid-template-rows: 1fr; }
+.va-tclg__inner { overflow: hidden; min-height: 0; }
+.va-tclg__inner > :only-child { margin: 0 var(--va-s3, 8px) var(--va-s3, 8px); }
+.va-tclg__inner .va-tcl { margin-bottom: var(--va-s2, 4px); }
+.va-tclg__inner .va-tcl:last-child { margin-bottom: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-tclg__body, .va-tclg__chevron { transition: none; }
+  .va-tclg__label[data-shine] { animation: none; color: var(--va-accent, #c2410c); background: none; }
+}

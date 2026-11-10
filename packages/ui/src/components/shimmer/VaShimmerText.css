@@ -1,0 +1,30 @@
+/* VaShimmerText — 表达"正在思考…"的微光文字 */
+.va-shimmer-text {
+  display: inline-block;
+  background: linear-gradient(
+    100deg,
+    var(--va-muted, #6f6d66) 40%,
+    var(--va-ink, #1a1917) 50%,
+    var(--va-muted, #6f6d66) 60%
+  );
+  background-size: 200% 100%;
+  background-position: 200% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: va-shimmer-text 2s linear infinite;
+}
+
+@keyframes va-shimmer-text {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-shimmer-text {
+    animation: none;
+    background: none;
+    color: var(--va-muted, #6f6d66);
+    -webkit-text-fill-color: currentColor;
+  }
+}

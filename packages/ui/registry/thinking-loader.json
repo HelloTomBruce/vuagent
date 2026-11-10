@@ -1,0 +1,30 @@
+{
+  "$schema": "https://shadcn-vue.com/schema/registry-item.json",
+  "name": "thinking-loader",
+  "title": "Thinking Loader",
+  "description": "思考态加载器：阶段轮播 + 微光标签；完成后转为对勾与用时。",
+  "type": "registry:ui",
+  "dependencies": [],
+  "registryDependencies": [],
+  "docs": "- `phases` (string[]，默认 [\"思考中\", …])：轮播的阶段文案\n- `interval` (number，默认 1600)：每阶段毫秒数\n- `done / doneLabel` (boolean / string，默认 -)：完成态",
+  "files": [
+    {
+      "path": "components/ui/thinking-loader/VaThinkingLoader.vue",
+      "type": "registry:ui",
+      "target": "components/ui/thinking-loader/VaThinkingLoader.vue",
+      "content": "<script setup lang=\"ts\">\nimport type { ThinkingLoaderProps } from \"./types\";\nimport { useThinkingLoader } from \"./useThinkingLoader\";\n\nconst props = withDefaults(defineProps<ThinkingLoaderProps>(), {\n  phases: undefined,\n  interval: 1600,\n  done: false,\n  doneLabel: \"已完成\",\n  loop: false,\n  size: \"md\",\n});\n\nconst { current } = useThinkingLoader(props);\n</script>\n\n<template>\n  <div class=\"va-think\" :class=\"[`va-think--${props.size}`, { 'va-think--done': props.done }]\" role=\"status\">\n    <span class=\"va-think__icon\" aria-hidden=\"true\">\n      <svg v-if=\"props.done\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\">\n        <path d=\"M5.5 12.5l4 4L18.5 8\" />\n      </svg>\n      <span v-else class=\"va-think__spin\" />\n    </span>\n    <span class=\"va-think__label\" :data-shine=\"!props.done || undefined\">\n      {{ props.done ? props.doneLabel : current }}\n    </span>\n  </div>\n</template>\n\n<style>\n/* VaThinkingLoader — 思考态加载胶囊 */\n.va-think {\n  --_accent: var(--va-think-accent, var(--va-accent, #c2410c));\n  --_muted: var(--va-think-muted, var(--va-muted, #6f6d66));\n  --_success: var(--va-think-success, var(--va-success, #1a7f4b));\n\n  display: inline-flex;\n  align-items: center;\n  gap: var(--va-s3, 8px);\n  padding: 5px 12px;\n  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));\n  border-radius: var(--va-radius-pill, 999px);\n  background: var(--va-card, #fff);\n  font-family: var(--va-font, system-ui, sans-serif);\n}\n.va-think--sm { padding: 3px 10px; }\n.va-think--sm .va-think__label { font-size: 12px; }\n\n.va-think__icon {\n  flex: none;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 14px;\n  height: 14px;\n  color: var(--_accent);\n}\n.va-think--done .va-think__icon { color: var(--_success); }\n.va-think__icon svg { width: 14px; height: 14px; }\n\n.va-think__spin {\n  width: 12px;\n  height: 12px;\n  border-radius: 50%;\n  border: 2px solid color-mix(in srgb, var(--_accent) 25%, transparent);\n  border-top-color: var(--_accent);\n  animation: va-think-spin 0.9s linear infinite;\n}\n@keyframes va-think-spin { to { transform: rotate(360deg); } }\n\n.va-think__label { font-size: 13px; color: var(--va-ink-2, #43413c); white-space: nowrap; }\n.va-think--done .va-think__label { color: var(--_success); font-weight: 600; }\n\n.va-think__label[data-shine] {\n  background: linear-gradient(100deg, var(--_muted) 40%, var(--va-ink, #1a1917) 50%, var(--_muted) 60%);\n  background-size: 200% 100%;\n  background-position: 200% 0;\n  -webkit-background-clip: text;\n  background-clip: text;\n  color: transparent;\n  animation: va-think-shine 1.5s linear infinite;\n}\n@keyframes va-think-shine {\n  from { background-position: 200% 0; }\n  to { background-position: -200% 0; }\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .va-think__spin { animation-duration: 2s; }\n  .va-think__label[data-shine] { animation: none; color: var(--_muted); background: none; }\n}\n</style>\n"
+    },
+    {
+      "path": "components/ui/thinking-loader/types.ts",
+      "type": "registry:ui",
+      "target": "components/ui/thinking-loader/types.ts",
+      "content": "/** VaThinkingLoader 的类型定义 */\n\nexport interface ThinkingLoaderProps {\n  /** 轮播的阶段文案 */\n  phases?: string[];\n  /** 每阶段毫秒数 */\n  interval?: number;\n  /** 完成态：spinner 转为对勾 */\n  done?: boolean;\n  /** 完成后的文案 */\n  doneLabel?: string;\n  /** 走完一轮后从头再来 */\n  loop?: boolean;\n  size?: \"sm\" | \"md\";\n}\n"
+    },
+    {
+      "path": "components/ui/thinking-loader/useThinkingLoader.ts",
+      "type": "registry:ui",
+      "target": "components/ui/thinking-loader/useThinkingLoader.ts",
+      "content": "import { computed, onBeforeUnmount, ref, watch } from \"vue\";\nimport type { ThinkingLoaderProps } from \"./types\";\n\nconst DEFAULT_PHASES = [\"思考中\", \"检索资料\", \"整理要点\", \"撰写回答\"];\n\n/** VaThinkingLoader 的状态逻辑：阶段轮播 + 完成态 */\nexport function useThinkingLoader(props: ThinkingLoaderProps) {\n  const phases = computed(() => (props.phases?.length ? props.phases : DEFAULT_PHASES));\n  const step = ref(0);\n  let timer: number | undefined;\n\n  function stop() {\n    if (timer !== undefined) {\n      window.clearInterval(timer);\n      timer = undefined;\n    }\n  }\n  function start() {\n    stop();\n    if (typeof window === \"undefined\") return;\n    timer = window.setInterval(() => {\n      const last = phases.value.length - 1;\n      if (step.value >= last) {\n        if (props.loop) step.value = 0;\n        else stop();\n      } else {\n        step.value++;\n      }\n    }, Math.max(200, props.interval ?? 1600));\n  }\n\n  watch(\n    () => [props.done, phases.value] as const,\n    () => {\n      stop();\n      if (!props.done) {\n        step.value = 0;\n        start();\n      }\n    },\n    { immediate: true },\n  );\n  onBeforeUnmount(stop);\n\n  // reduced-motion / 无 JS 环境（SSR）直接停在第一阶段文案\n  const current = computed(() => phases.value[Math.min(step.value, phases.value.length - 1)] ?? \"\");\n\n  return { current, stop };\n}\n"
+    }
+  ]
+}

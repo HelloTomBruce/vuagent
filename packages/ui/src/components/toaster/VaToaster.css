@@ -1,0 +1,73 @@
+/* VaToaster — 全局通知堆叠 */
+.va-toast {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s2, 4px);
+  pointer-events: none;
+}
+.va-toast--bottom-right { right: var(--va-s5, 16px); bottom: var(--va-s5, 16px); }
+.va-toast--top-center { top: var(--va-s5, 16px); left: 50%; transform: translateX(-50%); align-items: center; }
+
+.va-toast__item {
+  --_ink: var(--va-toast-ink, var(--va-ink, #1a1917));
+  display: flex;
+  align-items: flex-start;
+  gap: var(--va-s3, 8px);
+  min-width: 260px;
+  max-width: 360px;
+  padding: var(--va-s3, 8px) var(--va-s4, 12px);
+  background: var(--va-ink, #1a1917);
+  color: var(--va-card, #fff);
+  border-radius: var(--va-radius-m, 10px);
+  box-shadow: var(--va-shadow-3, none);
+  pointer-events: auto;
+  font-family: var(--va-font, system-ui, sans-serif);
+}
+
+.va-toast__icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  color: var(--va-info, #7ab0f5);
+}
+.va-toast__icon svg { width: 16px; height: 16px; }
+.va-toast__item[data-kind="success"] .va-toast__icon { color: var(--va-success, #4cc38a); }
+.va-toast__item[data-kind="warning"] .va-toast__icon { color: var(--va-warning, #e5a53a); }
+.va-toast__item[data-kind="danger"] .va-toast__icon { color: var(--va-danger, #f07168); }
+
+.va-toast__body { flex: 1; min-width: 0; }
+.va-toast__title { margin: 0; font-size: 13px; font-weight: 600; color: inherit; }
+.va-toast__desc { margin: 2px 0 0; font-size: 12px; opacity: 0.75; }
+
+.va-toast__close {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: var(--va-radius-s, 8px);
+  background: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+}
+.va-toast__close:hover { opacity: 1; }
+.va-toast__close:focus-visible { outline: 2px solid currentColor; }
+
+/* 进出 */
+.va-toast-enter-active, .va-toast-leave-active { transition: opacity var(--va-dur-2, 200ms) ease, transform var(--va-dur-2, 200ms) var(--va-ease, ease); }
+.va-toast-enter-from { opacity: 0; transform: translateY(8px); }
+.va-toast-leave-to { opacity: 0; transform: translateY(4px); }
+.va-toast-move { transition: transform var(--va-dur-3, 300ms) var(--va-ease, ease); }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-toast-enter-active, .va-toast-leave-active, .va-toast-move { transition: none; }
+}

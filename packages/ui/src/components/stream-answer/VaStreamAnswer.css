@@ -1,0 +1,26 @@
+/* VaStreamAnswer — 流式回答 */
+.va-stream {
+  font-family: var(--va-font, system-ui, sans-serif);
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--va-ink, #1a1917);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.va-stream__caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: var(--va-accent, #c2410c);
+  animation: va-stream-caret 0.9s steps(1) infinite;
+}
+@keyframes va-stream-caret {
+  50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-stream__caret { animation: none; opacity: 1; }
+}

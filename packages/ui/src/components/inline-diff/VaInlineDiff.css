@@ -1,0 +1,72 @@
+/* VaInlineDiff — AI 文案修改的逐词接受/拒绝 */
+.va-dif {
+  --_edge: var(--va-dif-edge, var(--va-edge, rgba(26, 25, 23, 0.12)));
+  --_muted: var(--va-dif-muted, var(--va-muted, #6f6d66));
+  --_ink: var(--va-dif-ink, var(--va-ink, #1a1917));
+  --_accent: var(--va-dif-accent, var(--va-accent, #c2410c));
+  --_success: var(--va-dif-success, var(--va-success, #1a7f4b));
+  --_danger: var(--va-dif-danger, var(--va-danger, #d5453c));
+  font-family: var(--va-font, system-ui, sans-serif);
+}
+
+.va-dif__head { display: flex; align-items: baseline; gap: var(--va-s3, 8px); margin-bottom: var(--va-s2, 4px); }
+.va-dif__title { margin: 0; font-size: 13px; font-weight: 650; color: var(--_ink); }
+.va-dif__meta { font-size: 11.5px; color: var(--_muted); font-variant-numeric: tabular-nums; }
+
+.va-dif__text { margin: 0; font-size: 14px; line-height: 2; color: var(--_ink); }
+
+.va-dif__same { white-space: pre-wrap; }
+
+.va-dif__unit {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 1px 2px;
+  margin: 0 -1px;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  transition: background var(--va-dur-1, 120ms) ease;
+}
+.va-dif__unit:hover { background: var(--va-bg-subtle, #efede7); }
+.va-dif__unit:focus-visible { outline: 2px solid var(--_accent); outline-offset: 1px; }
+
+.va-dif__del { text-decoration-thickness: 1.5px; }
+.va-dif__add { text-decoration: none; }
+
+/* 未决：旧词删除线红、新词下划线绿，并排呈现 */
+.va-dif__unit[data-state="pending"] .va-dif__del { color: var(--_danger); background: color-mix(in srgb, var(--_danger) 8%, transparent); }
+.va-dif__unit[data-state="pending"] .va-dif__add { color: var(--_success); background: color-mix(in srgb, var(--_success) 10%, transparent); text-decoration: underline; text-underline-offset: 3px; }
+
+/* 接受：只留新词 */
+.va-dif__unit[data-state="accepted"] .va-dif__del { display: none; }
+.va-dif__unit[data-state="accepted"] .va-dif__add { color: var(--_success); background: color-mix(in srgb, var(--_success) 10%, transparent); }
+
+/* 拒绝：只留旧词 */
+.va-dif__unit[data-state="rejected"] .va-dif__del { color: var(--_muted); }
+.va-dif__unit[data-state="rejected"] .va-dif__add { display: none; }
+
+.va-dif__foot { display: flex; align-items: center; gap: var(--va-s2, 4px); margin-top: var(--va-s3, 8px); flex-wrap: wrap; }
+.va-dif__spacer { flex: 1; }
+.va-dif__btn {
+  height: 26px;
+  padding: 0 var(--va-s4, 12px);
+  border-radius: var(--va-radius-pill, 999px);
+  border: 1px solid var(--_edge);
+  background: var(--va-card, #fff);
+  color: var(--_ink);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity var(--va-dur-1, 120ms) ease;
+}
+.va-dif__btn:hover:not(:disabled) { border-color: var(--va-edge-strong, rgba(26, 25, 23, 0.22)); }
+.va-dif__btn:disabled { opacity: 0.4; cursor: default; }
+.va-dif__btn:focus-visible { outline: 2px solid var(--_accent); outline-offset: 1px; }
+.va-dif__btn--ghost { border-color: transparent; color: var(--_muted); }
+.va-dif__btn--primary { background: var(--_ink); border-color: var(--_ink); color: var(--va-card, #fff); }
+.va-dif__btn--primary:hover:not(:disabled) { opacity: 0.88; border-color: var(--_ink); }
+
+.va-dif__none { margin: 0; font-size: 12px; color: var(--_muted); }

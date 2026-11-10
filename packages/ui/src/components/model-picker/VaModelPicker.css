@@ -1,0 +1,80 @@
+/* VaModelPicker — 模型选择菜单 */
+.va-mpk { position: relative; display: inline-flex; font-family: var(--va-font, system-ui, sans-serif); }
+
+.va-mpk__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 var(--va-s3, 8px);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-pill, 999px);
+  background: var(--va-card, #fff);
+  color: var(--va-ink-2, #43413c);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color var(--va-dur-1, 120ms) ease;
+}
+.va-mpk__btn:hover { border-color: var(--va-edge-strong, rgba(26, 25, 23, 0.22)); }
+.va-mpk__btn:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: 1px; }
+.va-mpk__btn svg { width: 12px; height: 12px; color: var(--va-muted, #6f6d66); }
+
+.va-mpk__menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  min-width: 160px;
+  background: var(--va-card, #fff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-m, 10px);
+  box-shadow: var(--va-shadow-2, none);
+  z-index: 50;
+}
+.va-mpk__menu--right { left: auto; right: 0; }
+
+.va-mpk__item {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s3, 8px);
+  width: 100%;
+  padding: 6px var(--va-s3, 8px);
+  border: 0;
+  border-radius: var(--va-radius-s, 8px);
+  background: none;
+  font-size: 12.5px;
+  color: var(--va-ink, #1a1917);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.va-mpk__item--active { background: var(--va-bg-subtle, #efede7); }
+.va-mpk__item:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; }
+
+.va-mpk__check {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  color: var(--va-accent, #c2410c);
+}
+.va-mpk__check svg { width: 14px; height: 14px; }
+
+.va-mpk__tag {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--va-accent, #c2410c);
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  border-radius: var(--va-radius-pill, 999px);
+  padding: 1px 7px;
+}
+
+.va-mpk-enter-active, .va-mpk-leave-active { transition: opacity var(--va-dur-1, 120ms) ease, transform var(--va-dur-1, 120ms) var(--va-ease, ease); }
+.va-mpk-enter-from, .va-mpk-leave-to { opacity: 0; transform: translateY(3px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-mpk-enter-active, .va-mpk-leave-active { transition: none; }
+}

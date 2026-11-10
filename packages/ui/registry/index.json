@@ -1,0 +1,121 @@
+{
+  "$schema": "https://shadcn-vue.com/schema/registry.json",
+  "name": "@vuagent",
+  "homepage": "https://vuagent.dev",
+  "items": [
+    {
+      "name": "tool-call",
+      "title": "Tool Call / Group",
+      "description": "agent 的一次工具调用：实时秒表、失败自动展开并给出重试；Group 自动汇总多张卡。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "agent-plan",
+      "title": "Agent Plan",
+      "description": "执行计划：编辑态可重命名/排序/增删，运行态逐项计时打勾、失败可重试。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "approval-card",
+      "title": "Approval Card",
+      "description": "审批门：风险徽章 + 命令预览 + 倒计时自动拒绝（悬停暂停）+ Enter/Esc 快捷键，决策后 morph 成结果行。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "decision-inbox",
+      "title": "Decision Inbox",
+      "description": "业务决策收件箱：每条两个答案，选完确认并折叠离开列表。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "agent-inbox",
+      "title": "Agent Inbox",
+      "description": "后台任务收件箱：过滤 tab 带计数、live 时钟、行展开看步骤与操作，排序变化平滑滑动。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "context-window",
+      "title": "Context Window",
+      "description": "上下文可视化：按 token 占比的格子场，悬停点亮、文件可移除、压缩对话时历史微光收缩。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "inline-diff",
+      "title": "Inline Diff",
+      "description": "AI 文案修改逐词接受/拒绝：CJK 逐字分词的零依赖 diff、撤销栈、全部决断后应用。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "memory-panel",
+      "title": "Memory Panel",
+      "description": "助手记忆面板：分类过滤、就地编辑、暂停/遗忘（带撤销托盘）、总开关。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "thinking-loader",
+      "title": "Thinking Loader",
+      "description": "思考态加载器：阶段轮播 + 微光标签；完成后转为对勾与用时。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "composer",
+      "title": "Composer",
+      "description": "任务输入框：自动增高、Enter 发送（Shift+Enter 换行、中文输入法安全）、可插入模型选择等前缀。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "model-picker",
+      "title": "Model Picker",
+      "description": "模型选择菜单：触发按钮 + 键盘可导航的下拉列表。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "stream-answer",
+      "title": "Stream Answer",
+      "description": "流式回答：按节奏逐字吐出 source，带流式光标，完成后 emit complete，支持重放。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "message-actions",
+      "title": "Message Actions / Text",
+      "description": "AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输入）、版本切换；MessageText 提供版本交叉淡入。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "button",
+      "title": "Button",
+      "description": "语义按钮：四变体 × 三尺寸，加载态标签微光。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "segmented-control",
+      "title": "Segmented Control",
+      "description": "分段控件：滑块指示器平滑滑动，完整键盘导航。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "toaster",
+      "title": "Toaster",
+      "description": "全局通知：vaToaster.add() 任意位置发通知，宿主组件渲染堆叠，自动消失可手动关。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "number-ticker",
+      "title": "Number Ticker",
+      "description": "里程表数字滚动：进视口从零数起，数值变化每一位独立滚动。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "text-reveal",
+      "title": "Text Reveal",
+      "description": "文本入场：逐词/逐字从轻微模糊与位移中浮现，滚动进视口触发。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "grid-background",
+      "title": "Grid Background",
+      "description": "缓慢漂移的细网格背景，边缘渐隐，可作 Hero 底纹；内容放默认插槽。",
+      "type": "registry:ui"
+    }
+  ]
+}
