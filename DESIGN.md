@@ -145,7 +145,7 @@ components/tool-call/
 
 ### 4.1 缺口规划（M5–M7，对标 affectUI 全量 103+ 项）
 
-**覆盖率现状**：Components 20/49（41%）· Screens 0/12 · Blocks 0/11 · Illustrations 0/24 · Motion 4/8。Pro 组件 21 个中已对标 9 个。
+**覆盖率现状（M5 后）**：Components 29/49（59%，含 4 个差异化超集）· Screens 0/12 · Blocks 0/11 · Illustrations 0/24 · Motion 4/8。Pro 组件 21 个中已对标 14 个。
 
 **差异化机会——affectUI 没有的 agent 客户端刚需（4 个，超越对标的卡位）**：
 
@@ -156,7 +156,15 @@ components/tool-call/
 | **VaTerminalLog** | 命令输出流（等宽、ANSI 常用色、自动滚动、行复制） | ★★★ |
 | **VaCheckpointList** | 检查点/回滚列表（每步快照、diff 预览入口、一键恢复） | ★★ |
 
-**M5 · Agent 客户端刚需批（≈2 周，9 个）**：VaCodeDiff、VaFileTree、VaTerminalLog、VaCheckpointList（差异化 4 件）+ VaCommentThread(Free)、VaEmailDraft(Free)、VaUsageMeter(Pro)、VaCommandMenu(Pro)、VaDropzone(Pro)
+**M5 · Agent 客户端刚需批（≈2 周，9 个）**：VaCodeDiff、VaFileTree、VaTerminalLog、VaCheckpointList（差异化 4 件）+ VaCommentThread(Free)、VaEmailDraft(Free)、VaUsageMeter(Pro)、VaCommandMenu(Pro)、VaDropzone(Pro) —— ✅ 已交付
+
+**M5 交付要点**：
+- 新增 utils：`lineDiff`（LCS 行级 diff + hunk 折叠 + 行内词级配对）、`parseAnsi`（SGR 常用色含 256/真彩、`\r` 进度条重写、其余 CSI 剥除）；共享 `useCopyable` composable
+- `buildFileTree()`：扁平 git 变更列表 → 文件树（目录优先字母序），agent 后端可直接喂
+- 键盘/aria：FileTree 完整 treeitem 方向键导航；CommandMenu ⌘K 面板（过滤、循环高亮、焦点圈进/恢复、Esc/遮罩关闭）；CheckpointList 恢复二次确认（3s 窗口）
+- 受控模式：CommandMenu 遵循布尔哨兵约定（`open !== undefined` 判受控）；Dropzone/EmailDraft 全受控由宿主驱动
+- 验证方式：52 vitest（含 12 个 SSR renderToString smoke——组件可渲染 + SSR 安全双证）；playground M5Demo 编排成"agent 验收工作台"场景
+- 顺带修复 M3 遗留：meta 中 skeleton 的 `dir` 误写（registry 一直缺该条，现为 29 条全量）
 
 **M6 · Pro/Free 输入·表单·导航·反馈批（≈2-3 周，16 个）**：VaCombobox(Pro)、VaStepperForm(Pro)、VaPromptLibrary(Pro)、VaSetupGuide(Pro)、VaDateRangePicker(Pro)、VaIntegrationPicker(Pro)、VaIntegrationSettings(Pro)、VaFilterMenu(Free)、VaNotificationStack(Free)、VaOtpInput(Free)、VaProfileMenu(Free)、VaProgressTracker(Free)、VaSmartRecommendation(Free)、VaTipsPanel(Free)、VaReactionBar(Free)、VaChangeSummary(Free)
 
@@ -183,7 +191,7 @@ components/tool-call/
 | **M2**（2-3 周） | P1 旗舰 9 组件 + playground 拼出"agent 运行页"雏形 + vitest | ✅ 已完成 |
 | **M3**（第 4 周） | P2/P3 + VitePress 文档站 + llms.txt + registry 生成器 + dts/publishConfig + npm 0.1.0 | ✅ 已完成（npm 0.1.0 首发 待 registry 托管地址） |
 | **M4**（精修轮） | 交互与可达性：真实按键走查、focus-visible、动效参数审计、修复回归 | ✅ 已完成 |
-| **M5**（≈2 周） | Agent 客户端刚需批：差异化 4 件（CodeDiff/FileTree/TerminalLog/CheckpointList）+ 对标 5 件（CommentThread/EmailDraft/UsageMeter/CommandMenu/Dropzone） | 📋 规划 |
+| **M5**（≈2 周） | Agent 客户端刚需批：差异化 4 件（CodeDiff/FileTree/TerminalLog/CheckpointList）+ 对标 5 件（CommentThread/EmailDraft/UsageMeter/CommandMenu/Dropzone） | ✅ 已完成（52 tests 含 SSR smoke；registry 29 条） |
 | **M6**（≈2-3 周） | Pro/Free 输入·表单·导航·反馈批 16 个 | 📋 规划 |
 | **M7**（≈2-3 周） | 数据图表 5 + Screens 精选 5 + Blocks 精选 3 + Motion 4 + 插画 3 | 📋 规划 |
 

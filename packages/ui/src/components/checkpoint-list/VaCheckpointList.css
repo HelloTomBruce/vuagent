@@ -1,0 +1,131 @@
+/* VaCheckpointList — 检查点/回滚时间线 */
+
+.va-ckpt {
+  position: relative;
+}
+
+.va-ckpt__list {
+  overflow-y: auto;
+  position: relative;
+}
+
+/* 时间线竖线 */
+.va-ckpt__list::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  background: var(--va-edge);
+  border-radius: 1px;
+}
+
+.va-ckpt__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--va-s4);
+  padding: var(--va-s3) var(--va-s3) var(--va-s3) 0;
+}
+
+.va-ckpt__pin {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--va-edge-strong);
+  background: var(--va-card);
+  z-index: 1;
+  box-sizing: border-box;
+}
+
+.va-ckpt__item--current .va-ckpt__pin {
+  border-color: var(--va-accent);
+  background: var(--va-accent-soft);
+  box-shadow: 0 0 0 4px var(--va-accent-soft);
+}
+
+.va-ckpt__main { flex: 1; min-width: 0; }
+
+.va-ckpt__line {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s3);
+}
+
+.va-ckpt__label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--va-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.va-ckpt__badge {
+  flex: none;
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: var(--va-radius-pill);
+  background: var(--va-accent-soft);
+  color: var(--va-accent);
+  font-weight: 600;
+}
+
+.va-ckpt__meta {
+  display: flex;
+  gap: var(--va-s4);
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--va-muted);
+}
+
+.va-ckpt__sum { font-family: var(--va-font-mono); font-size: 11.5px; }
+.va-ckpt__time { font-variant-numeric: tabular-nums; }
+
+.va-ckpt__ops {
+  display: flex;
+  gap: var(--va-s2);
+  opacity: 0;
+  transition: opacity var(--va-dur-1) var(--va-ease);
+}
+
+.va-ckpt__item:hover .va-ckpt__ops,
+.va-ckpt__ops:focus-within,
+.va-ckpt__item--current .va-ckpt__ops { opacity: 1; }
+
+.va-ckpt__btn {
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-card);
+  color: var(--va-ink-2);
+  font-size: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: border-color var(--va-dur-1) var(--va-ease), background var(--va-dur-1) var(--va-ease);
+}
+
+.va-ckpt__btn:hover { border-color: var(--va-edge-strong); }
+.va-ckpt__btn:disabled { opacity: 0.5; cursor: default; }
+.va-ckpt__btn:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+
+.va-ckpt__btn--restore { color: var(--va-accent); border-color: color-mix(in srgb, var(--va-accent) 35%, transparent); }
+.va-ckpt__btn--restore[data-armed="true"] {
+  background: var(--va-accent);
+  border-color: var(--va-accent);
+  color: var(--va-card);
+}
+
+.va-ckpt__item--restoring .va-ckpt__btn { opacity: 0.6; }
+
+.va-ckpt__empty {
+  margin: 0;
+  padding: var(--va-s4);
+  font-size: 13px;
+  color: var(--va-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-ckpt__ops { transition: none; }
+}

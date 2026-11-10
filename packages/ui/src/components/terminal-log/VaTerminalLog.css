@@ -1,0 +1,118 @@
+/* VaTerminalLog — 终端输出流 */
+
+.va-term {
+  margin: 0;
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-m);
+  overflow: hidden;
+  background: #1b1a18; /* 终端惯例深底，不随主题翻转（ANSI 色板按深底校准） */
+  box-shadow: var(--va-shadow-1);
+}
+
+.va-term__head {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s3);
+  padding: var(--va-s2) var(--va-s4);
+  background: #232120;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.va-term__dots { display: flex; gap: 6px; }
+.va-term__dots i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.va-term__title {
+  font-family: var(--va-font-mono);
+  font-size: 12px;
+  color: #98948b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.va-term__spacer { flex: 1; }
+.va-term__count { font-family: var(--va-font-mono); font-size: 11px; color: #6f6b63; }
+
+.va-term__body {
+  padding: var(--va-s3) 0 var(--va-s3) var(--va-s4);
+  font-family: var(--va-font-mono);
+  font-size: 12.5px;
+  line-height: 21px;
+  overflow-x: auto;
+}
+
+.va-term__body--scroll { overflow-y: auto; }
+.va-term__body:focus-visible { outline: 2px solid var(--va-accent); outline-offset: -2px; }
+
+.va-term__empty {
+  margin: 0;
+  padding: var(--va-s3) 0;
+  color: #6f6b63;
+}
+
+.va-term__row {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  min-width: max-content;
+  padding-right: var(--va-s3);
+}
+
+.va-term__row:hover { background: rgba(255, 255, 255, 0.04); }
+
+.va-term__no {
+  width: 4ch;
+  margin-right: var(--va-s3);
+  text-align: right;
+  color: #5c5852;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.va-term__code {
+  white-space: pre;
+  color: #c9c6bf;
+  flex: 1;
+  min-width: 0;
+}
+
+/* 语义行：kind 由数据侧标注 */
+.va-term__row[data-kind="cmd"] .va-term__code { color: #f0eee9; }
+.va-term__row[data-kind="cmd"]::before { content: "$ "; color: #e8925e; }
+.va-term__row[data-kind="err"] .va-term__code { color: #f07168; }
+.va-term__row[data-kind="warn"] .va-term__code { color: #e5a53a; }
+.va-term__row[data-kind="ok"] .va-term__code { color: #4cc38a; }
+
+/* ANSI 样式修饰 */
+.va-term__b { font-weight: 700; }
+.va-term__i { font-style: italic; }
+.va-term__u { text-decoration: underline; }
+.va-term__dim { opacity: 0.6; }
+
+.va-term__copy {
+  flex: none;
+  margin-left: var(--va-s3);
+  border: 0;
+  background: transparent;
+  color: #6f6b63;
+  font-size: 12px;
+  line-height: 21px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--va-dur-1) var(--va-ease);
+}
+
+.va-term__row:hover .va-term__copy,
+.va-term__copy:focus-visible { opacity: 1; }
+.va-term__copy:hover { color: #f0eee9; }
+.va-term__copy:focus-visible { outline: 1px solid var(--va-accent); border-radius: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-term__copy { transition: none; }
+}

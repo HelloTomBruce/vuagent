@@ -100,6 +100,12 @@
       "type": "registry:ui"
     },
     {
+      "name": "skeleton",
+      "title": "Skeleton / Shimmer Text",
+      "description": "骨架屏与微光文字：共享一道柔和扫光。",
+      "type": "registry:ui"
+    },
+    {
       "name": "number-ticker",
       "title": "Number Ticker",
       "description": "里程表数字滚动：进视口从零数起，数值变化每一位独立滚动。",
@@ -115,6 +121,60 @@
       "name": "grid-background",
       "title": "Grid Background",
       "description": "缓慢漂移的细网格背景，边缘渐隐，可作 Hero 底纹；内容放默认插槽。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "code-diff",
+      "title": "Code Diff",
+      "description": "文件级代码 diff：±行渲染、行内词级高亮、上下文折叠与展开、+N −M 统计、复制新文件——agent 改代码的验收主界面。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "file-tree",
+      "title": "File Tree",
+      "description": "带变更标记的文件树：M/A/D/U 徽章、目录折叠、目录变更计数、完整方向键导航；buildFileTree() 可从扁平 git 变更列表直接建树。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "terminal-log",
+      "title": "Terminal Log",
+      "description": "命令输出流：深底终端窗、等宽、ANSI 常用色（含 256/真彩、\\r 进度条重写）、语义行着色、自动滚动（上翻暂停）、行复制。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "checkpoint-list",
+      "title": "Checkpoint List",
+      "description": "检查点/回滚时间线：每步快照摘要与相对时间、当前位标记、diff 预览入口、二次确认的一键恢复（3 秒武器化窗口）。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "comment-thread",
+      "title": "Comment Thread",
+      "description": "评论线程：agent 起草待审条目（采纳/重写/丢弃操作条）、人发评论、首字母头像、⌘/Ctrl+Enter 发布。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "email-draft",
+      "title": "Email Draft",
+      "description": "agent 起草邮件、人工确认发送：收件人/主题/正文可就地编辑、语气 chips、起草骨架、发送校验与错误回显、重新起草。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "usage-meter",
+      "title": "Usage Meter",
+      "description": "用量仪表：多段堆叠条（fast/slow tokens、credits）+ 图例 + 限额预警（默认 80%）/超限态与「管理额度」入口。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "command-menu",
+      "title": "Command Menu",
+      "description": "⌘K 命令面板：触发按钮 + 居中对话框，子串过滤、分组渲染、↑↓ 循环高亮、Enter 选中、Esc/遮罩关闭、焦点圈进与恢复。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "dropzone",
+      "title": "Dropzone",
+      "description": "拖放上传区：拖入高亮（计数防抖）、点击/键盘选择、大小校验拒绝、文件列表带进度条与错误回显、受控列表由宿主驱动。",
       "type": "registry:ui"
     }
   ]

@@ -1,0 +1,169 @@
+/* VaEmailDraft — agent 起草、人工确认发送的邮件卡片 */
+
+.va-mail {
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-l);
+  background: var(--va-card);
+  overflow: hidden;
+}
+
+.va-mail__head {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s3);
+  padding: var(--va-s4) var(--va-s5);
+  border-bottom: 1px solid var(--va-edge);
+  background: var(--va-bg-subtle);
+}
+
+.va-mail__title { font-size: 14px; font-weight: 700; color: var(--va-ink); }
+
+.va-mail__badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: var(--va-radius-pill);
+  background: var(--va-accent-soft);
+  color: var(--va-accent);
+  font-weight: 600;
+}
+
+.va-mail__spacer { flex: 1; }
+
+.va-mail__regen {
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-card);
+  color: var(--va-ink-2);
+  font-size: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.va-mail__regen:hover:not(:disabled) { border-color: var(--va-edge-strong); }
+.va-mail__regen:disabled { opacity: 0.5; cursor: default; }
+.va-mail__regen:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+
+.va-mail__fields {
+  padding: var(--va-s5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s4);
+}
+
+.va-mail__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s2);
+}
+
+.va-mail__label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--va-muted);
+  letter-spacing: 0.02em;
+}
+
+.va-mail__input {
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-bg);
+  color: var(--va-ink);
+  font: inherit;
+  font-size: 13.5px;
+  padding: 8px 10px;
+  transition: border-color var(--va-dur-1) var(--va-ease);
+}
+
+.va-mail__input:focus {
+  outline: none;
+  border-color: var(--va-accent);
+  box-shadow: 0 0 0 3px var(--va-accent-soft);
+}
+
+.va-mail__body { resize: vertical; min-height: 130px; line-height: 1.6; }
+
+/* 起草中骨架（共享扫光需要 keyframes —— 用 opacity 呼吸，无 tokens 依赖） */
+.va-mail__skel {
+  border-radius: var(--va-radius-s);
+  background: linear-gradient(
+    100deg,
+    var(--va-bg-subtle) 40%,
+    color-mix(in srgb, var(--va-bg-subtle) 50%, var(--va-card)) 50%,
+    var(--va-bg-subtle) 60%
+  );
+  background-size: 200% 100%;
+  animation: va-mail-sweep 1.4s linear infinite;
+}
+
+.va-mail__skel--to { height: 36px; }
+.va-mail__skel--subject { height: 36px; }
+.va-mail__skel--body { height: 170px; }
+
+@keyframes va-mail-sweep {
+  to { background-position: -200% 0; }
+}
+
+.va-mail__tones {
+  display: flex;
+  gap: var(--va-s2);
+  flex-wrap: wrap;
+}
+
+.va-mail__tone {
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-pill);
+  background: var(--va-card);
+  color: var(--va-ink-2);
+  font-size: 12px;
+  padding: 3px 12px;
+  cursor: pointer;
+  transition: all var(--va-dur-1) var(--va-ease);
+}
+
+.va-mail__tone[data-active="true"] {
+  background: var(--va-ink);
+  border-color: var(--va-ink);
+  color: var(--va-card);
+}
+
+.va-mail__tone:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+
+.va-mail__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s3);
+  padding: var(--va-s3) var(--va-s5);
+  border-top: 1px solid var(--va-edge);
+  background: var(--va-bg-subtle);
+}
+
+.va-mail__hint { font-size: 12px; color: var(--va-muted); }
+
+.va-mail__error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--va-danger);
+}
+
+.va-mail__send {
+  border: 0;
+  border-radius: var(--va-radius-s);
+  background: var(--va-accent);
+  color: var(--va-card);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 18px;
+  cursor: pointer;
+  transition: background var(--va-dur-1) var(--va-ease);
+}
+
+.va-mail__send:hover:not(:disabled) { background: var(--va-accent-hover); }
+.va-mail__send:disabled { opacity: 0.45; cursor: default; }
+.va-mail__send:focus-visible { outline: 2px solid var(--va-ink); outline-offset: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-mail__skel { animation-duration: 3s; }
+  .va-mail__input,
+  .va-mail__tone,
+  .va-mail__send { transition: none; }
+}

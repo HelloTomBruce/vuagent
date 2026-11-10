@@ -1,0 +1,162 @@
+/* VaDropzone — 拖放上传区 */
+
+.va-drop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s4);
+}
+
+.va-drop__zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--va-s2);
+  padding: var(--va-s7) var(--va-s5);
+  border: 1.5px dashed var(--va-edge-strong);
+  border-radius: var(--va-radius-l);
+  background: var(--va-card);
+  cursor: pointer;
+  transition: border-color var(--va-dur-2) var(--va-ease), background var(--va-dur-2) var(--va-ease);
+}
+
+.va-drop__zone:hover,
+.va-drop__zone:focus-visible {
+  border-color: var(--va-accent);
+  outline: none;
+}
+
+.va-drop__zone--over {
+  border-color: var(--va-accent);
+  border-style: solid;
+  background: var(--va-accent-soft);
+}
+
+.va-drop__zone--busy { opacity: 0.55; cursor: default; }
+.va-drop__zone--busy:hover { border-color: var(--va-edge-strong); }
+
+.va-drop__arrow {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--va-bg-subtle);
+  color: var(--va-ink-2);
+  font-size: 17px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--va-dur-2) var(--va-ease);
+}
+
+.va-drop__zone--over .va-drop__arrow {
+  transform: translateY(-3px);
+  background: var(--va-accent);
+  color: var(--va-card);
+}
+
+.va-drop__label { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--va-ink); }
+.va-drop__hint { margin: 0; font-size: 12px; color: var(--va-muted); }
+
+.va-drop__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.va-drop__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s2);
+}
+
+.va-drop__file {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s3);
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-card);
+  padding: var(--va-s3) var(--va-s4);
+}
+
+.va-drop__file[data-status="error"] { border-color: color-mix(in srgb, var(--va-danger) 45%, transparent); }
+
+.va-drop__icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--va-bg-subtle);
+  color: var(--va-ink-2);
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.va-drop__file[data-status="done"] .va-drop__icon { background: color-mix(in srgb, var(--va-success) 16%, transparent); color: var(--va-success); }
+.va-drop__file[data-status="error"] .va-drop__icon { background: color-mix(in srgb, var(--va-danger) 14%, transparent); color: var(--va-danger); }
+.va-drop__file[data-status="uploading"] .va-drop__icon { background: var(--va-accent-soft); color: var(--va-accent); }
+
+.va-drop__meta { flex: 1; min-width: 0; }
+
+.va-drop__line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--va-s3);
+}
+
+.va-drop__name {
+  font-size: 13px;
+  color: var(--va-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.va-drop__size { flex: none; font-size: 11.5px; color: var(--va-muted); font-variant-numeric: tabular-nums; }
+.va-drop__pct { flex: none; font-size: 11.5px; color: var(--va-accent); font-variant-numeric: tabular-nums; }
+.va-drop__err { flex: none; font-size: 11.5px; color: var(--va-danger); }
+
+.va-drop__track {
+  margin-top: 6px;
+  height: 4px;
+  border-radius: var(--va-radius-pill);
+  background: var(--va-bg-subtle);
+  overflow: hidden;
+}
+
+.va-drop__bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--va-accent);
+  transition: width var(--va-dur-2) var(--va-ease);
+}
+
+.va-drop__remove {
+  flex: none;
+  border: 0;
+  border-radius: var(--va-radius-s);
+  background: transparent;
+  color: var(--va-muted);
+  font-size: 15px;
+  line-height: 1;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.va-drop__remove:hover { background: var(--va-bg-subtle); color: var(--va-danger); }
+.va-drop__remove:focus-visible { outline: 2px solid var(--va-accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-drop__zone,
+  .va-drop__arrow,
+  .va-drop__bar { transition: none; }
+}

@@ -1,0 +1,171 @@
+/* VaCommentThread — 评论线程（agent 草稿人审） */
+
+.va-cmt {
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-m);
+  background: var(--va-card);
+  display: flex;
+  flex-direction: column;
+}
+
+.va-cmt__list {
+  overflow-y: auto;
+  padding: var(--va-s5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s5);
+}
+
+.va-cmt__empty {
+  margin: 0;
+  padding: var(--va-s3) 0;
+  color: var(--va-muted);
+  font-size: 13px;
+}
+
+.va-cmt__item {
+  display: flex;
+  gap: var(--va-s4);
+}
+
+.va-cmt__avatar {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.va-cmt__avatar--text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.va-cmt__main { flex: 1; min-width: 0; }
+
+.va-cmt__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--va-s3);
+}
+
+.va-cmt__author { font-size: 13px; font-weight: 600; color: var(--va-ink); }
+.va-cmt__time { font-size: 11.5px; color: var(--va-muted); font-variant-numeric: tabular-nums; }
+
+.va-cmt__role {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: var(--va-radius-pill);
+  background: var(--va-bg-subtle);
+  color: var(--va-muted);
+}
+
+.va-cmt__role[data-agent="true"] {
+  background: var(--va-accent-soft);
+  color: var(--va-accent);
+}
+
+.va-cmt__text {
+  margin: 3px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--va-ink-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* agent 草稿：左侧强调 + 微光等待态 */
+.va-cmt__item--pending .va-cmt__main {
+  background: var(--va-accent-soft);
+  border-radius: 0 var(--va-radius-m) var(--va-radius-m) var(--va-radius-m);
+  padding: var(--va-s3) var(--va-s4);
+  margin: 0 calc(-1 * var(--va-s4)) 0 calc(-1 * var(--va-s3));
+}
+
+.va-cmt__pending-ops {
+  display: flex;
+  gap: var(--va-s2);
+  margin-top: var(--va-s3);
+}
+
+.va-cmt__op {
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-card);
+  color: var(--va-ink-2);
+  font-size: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: border-color var(--va-dur-1) var(--va-ease), background var(--va-dur-1) var(--va-ease);
+}
+
+.va-cmt__op:hover { border-color: var(--va-edge-strong); }
+.va-cmt__op:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+
+.va-cmt__op--primary {
+  background: var(--va-accent);
+  border-color: var(--va-accent);
+  color: var(--va-card);
+}
+.va-cmt__op--primary:hover { background: var(--va-accent-hover); }
+
+.va-cmt__op--ghost { border-color: transparent; color: var(--va-muted); }
+.va-cmt__op--ghost:hover { color: var(--va-danger); border-color: transparent; }
+
+/* 底部输入 */
+.va-cmt__composer {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--va-s3);
+  padding: var(--va-s3) var(--va-s4);
+  border-top: 1px solid var(--va-edge);
+  background: var(--va-bg-subtle);
+  border-radius: 0 0 var(--va-radius-m) var(--va-radius-m);
+}
+
+.va-cmt__area {
+  flex: 1;
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-card);
+  color: var(--va-ink);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 7px 10px;
+  resize: none;
+  min-height: 34px;
+  max-height: 120px;
+  transition: border-color var(--va-dur-1) var(--va-ease);
+}
+
+.va-cmt__area:focus {
+  outline: none;
+  border-color: var(--va-accent);
+}
+
+.va-cmt__send {
+  border: 0;
+  border-radius: var(--va-radius-s);
+  background: var(--va-accent);
+  color: var(--va-card);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: background var(--va-dur-1) var(--va-ease);
+}
+
+.va-cmt__send:hover:not(:disabled) { background: var(--va-accent-hover); }
+.va-cmt__send:disabled { opacity: 0.45; cursor: default; }
+.va-cmt__send:focus-visible { outline: 2px solid var(--va-ink); outline-offset: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-cmt__op,
+  .va-cmt__area,
+  .va-cmt__send { transition: none; }
+}

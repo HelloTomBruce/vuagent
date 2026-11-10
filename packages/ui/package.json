@@ -41,6 +41,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
+    "@vue/server-renderer": "^3.5.45",
     "typescript": "~5.9.2",
     "vite": "^7.1.0",
     "vite-plugin-dts": "^4.5.4",

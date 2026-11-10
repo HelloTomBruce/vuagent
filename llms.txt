@@ -21,6 +21,10 @@
 - [Context Window](https://vuagent.dev/components/context-window): 上下文可视化：按 token 占比的格子场，悬停点亮、文件可移除、压缩对话时历史微光收缩。（VaContextWindow）
 - [Inline Diff](https://vuagent.dev/components/inline-diff): AI 文案修改逐词接受/拒绝：CJK 逐字分词的零依赖 diff、撤销栈、全部决断后应用。（VaInlineDiff）
 - [Memory Panel](https://vuagent.dev/components/memory-panel): 助手记忆面板：分类过滤、就地编辑、暂停/遗忘（带撤销托盘）、总开关。（VaMemoryPanel）
+- [Code Diff](https://vuagent.dev/components/code-diff): 文件级代码 diff：±行渲染、行内词级高亮、上下文折叠与展开、+N −M 统计、复制新文件——agent 改代码的验收主界面。（VaCodeDiff）
+- [File Tree](https://vuagent.dev/components/file-tree): 带变更标记的文件树：M/A/D/U 徽章、目录折叠、目录变更计数、完整方向键导航；buildFileTree() 可从扁平 git 变更列表直接建树。（VaFileTree）
+- [Terminal Log](https://vuagent.dev/components/terminal-log): 命令输出流：深底终端窗、等宽、ANSI 常用色（含 256/真彩、\r 进度条重写）、语义行着色、自动滚动（上翻暂停）、行复制。（VaTerminalLog）
+- [Checkpoint List](https://vuagent.dev/components/checkpoint-list): 检查点/回滚时间线：每步快照摘要与相对时间、当前位标记、diff 预览入口、二次确认的一键恢复（3 秒武器化窗口）。（VaCheckpointList）
 
 ## Chat
 
@@ -29,6 +33,8 @@
 - [Model Picker](https://vuagent.dev/components/model-picker): 模型选择菜单：触发按钮 + 键盘可导航的下拉列表。（VaModelPicker）
 - [Stream Answer](https://vuagent.dev/components/stream-answer): 流式回答：按节奏逐字吐出 source，带流式光标，完成后 emit complete，支持重放。（VaStreamAnswer）
 - [Message Actions / Text](https://vuagent.dev/components/message-actions): AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输入）、版本切换；MessageText 提供版本交叉淡入。（VaMessageActions / VaMessageText）
+- [Comment Thread](https://vuagent.dev/components/comment-thread): 评论线程：agent 起草待审条目（采纳/重写/丢弃操作条）、人发评论、首字母头像、⌘/Ctrl+Enter 发布。（VaCommentThread）
+- [Email Draft](https://vuagent.dev/components/email-draft): agent 起草邮件、人工确认发送：收件人/主题/正文可就地编辑、语气 chips、起草骨架、发送校验与错误回显、重新起草。（VaEmailDraft）
 
 ## 基础
 
@@ -37,6 +43,9 @@
 - [Toaster](https://vuagent.dev/components/toaster): 全局通知：vaToaster.add() 任意位置发通知，宿主组件渲染堆叠，自动消失可手动关。（VaToaster）
 - [Skeleton / Shimmer Text](https://vuagent.dev/components/skeleton): 骨架屏与微光文字：共享一道柔和扫光。（VaSkeleton / VaShimmerText）
 - [Number Ticker](https://vuagent.dev/components/number-ticker): 里程表数字滚动：进视口从零数起，数值变化每一位独立滚动。（VaNumberTicker）
+- [Usage Meter](https://vuagent.dev/components/usage-meter): 用量仪表：多段堆叠条（fast/slow tokens、credits）+ 图例 + 限额预警（默认 80%）/超限态与「管理额度」入口。（VaUsageMeter）
+- [Command Menu](https://vuagent.dev/components/command-menu): ⌘K 命令面板：触发按钮 + 居中对话框，子串过滤、分组渲染、↑↓ 循环高亮、Enter 选中、Esc/遮罩关闭、焦点圈进与恢复。（VaCommandMenu）
+- [Dropzone](https://vuagent.dev/components/dropzone): 拖放上传区：拖入高亮（计数防抖）、点击/键盘选择、大小校验拒绝、文件列表带进度条与错误回显、受控列表由宿主驱动。（VaDropzone）
 
 ## 动效
 

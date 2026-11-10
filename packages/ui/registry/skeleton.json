@@ -1,0 +1,30 @@
+{
+  "$schema": "https://shadcn-vue.com/schema/registry-item.json",
+  "name": "skeleton",
+  "title": "Skeleton / Shimmer Text",
+  "description": "骨架屏与微光文字：共享一道柔和扫光。",
+  "type": "registry:ui",
+  "dependencies": [],
+  "registryDependencies": [],
+  "docs": "- `width / height / radius` (number | string，默认 -)：尺寸与圆角\n- `circle` (boolean，默认 false)：圆形（头像）",
+  "files": [
+    {
+      "path": "components/ui/skeleton/VaShimmerText.vue",
+      "type": "registry:ui",
+      "target": "components/ui/skeleton/VaShimmerText.vue",
+      "content": "<script setup lang=\"ts\">\nimport type { ShimmerTextProps } from \"./types\";\n\nwithDefaults(defineProps<ShimmerTextProps>(), { duration: 2 });\n</script>\n\n<template>\n  <span class=\"va-shimmer-text\" :style=\"{ animationDuration: `${duration}s` }\">\n    <slot />\n  </span>\n</template>\n\n<style>\n/* VaShimmerText — 表达\"正在思考…\"的微光文字 */\n.va-shimmer-text {\n  display: inline-block;\n  background: linear-gradient(\n    100deg,\n    var(--va-muted, #6f6d66) 40%,\n    var(--va-ink, #1a1917) 50%,\n    var(--va-muted, #6f6d66) 60%\n  );\n  background-size: 200% 100%;\n  background-position: 200% 0;\n  -webkit-background-clip: text;\n  background-clip: text;\n  color: transparent;\n  animation: va-shimmer-text 2s linear infinite;\n}\n\n@keyframes va-shimmer-text {\n  from { background-position: 200% 0; }\n  to { background-position: -200% 0; }\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .va-shimmer-text {\n    animation: none;\n    background: none;\n    color: var(--va-muted, #6f6d66);\n    -webkit-text-fill-color: currentColor;\n  }\n}\n</style>\n"
+    },
+    {
+      "path": "components/ui/skeleton/VaSkeleton.vue",
+      "type": "registry:ui",
+      "target": "components/ui/skeleton/VaSkeleton.vue",
+      "content": "<script setup lang=\"ts\">\nimport { computed } from \"vue\";\nimport type { SkeletonProps } from \"./types\";\n\nconst props = withDefaults(defineProps<SkeletonProps>(), {});\n\n/** 数字与纯数字字符串都转 px；其余（%, rem…）原样 */\nconst len = (v: number | string | undefined) => {\n  if (v === undefined) return undefined;\n  if (typeof v === \"number\") return `${v}px`;\n  return /^\\d+(\\.\\d+)?$/.test(v) ? `${v}px` : v;\n};\n\nconst style = computed(() => {\n  const w = len(props.width ?? \"100%\");\n  const h = len(props.height ?? \"12px\");\n  return {\n    width: props.circle ? h : w,\n    height: h,\n    borderRadius: props.circle ? \"50%\" : len(props.radius ?? \"6px\"),\n  };\n});\n</script>\n\n<template>\n  <span class=\"va-skel\" :style=\"style\" aria-hidden=\"true\" />\n</template>\n\n<style>\n/* VaSkeleton — 共享一道扫光的骨架块（底色/高光用中性半透明，亮暗主题都能与卡片区分） */\n.va-skel {\n  display: inline-block;\n  vertical-align: middle;\n  background:\n    linear-gradient(\n      100deg,\n      var(--va-skel-bg, rgba(128, 128, 128, 0.28)) 40%,\n      var(--va-skel-hl, rgba(255, 255, 255, 0.55)) 50%,\n      var(--va-skel-bg, rgba(128, 128, 128, 0.28)) 60%\n    )\n    var(--va-skel-bg, rgba(128, 128, 128, 0.28));\n  background-size: 200% 100%;\n  background-position: 200% 0;\n  animation: va-skel-shimmer 1.6s linear infinite;\n}\n\n@keyframes va-skel-shimmer {\n  from { background-position: 200% 0; }\n  to { background-position: -200% 0; }\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .va-skel { animation: none; }\n}\n</style>\n"
+    },
+    {
+      "path": "components/ui/skeleton/types.ts",
+      "type": "registry:ui",
+      "target": "components/ui/skeleton/types.ts",
+      "content": "/** VaSkeleton / VaShimmerText 的类型定义 */\n\nexport interface SkeletonProps {\n  /** 数字按 px，字符串按任意 CSS 长度；默认 100% */\n  width?: number | string;\n  /** 默认 12px */\n  height?: number | string;\n  /** 圆角；默认 6px */\n  radius?: number | string;\n  /** 圆形（头像等），取 height 为直径 */\n  circle?: boolean;\n}\n\nexport interface ShimmerTextProps {\n  /** 一次扫光的秒数 */\n  duration?: number;\n}\n"
+    }
+  ]
+}

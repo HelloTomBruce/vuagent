@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { VaButton, VaNumberTicker, VaShimmerText, VaSkeleton } from "@vuagent/ui";
 import AgentRunDemo from "./AgentRunDemo.vue";
 import M3Demo from "./M3Demo.vue";
+import M5Demo from "./M5Demo.vue";
 import Gallery from "./Gallery.vue";
 
 const theme = ref<"light" | "dark">("light");
@@ -85,6 +86,9 @@ function replay() {
 
     <h2>M3 新组件 · Chat 配套与基础动效</h2>
     <M3Demo />
+
+    <h2>M5 · Agent 客户端刚需批（diff / 文件树 / 终端 / 检查点 / ⌘K …）</h2>
+    <M5Demo />
 
     <h2>组件画廊 · 视觉走查</h2>
     <Gallery />

@@ -100,6 +100,46 @@ export type { TextRevealProps } from "./components/text-reveal";
 export { VaGridBackground } from "./components/grid-background";
 export type { GridBackgroundProps, GridDirection } from "./components/grid-background";
 
+// M5 · Agent 客户端刚需批
+// 差异化 4 件（affectUI 没有的 agent 验收主界面）
+export { VaCodeDiff } from "./components/code-diff";
+export type { CodeDiffEvents, CodeDiffProps, CodeDiffStats } from "./components/code-diff";
+
+export { VaFileTree, buildFileTree, FILE_STATUS_LABEL } from "./components/file-tree";
+export type { FileNode, FileStatus, FileTreeEvents, FileTreeProps } from "./components/file-tree";
+
+export { VaTerminalLog } from "./components/terminal-log";
+export type {
+  TerminalLine,
+  TerminalLineKind,
+  TerminalLogEvents,
+  TerminalLogProps,
+} from "./components/terminal-log";
+
+export { VaCheckpointList, formatRelative } from "./components/checkpoint-list";
+export type { Checkpoint, CheckpointListEvents, CheckpointListProps } from "./components/checkpoint-list";
+
+// 对标 5 件（affectUI Free/Pro）
+export { VaCommentThread } from "./components/comment-thread";
+export type { CommentItem, CommentThreadEvents, CommentThreadProps } from "./components/comment-thread";
+
+export { VaEmailDraft } from "./components/email-draft";
+export type { EmailDraftEvents, EmailDraftProps, ToneOption } from "./components/email-draft";
+
+export { VaUsageMeter } from "./components/usage-meter";
+export type { UsageMeterEvents, UsageMeterProps, UsageSegment } from "./components/usage-meter";
+
+export { VaCommandMenu } from "./components/command-menu";
+export type { CommandItem, CommandMenuEvents, CommandMenuProps } from "./components/command-menu";
+
+export { VaDropzone, formatBytes } from "./components/dropzone";
+export type {
+  DropzoneEvents,
+  DropzoneFile,
+  DropzoneFileStatus,
+  DropzoneProps,
+} from "./components/dropzone";
+
 // 工具与算法（InlineDiff 的 diff 能力也可独立使用）
 export { formatMs, formatTokens, toDisplayText } from "./utils/format";
 export { buildDiffUnits, diffResult, tokenize, wordDiff } from "./utils/wordDiff";
@@ -108,3 +148,4 @@ export type { DiffPiece, DiffToken, DiffTokenType } from "./utils/wordDiff";
 // 共享 composables（构建自定义 agent UI 时可复用）
 export { useNow } from "./composables/useNow";
 export { useCountdown } from "./composables/useCountdown";
+export { useCopyable } from "./composables/useCopyable";

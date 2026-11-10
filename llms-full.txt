@@ -113,6 +113,60 @@ AI 文案修改逐词接受/拒绝：CJK 逐字分词的零依赖 diff、撤销�
 | `v-model:enabled` | `boolean` | true | 记忆总开关 |
 | `@edit / @pause / @forget / @restore` | `-` | - | 数据操作回调 |
 
+### Code Diff
+
+文件级代码 diff：±行渲染、行内词级高亮、上下文折叠与展开、+N −M 统计、复制新文件——agent 改代码的验收主界面。
+
+组件：VaCodeDiff
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `oldText / newText` | `string` | - | 旧/新版本全文（LCS 行级 diff） |
+| `fileName` | `string` | - | 头部文件名（等宽） |
+| `context` | `number` | 3 | 变更行保留的上下文行数，其余折叠 |
+| `wordLevel` | `boolean` | true | 配对的 del/add 行内词级高亮 |
+| `defaultExpandAll` | `boolean` | false | 初始不折叠 |
+| `@copy` | `-` | - | 复制新文件内容 |
+
+### File Tree
+
+带变更标记的文件树：M/A/D/U 徽章、目录折叠、目录变更计数、完整方向键导航；buildFileTree() 可从扁平 git 变更列表直接建树。
+
+组件：VaFileTree
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `tree` | `FileNode[]` | - | 层级树（path/type/status/children） |
+| `defaultExpandDepth` | `number` | 1 | 初始展开深度 |
+| `v-model:selected` | `string` | - | 选中文件完整路径 |
+| `@select / @toggle` | `-` | - | 点击文件 / 目录折叠展开 |
+
+### Terminal Log
+
+命令输出流：深底终端窗、等宽、ANSI 常用色（含 256/真彩、\r 进度条重写）、语义行着色、自动滚动（上翻暂停）、行复制。
+
+组件：VaTerminalLog
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `lines` | `(string | TerminalLine)[]` | - | 输出行；含 ANSI 序列自动解析 |
+| `title` | `string` | "terminal" | 窗口标题栏 |
+| `autoScroll` | `boolean` | true | 贴底自动滚动，用户上翻暂停 |
+| `maxLines` | `number` | 1000 | 环形上限，超出丢最旧 |
+| `@copy` | `-` | - | 行复制（携带纯文本） |
+
+### Checkpoint List
+
+检查点/回滚时间线：每步快照摘要与相对时间、当前位标记、diff 预览入口、二次确认的一键恢复（3 秒武器化窗口）。
+
+组件：VaCheckpointList
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `checkpoints` | `Checkpoint[]` | - | id/label/createdAt/summary/current |
+| `restoring` | `string` | - | 恢复进行中的检查点 id |
+| `@restore / @preview` | `-` | - | 确认恢复 / 打开 diff 预览 |
+
 
 ## Chat
 
@@ -178,6 +232,32 @@ AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输�
 | `v-model:version` | `number` | - | 当前版本下标 |
 | `@copy / @regenerate / @feedback` | `-` | - | 操作回调 |
 
+### Comment Thread
+
+评论线程：agent 起草待审条目（采纳/重写/丢弃操作条）、人发评论、首字母头像、⌘/Ctrl+Enter 发布。
+
+组件：VaCommentThread
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `comments` | `CommentItem[]` | - | id/author/text/pending… |
+| `busy` | `boolean` | false | 发布中禁发 |
+| `composer` | `boolean` | true | 底部输入框开关 |
+| `@submit / @adopt / @rewrite / @discard` | `-` | - | 发布与草稿处理 |
+
+### Email Draft
+
+agent 起草邮件、人工确认发送：收件人/主题/正文可就地编辑、语气 chips、起草骨架、发送校验与错误回显、重新起草。
+
+组件：VaEmailDraft
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `to / subject / body` | `string` | - | 三字段受控（v-model:to 等） |
+| `tones / tone` | `ToneOption[] / string` | - | 语气选项与当前值 |
+| `drafting / sending` | `boolean` | false | 起草骨架 / 发送中 |
+| `@send / @regenerate` | `-` | - | 发送（携带完整草稿）/ 重新起草 |
+
 
 ## 基础
 
@@ -238,6 +318,45 @@ AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输�
 | `value` | `number` | - | 目标数字 |
 | `format` | `Intl.NumberFormatOptions` | - | 如货币/千分位 |
 | `duration / delay` | `number` | 900 / 0 | 滚动时长与延迟 |
+
+### Usage Meter
+
+用量仪表：多段堆叠条（fast/slow tokens、credits）+ 图例 + 限额预警（默认 80%）/超限态与「管理额度」入口。
+
+组件：VaUsageMeter
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `segments` | `UsageSegment[]` | - | label/used/color 多段用量 |
+| `limit` | `number` | - | 周期限额（分母） |
+| `unit / period` | `string` | - | 单位与周期文案 |
+| `warnAt` | `number` | 0.8 | 预警阈值（占比） |
+| `@manage` | `-` | - | 预警/超限时的管理入口 |
+
+### Command Menu
+
+⌘K 命令面板：触发按钮 + 居中对话框，子串过滤、分组渲染、↑↓ 循环高亮、Enter 选中、Esc/遮罩关闭、焦点圈进与恢复。
+
+组件：VaCommandMenu
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `commands` | `CommandItem[]` | - | id/label/group/hint/keywords/danger |
+| `v-model:open` | `boolean` | false | 受控开关（含 defaultOpen 哨兵回落） |
+| `hotkey / triggerLabel` | `string` | "⌘K" / "命令" | 触发按钮提示 |
+| `@select` | `-` | - | 选中命令项 |
+
+### Dropzone
+
+拖放上传区：拖入高亮（计数防抖）、点击/键盘选择、大小校验拒绝、文件列表带进度条与错误回显、受控列表由宿主驱动。
+
+组件：VaDropzone
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `files` | `DropzoneFile[]` | - | 受控列表（progress/status/error 由宿主更新） |
+| `accept / multiple / maxSizeMb` | `string / boolean / number` | - / false / - | 选择约束 |
+| `@add / @remove / @reject` | `-` | - | 添加 / 移除 / 超大小拒绝 |
 
 
 ## 动效

@@ -1,0 +1,137 @@
+/* VaCommandMenu — ⌘K 命令面板 */
+
+.va-cmd { display: inline-flex; }
+
+.va-cmd__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--va-s3);
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-card);
+  color: var(--va-ink-2);
+  font-size: 13px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: border-color var(--va-dur-1) var(--va-ease);
+}
+
+.va-cmd__trigger:hover { border-color: var(--va-edge-strong); }
+.va-cmd__trigger:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+.va-cmd__trigger[aria-expanded="true"] { border-color: var(--va-accent); color: var(--va-accent); }
+
+.va-cmd__icon { color: var(--va-muted); font-size: 14px; }
+
+.va-cmd__kbd {
+  font-family: var(--va-font-mono);
+  font-size: 10.5px;
+  color: var(--va-muted);
+  border: 1px solid var(--va-edge);
+  border-radius: 5px;
+  padding: 1px 5px;
+  background: var(--va-bg-subtle);
+}
+
+.va-cmd__backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--va-ink) 24%, transparent);
+  backdrop-filter: blur(2px);
+  z-index: 60;
+}
+
+.va-cmd__panel {
+  position: fixed;
+  top: 14vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, calc(100vw - 32px));
+  max-height: 380px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--va-edge-strong);
+  border-radius: var(--va-radius-l);
+  background: var(--va-card);
+  box-shadow: var(--va-shadow-3);
+  overflow: hidden;
+  z-index: 61;
+  animation: va-cmd-in var(--va-dur-2) var(--va-ease);
+}
+
+@keyframes va-cmd-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.98); }
+}
+
+.va-cmd__search {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s3);
+  padding: var(--va-s3) var(--va-s4);
+  border-bottom: 1px solid var(--va-edge);
+}
+
+.va-cmd__mag { color: var(--va-muted); font-size: 15px; }
+
+.va-cmd__input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--va-ink);
+  font: inherit;
+  font-size: 14px;
+}
+
+.va-cmd__input:focus { outline: none; }
+
+.va-cmd__kbd--fixed { flex: none; }
+
+.va-cmd__list {
+  overflow-y: auto;
+  padding: var(--va-s2);
+  overscroll-behavior: contain;
+}
+
+.va-cmd__group {
+  padding: var(--va-s3) var(--va-s3) var(--va-s2);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--va-muted);
+}
+
+.va-cmd__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--va-s4);
+  width: 100%;
+  border: 0;
+  border-radius: var(--va-radius-s);
+  background: transparent;
+  color: var(--va-ink-2);
+  font-size: 13.5px;
+  padding: 8px var(--va-s3);
+  cursor: pointer;
+  text-align: left;
+}
+
+.va-cmd__item[data-active="true"] { background: var(--va-accent-soft); color: var(--va-ink); }
+.va-cmd__item[data-danger="true"] { color: var(--va-danger); }
+.va-cmd__item[data-danger="true"][data-active="true"] { background: color-mix(in srgb, var(--va-danger) 12%, transparent); }
+.va-cmd__item:disabled { opacity: 0.4; cursor: default; }
+.va-cmd__item:focus-visible { outline: 2px solid var(--va-accent); outline-offset: -2px; }
+
+.va-cmd__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.va-cmd__empty {
+  margin: 0;
+  padding: var(--va-s6) var(--va-s4);
+  text-align: center;
+  font-size: 13px;
+  color: var(--va-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-cmd__panel { animation: none; }
+  .va-cmd__trigger { transition: none; }
+}
