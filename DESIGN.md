@@ -141,6 +141,39 @@ components/tool-call/
 - 枚举对齐 affectUI：`size: sm/md/lg`、`variant: primary/secondary/ghost/destructive`、`status: running/success/error`、置信度 `signal: 0-3`
 - 时间参数统一毫秒（`startedAt` / `duration`），与 agent 事件流直连
 - `v-model` + 显式 `emits`；`icon` slot 可替换内置 SVG；事件名 camelCase
+- **布尔 props 警告**：不要用 `defineModel` 表达可选布尔（Vue 布尔 cast 使未绑定值为 `false`，无法区分"未绑定"与"绑定 false"）——用 `props.open !== undefined` 判定受控 + touched 哨兵回落 `defaultOpen`（参见 ToolCallCard）
+
+### 4.1 缺口规划（M5–M7，对标 affectUI 全量 103+ 项）
+
+**覆盖率现状**：Components 20/49（41%）· Screens 0/12 · Blocks 0/11 · Illustrations 0/24 · Motion 4/8。Pro 组件 21 个中已对标 9 个。
+
+**差异化机会——affectUI 没有的 agent 客户端刚需（4 个，超越对标的卡位）**：
+
+| 组件 | 说明 | 优先级 |
+|---|---|---|
+| **VaCodeDiff** | 文件级代码 diff（±行渲染、行内词级高亮、折叠上下文）——agent 改代码的验收主界面 | ★★★ |
+| **VaFileTree** | 文件树（变更标记 M/A/D、目录折叠、点击回调） | ★★★ |
+| **VaTerminalLog** | 命令输出流（等宽、ANSI 常用色、自动滚动、行复制） | ★★★ |
+| **VaCheckpointList** | 检查点/回滚列表（每步快照、diff 预览入口、一键恢复） | ★★ |
+
+**M5 · Agent 客户端刚需批（≈2 周，9 个）**：VaCodeDiff、VaFileTree、VaTerminalLog、VaCheckpointList（差异化 4 件）+ VaCommentThread(Free)、VaEmailDraft(Free)、VaUsageMeter(Pro)、VaCommandMenu(Pro)、VaDropzone(Pro)
+
+**M6 · Pro/Free 输入·表单·导航·反馈批（≈2-3 周，16 个）**：VaCombobox(Pro)、VaStepperForm(Pro)、VaPromptLibrary(Pro)、VaSetupGuide(Pro)、VaDateRangePicker(Pro)、VaIntegrationPicker(Pro)、VaIntegrationSettings(Pro)、VaFilterMenu(Free)、VaNotificationStack(Free)、VaOtpInput(Free)、VaProfileMenu(Free)、VaProgressTracker(Free)、VaSmartRecommendation(Free)、VaTipsPanel(Free)、VaReactionBar(Free)、VaChangeSummary(Free)
+
+**M7 · 数据图表 + Screens/Blocks 精选 + 装饰尾巴（≈2-3 周）**：
+- 数据展示（5，**手写 SVG 零依赖**）：VaKpiChart、VaBreakdownChart、VaCompactBreakdown、VaExperimentCard、VaAiAnswer（含来源卡/引用，吸收 Cited Answer 场景）
+- Screens 精选（5，只做高频"模板"不全量）：AppShell、AgentChat、AgentRun、Onboarding、SettingsBilling
+- Blocks 精选（3）：TaskBoard、PricingPlans、AIWorkspace
+- Motion 补齐（4）：VaTiltCard、VaBlurCrossfade、VaGradientFloor、VaGradientText
+- 插画精选（3，装饰引流）：VoiceOrb、AgentTeam、ModelWheel
+
+**累计：M5–M7 后全库 ≈ 63 个目录**，Components 层对标率 ≈ 88% + 4 个差异化超集。
+
+**技术决策点**：
+1. 图表类手写 SVG sparkline 级（守零依赖）vs 引图表库 → **选 a**
+2. Data Table 暂不做（客户端 MVP 无表格需求；出现时再选 TanStack headless vs 手写）
+
+**暂缓清单**：Billing Schedule、Comments Panel、Writing Assistant、Project Card（低频）；CRM/Analytics/Evals/Folder 系 Screens（非目标场景）；插画全量（只留 3 个招牌）。
 
 ## 5. 里程碑
 
@@ -149,15 +182,18 @@ components/tool-call/
 | **M1**（第 1 周） | monorepo 骨架 + tokens + VaButton / VaSkeleton / VaShimmerText / VaNumberTicker 打样定风格 | ✅ 本次完成 |
 | **M2**（2-3 周） | P1 旗舰 9 组件 + playground 拼出"agent 运行页"雏形 + vitest | ✅ 已完成 |
 | **M3**（第 4 周） | P2/P3 + VitePress 文档站 + llms.txt + registry 生成器 + dts/publishConfig + npm 0.1.0 | ✅ 已完成（npm 0.1.0 首发 待 registry 托管地址） |
-
 | **M4**（精修轮） | 交互与可达性：真实按键走查、focus-visible、动效参数审计、修复回归 | ✅ 已完成 |
+| **M5**（≈2 周） | Agent 客户端刚需批：差异化 4 件（CodeDiff/FileTree/TerminalLog/CheckpointList）+ 对标 5 件（CommentThread/EmailDraft/UsageMeter/CommandMenu/Dropzone） | 📋 规划 |
+| **M6**（≈2-3 周） | Pro/Free 输入·表单·导航·反馈批 16 个 | 📋 规划 |
+| **M7**（≈2-3 周） | 数据图表 5 + Screens 精选 5 + Blocks 精选 3 + Motion 4 + 插画 3 | 📋 规划 |
+
 ## 6. 发布前 TODO（M3 清单）
 
-- [ ] `vite-plugin-dts` 或 vue-tsc 产出类型；`publishConfig` 切换 exports 到 dist
-- [ ] registry JSON 生成脚本（每组件一条，含 `files[]` 内容内联）
-- [ ] llms.txt / llms-full.txt 生成
-- [ ] VitePress 文档站（live demo + props 表 + 一键拷贝）
-- [ ] changesets + CI（build + typecheck + test）
+- [x] `vite-plugin-dts` 产出类型；`publishConfig` 切换 exports 到 dist
+- [x] registry JSON 生成脚本（每组件一条，含 `files[]` 内容内联）— `pnpm registry`，19 items
+- [x] llms.txt / llms-full.txt 生成 — `pnpm llms`
+- [x] VitePress 文档站（指南 + 组件总览 props 表；live demo 后续增强）
+- [x] changesets + CI（build + typecheck + test + registry/llms + docs）
 
 ## 7. 风险与对策
 
