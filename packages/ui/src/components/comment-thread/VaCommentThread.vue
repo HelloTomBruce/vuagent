@@ -5,7 +5,7 @@ import { formatRelative } from "../checkpoint-list/useCheckpointList";
 import { useNow } from "../../composables/useNow";
 import { computed } from "vue";
 
-const props = defineProps<CommentThreadProps>();
+const props = withDefaults(defineProps<CommentThreadProps>(), { composer: true });
 
 const emit = defineEmits<CommentThreadEvents>();
 
@@ -75,7 +75,7 @@ const initialsOf = (author: string, initials?: string) => initials ?? author.sli
     </div>
 
     <form
-      v-if="props.composer !== false"
+      v-if="props.composer"
       class="va-cmt__composer"
       @submit.prevent="submit"
     >

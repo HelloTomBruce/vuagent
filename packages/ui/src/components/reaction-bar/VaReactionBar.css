@@ -1,0 +1,47 @@
+/* VaReactionBar — emoji 快速反馈 */
+
+.va-rx {
+  display: inline-flex;
+  gap: var(--va-s2);
+  flex-wrap: wrap;
+}
+
+.va-rx__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--va-s2);
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-pill);
+  background: var(--va-card);
+  color: var(--va-ink-2);
+  font-size: 12.5px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: border-color var(--va-dur-1) var(--va-ease), background var(--va-dur-1) var(--va-ease), transform var(--va-dur-1) var(--va-ease);
+}
+
+.va-rx__btn:hover:not(:disabled) { border-color: var(--va-edge-strong); }
+.va-rx__btn:active:not(:disabled) { transform: scale(0.96); }
+.va-rx__btn:disabled { opacity: 0.45; cursor: default; }
+.va-rx__btn:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+
+.va-rx__btn[data-active="true"] {
+  background: var(--va-accent-soft);
+  border-color: color-mix(in srgb, var(--va-accent) 45%, transparent);
+  color: var(--va-accent);
+}
+
+.va-rx__emoji { font-size: 14px; line-height: 1; }
+.va-rx__label { font-weight: 600; }
+
+.va-rx__count {
+  font-size: 11.5px;
+  color: var(--va-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.va-rx__btn[data-active="true"] .va-rx__count { color: var(--va-accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-rx__btn { transition: none; }
+}

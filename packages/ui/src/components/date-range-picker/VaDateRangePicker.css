@@ -1,0 +1,158 @@
+/* VaDateRangePicker — 日期范围选择（双月 + 预设） */
+
+.va-drp { position: relative; display: inline-flex; }
+
+.va-drp__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--va-s2);
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-card);
+  color: var(--va-ink-2);
+  font-size: 13px;
+  font-family: var(--va-font-mono);
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.va-drp__trigger:hover { border-color: var(--va-edge-strong); }
+.va-drp__trigger:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+.va-drp__trigger[aria-expanded="true"] { border-color: var(--va-accent); }
+
+.va-drp__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+  background: var(--va-card);
+  border: 1px solid var(--va-edge-strong);
+  border-radius: var(--va-radius-m);
+  box-shadow: var(--va-shadow-3);
+  padding: var(--va-s4);
+  width: max-content;
+  max-width: calc(100vw - 32px);
+}
+
+.va-drp__presets {
+  display: flex;
+  gap: var(--va-s2);
+  flex-wrap: wrap;
+  margin-bottom: var(--va-s4);
+  padding-bottom: var(--va-s4);
+  border-bottom: 1px solid var(--va-edge);
+}
+
+.va-drp__preset {
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-pill);
+  background: var(--va-card);
+  color: var(--va-ink-2);
+  font-size: 12px;
+  padding: 3px 12px;
+  cursor: pointer;
+}
+
+.va-drp__preset:hover { border-color: var(--va-accent); color: var(--va-accent); }
+.va-drp__preset:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+
+.va-drp__calendars { display: flex; gap: var(--va-s6); }
+
+.va-drp__cal { display: flex; flex-direction: column; gap: var(--va-s3); }
+
+.va-drp__month {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--va-s4);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--va-ink);
+  padding: 0 var(--va-s2);
+}
+
+.va-drp__nav {
+  border: 0;
+  background: transparent;
+  color: var(--va-muted);
+  font-size: 15px;
+  line-height: 1;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--va-radius-s);
+  cursor: pointer;
+}
+
+.va-drp__nav:hover { background: var(--va-bg-subtle); color: var(--va-ink); }
+.va-drp__nav:focus-visible { outline: 2px solid var(--va-accent); }
+
+.va-drp__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 32px);
+  gap: 2px;
+}
+
+.va-drp__wd {
+  font-size: 11px;
+  color: var(--va-muted);
+  text-align: center;
+  line-height: 24px;
+}
+
+.va-drp__day {
+  border: 0;
+  border-radius: var(--va-radius-s);
+  background: transparent;
+  color: var(--va-ink-2);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 30px;
+  height: 30px;
+  text-align: center;
+  cursor: pointer;
+  transition: background var(--va-dur-1) var(--va-ease);
+}
+
+.va-drp__day[data-out="true"] { opacity: 0.35; }
+.va-drp__day:hover { background: var(--va-bg-subtle); }
+.va-drp__day[data-today="true"] { box-shadow: inset 0 0 0 1px var(--va-accent); }
+.va-drp__day[data-state="in"] { background: var(--va-accent-soft); border-radius: 0; }
+.va-drp__day[data-state="start"],
+.va-drp__day[data-state="end"] {
+  background: var(--va-accent);
+  color: var(--va-card);
+  font-weight: 700;
+}
+.va-drp__day[data-state="start"] { border-radius: var(--va-radius-s) 0 0 var(--va-radius-s); }
+.va-drp__day[data-state="end"] { border-radius: 0 var(--va-radius-s) var(--va-radius-s) 0; }
+.va-drp__day[data-state="start"][data-state="end"] { border-radius: var(--va-radius-s); }
+.va-drp__day:focus-visible { outline: 2px solid var(--va-accent); outline-offset: -2px; }
+
+.va-drp__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--va-s4);
+  padding-top: var(--va-s3);
+  border-top: 1px solid var(--va-edge);
+}
+
+.va-drp__hint { font-size: 11.5px; color: var(--va-muted); }
+
+.va-drp__clear {
+  border: 0;
+  background: transparent;
+  color: var(--va-info);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.va-drp__clear:focus-visible { outline: 2px solid var(--va-accent); }
+
+@media (max-width: 640px) {
+  .va-drp__calendars { flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-drp__day { transition: none; }
+}

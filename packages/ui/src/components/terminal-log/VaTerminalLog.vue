@@ -4,7 +4,7 @@ import type { TerminalLogEvents, TerminalLogProps } from "./types";
 import { useTerminalLog } from "./useTerminalLog";
 import { useCopyable } from "../../composables/useCopyable";
 
-const props = defineProps<TerminalLogProps>();
+const props = withDefaults(defineProps<TerminalLogProps>(), { autoScroll: true });
 
 const emit = defineEmits<TerminalLogEvents>();
 

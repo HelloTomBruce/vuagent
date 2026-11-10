@@ -3,7 +3,7 @@ import type { CodeDiffEvents, CodeDiffProps } from "./types";
 import { useCodeDiff } from "./useCodeDiff";
 import { useCopyable } from "../../composables/useCopyable";
 
-const props = defineProps<CodeDiffProps>();
+const props = withDefaults(defineProps<CodeDiffProps>(), { wordLevel: true });
 
 const emit = defineEmits<CodeDiffEvents>();
 

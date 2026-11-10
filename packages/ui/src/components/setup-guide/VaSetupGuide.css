@@ -1,0 +1,106 @@
+/* VaSetupGuide — 上手引导清单 */
+
+.va-sg {
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-m);
+  background: var(--va-card);
+  padding: var(--va-s5);
+}
+
+.va-sg__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--va-s4);
+}
+
+.va-sg__title { margin: 0; font-size: 15px; font-weight: 700; color: var(--va-ink); }
+
+.va-sg__progress {
+  font-size: 12px;
+  color: var(--va-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.va-sg__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.va-sg__item {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s4);
+  padding: var(--va-s4) 0;
+}
+
+.va-sg__item + .va-sg__item { border-top: 1px solid var(--va-edge); }
+.va-sg__item[data-status="done"],
+.va-sg__item[data-status="skipped"] { opacity: 0.62; }
+
+.va-sg__mark {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--va-edge-strong);
+  color: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.va-sg__item[data-status="done"] .va-sg__mark {
+  border-color: var(--va-success);
+  background: var(--va-success);
+  color: #fff;
+}
+
+.va-sg__item[data-status="skipped"] .va-sg__mark { border-style: dashed; color: var(--va-muted); }
+
+.va-sg__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.va-sg__name { font-size: 13.5px; font-weight: 600; color: var(--va-ink); }
+.va-sg__desc { font-size: 12px; color: var(--va-muted); line-height: 1.5; }
+
+.va-sg__ops { display: flex; gap: var(--va-s2); flex: none; }
+
+.va-sg__btn {
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-card);
+  color: var(--va-ink-2);
+  font-size: 12.5px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.va-sg__btn:hover { border-color: var(--va-edge-strong); }
+.va-sg__btn:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+
+.va-sg__btn--primary {
+  background: var(--va-accent);
+  border-color: var(--va-accent);
+  color: var(--va-card);
+  font-weight: 600;
+}
+
+.va-sg__btn--primary:hover { background: var(--va-accent-hover); border-color: var(--va-accent-hover); }
+
+.va-sg__state { flex: none; font-size: 12px; color: var(--va-muted); }
+
+.va-sg__done {
+  margin: var(--va-s4) 0 0;
+  padding: var(--va-s4);
+  border-radius: var(--va-radius-s);
+  background: color-mix(in srgb, var(--va-success) 10%, transparent);
+  color: var(--va-success);
+  font-size: 13px;
+  font-weight: 600;
+}

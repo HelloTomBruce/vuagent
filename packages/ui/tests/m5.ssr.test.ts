@@ -38,6 +38,8 @@ describe("M5 SSR 渲染", () => {
     expect(html).toContain("va-cdiff__expand"); // 有折叠段
     expect(html).toContain("+1 −1");
     expect(html).toContain("line 20 CHANGED");
+    // wordLevel 默认开启（布尔 cast 回归锁定）：配对行有词级片段
+    expect(html).toContain('class="va-cdiff__seg"');
   });
 
   it("VaCodeDiff：无变更空态", async () => {
@@ -120,6 +122,8 @@ describe("M5 SSR 渲染", () => {
     expect(html).toContain("以此发布");
     expect(html).toContain("让 agent 重写");
     expect(html).toContain(">A</span>"); // 首字母头像
+    expect(html).toContain("va-cmt__composer"); // composer 默认开启（布尔 cast 回归锁定）
+    expect(html).toContain("发布");
   });
 
   it("VaEmailDraft：受控字段渲染 + 语气 chips", async () => {

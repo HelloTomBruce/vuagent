@@ -292,4 +292,143 @@ export const components = [
       { name: "@add / @remove / @reject", type: "-", default: "-", desc: "添加 / 移除 / 超大小拒绝" },
     ],
   },
+
+  /* ---------- M6 · 输入·表单·导航·反馈 ---------- */
+  {
+    dir: "combobox", slug: "combobox", title: "Combobox", category: "基础", components: ["VaCombobox"],
+    desc: "可搜索下拉选择：输入过滤、↑↓ 循环高亮、Enter 选中、Esc 关闭；creatable 可把输入创建为新值。",
+    props: [
+      { name: "options", type: "ComboboxOption[]", default: "-", desc: "value/label/hint/disabled" },
+      { name: "v-model", type: "string", default: "-", desc: "选中值" },
+      { name: "creatable", type: "boolean", default: "false", desc: "允许创建输入中的新值" },
+      { name: "@create / @select", type: "-", default: "-", desc: "创建新值 / 选中列表项" },
+    ],
+  },
+  {
+    dir: "filter-menu", slug: "filter-menu", title: "Filter Menu", category: "基础", components: ["VaFilterMenu"],
+    desc: "过滤条件下拉：checkbox 多选组 + radio 单选组，触发按钮带激活计数徽章，一键清除全部。",
+    props: [
+      { name: "groups", type: "FilterGroup[]", default: "-", desc: "id/label/type/options 过滤组" },
+      { name: "v-model", type: "FilterValue", default: "{}", desc: "Record<groupId, string[] | string>" },
+      { name: "@clear", type: "-", default: "-", desc: "清除全部" },
+    ],
+  },
+  {
+    dir: "otp-input", slug: "otp-input", title: "OTP Input", category: "基础", components: ["VaOtpInput"],
+    desc: "验证码格子输入：自动跳格与选中、退格回退、整段粘贴分发、方向键移动、填满回调。",
+    props: [
+      { name: "v-model", type: "string", default: `""`, desc: "验证码字符串" },
+      { name: "length", type: "number", default: "6", desc: "格子数" },
+      { name: "@complete", type: "-", default: "-", desc: "全部填满时触发" },
+    ],
+  },
+  {
+    dir: "profile-menu", slug: "profile-menu", title: "Profile Menu", category: "基础", components: ["VaProfileMenu"],
+    desc: "头像账户菜单：首字母色块头像、未读徽标、用户信息头 + 菜单列表（danger 项）、Esc/外部点击关闭。",
+    props: [
+      { name: "name / email / avatar", type: "string", default: "-", desc: "账户信息" },
+      { name: "items", type: "ProfileMenuItem[]", default: "-", desc: "菜单项（danger 标红）" },
+      { name: "@select", type: "-", default: "-", desc: "点击菜单项" },
+    ],
+  },
+  {
+    dir: "stepper-form", slug: "stepper-form", title: "Stepper Form", category: "表单", components: ["VaStepperForm"],
+    desc: "分步表单壳：步骤条 + 每步具名插槽（#step-{id}）+ 上一步/下一步导航，nextDisabled 承接宿主校验，最后一步转提交。",
+    props: [
+      { name: "steps", type: "StepperStep[]", default: "-", desc: "id/title/description" },
+      { name: "v-model:step", type: "number", default: "0", desc: "当前步下标（哨兵受控）" },
+      { name: "nextDisabled / submitting", type: "boolean", default: "false", desc: "校验未过 / 提交中" },
+      { name: "@next / @back / @submit", type: "-", default: "-", desc: "流程回调" },
+    ],
+  },
+  {
+    dir: "progress-tracker", slug: "progress-tracker", title: "Progress Tracker", category: "基础", components: ["VaProgressTracker"],
+    desc: "步骤进度条（横/竖）：done/current/pending/error 四态节点 + 完成段连线填充，点击节点回调。",
+    props: [
+      { name: "steps", type: "TrackerStep[]", default: "-", desc: "label/status（缺省按 current 推断）" },
+      { name: "current", type: "number", default: "0", desc: "当前步下标" },
+      { name: "orientation", type: `"horizontal" | "vertical"`, default: `"horizontal"`, desc: "方向" },
+    ],
+  },
+  {
+    dir: "setup-guide", slug: "setup-guide", title: "Setup Guide", category: "表单", components: ["VaSetupGuide"],
+    desc: "上手引导清单：逐项完成/跳过（optional 步骤）、进度计数、全部就绪收尾提示，完成时触发 allDone。",
+    props: [
+      { name: "steps", type: "SetupStep[]", default: "-", desc: "id/title/description/status/optional" },
+      { name: "@complete / @skip / @allDone", type: "-", default: "-", desc: "步骤处理回调" },
+    ],
+  },
+  {
+    dir: "smart-recommendation", slug: "smart-recommendation", title: "Smart Recommendation", category: "反馈", components: ["VaSmartRecommendation"],
+    desc: "agent 建议卡：标题 + 理由 + 收益标签 + 主/次操作按钮，可关闭忽略。",
+    props: [
+      { name: "title / description / impact", type: "string", default: "-", desc: "建议内容与收益标签" },
+      { name: "actions", type: "RecommendationAction[]", default: "-", desc: "id/label/primary" },
+      { name: "@action / @dismiss", type: "-", default: "-", desc: "操作 / 忽略" },
+    ],
+  },
+  {
+    dir: "prompt-library", slug: "prompt-library", title: "Prompt Library", category: "表单", components: ["VaPromptLibrary"],
+    desc: "提示词库：搜索（标题/正文/标签）+ 分类 tab + 卡片网格 + 使用按钮。",
+    props: [
+      { name: "prompts", type: "PromptItem[]", default: "-", desc: "id/title/body/category/tags" },
+      { name: "query", type: "string", default: "内部维护", desc: "受控搜索词" },
+      { name: "@use", type: "-", default: "-", desc: "点击使用（携带完整条目）" },
+    ],
+  },
+  {
+    dir: "date-range-picker", slug: "date-range-picker", title: "Date Range Picker", category: "表单", components: ["VaDateRangePicker"],
+    desc: "日期范围选择：双月日历（周一起始、零依赖手写）、两次点击选范围（反向自动交换）、悬停预览区间、今天/7天/30天预设。",
+    props: [
+      { name: "v-model:start / v-model:end", type: "number", default: "-", desc: "当日 00:00 本地时区 ms" },
+      { name: "presets", type: "DateRangePreset[]", default: "今天/7天/30天", desc: "自定义预设（from/to 天偏移）" },
+      { name: "months", type: "1 | 2", default: "2", desc: "单月紧凑/双月" },
+      { name: "@change", type: "-", default: "-", desc: "完整范围确定" },
+    ],
+  },
+  {
+    dir: "integration", slug: "integration", title: "Integration Picker / Settings", category: "表单", components: ["VaIntegrationPicker", "VaIntegrationSettings"],
+    desc: "集成对接两件套：Picker 是服务卡片网格（已连接态、点击切换）；Settings 是配置面板（开关 + API key 等字段 + 保存/断开）。",
+    props: [
+      { name: "items", type: "IntegrationItem[]", default: "-", desc: "Picker：服务列表" },
+      { name: "v-model:enabled / v-model:values", type: "boolean / Record", default: "-", desc: "Settings：开关与表单值" },
+      { name: "fields", type: "IntegrationField[]", default: "-", desc: "Settings：label/secret/required/error" },
+      { name: "@toggle / @save / @disconnect", type: "-", default: "-", desc: "连接切换 / 保存 / 断开" },
+    ],
+  },
+  {
+    dir: "notification-stack", slug: "notification-stack", title: "Notification Stack", category: "反馈", components: ["VaNotificationStack"],
+    desc: "通知中心列表：未读徽标与未读点、语义 icon（info/success/warning/danger/agent）、相对时间、单条/全部已读。",
+    props: [
+      { name: "notifications", type: "NotificationItem[]", default: "-", desc: "id/title/body/kind/unread/createdAt" },
+      { name: "@open / @read / @allRead", type: "-", default: "-", desc: "打开 / 标记已读" },
+    ],
+  },
+  {
+    dir: "tips-panel", slug: "tips-panel", title: "Tips Panel", category: "反馈", components: ["VaTipsPanel"],
+    desc: "使用技巧面板：高亮小卡承载 1-N 条 tip，单条可关闭。",
+    props: [
+      { name: "tips", type: "TipItem[]", default: "-", desc: "id/title/body" },
+      { name: "dismissible", type: "boolean", default: "false", desc: "显示单条关闭按钮" },
+      { name: "@dismiss", type: "-", default: "-", desc: "关闭某条" },
+    ],
+  },
+  {
+    dir: "reaction-bar", slug: "reaction-bar", title: "Reaction Bar", category: "反馈", components: ["VaReactionBar"],
+    desc: "emoji 快速反馈条：aria-pressed 切换态、计数徽章、按下微缩动效（reduced-motion 降级）。",
+    props: [
+      { name: "reactions", type: "ReactionItem[]", default: "-", desc: "id/emoji/label/count/active" },
+      { name: "@toggle", type: "-", default: "-", desc: "携带目标态" },
+    ],
+  },
+  {
+    dir: "change-summary", slug: "change-summary", title: "Change Summary", category: "Agent-Ops", components: ["VaChangeSummary"],
+    desc: "agent 一轮工作摘要卡：N 文件 +adds −dels、耗时与工具调用次数、逐文件行（M/A/D 徽章 + 增删计数），可折叠长列表。",
+    props: [
+      { name: "files", type: "SummaryFile[]", default: "-", desc: "path/status/additions/deletions" },
+      { name: "duration / toolCalls", type: "number", default: "-", desc: "耗时 ms / 工具调用次数" },
+      { name: "maxFiles", type: "number", default: "-", desc: "超出折叠（展开按钮）" },
+      { name: "@openFile", type: "-", default: "-", desc: "点击文件行（联动 CodeDiff）" },
+    ],
+  },
 ];

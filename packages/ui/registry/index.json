@@ -176,6 +176,96 @@
       "title": "Dropzone",
       "description": "拖放上传区：拖入高亮（计数防抖）、点击/键盘选择、大小校验拒绝、文件列表带进度条与错误回显、受控列表由宿主驱动。",
       "type": "registry:ui"
+    },
+    {
+      "name": "combobox",
+      "title": "Combobox",
+      "description": "可搜索下拉选择：输入过滤、↑↓ 循环高亮、Enter 选中、Esc 关闭；creatable 可把输入创建为新值。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "filter-menu",
+      "title": "Filter Menu",
+      "description": "过滤条件下拉：checkbox 多选组 + radio 单选组，触发按钮带激活计数徽章，一键清除全部。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "otp-input",
+      "title": "OTP Input",
+      "description": "验证码格子输入：自动跳格与选中、退格回退、整段粘贴分发、方向键移动、填满回调。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "profile-menu",
+      "title": "Profile Menu",
+      "description": "头像账户菜单：首字母色块头像、未读徽标、用户信息头 + 菜单列表（danger 项）、Esc/外部点击关闭。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "stepper-form",
+      "title": "Stepper Form",
+      "description": "分步表单壳：步骤条 + 每步具名插槽（#step-{id}）+ 上一步/下一步导航，nextDisabled 承接宿主校验，最后一步转提交。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "progress-tracker",
+      "title": "Progress Tracker",
+      "description": "步骤进度条（横/竖）：done/current/pending/error 四态节点 + 完成段连线填充，点击节点回调。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "setup-guide",
+      "title": "Setup Guide",
+      "description": "上手引导清单：逐项完成/跳过（optional 步骤）、进度计数、全部就绪收尾提示，完成时触发 allDone。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "smart-recommendation",
+      "title": "Smart Recommendation",
+      "description": "agent 建议卡：标题 + 理由 + 收益标签 + 主/次操作按钮，可关闭忽略。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "prompt-library",
+      "title": "Prompt Library",
+      "description": "提示词库：搜索（标题/正文/标签）+ 分类 tab + 卡片网格 + 使用按钮。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "date-range-picker",
+      "title": "Date Range Picker",
+      "description": "日期范围选择：双月日历（周一起始、零依赖手写）、两次点击选范围（反向自动交换）、悬停预览区间、今天/7天/30天预设。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "integration",
+      "title": "Integration Picker / Settings",
+      "description": "集成对接两件套：Picker 是服务卡片网格（已连接态、点击切换）；Settings 是配置面板（开关 + API key 等字段 + 保存/断开）。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "notification-stack",
+      "title": "Notification Stack",
+      "description": "通知中心列表：未读徽标与未读点、语义 icon（info/success/warning/danger/agent）、相对时间、单条/全部已读。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "tips-panel",
+      "title": "Tips Panel",
+      "description": "使用技巧面板：高亮小卡承载 1-N 条 tip，单条可关闭。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "reaction-bar",
+      "title": "Reaction Bar",
+      "description": "emoji 快速反馈条：aria-pressed 切换态、计数徽章、按下微缩动效（reduced-motion 降级）。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "change-summary",
+      "title": "Change Summary",
+      "description": "agent 一轮工作摘要卡：N 文件 +adds −dels、耗时与工具调用次数、逐文件行（M/A/D 徽章 + 增删计数），可折叠长列表。",
+      "type": "registry:ui"
     }
   ]
 }

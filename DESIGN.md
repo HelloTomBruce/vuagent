@@ -145,7 +145,7 @@ components/tool-call/
 
 ### 4.1 缺口规划（M5–M7，对标 affectUI 全量 103+ 项）
 
-**覆盖率现状（M5 后）**：Components 29/49（59%，含 4 个差异化超集）· Screens 0/12 · Blocks 0/11 · Illustrations 0/24 · Motion 4/8。Pro 组件 21 个中已对标 14 个。
+**覆盖率现状（M6 后）**：Components 43/49（88%，含 4 个差异化超集 + ChangeSummary）· Screens 0/12 · Blocks 0/11 · Illustrations 0/24 · Motion 4/8。Pro 组件 21 个中已对标 20 个（仅剩 Data Table 类，暂缓）。
 
 **差异化机会——affectUI 没有的 agent 客户端刚需（4 个，超越对标的卡位）**：
 
@@ -166,7 +166,14 @@ components/tool-call/
 - 验证方式：52 vitest（含 12 个 SSR renderToString smoke——组件可渲染 + SSR 安全双证）；playground M5Demo 编排成"agent 验收工作台"场景
 - 顺带修复 M3 遗留：meta 中 skeleton 的 `dir` 误写（registry 一直缺该条，现为 29 条全量）
 
-**M6 · Pro/Free 输入·表单·导航·反馈批（≈2-3 周，16 个）**：VaCombobox(Pro)、VaStepperForm(Pro)、VaPromptLibrary(Pro)、VaSetupGuide(Pro)、VaDateRangePicker(Pro)、VaIntegrationPicker(Pro)、VaIntegrationSettings(Pro)、VaFilterMenu(Free)、VaNotificationStack(Free)、VaOtpInput(Free)、VaProfileMenu(Free)、VaProgressTracker(Free)、VaSmartRecommendation(Free)、VaTipsPanel(Free)、VaReactionBar(Free)、VaChangeSummary(Free)
+**M6 · Pro/Free 输入·表单·导航·反馈批（≈2-3 周，16 个）**：VaCombobox(Pro)、VaStepperForm(Pro)、VaPromptLibrary(Pro)、VaSetupGuide(Pro)、VaDateRangePicker(Pro)、VaIntegrationPicker(Pro)、VaIntegrationSettings(Pro)、VaFilterMenu(Free)、VaNotificationStack(Free)、VaOtpInput(Free)、VaProfileMenu(Free)、VaProgressTracker(Free)、VaSmartRecommendation(Free)、VaTipsPanel(Free)、VaReactionBar(Free)、VaChangeSummary(Free) —— ✅ 已交付（integration 两件共用一目录条目，registry 44 条）
+
+**M6 交付要点**：
+- 日期范围选择零依赖手写（周一起始 6×7 网格、两次点击选范围反向自动交换、悬停预览、预设偏移）；addDays/dayStart/monthGrid 随组件导出
+- 键盘重件：Combobox（↑↓/Enter/Esc/creatable）、OTP（自动跳格、退格回退、粘贴分发）、FilterMenu/ProfileMenu/DateRangePicker（外部点击 + Esc 关闭，SSR 安全挂载）
+- StepperForm：`#step-{id}` 具名插槽 + `v-model:step` 哨兵受控 + nextDisabled 承接宿主校验；SetupGuide/IntegrationSettings 同为哨兵受控
+- **修复 M5 布尔 cast 回归**：可选布尔默认开启的 props（CodeDiff.wordLevel / CommentThread.composer / TerminalLog.autoScroll / SmartRecommendation.dismissible / NotificationStack.relativeTime）未传时被 Vue 运行时 cast 为 false——全部改为 `withDefaults` 显式默认值，SSR 测试锁定
+- 验证：69 vitest（M6 新增 17 个 SSR smoke）；playground M6Demo 编排「设置与工作台页」场景
 
 **M7 · 数据图表 + Screens/Blocks 精选 + 装饰尾巴（≈2-3 周）**：
 - 数据展示（5，**手写 SVG 零依赖**）：VaKpiChart、VaBreakdownChart、VaCompactBreakdown、VaExperimentCard、VaAiAnswer（含来源卡/引用，吸收 Cited Answer 场景）
@@ -192,7 +199,7 @@ components/tool-call/
 | **M3**（第 4 周） | P2/P3 + VitePress 文档站 + llms.txt + registry 生成器 + dts/publishConfig + npm 0.1.0 | ✅ 已完成（npm 0.1.0 首发 待 registry 托管地址） |
 | **M4**（精修轮） | 交互与可达性：真实按键走查、focus-visible、动效参数审计、修复回归 | ✅ 已完成 |
 | **M5**（≈2 周） | Agent 客户端刚需批：差异化 4 件（CodeDiff/FileTree/TerminalLog/CheckpointList）+ 对标 5 件（CommentThread/EmailDraft/UsageMeter/CommandMenu/Dropzone） | ✅ 已完成（52 tests 含 SSR smoke；registry 29 条） |
-| **M6**（≈2-3 周） | Pro/Free 输入·表单·导航·反馈批 16 个 | 📋 规划 |
+| **M6**（≈2-3 周） | Pro/Free 输入·表单·导航·反馈批 16 个 | ✅ 已完成（69 tests；registry 44 条；修复 M5 布尔 cast 回归） |
 | **M7**（≈2-3 周） | 数据图表 5 + Screens 精选 5 + Blocks 精选 3 + Motion 4 + 插画 3 | 📋 规划 |
 
 ## 6. 发布前 TODO（M3 清单）

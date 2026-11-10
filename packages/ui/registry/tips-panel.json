@@ -1,0 +1,24 @@
+{
+  "$schema": "https://shadcn-vue.com/schema/registry-item.json",
+  "name": "tips-panel",
+  "title": "Tips Panel",
+  "description": "使用技巧面板：高亮小卡承载 1-N 条 tip，单条可关闭。",
+  "type": "registry:ui",
+  "dependencies": [],
+  "registryDependencies": [],
+  "docs": "- `tips` (TipItem[]，默认 -)：id/title/body\n- `dismissible` (boolean，默认 false)：显示单条关闭按钮\n- `@dismiss` (-，默认 -)：关闭某条",
+  "files": [
+    {
+      "path": "components/ui/tips-panel/VaTipsPanel.vue",
+      "type": "registry:ui",
+      "target": "components/ui/tips-panel/VaTipsPanel.vue",
+      "content": "<script setup lang=\"ts\">\nimport type { TipsPanelEvents, TipsPanelProps } from \"./types\";\n\nconst props = defineProps<TipsPanelProps>();\n\nconst emit = defineEmits<TipsPanelEvents>();\n</script>\n\n<template>\n  <aside v-if=\"tips.length\" class=\"va-tips\" aria-label=\"使用技巧\">\n    <header class=\"va-tips__head\">\n      <span class=\"va-tips__icon\" aria-hidden=\"true\">💡</span>\n      <span class=\"va-tips__title\">{{ props.title ?? \"使用技巧\" }}</span>\n    </header>\n    <ul class=\"va-tips__list\">\n      <li v-for=\"t in tips\" :key=\"t.id\" class=\"va-tips__item\">\n        <div class=\"va-tips__main\">\n          <span class=\"va-tips__t\">{{ t.title }}</span>\n          <span class=\"va-tips__b\">{{ t.body }}</span>\n        </div>\n        <button\n          v-if=\"props.dismissible\"\n          class=\"va-tips__close\"\n          type=\"button\"\n          :aria-label=\"`关闭技巧：${t.title}`\"\n          @click=\"emit('dismiss', t.id)\"\n        >×</button>\n      </li>\n    </ul>\n  </aside>\n  <p v-else-if=\"props.emptyLabel\" class=\"va-tips__empty\">{{ props.emptyLabel }}</p>\n</template>\n\n<style>\n/* VaTipsPanel — 使用技巧面板 */\n\n.va-tips {\n  border: 1px solid color-mix(in srgb, var(--va-warning) 30%, transparent);\n  border-radius: var(--va-radius-m);\n  background: color-mix(in srgb, var(--va-warning) 5%, var(--va-card));\n  padding: var(--va-s4) var(--va-s5);\n}\n\n.va-tips__head {\n  display: flex;\n  align-items: center;\n  gap: var(--va-s2);\n  margin-bottom: var(--va-s3);\n}\n\n.va-tips__icon { font-size: 14px; line-height: 1; }\n\n.va-tips__title {\n  font-size: 12.5px;\n  font-weight: 700;\n  color: var(--va-ink);\n  letter-spacing: 0.02em;\n}\n\n.va-tips__list {\n  list-style: none;\n  margin: 0;\n  padding: 0;\n}\n\n.va-tips__item {\n  display: flex;\n  align-items: flex-start;\n  gap: var(--va-s3);\n  padding: var(--va-s2) 0;\n}\n\n.va-tips__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }\n\n.va-tips__t { font-size: 12.5px; font-weight: 600; color: var(--va-ink); }\n.va-tips__b { font-size: 12px; color: var(--va-ink-2); line-height: 1.55; }\n\n.va-tips__close {\n  flex: none;\n  border: 0;\n  background: transparent;\n  color: var(--va-muted);\n  font-size: 15px;\n  line-height: 1;\n  width: 22px;\n  height: 22px;\n  cursor: pointer;\n  border-radius: var(--va-radius-s);\n}\n\n.va-tips__close:hover { color: var(--va-ink); background: color-mix(in srgb, var(--va-warning) 12%, transparent); }\n.va-tips__close:focus-visible { outline: 2px solid var(--va-accent); }\n\n.va-tips__empty {\n  margin: 0;\n  font-size: 12px;\n  color: var(--va-muted);\n}\n</style>\n"
+    },
+    {
+      "path": "components/ui/tips-panel/types.ts",
+      "type": "registry:ui",
+      "target": "components/ui/tips-panel/types.ts",
+      "content": "/** VaTipsPanel 的类型定义 */\n\nexport interface TipItem {\n  id: string;\n  title: string;\n  body: string;\n}\n\nexport interface TipsPanelProps {\n  tips: TipItem[];\n  /** 面板标题，默认\"使用技巧\" */\n  title?: string;\n  /** 单条 tip 可关闭 */\n  dismissible?: boolean;\n  /** 全部关闭后显示的文案；空字符串则整卡隐藏 */\n  emptyLabel?: string;\n}\n\nexport interface TipsPanelEvents {\n  dismiss: [id: string];\n}\n"
+    }
+  ]
+}

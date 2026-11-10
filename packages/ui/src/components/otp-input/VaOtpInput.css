@@ -1,0 +1,39 @@
+/* VaOtpInput — 验证码格子输入 */
+
+.va-otp {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--va-s3);
+}
+
+.va-otp__cell {
+  width: 42px;
+  height: 48px;
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-card);
+  color: var(--va-ink);
+  font-family: var(--va-font-mono);
+  font-size: 19px;
+  text-align: center;
+  transition: border-color var(--va-dur-1) var(--va-ease), box-shadow var(--va-dur-1) var(--va-ease);
+}
+
+.va-otp__cell:focus {
+  outline: none;
+  border-color: var(--va-accent);
+  box-shadow: 0 0 0 3px var(--va-accent-soft);
+}
+
+.va-otp__cell--filled { border-color: var(--va-edge-strong); }
+.va-otp__cell:disabled { opacity: 0.5; background: var(--va-bg-subtle); }
+
+.va-otp__done {
+  color: var(--va-success);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-otp__cell { transition: none; }
+}

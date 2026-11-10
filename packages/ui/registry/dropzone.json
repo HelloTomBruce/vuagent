@@ -18,7 +18,7 @@
       "path": "components/ui/dropzone/formatSize.ts",
       "type": "registry:ui",
       "target": "components/ui/dropzone/formatSize.ts",
-      "content": "/** 字节数人性化（B/KB/MB/GB），零依赖 */\nexport function formatBytes(bytes: number): string {\n  if (!Number.isFinite(bytes) || bytes < 0) return \"0 B\";\n  const units = [\"B\", \"KB\", \"MB\", \"GB\"];\n  let v = bytes;\n  let i = 0;\n  while (v >= 1024 && i < units.length - 1) {\n    v /= 1024;\n    i++;\n  }\n  return `${v >= 100 || i === 0 ? Math.round(v) : v.toFixed(1)} ${units[i]}`;\n}\n"
+      "content": "/** 字节数人性化（B/KB/MB/GB），零依赖 */\nexport function formatBytes(bytes: number): string {\n  if (!Number.isFinite(bytes) || bytes < 0) return \"0 B\";\n  const units = [\"B\", \"KB\", \"MB\", \"GB\"];\n  let v = bytes;\n  let i = 0;\n  while (v >= 1024 && i < units.length - 1) {\n    v /= 1024;\n    i++;\n  }\n  const text = Number.isInteger(v) || v >= 100 ? String(Math.round(v)) : v.toFixed(1);\n  return `${text} ${units[i]}`;\n}\n"
     },
     {
       "path": "components/ui/dropzone/types.ts",

@@ -140,6 +140,79 @@ export type {
   DropzoneProps,
 } from "./components/dropzone";
 
+// M6 · 输入·表单·导航·反馈批
+export { VaCombobox } from "./components/combobox";
+export type { ComboboxEvents, ComboboxOption, ComboboxProps } from "./components/combobox";
+
+export { VaFilterMenu } from "./components/filter-menu";
+export type {
+  FilterGroup,
+  FilterMenuEvents,
+  FilterMenuProps,
+  FilterOption,
+  FilterValue,
+} from "./components/filter-menu";
+
+export { VaOtpInput } from "./components/otp-input";
+export type { OtpInputEvents, OtpInputProps } from "./components/otp-input";
+
+export { VaProfileMenu } from "./components/profile-menu";
+export type { ProfileMenuEvents, ProfileMenuItem, ProfileMenuProps } from "./components/profile-menu";
+
+export { VaStepperForm } from "./components/stepper-form";
+export type { StepperFormEvents, StepperFormProps, StepperStep } from "./components/stepper-form";
+
+export { VaProgressTracker } from "./components/progress-tracker";
+export type {
+  ProgressTrackerEvents,
+  ProgressTrackerProps,
+  TrackerStep,
+  TrackerStepStatus,
+} from "./components/progress-tracker";
+
+export { VaSetupGuide } from "./components/setup-guide";
+export type { SetupGuideEvents, SetupGuideProps, SetupStep } from "./components/setup-guide";
+
+export { VaSmartRecommendation } from "./components/smart-recommendation";
+export type {
+  RecommendationAction,
+  SmartRecommendationEvents,
+  SmartRecommendationProps,
+} from "./components/smart-recommendation";
+
+export { VaPromptLibrary } from "./components/prompt-library";
+export type { PromptItem, PromptLibraryEvents, PromptLibraryProps } from "./components/prompt-library";
+
+export { VaDateRangePicker, addDays, dayStart, fmtDate, monthGrid } from "./components/date-range-picker";
+export type { DateRangePickerEvents, DateRangePickerProps, DateRangePreset } from "./components/date-range-picker";
+
+export { VaIntegrationPicker, VaIntegrationSettings } from "./components/integration";
+export type {
+  IntegrationField,
+  IntegrationItem,
+  IntegrationPickerEvents,
+  IntegrationPickerProps,
+  IntegrationSettingsEvents,
+  IntegrationSettingsProps,
+} from "./components/integration";
+
+export { VaNotificationStack } from "./components/notification-stack";
+export type {
+  NotificationItem,
+  NotificationKind,
+  NotificationStackEvents,
+  NotificationStackProps,
+} from "./components/notification-stack";
+
+export { VaTipsPanel } from "./components/tips-panel";
+export type { TipItem, TipsPanelEvents, TipsPanelProps } from "./components/tips-panel";
+
+export { VaReactionBar } from "./components/reaction-bar";
+export type { ReactionBarEvents, ReactionItem, ReactionBarProps } from "./components/reaction-bar";
+
+export { VaChangeSummary } from "./components/change-summary";
+export type { ChangeSummaryEvents, ChangeSummaryProps, SummaryFile } from "./components/change-summary";
+
 // 工具与算法（InlineDiff 的 diff 能力也可独立使用）
 export { formatMs, formatTokens, toDisplayText } from "./utils/format";
 export { buildDiffUnits, diffResult, tokenize, wordDiff } from "./utils/wordDiff";

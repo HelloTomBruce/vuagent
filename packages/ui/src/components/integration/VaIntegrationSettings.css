@@ -1,0 +1,129 @@
+/* VaIntegrationSettings — 集成配置面板 */
+
+.va-is {
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-m);
+  background: var(--va-card);
+  padding: var(--va-s5);
+}
+
+.va-is__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--va-s4);
+}
+
+.va-is__titlewrap { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.va-is__name { margin: 0; font-size: 14.5px; font-weight: 700; color: var(--va-ink); }
+.va-is__desc { margin: 0; font-size: 12.5px; color: var(--va-muted); line-height: 1.5; }
+
+/* 开关 */
+.va-is__switch {
+  flex: none;
+  width: 42px;
+  height: 24px;
+  border-radius: var(--va-radius-pill);
+  border: 0;
+  background: var(--va-edge-strong);
+  position: relative;
+  cursor: pointer;
+  transition: background var(--va-dur-2) var(--va-ease);
+  padding: 0;
+}
+
+.va-is__switch[aria-checked="true"] { background: var(--va-success); }
+
+.va-is__switch:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 2px; }
+
+.va-is__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--va-shadow-1);
+  transition: transform var(--va-dur-2) var(--va-ease);
+}
+
+.va-is__switch[aria-checked="true"] .va-is__knob { transform: translateX(18px); }
+
+.va-is__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s4);
+  margin-top: var(--va-s5);
+}
+
+.va-is__field { display: flex; flex-direction: column; gap: var(--va-s2); }
+
+.va-is__label { font-size: 12px; font-weight: 600; color: var(--va-muted); }
+
+.va-is__req { color: var(--va-danger); font-style: normal; }
+
+.va-is__input {
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-bg);
+  color: var(--va-ink);
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+}
+
+.va-is__input:focus {
+  outline: none;
+  border-color: var(--va-accent);
+  box-shadow: 0 0 0 3px var(--va-accent-soft);
+}
+
+.va-is__input[aria-invalid="true"] { border-color: var(--va-danger); }
+
+.va-is__err { font-size: 11.5px; color: var(--va-danger); }
+
+.va-is__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s3);
+  margin-top: var(--va-s5);
+  padding-top: var(--va-s4);
+  border-top: 1px solid var(--va-edge);
+}
+
+.va-is__spacer { flex: 1; }
+
+.va-is__saved { font-size: 12px; color: var(--va-success); }
+
+.va-is__disc {
+  border: 0;
+  background: transparent;
+  color: var(--va-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.va-is__disc:hover { color: var(--va-danger); }
+.va-is__disc:focus-visible { outline: 2px solid var(--va-accent); }
+
+.va-is__save {
+  border: 0;
+  border-radius: var(--va-radius-s);
+  background: var(--va-accent);
+  color: var(--va-card);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 18px;
+  cursor: pointer;
+}
+
+.va-is__save:hover:not(:disabled) { background: var(--va-accent-hover); }
+.va-is__save:disabled { opacity: 0.45; cursor: default; }
+.va-is__save:focus-visible { outline: 2px solid var(--va-ink); outline-offset: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-is__switch,
+  .va-is__knob { transition: none; }
+}

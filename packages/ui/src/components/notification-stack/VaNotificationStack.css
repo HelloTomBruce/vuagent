@@ -1,0 +1,127 @@
+/* VaNotificationStack — 通知中心列表 */
+
+.va-ns {
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-m);
+  background: var(--va-card);
+  overflow: hidden;
+}
+
+.va-ns__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--va-s3) var(--va-s4);
+  border-bottom: 1px solid var(--va-edge);
+  background: var(--va-bg-subtle);
+}
+
+.va-ns__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--va-ink);
+  display: flex;
+  align-items: center;
+  gap: var(--va-s3);
+}
+
+.va-ns__count {
+  min-width: 18px;
+  height: 18px;
+  border-radius: var(--va-radius-pill);
+  background: var(--va-accent);
+  color: var(--va-card);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  padding: 0 5px;
+}
+
+.va-ns__allread {
+  border: 0;
+  background: transparent;
+  color: var(--va-info);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.va-ns__allread:hover { text-decoration: underline; }
+.va-ns__allread:focus-visible { outline: 2px solid var(--va-accent); }
+
+.va-ns__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.va-ns__item {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--va-edge);
+}
+
+.va-ns__item:last-child { border-bottom: 0; }
+.va-ns__item[data-unread="true"] { background: color-mix(in srgb, var(--va-accent) 4%, transparent); }
+
+.va-ns__main {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--va-s3);
+  border: 0;
+  background: transparent;
+  padding: var(--va-s3) var(--va-s4);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  min-width: 0;
+}
+
+.va-ns__main:hover { background: var(--va-bg-subtle); }
+.va-ns__main:focus-visible { outline: 2px solid var(--va-accent); outline-offset: -2px; }
+
+.va-ns__icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.va-ns__item[data-kind="info"] .va-ns__icon { background: color-mix(in srgb, var(--va-info) 14%, transparent); color: var(--va-info); }
+.va-ns__item[data-kind="success"] .va-ns__icon { background: color-mix(in srgb, var(--va-success) 14%, transparent); color: var(--va-success); }
+.va-ns__item[data-kind="warning"] .va-ns__icon { background: color-mix(in srgb, var(--va-warning) 16%, transparent); color: var(--va-warning); }
+.va-ns__item[data-kind="danger"] .va-ns__icon { background: color-mix(in srgb, var(--va-danger) 14%, transparent); color: var(--va-danger); }
+.va-ns__item[data-kind="agent"] .va-ns__icon { background: var(--va-accent-soft); color: var(--va-accent); }
+
+.va-ns__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.va-ns__t { font-size: 13px; font-weight: 600; color: var(--va-ink); }
+.va-ns__b { font-size: 12px; color: var(--va-ink-2); line-height: 1.5; }
+.va-ns__time { font-size: 11px; color: var(--va-muted); margin-top: 2px; }
+
+.va-ns__dot {
+  flex: none;
+  align-self: center;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--va-accent);
+  margin-right: var(--va-s4);
+}
+
+.va-ns__empty {
+  margin: 0;
+  padding: var(--va-s6) var(--va-s4);
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--va-muted);
+}

@@ -29,3 +29,4 @@ pnpm typecheck    # 全仓类型检查
 - [x] M3：P2/P3 组件补齐（9 个新组件，全库 22 个）+ registry 生成器（19 items）+ llms.txt/llms-full.txt + dts/publishConfig + VitePress 文档站 + CI/changesets
 - [x] M4：交互与可达性精修（真实按键走查 / focus-visible / 动效审计）
 - [x] M5：Agent 客户端刚需批 9 件——差异化 CodeDiff / FileTree / TerminalLog / CheckpointList + 对标 CommentThread / EmailDraft / UsageMeter / CommandMenu / Dropzone（全库 29 项，52 tests 含 SSR smoke）
+- [x] M6：输入·表单·导航·反馈批 16 件——Combobox / FilterMenu / OtpInput / ProfileMenu / StepperForm / ProgressTracker / SetupGuide / SmartRecommendation / PromptLibrary / DateRangePicker / IntegrationPicker+Settings / NotificationStack / TipsPanel / ReactionBar / ChangeSummary（全库 44 项，69 tests）

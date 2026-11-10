@@ -1,7 +1,7 @@
 <script setup>
 import { components } from "../../../meta/components.mjs";
 
-const cats = ["Agent-Ops", "Chat", "基础", "动效"];
+const cats = ["Agent-Ops", "Chat", "基础", "表单", "反馈", "动效"];
 </script>
 
 # 组件总览

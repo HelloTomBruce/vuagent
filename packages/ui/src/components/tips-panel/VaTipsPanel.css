@@ -1,0 +1,64 @@
+/* VaTipsPanel — 使用技巧面板 */
+
+.va-tips {
+  border: 1px solid color-mix(in srgb, var(--va-warning) 30%, transparent);
+  border-radius: var(--va-radius-m);
+  background: color-mix(in srgb, var(--va-warning) 5%, var(--va-card));
+  padding: var(--va-s4) var(--va-s5);
+}
+
+.va-tips__head {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s2);
+  margin-bottom: var(--va-s3);
+}
+
+.va-tips__icon { font-size: 14px; line-height: 1; }
+
+.va-tips__title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--va-ink);
+  letter-spacing: 0.02em;
+}
+
+.va-tips__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.va-tips__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--va-s3);
+  padding: var(--va-s2) 0;
+}
+
+.va-tips__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.va-tips__t { font-size: 12.5px; font-weight: 600; color: var(--va-ink); }
+.va-tips__b { font-size: 12px; color: var(--va-ink-2); line-height: 1.55; }
+
+.va-tips__close {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--va-muted);
+  font-size: 15px;
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  border-radius: var(--va-radius-s);
+}
+
+.va-tips__close:hover { color: var(--va-ink); background: color-mix(in srgb, var(--va-warning) 12%, transparent); }
+.va-tips__close:focus-visible { outline: 2px solid var(--va-accent); }
+
+.va-tips__empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--va-muted);
+}

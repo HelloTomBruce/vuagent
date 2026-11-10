@@ -1,0 +1,104 @@
+/* VaCombobox — 可搜索/可创建下拉 */
+
+.va-cbx {
+  position: relative;
+  display: inline-flex;
+  min-width: 220px;
+}
+
+.va-cbx__input {
+  flex: 1;
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-card);
+  color: var(--va-ink);
+  font: inherit;
+  font-size: 13.5px;
+  padding: 7px 28px 7px 10px;
+  transition: border-color var(--va-dur-1) var(--va-ease);
+}
+
+.va-cbx__input:focus {
+  outline: none;
+  border-color: var(--va-accent);
+  box-shadow: 0 0 0 3px var(--va-accent-soft);
+}
+
+.va-cbx__chev {
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--va-muted);
+  font-size: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.va-cbx__list,
+.va-cbx__empty {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--va-card);
+  border: 1px solid var(--va-edge-strong);
+  border-radius: var(--va-radius-m);
+  box-shadow: var(--va-shadow-2);
+  padding: var(--va-s2);
+}
+
+.va-cbx__list {
+  list-style: none;
+  margin: 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.va-cbx__opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--va-s3);
+  padding: 7px var(--va-s3);
+  border-radius: var(--va-radius-s);
+  font-size: 13.5px;
+  color: var(--va-ink-2);
+  cursor: pointer;
+}
+
+.va-cbx__opt[data-active="true"] { background: var(--va-accent-soft); color: var(--va-ink); }
+.va-cbx__opt[aria-selected="true"] { font-weight: 600; }
+.va-cbx__opt[data-disabled="true"] { opacity: 0.4; cursor: default; }
+
+.va-cbx__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.va-cbx__hint {
+  flex: none;
+  font-size: 11px;
+  color: var(--va-muted);
+  font-family: var(--va-font-mono);
+}
+
+.va-cbx__empty {
+  font-size: 12.5px;
+  color: var(--va-muted);
+  text-align: center;
+  padding: var(--va-s4);
+}
+
+/* 屏幕阅读器专用 */
+.va-cbx__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-cbx__input { transition: none; }
+}

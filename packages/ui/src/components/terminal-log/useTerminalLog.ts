@@ -43,7 +43,7 @@ export function useTerminalLog(props: TerminalLogProps, bodyEl: Ref<HTMLElement 
   watch(
     () => props.lines.length,
     () => {
-      if (props.autoScroll === false || !stickToBottom.value) return;
+      if (!props.autoScroll || !stickToBottom.value) return;
       nextTick(scrollToBottom);
     },
   );
@@ -51,10 +51,10 @@ export function useTerminalLog(props: TerminalLogProps, bodyEl: Ref<HTMLElement 
   let ro: ResizeObserver | undefined;
   onMounted(() => {
     const el = bodyEl.value;
-    if (el && props.autoScroll !== false) el.scrollTop = el.scrollHeight;
+    if (el && props.autoScroll) el.scrollTop = el.scrollHeight;
     if (typeof ResizeObserver !== "undefined" && el) {
       ro = new ResizeObserver(() => {
-        if (stickToBottom.value && props.autoScroll !== false) el.scrollTop = el.scrollHeight;
+        if (stickToBottom.value && props.autoScroll) el.scrollTop = el.scrollHeight;
       });
       ro.observe(el);
     }

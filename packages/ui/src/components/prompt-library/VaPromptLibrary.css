@@ -1,0 +1,145 @@
+/* VaPromptLibrary — 提示词库 */
+
+.va-pl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s4);
+}
+
+.va-pl__bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s3);
+}
+
+.va-pl__search {
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-card);
+  color: var(--va-ink);
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 12px;
+}
+
+.va-pl__search:focus {
+  outline: none;
+  border-color: var(--va-accent);
+  box-shadow: 0 0 0 3px var(--va-accent-soft);
+}
+
+.va-pl__cats { display: flex; gap: var(--va-s2); flex-wrap: wrap; }
+
+.va-pl__cat {
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-pill);
+  background: var(--va-card);
+  color: var(--va-muted);
+  font-size: 12px;
+  padding: 3px 12px;
+  cursor: pointer;
+}
+
+.va-pl__cat[data-active="true"] {
+  background: var(--va-ink);
+  border-color: var(--va-ink);
+  color: var(--va-card);
+  font-weight: 600;
+}
+
+.va-pl__cat:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+
+.va-pl__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--va-s4);
+}
+
+.va-pl__card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-m);
+  background: var(--va-card);
+  padding: var(--va-s4);
+  transition: border-color var(--va-dur-1) var(--va-ease), box-shadow var(--va-dur-1) var(--va-ease);
+}
+
+.va-pl__card:hover { border-color: var(--va-edge-strong); box-shadow: var(--va-shadow-1); }
+
+.va-pl__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--va-s3);
+}
+
+.va-pl__title { font-size: 13.5px; font-weight: 600; color: var(--va-ink); }
+
+.va-pl__badge {
+  flex: none;
+  font-size: 10.5px;
+  padding: 1px 8px;
+  border-radius: var(--va-radius-pill);
+  background: var(--va-bg-subtle);
+  color: var(--va-muted);
+}
+
+.va-pl__body {
+  flex: 1;
+  margin: var(--va-s3) 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--va-ink-2);
+  white-space: pre-wrap;
+  overflow: hidden;
+}
+
+.va-pl__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--va-s3);
+}
+
+.va-pl__tags { display: flex; gap: var(--va-s2); flex-wrap: wrap; min-width: 0; }
+
+.va-pl__tag {
+  font-size: 11px;
+  color: var(--va-accent);
+  background: var(--va-accent-soft);
+  border-radius: var(--va-radius-pill);
+  padding: 1px 7px;
+}
+
+.va-pl__use {
+  flex: none;
+  border: 1px solid var(--va-accent);
+  border-radius: var(--va-radius-s);
+  background: var(--va-accent);
+  color: var(--va-card);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 14px;
+  cursor: pointer;
+}
+
+.va-pl__use:hover { background: var(--va-accent-hover); }
+.va-pl__use:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+
+.va-pl__empty {
+  margin: 0;
+  padding: var(--va-s7) var(--va-s4);
+  text-align: center;
+  font-size: 13px;
+  color: var(--va-muted);
+  border: 1px dashed var(--va-edge);
+  border-radius: var(--va-radius-m);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-pl__card { transition: none; }
+}

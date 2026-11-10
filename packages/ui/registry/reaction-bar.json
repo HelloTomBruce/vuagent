@@ -1,0 +1,24 @@
+{
+  "$schema": "https://shadcn-vue.com/schema/registry-item.json",
+  "name": "reaction-bar",
+  "title": "Reaction Bar",
+  "description": "emoji 快速反馈条：aria-pressed 切换态、计数徽章、按下微缩动效（reduced-motion 降级）。",
+  "type": "registry:ui",
+  "dependencies": [],
+  "registryDependencies": [],
+  "docs": "- `reactions` (ReactionItem[]，默认 -)：id/emoji/label/count/active\n- `@toggle` (-，默认 -)：携带目标态",
+  "files": [
+    {
+      "path": "components/ui/reaction-bar/VaReactionBar.vue",
+      "type": "registry:ui",
+      "target": "components/ui/reaction-bar/VaReactionBar.vue",
+      "content": "<script setup lang=\"ts\">\nimport type { ReactionBarEvents, ReactionBarProps } from \"./types\";\n\nconst props = defineProps<ReactionBarProps>();\n\nconst emit = defineEmits<ReactionBarEvents>();\n\nfunction toggle(i: number) {\n  const item = props.reactions[i]!;\n  if (item.disabled) return;\n  const next = !item.active;\n  emit(\"toggle\", item, next);\n}\n</script>\n\n<template>\n  <div class=\"va-rx\" role=\"group\" aria-label=\"快速反馈\">\n    <button\n      v-for=\"(r, i) in props.reactions\"\n      :key=\"r.id\"\n      class=\"va-rx__btn\"\n      type=\"button\"\n      :aria-pressed=\"r.active ?? false\"\n      :data-active=\"r.active ?? false\"\n      :disabled=\"r.disabled\"\n      :title=\"r.label\"\n      @click=\"toggle(i)\"\n    >\n      <span class=\"va-rx__emoji\" aria-hidden=\"true\">{{ r.emoji }}</span>\n      <span v-if=\"r.label\" class=\"va-rx__label\">{{ r.label }}</span>\n      <span v-if=\"r.count !== undefined\" class=\"va-rx__count\" :aria-label=\"`${r.count} 人`\">{{ r.count }}</span>\n    </button>\n  </div>\n</template>\n\n<style>\n/* VaReactionBar — emoji 快速反馈 */\n\n.va-rx {\n  display: inline-flex;\n  gap: var(--va-s2);\n  flex-wrap: wrap;\n}\n\n.va-rx__btn {\n  display: inline-flex;\n  align-items: center;\n  gap: var(--va-s2);\n  border: 1px solid var(--va-edge);\n  border-radius: var(--va-radius-pill);\n  background: var(--va-card);\n  color: var(--va-ink-2);\n  font-size: 12.5px;\n  padding: 4px 12px;\n  cursor: pointer;\n  transition: border-color var(--va-dur-1) var(--va-ease), background var(--va-dur-1) var(--va-ease), transform var(--va-dur-1) var(--va-ease);\n}\n\n.va-rx__btn:hover:not(:disabled) { border-color: var(--va-edge-strong); }\n.va-rx__btn:active:not(:disabled) { transform: scale(0.96); }\n.va-rx__btn:disabled { opacity: 0.45; cursor: default; }\n.va-rx__btn:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }\n\n.va-rx__btn[data-active=\"true\"] {\n  background: var(--va-accent-soft);\n  border-color: color-mix(in srgb, var(--va-accent) 45%, transparent);\n  color: var(--va-accent);\n}\n\n.va-rx__emoji { font-size: 14px; line-height: 1; }\n.va-rx__label { font-weight: 600; }\n\n.va-rx__count {\n  font-size: 11.5px;\n  color: var(--va-muted);\n  font-variant-numeric: tabular-nums;\n}\n\n.va-rx__btn[data-active=\"true\"] .va-rx__count { color: var(--va-accent); }\n\n@media (prefers-reduced-motion: reduce) {\n  .va-rx__btn { transition: none; }\n}\n</style>\n"
+    },
+    {
+      "path": "components/ui/reaction-bar/types.ts",
+      "type": "registry:ui",
+      "target": "components/ui/reaction-bar/types.ts",
+      "content": "/** VaReactionBar 的类型定义 */\n\nexport interface ReactionItem {\n  id: string;\n  /** emoji 本体，如 \"👍\" */\n  emoji: string;\n  /** 附加文案（如 \"有帮助\"） */\n  label?: string;\n  count?: number;\n  /** 当前用户已选中 */\n  active?: boolean;\n  disabled?: boolean;\n}\n\nexport interface ReactionBarProps {\n  reactions: ReactionItem[];\n  /** 单选模式（再点一次取消）；默认可多选 */\n  single?: boolean;\n}\n\nexport interface ReactionBarEvents {\n  /** 切换某项（携带目标态） */\n  toggle: [item: ReactionItem, nextActive: boolean];\n}\n"
+    }
+  ]
+}

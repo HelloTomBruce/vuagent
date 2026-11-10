@@ -1,0 +1,93 @@
+/* VaSmartRecommendation — agent 建议卡 */
+
+.va-rec {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--va-s4);
+  border: 1px solid color-mix(in srgb, var(--va-info) 30%, transparent);
+  border-radius: var(--va-radius-m);
+  background: color-mix(in srgb, var(--va-info) 5%, var(--va-card));
+  padding: var(--va-s4) var(--va-s5);
+}
+
+.va-rec__spark {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--va-info) 14%, transparent);
+  color: var(--va-info);
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.va-rec__main { flex: 1; min-width: 0; }
+
+.va-rec__head {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s3);
+  flex-wrap: wrap;
+}
+
+.va-rec__title { font-size: 13.5px; font-weight: 700; color: var(--va-ink); }
+
+.va-rec__impact {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: var(--va-radius-pill);
+  background: color-mix(in srgb, var(--va-success) 14%, transparent);
+  color: var(--va-success);
+}
+
+.va-rec__desc {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--va-ink-2);
+}
+
+.va-rec__ops {
+  display: flex;
+  gap: var(--va-s2);
+  margin-top: var(--va-s4);
+}
+
+.va-rec__btn {
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-card);
+  color: var(--va-ink-2);
+  font-size: 12.5px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.va-rec__btn:hover { border-color: var(--va-edge-strong); }
+.va-rec__btn:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+
+.va-rec__btn[data-primary="true"] {
+  background: var(--va-info);
+  border-color: var(--va-info);
+  color: #fff;
+  font-weight: 600;
+}
+
+.va-rec__close {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--va-muted);
+  font-size: 16px;
+  line-height: 1;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  border-radius: var(--va-radius-s);
+}
+
+.va-rec__close:hover { color: var(--va-ink); background: var(--va-bg-subtle); }
+.va-rec__close:focus-visible { outline: 2px solid var(--va-accent); }

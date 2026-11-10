@@ -167,6 +167,19 @@ AI 文案修改逐词接受/拒绝：CJK 逐字分词的零依赖 diff、撤销�
 | `restoring` | `string` | - | 恢复进行中的检查点 id |
 | `@restore / @preview` | `-` | - | 确认恢复 / 打开 diff 预览 |
 
+### Change Summary
+
+agent 一轮工作摘要卡：N 文件 +adds −dels、耗时与工具调用次数、逐文件行（M/A/D 徽章 + 增删计数），可折叠长列表。
+
+组件：VaChangeSummary
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `files` | `SummaryFile[]` | - | path/status/additions/deletions |
+| `duration / toolCalls` | `number` | - | 耗时 ms / 工具调用次数 |
+| `maxFiles` | `number` | - | 超出折叠（展开按钮） |
+| `@openFile` | `-` | - | 点击文件行（联动 CodeDiff） |
+
 
 ## Chat
 
@@ -357,6 +370,67 @@ agent 起草邮件、人工确认发送：收件人/主题/正文可就地编辑
 | `files` | `DropzoneFile[]` | - | 受控列表（progress/status/error 由宿主更新） |
 | `accept / multiple / maxSizeMb` | `string / boolean / number` | - / false / - | 选择约束 |
 | `@add / @remove / @reject` | `-` | - | 添加 / 移除 / 超大小拒绝 |
+
+### Combobox
+
+可搜索下拉选择：输入过滤、↑↓ 循环高亮、Enter 选中、Esc 关闭；creatable 可把输入创建为新值。
+
+组件：VaCombobox
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `options` | `ComboboxOption[]` | - | value/label/hint/disabled |
+| `v-model` | `string` | - | 选中值 |
+| `creatable` | `boolean` | false | 允许创建输入中的新值 |
+| `@create / @select` | `-` | - | 创建新值 / 选中列表项 |
+
+### Filter Menu
+
+过滤条件下拉：checkbox 多选组 + radio 单选组，触发按钮带激活计数徽章，一键清除全部。
+
+组件：VaFilterMenu
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `groups` | `FilterGroup[]` | - | id/label/type/options 过滤组 |
+| `v-model` | `FilterValue` | {} | Record<groupId, string[] | string> |
+| `@clear` | `-` | - | 清除全部 |
+
+### OTP Input
+
+验证码格子输入：自动跳格与选中、退格回退、整段粘贴分发、方向键移动、填满回调。
+
+组件：VaOtpInput
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `v-model` | `string` | "" | 验证码字符串 |
+| `length` | `number` | 6 | 格子数 |
+| `@complete` | `-` | - | 全部填满时触发 |
+
+### Profile Menu
+
+头像账户菜单：首字母色块头像、未读徽标、用户信息头 + 菜单列表（danger 项）、Esc/外部点击关闭。
+
+组件：VaProfileMenu
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `name / email / avatar` | `string` | - | 账户信息 |
+| `items` | `ProfileMenuItem[]` | - | 菜单项（danger 标红） |
+| `@select` | `-` | - | 点击菜单项 |
+
+### Progress Tracker
+
+步骤进度条（横/竖）：done/current/pending/error 四态节点 + 完成段连线填充，点击节点回调。
+
+组件：VaProgressTracker
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `steps` | `TrackerStep[]` | - | label/status（缺省按 current 推断） |
+| `current` | `number` | 0 | 当前步下标 |
+| `orientation` | `"horizontal" | "vertical"` | "horizontal" | 方向 |
 
 
 ## 动效

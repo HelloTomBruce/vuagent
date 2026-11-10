@@ -1,0 +1,101 @@
+/* VaProfileMenu — 头像账户菜单 */
+
+.va-pm { position: relative; display: inline-flex; }
+
+.va-pm__trigger {
+  position: relative;
+  border: 0;
+  background: transparent;
+  padding: 2px;
+  border-radius: 50%;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.va-pm__trigger:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 2px; }
+
+.va-pm__avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.va-pm__avatar--text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.va-pm__badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  min-width: 17px;
+  height: 17px;
+  border-radius: var(--va-radius-pill);
+  background: var(--va-danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+  padding: 0 4px;
+  border: 2px solid var(--va-card);
+  box-sizing: content-box;
+}
+
+.va-pm__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  min-width: 220px;
+  background: var(--va-card);
+  border: 1px solid var(--va-edge-strong);
+  border-radius: var(--va-radius-m);
+  box-shadow: var(--va-shadow-2);
+  padding: var(--va-s2);
+  animation: va-pm-in var(--va-dur-1) var(--va-ease);
+}
+
+@keyframes va-pm-in {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+
+.va-pm__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--va-s2) var(--va-s3) var(--va-s4);
+  border-bottom: 1px solid var(--va-edge);
+  margin-bottom: var(--va-s2);
+}
+
+.va-pm__name { font-size: 13.5px; font-weight: 700; color: var(--va-ink); }
+.va-pm__email { font-size: 12px; color: var(--va-muted); overflow: hidden; text-overflow: ellipsis; }
+
+.va-pm__item {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: var(--va-radius-s);
+  background: transparent;
+  color: var(--va-ink-2);
+  font-size: 13px;
+  text-align: left;
+  padding: 7px var(--va-s3);
+  cursor: pointer;
+}
+
+.va-pm__item:hover:not(:disabled) { background: var(--va-bg-subtle); }
+.va-pm__item:focus-visible { outline: 2px solid var(--va-accent); outline-offset: -2px; }
+.va-pm__item:disabled { opacity: 0.4; cursor: default; }
+.va-pm__item[data-danger="true"] { color: var(--va-danger); }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-pm__menu { animation: none; }
+}

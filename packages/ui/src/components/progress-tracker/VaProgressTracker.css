@@ -1,0 +1,116 @@
+/* VaProgressTracker — 步骤进度条（横/竖） */
+
+.va-pt {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  --va-pt-fill: 0%;
+}
+
+.va-pt[data-orientation="vertical"] { flex-direction: column; gap: var(--va-s2); }
+.va-pt[data-orientation="horizontal"] { align-items: flex-start; }
+
+.va-pt__step {
+  flex: 1;
+  display: flex;
+  position: relative;
+}
+
+/* 横向：节点间连接线（完成段高亮） */
+.va-pt[data-orientation="horizontal"] .va-pt__step:not(:first-child)::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  right: calc(50% + 14px);
+  left: calc(-50% + 14px);
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    var(--va-accent) min(var(--va-pt-fill), 100%),
+    var(--va-edge) min(var(--va-pt-fill), 100%)
+  );
+}
+
+/* 竖向：节点下连接线 */
+.va-pt[data-orientation="vertical"] .va-pt__step:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 26px;
+  bottom: -6px;
+  width: 2px;
+  background: var(--va-edge);
+}
+
+.va-pt[data-orientation="vertical"] .va-pt__step[data-status="done"]:not(:last-child)::before {
+  background: var(--va-accent);
+}
+
+.va-pt__node {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s3);
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  width: 100%;
+}
+
+.va-pt[data-orientation="horizontal"] .va-pt__node {
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  text-align: center;
+}
+
+.va-pt__node:focus-visible { outline: none; }
+.va-pt__node:focus-visible .va-pt__dot { box-shadow: 0 0 0 3px var(--va-accent-soft); }
+
+.va-pt__dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--va-edge-strong);
+  background: var(--va-card);
+  color: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  transition: all var(--va-dur-2) var(--va-ease);
+  box-sizing: border-box;
+}
+
+.va-pt__step[data-status="done"] .va-pt__dot {
+  border-color: var(--va-success);
+  background: var(--va-success);
+  color: #fff;
+}
+
+.va-pt__step[data-status="current"] .va-pt__dot {
+  border-color: var(--va-accent);
+  box-shadow: 0 0 0 4px var(--va-accent-soft);
+}
+
+.va-pt__step[data-status="error"] .va-pt__dot {
+  border-color: var(--va-danger);
+  color: var(--va-danger);
+}
+
+.va-pt__label {
+  font-size: 12.5px;
+  color: var(--va-muted);
+}
+
+.va-pt__step[data-status="current"] .va-pt__label { color: var(--va-ink); font-weight: 600; }
+.va-pt__step[data-status="done"] .va-pt__label { color: var(--va-ink-2); }
+.va-pt__step[data-status="error"] .va-pt__label { color: var(--va-danger); }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-pt__dot { transition: none; }
+}
