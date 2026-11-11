@@ -1,0 +1,25 @@
+{
+  "name": "@vuagent/agent-demo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "demo": "pnpm --filter @vuagent/agent-demo dev"
+  },
+  "dependencies": {
+    "@vuagent/ui": "workspace:*",
+    "vue": "^3.5.21",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "typescript": "~5.9.2",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.4",
+    "vue-tsc": "^3.0.0"
+  }
+}
