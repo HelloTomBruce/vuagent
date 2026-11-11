@@ -266,6 +266,36 @@
       "title": "Change Summary",
       "description": "agent 一轮工作摘要卡：N 文件 +adds −dels、耗时与工具调用次数、逐文件行（M/A/D 徽章 + 增删计数），可折叠长列表。",
       "type": "registry:ui"
+    },
+    {
+      "name": "kpi-chart",
+      "title": "KPI Chart",
+      "description": "指标卡 + sparkline：手写 SVG 折线（中点平滑/面积渐变/描线入场），环比涨跌徽章（invertDelta 适配错误率类「跌=好」），aria 摘要。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "breakdown-chart",
+      "title": "Breakdown Chart",
+      "description": "横向分布条：按值降序、色板/自定义色、barScale 按最大项或总量、maxRows 折叠「其他」、行可点选。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "compact-breakdown",
+      "title": "Compact Breakdown",
+      "description": "单行堆叠占比条 + 内联图例：一行放下的迷你分布（嵌入卡片头、表格行内）。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "experiment-card",
+      "title": "Experiment Card",
+      "description": "A/B 实验对比卡：变体并列（胜者描边 + ✓）、置信度条与结论（未达显著给「继续观察」）、running 态实时时长 + 结束/重开。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "ai-answer",
+      "title": "AI Answer",
+      "description": "带来源引用的回答卡：正文 [n] 标记渲染为可点击上标角标（无对应来源原样保留）、来源列表（序号 + 标题 + 出处）、流式光标。",
+      "type": "registry:ui"
     }
   ]
 }

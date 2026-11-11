@@ -1,0 +1,70 @@
+/* VaKpiChart — KPI 指标卡 + sparkline */
+
+.va-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-m);
+  background: var(--va-card);
+  padding: var(--va-s4) var(--va-s5);
+  min-width: 180px;
+}
+
+.va-kpi--clickable { cursor: pointer; transition: border-color var(--va-dur-1) var(--va-ease); }
+.va-kpi--clickable:hover { border-color: var(--va-edge-strong); }
+.va-kpi--clickable:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+
+.va-kpi__label { font-size: 12px; color: var(--va-muted); }
+
+.va-kpi__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--va-s3);
+  flex-wrap: wrap;
+}
+
+.va-kpi__value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--va-ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.va-kpi__delta {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.va-kpi__delta[data-good="true"] { color: var(--va-success); }
+.va-kpi__delta[data-good="false"] { color: var(--va-danger); }
+
+.va-kpi__vs { font-size: 11px; color: var(--va-muted); }
+
+.va-kpi__spark {
+  margin-top: var(--va-s3);
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+/* 描线入场（reduced-motion 降级为直出） */
+.va-kpi__spark path[stroke] {
+  stroke-dasharray: 600;
+  stroke-dashoffset: 600;
+  animation: va-kpi-draw 1.1s var(--va-ease) forwards;
+}
+
+@keyframes va-kpi-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-kpi__spark path[stroke] { animation: none; stroke-dashoffset: 0; }
+  .va-kpi--clickable { transition: none; }
+}

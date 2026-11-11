@@ -1,0 +1,24 @@
+{
+  "$schema": "https://shadcn-vue.com/schema/registry-item.json",
+  "name": "compact-breakdown",
+  "title": "Compact Breakdown",
+  "description": "单行堆叠占比条 + 内联图例：一行放下的迷你分布（嵌入卡片头、表格行内）。",
+  "type": "registry:ui",
+  "dependencies": [],
+  "registryDependencies": [],
+  "docs": "- `segments` (CompactSegment[]，默认 -)：label/value/color\n- `total / height` (number / number，默认 求和 / 8)：分母与条高 px\n- `legend` (boolean，默认 true)：内联图例开关",
+  "files": [
+    {
+      "path": "components/ui/compact-breakdown/VaCompactBreakdown.vue",
+      "type": "registry:ui",
+      "target": "components/ui/compact-breakdown/VaCompactBreakdown.vue",
+      "content": "<script setup lang=\"ts\">\nimport { computed, withDefaults } from \"vue\";\nimport type { CompactBreakdownProps } from \"./types\";\n\nconst props = withDefaults(defineProps<CompactBreakdownProps>(), { legend: true });\n\nconst PALETTE = [\"var(--va-info)\", \"var(--va-accent)\", \"var(--va-success)\", \"var(--va-warning)\", \"var(--va-muted)\"];\n\nconst rows = computed(() => {\n  const total = props.total ?? props.segments.reduce((s, x) => s + x.value, 0);\n  return props.segments.map((s, i) => ({\n    ...s,\n    color: s.color ?? PALETTE[i % PALETTE.length]!,\n    pct: total > 0 ? s.value / total : 0,\n  }));\n});\n\nconst summary = computed(() =>\n  rows.value.map((r) => `${r.label} ${Math.round(r.pct * 100)}%`).join(\"，\"),\n);\n</script>\n\n<template>\n  <div class=\"va-cbd\" role=\"img\" :aria-label=\"`占比分布：${summary}`\">\n    <div\n      class=\"va-cbd__bar\"\n      :style=\"{ height: `${props.height ?? 8}px` }\"\n      aria-hidden=\"true\"\n    >\n      <span\n        v-for=\"r in rows\"\n        :key=\"r.label\"\n        class=\"va-cbd__seg\"\n        :style=\"{ width: `${r.pct * 100}%`, background: r.color }\"\n        :title=\"`${r.label} ${Math.round(r.pct * 100)}%`\"\n      />\n    </div>\n    <p v-if=\"props.legend\" class=\"va-cbd__legend\">\n      <span v-for=\"r in rows\" :key=\"r.label\" class=\"va-cbd__item\">\n        <span class=\"va-cbd__dot\" :style=\"{ background: r.color }\" aria-hidden=\"true\" />\n        {{ r.label }} <b>{{ Math.round(r.pct * 100) }}%</b>\n      </span>\n    </p>\n  </div>\n</template>\n\n<style>\n/* VaCompactBreakdown — 单行堆叠占比条 */\n\n.va-cbd {\n  display: flex;\n  flex-direction: column;\n  gap: var(--va-s3);\n}\n\n.va-cbd__bar {\n  display: flex;\n  width: 100%;\n  border-radius: var(--va-radius-pill);\n  background: var(--va-bg-subtle);\n  overflow: hidden;\n}\n\n.va-cbd__seg {\n  display: block;\n  height: 100%;\n  min-width: 1px;\n  transition: width var(--va-dur-3) var(--va-ease);\n}\n\n.va-cbd__legend {\n  margin: 0;\n  display: flex;\n  flex-wrap: wrap;\n  gap: var(--va-s2) var(--va-s5);\n  font-size: 11.5px;\n  color: var(--va-muted);\n}\n\n.va-cbd__item {\n  display: inline-flex;\n  align-items: center;\n  gap: var(--va-s2);\n}\n\n.va-cbd__item b { color: var(--va-ink-2); font-variant-numeric: tabular-nums; }\n\n.va-cbd__dot {\n  width: 8px;\n  height: 8px;\n  border-radius: 3px;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .va-cbd__seg { transition: none; }\n}\n</style>\n"
+    },
+    {
+      "path": "components/ui/compact-breakdown/types.ts",
+      "type": "registry:ui",
+      "target": "components/ui/compact-breakdown/types.ts",
+      "content": "/** VaCompactBreakdown 的类型定义 */\n\nexport interface CompactSegment {\n  label: string;\n  value: number;\n  /** CSS 色；缺省按序取内置色板 */\n  color?: string;\n}\n\nexport interface CompactBreakdownProps {\n  segments: CompactSegment[];\n  /** 总量分母；缺省求和 */\n  total?: number;\n  /** 堆叠条高度 px（默认 8） */\n  height?: number;\n  /** 显示下方内联图例（默认 true） */\n  legend?: boolean;\n}\n"
+    }
+  ]
+}

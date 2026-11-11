@@ -1,0 +1,70 @@
+/* VaBreakdownChart — 横向分布条 */
+
+.va-bdc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s2);
+}
+
+.va-bdc__row {
+  display: grid;
+  grid-template-columns: 10px minmax(64px, max-content) 1fr auto auto;
+  align-items: center;
+  gap: var(--va-s3);
+  border: 0;
+  border-radius: var(--va-radius-s);
+  background: transparent;
+  padding: 4px var(--va-s2);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.va-bdc__row:hover { background: var(--va-bg-subtle); }
+.va-bdc__row:focus-visible { outline: 2px solid var(--va-accent); outline-offset: -2px; }
+
+.va-bdc__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.va-bdc__label {
+  font-size: 12.5px;
+  color: var(--va-ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.va-bdc__track {
+  height: 8px;
+  border-radius: var(--va-radius-pill);
+  background: var(--va-bg-subtle);
+  overflow: hidden;
+}
+
+.va-bdc__bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width var(--va-dur-3) var(--va-ease);
+}
+
+.va-bdc__value {
+  font-size: 12px;
+  color: var(--va-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.va-bdc__pct {
+  font-size: 12px;
+  color: var(--va-ink-2);
+  font-variant-numeric: tabular-nums;
+  width: 4ch;
+  text-align: right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-bdc__bar { transition: none; }
+}

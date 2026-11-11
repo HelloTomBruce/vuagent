@@ -215,6 +215,27 @@ export type { ReactionBarEvents, ReactionItem, ReactionBarProps } from "./compon
 export { VaChangeSummary } from "./components/change-summary";
 export type { ChangeSummaryEvents, ChangeSummaryProps, SummaryFile } from "./components/change-summary";
 
+// M7 · 数据图表（手写 SVG/零依赖）
+export { VaKpiChart } from "./components/kpi-chart";
+export type { KpiChartEvents, KpiChartProps } from "./components/kpi-chart";
+
+export { VaBreakdownChart } from "./components/breakdown-chart";
+export type { BreakdownChartEvents, BreakdownChartProps, BreakdownItem } from "./components/breakdown-chart";
+
+export { VaCompactBreakdown } from "./components/compact-breakdown";
+export type { CompactBreakdownProps, CompactSegment } from "./components/compact-breakdown";
+
+export { VaExperimentCard } from "./components/experiment-card";
+export type {
+  ExperimentCardEvents,
+  ExperimentCardProps,
+  ExperimentStatus,
+  ExperimentVariant,
+} from "./components/experiment-card";
+
+export { VaAiAnswer } from "./components/ai-answer";
+export type { AiAnswerEvents, AiAnswerProps, AnswerSource } from "./components/ai-answer";
+
 // 工具与算法（InlineDiff 的 diff 能力也可独立使用）
 export { formatMs, formatTokens, toDisplayText } from "./utils/format";
 export { buildDiffUnits, diffResult, tokenize, wordDiff } from "./utils/wordDiff";

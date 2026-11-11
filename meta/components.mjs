@@ -431,4 +431,56 @@ export const components = [
       { name: "@openFile", type: "-", default: "-", desc: "点击文件行（联动 CodeDiff）" },
     ],
   },
+
+  /* ---------- M7 · 数据图表 ---------- */
+  {
+    dir: "kpi-chart", slug: "kpi-chart", title: "KPI Chart", category: "图表", components: ["VaKpiChart"],
+    desc: "指标卡 + sparkline：手写 SVG 折线（中点平滑/面积渐变/描线入场），环比涨跌徽章（invertDelta 适配错误率类「跌=好」），aria 摘要。",
+    props: [
+      { name: "label / value / series", type: "string / number / number[]", default: "-", desc: "指标名、当前值、趋势序列" },
+      { name: "delta / deltaLabel", type: "number / string", default: "-", desc: "环比小数（0.12=+12%）与参照文案" },
+      { name: "invertDelta", type: "boolean", default: "false", desc: "下跌视为好（错误率场景）" },
+      { name: "width / height / color", type: "number / number / string", default: "120 / 36 / accent", desc: "sparkline 尺寸与线色" },
+    ],
+  },
+  {
+    dir: "breakdown-chart", slug: "breakdown-chart", title: "Breakdown Chart", category: "图表", components: ["VaBreakdownChart"],
+    desc: "横向分布条：按值降序、色板/自定义色、barScale 按最大项或总量、maxRows 折叠「其他」、行可点选。",
+    props: [
+      { name: "items", type: "BreakdownItem[]", default: "-", desc: "label/value/color" },
+      { name: "total / unit", type: "number / string", default: "求和 / -", desc: "分母与单位" },
+      { name: "barScale", type: `"max" | "total"`, default: `"max"`, desc: "条长基准" },
+      { name: "maxRows", type: "number", default: "-", desc: "超出折叠为「其他」" },
+      { name: "@select", type: "-", default: "-", desc: "点击行" },
+    ],
+  },
+  {
+    dir: "compact-breakdown", slug: "compact-breakdown", title: "Compact Breakdown", category: "图表", components: ["VaCompactBreakdown"],
+    desc: "单行堆叠占比条 + 内联图例：一行放下的迷你分布（嵌入卡片头、表格行内）。",
+    props: [
+      { name: "segments", type: "CompactSegment[]", default: "-", desc: "label/value/color" },
+      { name: "total / height", type: "number / number", default: "求和 / 8", desc: "分母与条高 px" },
+      { name: "legend", type: "boolean", default: "true", desc: "内联图例开关" },
+    ],
+  },
+  {
+    dir: "experiment-card", slug: "experiment-card", title: "Experiment Card", category: "图表", components: ["VaExperimentCard"],
+    desc: "A/B 实验对比卡：变体并列（胜者描边 + ✓）、置信度条与结论（未达显著给「继续观察」）、running 态实时时长 + 结束/重开。",
+    props: [
+      { name: "variants", type: "ExperimentVariant[]", default: "-", desc: "id/name/value/format/delta/winner" },
+      { name: "metric / status", type: `string / "running"|"success"|"error"`, default: `- / "running"`, desc: "对比指标与状态" },
+      { name: "confidence / confidenceThreshold", type: "number / number", default: "- / 0.95", desc: "置信度与显著阈值" },
+      { name: "@stop / @reopen", type: "-", default: "-", desc: "结束 / 重新开始" },
+    ],
+  },
+  {
+    dir: "ai-answer", slug: "ai-answer", title: "AI Answer", category: "图表", components: ["VaAiAnswer"],
+    desc: "带来源引用的回答卡：正文 [n] 标记渲染为可点击上标角标（无对应来源原样保留）、来源列表（序号 + 标题 + 出处）、流式光标。",
+    props: [
+      { name: "answer", type: "string", default: "-", desc: "回答正文，支持 [1] 引用标记" },
+      { name: "sources", type: "AnswerSource[]", default: "-", desc: "id/title/url/origin" },
+      { name: "question / streaming", type: "string / boolean", default: "- / false", desc: "问题小字 / 流式光标" },
+      { name: "@source", type: "-", default: "-", desc: "点击角标或来源行" },
+    ],
+  },
 ];

@@ -5,3 +5,5 @@ export { expandKey, groupHunks, lineDiff, pairInline, splitLines } from "./lineD
 export type { InlineSegment, LineDiffRow, LineDiffType, RenderRow } from "./lineDiff";
 export { parseAnsi, parseAnsiLine } from "./ansi";
 export type { AnsiSpan } from "./ansi";
+export { sparkline } from "./sparkline";
+export type { SparklineGeometry, SparklineOptions } from "./sparkline";
