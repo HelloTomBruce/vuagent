@@ -1,0 +1,54 @@
+/* VaAgentTeam — agent 团队环形插画 */
+
+.va-team {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.va-team__hub {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--va-accent-soft);
+  color: var(--va-accent);
+  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.va-team__seat {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  margin: -19px 0 0 -19px;
+}
+
+.va-team__chip {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid var(--va-card);
+  background: var(--va-bg-subtle);
+  color: var(--va-ink-2);
+  font-size: 14px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--va-shadow-1);
+}
+
+.va-team--float .va-team__seat { animation: va-team-float 3.2s ease-in-out infinite; }
+
+@keyframes va-team-float {
+  0%, 100% { margin-top: -19px; }
+  50% { margin-top: -23px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-team--float .va-team__seat { animation: none; }
+}

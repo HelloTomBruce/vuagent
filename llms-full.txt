@@ -496,3 +496,295 @@ agent 起草邮件、人工确认发送：收件人/主题/正文可就地编辑
 | `breathing` | `boolean` | true | Floor：呼吸动画 |
 | `text / from / to / angle / animated` | `string / … / boolean` | - / accent / info / 120 / false | Text：内容与渐变 |
 
+
+## 表单
+
+### Stepper Form
+
+分步表单壳：步骤条 + 每步具名插槽（#step-{id}）+ 上一步/下一步导航，nextDisabled 承接宿主校验，最后一步转提交。
+
+组件：VaStepperForm
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `steps` | `StepperStep[]` | - | id/title/description |
+| `v-model:step` | `number` | 0 | 当前步下标（哨兵受控） |
+| `nextDisabled / submitting` | `boolean` | false | 校验未过 / 提交中 |
+| `@next / @back / @submit` | `-` | - | 流程回调 |
+
+### Setup Guide
+
+上手引导清单：逐项完成/跳过（optional 步骤）、进度计数、全部就绪收尾提示，完成时触发 allDone。
+
+组件：VaSetupGuide
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `steps` | `SetupStep[]` | - | id/title/description/status/optional |
+| `@complete / @skip / @allDone` | `-` | - | 步骤处理回调 |
+
+### Prompt Library
+
+提示词库：搜索（标题/正文/标签）+ 分类 tab + 卡片网格 + 使用按钮。
+
+组件：VaPromptLibrary
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `prompts` | `PromptItem[]` | - | id/title/body/category/tags |
+| `query` | `string` | 内部维护 | 受控搜索词 |
+| `@use` | `-` | - | 点击使用（携带完整条目） |
+
+### Date Range Picker
+
+日期范围选择：双月日历（周一起始、零依赖手写）、两次点击选范围（反向自动交换）、悬停预览区间、今天/7天/30天预设。
+
+组件：VaDateRangePicker
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `v-model:start / v-model:end` | `number` | - | 当日 00:00 本地时区 ms |
+| `presets` | `DateRangePreset[]` | 今天/7天/30天 | 自定义预设（from/to 天偏移） |
+| `months` | `1 | 2` | 2 | 单月紧凑/双月 |
+| `@change` | `-` | - | 完整范围确定 |
+
+### Integration Picker / Settings
+
+集成对接两件套：Picker 是服务卡片网格（已连接态、点击切换）；Settings 是配置面板（开关 + API key 等字段 + 保存/断开）。
+
+组件：VaIntegrationPicker、VaIntegrationSettings
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `items` | `IntegrationItem[]` | - | Picker：服务列表 |
+| `v-model:enabled / v-model:values` | `boolean / Record` | - | Settings：开关与表单值 |
+| `fields` | `IntegrationField[]` | - | Settings：label/secret/required/error |
+| `@toggle / @save / @disconnect` | `-` | - | 连接切换 / 保存 / 断开 |
+
+
+## 反馈
+
+### Smart Recommendation
+
+agent 建议卡：标题 + 理由 + 收益标签 + 主/次操作按钮，可关闭忽略。
+
+组件：VaSmartRecommendation
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `title / description / impact` | `string` | - | 建议内容与收益标签 |
+| `actions` | `RecommendationAction[]` | - | id/label/primary |
+| `@action / @dismiss` | `-` | - | 操作 / 忽略 |
+
+### Notification Stack
+
+通知中心列表：未读徽标与未读点、语义 icon（info/success/warning/danger/agent）、相对时间、单条/全部已读。
+
+组件：VaNotificationStack
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `notifications` | `NotificationItem[]` | - | id/title/body/kind/unread/createdAt |
+| `@open / @read / @allRead` | `-` | - | 打开 / 标记已读 |
+
+### Tips Panel
+
+使用技巧面板：高亮小卡承载 1-N 条 tip，单条可关闭。
+
+组件：VaTipsPanel
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `tips` | `TipItem[]` | - | id/title/body |
+| `dismissible` | `boolean` | false | 显示单条关闭按钮 |
+| `@dismiss` | `-` | - | 关闭某条 |
+
+### Reaction Bar
+
+emoji 快速反馈条：aria-pressed 切换态、计数徽章、按下微缩动效（reduced-motion 降级）。
+
+组件：VaReactionBar
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `reactions` | `ReactionItem[]` | - | id/emoji/label/count/active |
+| `@toggle` | `-` | - | 携带目标态 |
+
+
+## 图表
+
+### KPI Chart
+
+指标卡 + sparkline：手写 SVG 折线（中点平滑/面积渐变/描线入场），环比涨跌徽章（invertDelta 适配错误率类「跌=好」），aria 摘要。
+
+组件：VaKpiChart
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `label / value / series` | `string / number / number[]` | - | 指标名、当前值、趋势序列 |
+| `delta / deltaLabel` | `number / string` | - | 环比小数（0.12=+12%）与参照文案 |
+| `invertDelta` | `boolean` | false | 下跌视为好（错误率场景） |
+| `width / height / color` | `number / number / string` | 120 / 36 / accent | sparkline 尺寸与线色 |
+
+### Breakdown Chart
+
+横向分布条：按值降序、色板/自定义色、barScale 按最大项或总量、maxRows 折叠「其他」、行可点选。
+
+组件：VaBreakdownChart
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `items` | `BreakdownItem[]` | - | label/value/color |
+| `total / unit` | `number / string` | 求和 / - | 分母与单位 |
+| `barScale` | `"max" | "total"` | "max" | 条长基准 |
+| `maxRows` | `number` | - | 超出折叠为「其他」 |
+| `@select` | `-` | - | 点击行 |
+
+### Compact Breakdown
+
+单行堆叠占比条 + 内联图例：一行放下的迷你分布（嵌入卡片头、表格行内）。
+
+组件：VaCompactBreakdown
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `segments` | `CompactSegment[]` | - | label/value/color |
+| `total / height` | `number / number` | 求和 / 8 | 分母与条高 px |
+| `legend` | `boolean` | true | 内联图例开关 |
+
+### Experiment Card
+
+A/B 实验对比卡：变体并列（胜者描边 + ✓）、置信度条与结论（未达显著给「继续观察」）、running 态实时时长 + 结束/重开。
+
+组件：VaExperimentCard
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `variants` | `ExperimentVariant[]` | - | id/name/value/format/delta/winner |
+| `metric / status` | `string / "running"|"success"|"error"` | - / "running" | 对比指标与状态 |
+| `confidence / confidenceThreshold` | `number / number` | - / 0.95 | 置信度与显著阈值 |
+| `@stop / @reopen` | `-` | - | 结束 / 重新开始 |
+
+### AI Answer
+
+带来源引用的回答卡：正文 [n] 标记渲染为可点击上标角标（无对应来源原样保留）、来源列表（序号 + 标题 + 出处）、流式光标。
+
+组件：VaAiAnswer
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `answer` | `string` | - | 回答正文，支持 [1] 引用标记 |
+| `sources` | `AnswerSource[]` | - | id/title/url/origin |
+| `question / streaming` | `string / boolean` | - / false | 问题小字 / 流式光标 |
+| `@source` | `-` | - | 点击角标或来源行 |
+
+
+## Screens
+
+### App Shell
+
+应用外壳：品牌侧栏 + 导航（徽标/禁用/哨兵受控）+ 顶栏与主区插槽；窄屏自动抽屉化（scrim + 汉堡）。
+
+组件：VaAppShell
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `brand / nav` | `string / NavItem[]` | "Vuagent" / - | 品牌与导航项 |
+| `v-model:active` | `string` | - | 当前导航项 |
+| `v-model:sidebar-open` | `boolean` | false | 窄屏抽屉态 |
+| `#topbar / #sidebar-foot / default` | `-` | - | 顶栏/侧栏尾/主内容插槽 |
+
+### Agent Chat
+
+对话页骨架：消息流（用户/agent 气泡 + 工具 chips）、思考态三点、贴底自动滚动、#composer 插槽接 VaComposer。
+
+组件：VaAgentChat
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `messages` | `ChatMessage[]` | - | id/role/text/tools |
+| `thinking / thinkingLabel` | `boolean / string` | false / 思考中… | 生成中态 |
+| `maxHeight` | `number` | - | 消息区高度（缺省撑满容器） |
+| `#composer / #stream-foot` | `-` | - | 输入区/流尾部插槽 |
+
+### Agent Run
+
+运行页骨架：头部（状态徽章 + 耗时 + actions 插槽）+ 三栏（计划 | 执行流 | 上下文），窄屏自动降栏；内容全插槽注入。
+
+组件：VaAgentRun
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `status / statusLabel / duration` | `"running"|"success"|"error" / string / number` | - / - / - | 运行状态与耗时 ms |
+| `compact` | `boolean` | false | 单栏顺排 |
+| `#plan / default / #aside / #actions` | `-` | - | 三栏与操作区插槽 |
+
+### Onboarding
+
+上手引导页：居中 hero（品牌徽标 + 大标题 + 主/次 CTA）+ 步骤区插槽（放 SetupGuide 等）。
+
+组件：VaOnboarding
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `title / subtitle` | `string / string` | - / - | 主副标题 |
+| `ctaLabel / secondaryCtaLabel` | `string / string` | "开始使用" / - | CTA 文案 |
+| `@cta / @secondaryCta` | `-` | - | CTA 回调 |
+
+### Settings / Billing
+
+设置/账单页：左侧设置导航（哨兵受控）+ 用量插槽 + 套餐卡网格（当前/推荐态、特性清单、切换回调）。
+
+组件：VaSettingsBilling
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `nav / v-model:active` | `NavItem[] / string` | - / - | 设置导航 |
+| `plans` | `BillingPlan[]` | - | name/price/features/current/recommended |
+| `@choosePlan` | `-` | - | 切换套餐 |
+| `#usage / #plans / default` | `-` | - | 用量/自定义套餐/更多内容插槽 |
+
+
+## Blocks
+
+### Task Board
+
+任务看板：列 × 卡片（优先级色点、负责人首字母、角标 meta），列计数自动、卡片哨兵受控选中。
+
+组件：VaTaskBoard
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `columns / tasks` | `BoardColumn[] / BoardTask[]` | - | 列与任务（columnId 关联） |
+| `v-model:selected` | `string` | - | 选中任务 id |
+| `@open` | `-` | - | 点击卡片（携带任务） |
+
+### Pricing Plans / AI Workspace
+
+Blocks 两件：PricingPlans 定价卡组（推荐/当前态 + 特性清单 + CTA）；AIWorkspace 文件栏 + 预览区双栏工作块（M/A/D 徽标、选中联动、作用域插槽传当前文件）。
+
+组件：VaPricingPlans、VaAIWorkspace
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `tiers` | `PricingTier[]` | - | PricingPlans：套餐档 |
+| `@choose` | `-` | - | PricingPlans：选择套餐 |
+| `files / v-model:selected` | `WorkspaceFile[] / string` | - / 首个 | Workspace：文件与选中 |
+| `#default（作用域 file）` | `-` | - | Workspace：预览区内容 |
+
+
+## Illustrations
+
+### Voice Orb / Agent Team / Model Wheel
+
+插画三件：VoiceOrb 语音球（idle/listening/speaking 三态波纹与声浪）；AgentTeam 环形悬浮徽标阵；ModelWheel 模型轮盘（缓慢自转）。纯装饰、reduced-motion 全降级。
+
+组件：VaVoiceOrb、VaAgentTeam、VaModelWheel
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `state` | `"idle" | "listening" | "speaking"` | "idle" | VoiceOrb：语音状态 |
+| `size / color` | `number / string` | 96 / accent | VoiceOrb：尺寸与主色 |
+| `agents / models` | `Array<{id,name}>` | - | Team/Wheel：徽标名单 |
+| `floating / spinning` | `boolean / boolean` | true / true | Team 悬浮 / Wheel 自转 |
+

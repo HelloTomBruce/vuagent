@@ -561,4 +561,35 @@ export const components = [
       { name: "#usage / #plans / default", type: "-", default: "-", desc: "用量/自定义套餐/更多内容插槽" },
     ],
   },
+
+  /* ---------- M7 · Blocks / Illustrations 精选 ---------- */
+  {
+    dir: "task-board", slug: "task-board", title: "Task Board", category: "Blocks", components: ["VaTaskBoard"],
+    desc: "任务看板：列 × 卡片（优先级色点、负责人首字母、角标 meta），列计数自动、卡片哨兵受控选中。",
+    props: [
+      { name: "columns / tasks", type: "BoardColumn[] / BoardTask[]", default: "-", desc: "列与任务（columnId 关联）" },
+      { name: "v-model:selected", type: "string", default: "-", desc: "选中任务 id" },
+      { name: "@open", type: "-", default: "-", desc: "点击卡片（携带任务）" },
+    ],
+  },
+  {
+    dir: "workspace-blocks", slug: "workspace-blocks", title: "Pricing Plans / AI Workspace", category: "Blocks", components: ["VaPricingPlans", "VaAIWorkspace"],
+    desc: "Blocks 两件：PricingPlans 定价卡组（推荐/当前态 + 特性清单 + CTA）；AIWorkspace 文件栏 + 预览区双栏工作块（M/A/D 徽标、选中联动、作用域插槽传当前文件）。",
+    props: [
+      { name: "tiers", type: "PricingTier[]", default: "-", desc: "PricingPlans：套餐档" },
+      { name: "@choose", type: "-", default: "-", desc: "PricingPlans：选择套餐" },
+      { name: "files / v-model:selected", type: "WorkspaceFile[] / string", default: "- / 首个", desc: "Workspace：文件与选中" },
+      { name: "#default（作用域 file）", type: "-", default: "-", desc: "Workspace：预览区内容" },
+    ],
+  },
+  {
+    dir: "illustrations", slug: "illustrations", title: "Voice Orb / Agent Team / Model Wheel", category: "Illustrations", components: ["VaVoiceOrb", "VaAgentTeam", "VaModelWheel"],
+    desc: "插画三件：VoiceOrb 语音球（idle/listening/speaking 三态波纹与声浪）；AgentTeam 环形悬浮徽标阵；ModelWheel 模型轮盘（缓慢自转）。纯装饰、reduced-motion 全降级。",
+    props: [
+      { name: "state", type: `"idle" | "listening" | "speaking"`, default: `"idle"`, desc: "VoiceOrb：语音状态" },
+      { name: "size / color", type: "number / string", default: "96 / accent", desc: "VoiceOrb：尺寸与主色" },
+      { name: "agents / models", type: "Array<{id,name}>", default: "-", desc: "Team/Wheel：徽标名单" },
+      { name: "floating / spinning", type: "boolean / boolean", default: "true / true", desc: "Team 悬浮 / Wheel 自转" },
+    ],
+  },
 ];

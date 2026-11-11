@@ -1,0 +1,70 @@
+/* VaVoiceOrb — 语音球插画（idle 静息 / listening 微波 / speaking 声浪） */
+
+.va-orb {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.va-orb__wave {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--va-orb-c, var(--va-accent));
+  opacity: 0.25;
+}
+
+.va-orb--listening .va-orb__wave--1 { animation: va-orb-ripple 2.4s ease-out infinite; }
+.va-orb--listening .va-orb__wave--2 { animation: va-orb-ripple 2.4s ease-out 1.2s infinite; }
+
+@keyframes va-orb-ripple {
+  from { transform: scale(1); opacity: 0.4; }
+  to { transform: scale(1.55); opacity: 0; }
+}
+
+.va-orb__core {
+  position: relative;
+  width: 58%;
+  height: 58%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--va-orb-c, var(--va-accent)) 88%, #fff 12%), var(--va-orb-c, var(--va-accent)));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--va-orb-c, var(--va-accent)) 40%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7%;
+  animation: va-orb-breathe 3.4s ease-in-out infinite;
+}
+
+@keyframes va-orb-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+/* 声浪条 */
+.va-orb__bar {
+  width: 8%;
+  height: 26%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.va-orb--speaking .va-orb__bar { animation: va-orb-eq 0.9s ease-in-out infinite; }
+.va-orb--speaking .va-orb__bar:nth-child(2) { animation-delay: 0.18s; }
+.va-orb--speaking .va-orb__bar:nth-child(3) { animation-delay: 0.36s; }
+.va-orb--speaking .va-orb__bar:nth-child(4) { animation-delay: 0.54s; }
+
+@keyframes va-orb-eq {
+  0%, 100% { height: 22%; }
+  50% { height: 54%; }
+}
+
+/* idle：声浪条静息成低条 */
+.va-orb--idle .va-orb__bar { height: 14%; opacity: 0.7; }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-orb__core,
+  .va-orb__wave,
+  .va-orb__bar { animation: none !important; }
+}

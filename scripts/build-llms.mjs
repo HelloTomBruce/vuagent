@@ -10,7 +10,8 @@ import { components } from "../meta/components.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
-const CATEGORIES = ["Agent-Ops", "Chat", "基础", "动效"];
+/** 分类取 meta 声明顺序（保持与组件总览一致，新增分类自动纳入） */
+const CATEGORIES = [...new Set(components.map((c) => c.category))];
 
 const header = `# Vuagent
 

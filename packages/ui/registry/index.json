@@ -344,6 +344,24 @@
       "title": "Settings / Billing",
       "description": "设置/账单页：左侧设置导航（哨兵受控）+ 用量插槽 + 套餐卡网格（当前/推荐态、特性清单、切换回调）。",
       "type": "registry:ui"
+    },
+    {
+      "name": "task-board",
+      "title": "Task Board",
+      "description": "任务看板：列 × 卡片（优先级色点、负责人首字母、角标 meta），列计数自动、卡片哨兵受控选中。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "workspace-blocks",
+      "title": "Pricing Plans / AI Workspace",
+      "description": "Blocks 两件：PricingPlans 定价卡组（推荐/当前态 + 特性清单 + CTA）；AIWorkspace 文件栏 + 预览区双栏工作块（M/A/D 徽标、选中联动、作用域插槽传当前文件）。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "illustrations",
+      "title": "Voice Orb / Agent Team / Model Wheel",
+      "description": "插画三件：VoiceOrb 语音球（idle/listening/speaking 三态波纹与声浪）；AgentTeam 环形悬浮徽标阵；ModelWheel 模型轮盘（缓慢自转）。纯装饰、reduced-motion 全降级。",
+      "type": "registry:ui"
     }
   ]
 }

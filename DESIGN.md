@@ -146,7 +146,7 @@ components/tool-call/
 
 ### 4.1 缺口规划（M5–M7，对标 affectUI 全量 103+ 项）
 
-**覆盖率现状（M6 后）**：Components 43/49（88%，含 4 个差异化超集 + ChangeSummary）· Screens 0/12 · Blocks 0/11 · Illustrations 0/24 · Motion 4/8。Pro 组件 21 个中已对标 20 个（仅剩 Data Table 类，暂缓）。
+**覆盖率现状（M7 后，路线图收官）**：Components 43/49（88% + 4 个差异化超集）· Screens 5/12（只做高频）· Blocks 3/11（精选）· Illustrations 3/24（只留招牌）· Motion 8/8。Pro 21 个中对标 20 个（Data Table 暂缓）。全库 60 个 registry 条目。
 
 **差异化机会——affectUI 没有的 agent 客户端刚需（4 个，超越对标的卡位）**：
 
@@ -176,12 +176,14 @@ components/tool-call/
 - **修复 M5 布尔 cast 回归**：可选布尔默认开启的 props（CodeDiff.wordLevel / CommentThread.composer / TerminalLog.autoScroll / SmartRecommendation.dismissible / NotificationStack.relativeTime）未传时被 Vue 运行时 cast 为 false——全部改为 `withDefaults` 显式默认值，SSR 测试锁定
 - 验证：69 vitest（M6 新增 17 个 SSR smoke）；playground M6Demo 编排「设置与工作台页」场景
 
-**M7 · 数据图表 + Screens/Blocks 精选 + 装饰尾巴（≈2-3 周）**：
+**M7 · 数据图表 + Screens/Blocks 精选 + 装饰尾巴（≈2-3 周）——✅ 已交付**：
 - 数据展示（5，**手写 SVG 零依赖**）：VaKpiChart、VaBreakdownChart、VaCompactBreakdown、VaExperimentCard、VaAiAnswer（含来源卡/引用，吸收 Cited Answer 场景）
 - Screens 精选（5，只做高频"模板"不全量）：AppShell、AgentChat、AgentRun、Onboarding、SettingsBilling
 - Blocks 精选（3）：TaskBoard、PricingPlans、AIWorkspace
 - Motion 补齐（4）：VaTiltCard、VaBlurCrossfade、VaGradientFloor、VaGradientText
 - 插画精选（3，装饰引流）：VoiceOrb、AgentTeam、ModelWheel
+
+**M7 交付要点**：图表纯计算渲染（SSR 天然安全）；新增 utils/sparkline；Screens/Blocks 均为 slot 编排骨架（复用既有组件不写新原子）；playground M7Demo 用 AppShell 编排总览/对话/运行/接入/订阅五页；顺带修复 llms 生成器分类硬编码（M5-M7 共 40 项此前从未进 llms.txt）
 
 **累计：M5–M7 后全库 ≈ 63 个目录**，Components 层对标率 ≈ 88% + 4 个差异化超集。
 
@@ -201,7 +203,7 @@ components/tool-call/
 | **M4**（精修轮） | 交互与可达性：真实按键走查、focus-visible、动效参数审计、修复回归 | ✅ 已完成 |
 | **M5**（≈2 周） | Agent 客户端刚需批：差异化 4 件（CodeDiff/FileTree/TerminalLog/CheckpointList）+ 对标 5 件（CommentThread/EmailDraft/UsageMeter/CommandMenu/Dropzone） | ✅ 已完成（52 tests 含 SSR smoke；registry 29 条） |
 | **M6**（≈2-3 周） | Pro/Free 输入·表单·导航·反馈批 16 个 | ✅ 已完成（69 tests；registry 44 条；修复 M5 布尔 cast 回归） |
-| **M7**（≈2-3 周） | 数据图表 5 + Screens 精选 5 + Blocks 精选 3 + Motion 4 + 插画 3 | 📋 规划 |
+| **M7**（≈2-3 周） | 数据图表 5 + Screens 精选 5 + Blocks 精选 3 + Motion 4 + 插画 3 | ✅ 已完成（95 tests；registry 60 条；llms 修复后全量 60 项） |
 
 ## 6. 发布前 TODO（M3 清单）
 

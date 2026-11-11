@@ -1,0 +1,89 @@
+/* VaPricingPlans — 定价方案区块 */
+
+.va-price {
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s5);
+}
+
+.va-price__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--va-ink);
+  text-align: center;
+}
+
+.va-price__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--va-s4);
+  align-items: stretch;
+}
+
+.va-price__tier {
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s3);
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-l);
+  background: var(--va-card);
+  padding: var(--va-s5);
+}
+
+.va-price__tier[data-recommended="true"] {
+  border-color: color-mix(in srgb, var(--va-accent) 45%, transparent);
+  box-shadow: 0 0 0 3px var(--va-accent-soft);
+}
+
+.va-price__tier[data-current="true"] {
+  border-color: color-mix(in srgb, var(--va-success) 45%, transparent);
+}
+
+.va-price__head { display: flex; align-items: center; gap: var(--va-s2); }
+
+.va-price__name { font-size: 14px; font-weight: 700; color: var(--va-ink); }
+
+.va-price__flag {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: var(--va-radius-pill);
+  background: var(--va-accent-soft);
+  color: var(--va-accent);
+}
+
+.va-price__flag--current {
+  background: color-mix(in srgb, var(--va-success) 14%, transparent);
+  color: var(--va-success);
+}
+
+.va-price__desc { margin: 0; font-size: 12px; color: var(--va-muted); line-height: 1.5; }
+
+.va-price__price { margin: 0; display: flex; align-items: baseline; gap: var(--va-s2); }
+
+.va-price__price strong { font-size: 24px; font-weight: 800; color: var(--va-ink); }
+.va-price__period { font-size: 12px; color: var(--va-muted); }
+
+.va-price__features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s2);
+  flex: 1;
+}
+
+.va-price__features li {
+  font-size: 12.5px;
+  color: var(--va-ink-2);
+  display: flex;
+  gap: var(--va-s2);
+}
+
+.va-price__features li::before {
+  content: "✓";
+  color: var(--va-success);
+  font-weight: 700;
+}

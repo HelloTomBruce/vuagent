@@ -262,6 +262,30 @@ export type { OnboardingEvents, OnboardingProps } from "./components/onboarding"
 export { VaSettingsBilling } from "./components/settings-billing";
 export type { BillingPlan, SettingsBillingEvents, SettingsBillingProps } from "./components/settings-billing";
 
+// M7 · Blocks 精选
+export { VaTaskBoard } from "./components/task-board";
+export type {
+  BoardColumn,
+  BoardTask,
+  TaskBoardEvents,
+  TaskBoardProps,
+  TaskPriority,
+} from "./components/task-board";
+
+export { VaPricingPlans, VaAIWorkspace } from "./components/workspace-blocks";
+export type {
+  AIWorkspaceEvents,
+  AIWorkspaceProps,
+  PricingPlansEvents,
+  PricingPlansProps,
+  PricingTier,
+  WorkspaceFile,
+} from "./components/workspace-blocks";
+
+// M7 · 插画精选（纯装饰）
+export { VaVoiceOrb, VaAgentTeam, VaModelWheel } from "./components/illustrations";
+export type { AgentTeamProps, ModelWheelProps, VoiceOrbProps, VoiceState } from "./components/illustrations";
+
 // 工具与算法（InlineDiff 的 diff 能力也可独立使用）
 export { formatMs, formatTokens, toDisplayText } from "./utils/format";
 export { buildDiffUnits, diffResult, tokenize, wordDiff } from "./utils/wordDiff";
