@@ -5,7 +5,9 @@
   "description": "分步表单壳：步骤条 + 每步具名插槽（#step-{id}）+ 上一步/下一步导航，nextDisabled 承接宿主校验，最后一步转提交。",
   "type": "registry:ui",
   "dependencies": [],
-  "registryDependencies": [],
+  "registryDependencies": [
+    "@vuagent/progress-tracker"
+  ],
   "docs": "- `steps` (StepperStep[]，默认 -)：id/title/description\n- `v-model:step` (number，默认 0)：当前步下标（哨兵受控）\n- `nextDisabled / submitting` (boolean，默认 false)：校验未过 / 提交中\n- `@next / @back / @submit` (-，默认 -)：流程回调",
   "files": [
     {

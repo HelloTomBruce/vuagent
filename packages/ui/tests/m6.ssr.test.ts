@@ -31,7 +31,7 @@ async function ssr(component: Component, props: Record<string, unknown> = {}) {
 }
 
 describe("M6 SSR 渲染", () => {
-  it("VaCombobox：输入框 + 关闭态无下拉", async () => {
+  it("VaCombobox：关闭态回填选中项 label", async () => {
     const { html, warn } = await ssr(VaCombobox, {
       options: [
         { value: "a", label: "选项 A" },
@@ -42,8 +42,16 @@ describe("M6 SSR 渲染", () => {
     expect(warn).toEqual([]);
     expect(html).toContain('role="combobox"');
     expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('value="选项 A"'); // 回填（回归锁定）
     expect(html).not.toContain("va-cbx__list");
     expect(html).toContain("当前选中：选项 A");
+    // creatable 新值不在 options：回显值本身
+    const created = await ssr(VaCombobox, {
+      options: [{ value: "a", label: "选项 A" }],
+      modelValue: "my-model",
+      creatable: true,
+    });
+    expect(created.html).toContain('value="my-model"');
   });
 
   it("VaFilterMenu：触发器计数徽章 + 关闭态", async () => {

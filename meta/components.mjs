@@ -332,7 +332,7 @@ export const components = [
     ],
   },
   {
-    dir: "stepper-form", slug: "stepper-form", title: "Stepper Form", category: "表单", components: ["VaStepperForm"],
+    dir: "stepper-form", slug: "stepper-form", title: "Stepper Form", category: "表单", components: ["VaStepperForm"], deps: ["progress-tracker"],
     desc: "分步表单壳：步骤条 + 每步具名插槽（#step-{id}）+ 上一步/下一步导航，nextDisabled 承接宿主校验，最后一步转提交。",
     props: [
       { name: "steps", type: "StepperStep[]", default: "-", desc: "id/title/description" },

@@ -63,14 +63,15 @@ for (const c of components) {
     description: c.desc,
     type: "registry:ui",
     dependencies: [],
-    registryDependencies: [],
+    // 组件间依赖（如 StepperForm → ProgressTracker）：宿主 add 时自动拉取
+    registryDependencies: (c.deps ?? []).map((d) => `@vuagent/${d}`),
     docs: c.props.map((p) => `- \`${p.name}\` (${p.type}${p.default ? `，默认 ${p.default}` : ""})：${p.desc}`).join("\n"),
     files,
   };
 
   fs.writeFileSync(path.join(OUT_DIR, `${c.slug}.json`), `${JSON.stringify(item, null, 2)}\n`);
   items.push({ name: c.slug, title: c.title, description: c.desc, type: "registry:ui" });
-  console.log(`✓ registry/${c.slug}.json（${files.length} 个文件）`);
+  console.log(`✓ registry/${c.slug}.json（${files.length} 个文件${c.deps?.length ? ` · 依赖 ${c.deps.join(", ")}` : ""}）`);
 }
 
 const index = {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useTemplateRef } from "vue";
+import { computed, useTemplateRef } from "vue";
 import type { ComboboxEvents, ComboboxProps } from "./types";
 import { useCombobox } from "./useCombobox";
 
@@ -17,22 +17,26 @@ const { query, open, activeIdx, selected, items, openMenu, close, pick, onInputK
     select: (o) => emit("select", o),
   },
 );
+
+/** 关闭态回填：优先选中项 label；creatable 新值不在 options 里则回显值本身 */
+const displayValue = computed(() => selected.value?.label ?? props.modelValue ?? "");
 </script>
 
 <template>
   <div class="va-cbx">
     <input
       ref="input"
-      v-model="query"
       class="va-cbx__input"
       type="text"
       role="combobox"
+      :value="open ? query : displayValue"
       :aria-expanded="open"
       aria-controls="va-cbx-list"
       :aria-activedescendant="open && items[activeIdx] ? `va-cbx-opt-${activeIdx}` : undefined"
       :aria-label="props.label ?? '组合选择'"
       :placeholder="props.placeholder ?? '输入搜索或选择…'"
       autocomplete="off"
+      @input="query = ($event.target as HTMLInputElement).value"
       @focus="openMenu"
       @keydown="onInputKeydown"
       @blur="close()"
