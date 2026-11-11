@@ -74,6 +74,7 @@ const showDiff = computed(() => state.diff && (!selectedFile.value || selectedFi
             v-model:selected="selectedFile"
             :tree="tree"
             title="agent 变更"
+            :default-expand-depth="2"
             :max-height="220"
             @select="(n) => selectedFile = n.path"
           />

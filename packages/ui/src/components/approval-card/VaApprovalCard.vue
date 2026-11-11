@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<ApprovalCardProps>(), {
 
 const emit = defineEmits<{ approve: []; deny: [reason?: DenyReason] }>();
 
-const { result, denyReason, paused, percent, riskLabel, onApprove, onDeny, onKeydown } = useApprovalCard(props, {
+const { result, denyReason, paused, percent, remaining, riskLabel, onApprove, onDeny, onKeydown } = useApprovalCard(props, {
   approve: () => emit("approve"),
   deny: (reason) => emit("deny", reason),
 });
@@ -42,6 +42,12 @@ const { result, denyReason, paused, percent, riskLabel, onApprove, onDeny, onKey
       <header class="va-acd__head">
         <span class="va-acd__risk" :data-risk="props.risk">{{ riskLabel }}</span>
         <h4 class="va-acd__title">{{ props.title }}</h4>
+        <span
+          v-if="props.countdown && !result"
+          class="va-acd__timer"
+          role="timer"
+          aria-live="off"
+        >{{ Math.ceil(remaining) }}s 后自动拒绝</span>
       </header>
       <p v-if="props.detail" class="va-acd__detail">{{ props.detail }}</p>
       <pre v-if="props.preview" class="va-acd__preview">{{ props.preview }}</pre>

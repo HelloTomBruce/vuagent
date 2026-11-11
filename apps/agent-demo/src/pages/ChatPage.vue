@@ -189,8 +189,9 @@ const timeOf = (m: { at: number }) => new Date(m.at).toLocaleTimeString("zh-CN",
   word-break: break-word;
 }
 
-.bubble--user { background: var(--va-ink); color: var(--va-card); border-top-right-radius: 4px; }
-.msg > .bubble { background: var(--va-card); border: 1px solid var(--va-edge); border-top-left-radius: 4px; }
+/* 用户气泡用三态复合选择器压过下方 .msg > .bubble（0,2,0）的通用底色 */
+.msg > .bubble--user { background: var(--va-ink); color: var(--va-card); border: none; border-top-right-radius: 4px; }
+.msg > .bubble:not(.bubble--user) { background: var(--va-card); border: 1px solid var(--va-edge); border-top-left-radius: 4px; }
 
 .msg-time { font-size: 11px; color: var(--va-muted); }
 

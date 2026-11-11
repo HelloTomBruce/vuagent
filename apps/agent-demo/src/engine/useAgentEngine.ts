@@ -198,7 +198,9 @@ async function applyEvent(ev: ScenarioEvent) {
 
     case "kpi": {
       const k = state.kpis[ev.key];
-      k.series = [...k.series, ev.push];
+      // push 是增量：延续上一序列点而非直接 append 小数字（避免折线尾部跳水）
+      const next = (k.series[k.series.length - 1] ?? 0) + ev.push;
+      k.series = [...k.series, next];
       if (ev.bumpValue !== undefined) k.value = ev.bumpValue;
       if (ev.delta !== undefined) k.delta = ev.delta;
       break;
