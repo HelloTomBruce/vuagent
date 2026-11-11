@@ -1,4 +1,4 @@
-/* Playground 页面框架样式（组件样式全部内嵌在各 .vue 中） */
+/* Playground 全局基础（页面布局样式在各页面 .vue 内） */
 
 * { box-sizing: border-box; }
 
@@ -8,67 +8,4 @@ body {
   background: var(--va-bg, #f7f6f2);
   color: var(--va-ink, #1a1917);
   transition: background 0.3s ease, color 0.3s ease;
-}
-
-.wrap {
-  max-width: 920px;
-  margin: 0 auto;
-  padding: 48px 24px 80px;
-}
-
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 40px;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  font-size: 16px;
-  letter-spacing: -0.01em;
-}
-
-.brand .dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--va-accent, #c2410c), var(--va-ink, #1a1917));
-}
-
-.brand small {
-  font-weight: 400;
-  color: var(--va-muted, #6f6d66);
-}
-
-h2 {
-  font-size: 14px;
-  color: var(--va-muted, #6f6d66);
-  font-weight: 600;
-  margin: 40px 0 14px;
-}
-
-.row {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.card {
-  background: var(--va-card, #fff);
-  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
-  border-radius: var(--va-radius-l, 16px);
-  padding: 24px;
-  display: grid;
-  gap: 14px;
-}
-
-.big-num {
-  font-size: 40px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
 }

@@ -240,8 +240,9 @@ function sendChat(text: string) {
    demo 里收进固定高度卡片：横向负边距对消 wrap padding（只横向，不碰垂直），
    高度约束 + 内部滚动，避免顶住上方 <h2> 标题 */
 .m7 {
-  margin: 0 -24px;
-  height: 640px;
+  margin: 0 -24px; /* 对消 .pg 左右 padding，AppShell 全宽 */
+  height: calc(100vh - 130px);
+  min-height: 560px;
 }
 .m7 :deep(.va-shell) { height: 100%; }
 .m7 :deep(.va-shell__side) { height: 100%; }
