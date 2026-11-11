@@ -199,13 +199,19 @@ components/tool-call/
 |---|---|---|
 | **M1**（第 1 周） | monorepo 骨架 + tokens + VaButton / VaSkeleton / VaShimmerText / VaNumberTicker 打样定风格 | ✅ 本次完成 |
 | **M2**（2-3 周） | P1 旗舰 9 组件 + playground 拼出"agent 运行页"雏形 + vitest | ✅ 已完成 |
-| **M3**（第 4 周） | P2/P3 + VitePress 文档站 + llms.txt + registry 生成器 + dts/publishConfig + npm 0.1.0 | ✅ 已完成（npm 0.1.0 首发 待 registry 托管地址） |
+| **M3**（第 4 周） | P2/P3 + VitePress 文档站 + llms.txt + registry 生成器 + dts/publishConfig + npm 0.1.0 | ✅ 已完成 |
 | **M4**（精修轮） | 交互与可达性：真实按键走查、focus-visible、动效参数审计、修复回归 | ✅ 已完成 |
 | **M5**（≈2 周） | Agent 客户端刚需批：差异化 4 件（CodeDiff/FileTree/TerminalLog/CheckpointList）+ 对标 5 件（CommentThread/EmailDraft/UsageMeter/CommandMenu/Dropzone） | ✅ 已完成（52 tests 含 SSR smoke；registry 29 条） |
 | **M6**（≈2-3 周） | Pro/Free 输入·表单·导航·反馈批 16 个 | ✅ 已完成（69 tests；registry 44 条；修复 M5 布尔 cast 回归） |
 | **M7**（≈2-3 周） | 数据图表 5 + Screens 精选 5 + Blocks 精选 3 + Motion 4 + 插画 3 | ✅ 已完成（95 tests；registry 60 条；llms 修复后全量 60 项） |
 
-## 6. 发布前 TODO（M3 清单）
+## 6. 发布与托管（已上线）
+
+- 仓库：<https://github.com/HelloTomBruce/vuagent>；文档站 + registry：<https://hellotombruce.github.io/vuagent/>（Actions 自动部署：main push → docs build + registry 拷到 `/r/` + llms.txt 到站点根）
+- 宿主接入 registry：`components.json` 注册 `{"@vuagent": "https://hellotombruce.github.io/vuagent/r/{name}.json"}` 后 `npx shadcn-vue add @vuagent/<name>`
+- 版本流：changesets（`pnpm changeset` → `pnpm changeset version` → 提交）；npm 发布：`pnpm --filter @vuagent/ui build && cd packages/ui && npm publish`（需 npm 登录）
+
+## 6.1 发布前 TODO（M3 清单）
 
 - [x] `vite-plugin-dts` 产出类型；`publishConfig` 切换 exports 到 dist
 - [x] registry JSON 生成脚本（每组件一条，含 `files[]` 内容内联）— `pnpm registry`，19 items

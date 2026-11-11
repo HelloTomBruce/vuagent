@@ -37,11 +37,12 @@ jobs:
       - name: Build docs
         run: pnpm docs:build
 
-      - name: Stage registry to /r
+      - name: Stage registry + llms.txt
         run: |
           mkdir -p apps/docs/.vitepress/dist/r
           cp packages/ui/registry/*.json apps/docs/.vitepress/dist/r/
-          ls apps/docs/.vitepress/dist/r | wc -l
+          cp llms.txt llms-full.txt apps/docs/.vitepress/dist/
+          echo "registry items: $(ls apps/docs/.vitepress/dist/r | wc -l)"
 
       - uses: actions/upload-pages-artifact@v3
         with:
