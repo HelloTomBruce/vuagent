@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "vue-tsc --noEmit",
-    "test": "vitest run",
-    "demo": "pnpm --filter @vuagent/agent-demo dev"
+    "test": "vitest run"
   },
   "dependencies": {
     "@vuagent/ui": "workspace:*",

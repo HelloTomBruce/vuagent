@@ -5,12 +5,13 @@
   "scripts": {
     "build": "pnpm --filter @vuagent/ui build && pnpm --filter @vuagent/playground build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm --filter @vuagent/ui test",
+    "test": "pnpm --filter @vuagent/ui test && pnpm --filter @vuagent/agent-demo test",
     "registry": "node scripts/build-registry.mjs",
     "llms": "node scripts/build-llms.mjs",
     "docs:dev": "pnpm --filter @vuagent/docs dev",
     "docs:build": "pnpm --filter @vuagent/docs build",
-    "dev": "pnpm --filter @vuagent/playground dev"
+    "dev": "pnpm --filter @vuagent/playground dev",
+    "demo": "pnpm --filter @vuagent/agent-demo dev"
   },
   "repository": {
     "type": "git",
