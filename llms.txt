@@ -57,3 +57,6 @@
 
 - [Text Reveal](https://vuagent.dev/components/text-reveal): 文本入场：逐词/逐字从轻微模糊与位移中浮现，滚动进视口触发。（VaTextReveal）
 - [Grid Background](https://vuagent.dev/components/grid-background): 缓慢漂移的细网格背景，边缘渐隐，可作 Hero 底纹；内容放默认插槽。（VaGridBackground）
+- [Tilt Card](https://vuagent.dev/components/tilt-card): 3D 倾斜卡：指针驱动 rotateX/Y（可调最大角与透视）、可选跟随光斑与悬停微放大；reduced-motion 与触屏自动静态。（VaTiltCard）
+- [Blur Crossfade](https://vuagent.dev/components/blur-crossfade): 内容切换的模糊交叉过渡：target 变化时新内容 blur-in + 上浮；可调时长/模糊半径/位移；reduced-motion 只留淡入。（VaBlurCrossfade）
+- [Gradient Floor / Text](https://vuagent.dev/components/gradient): 装饰两件：Floor 是页面底部双色光晕（呼吸动画，绝对定位铺底）；Text 是 background-clip 渐变文字（可缓慢流动）。（VaGradientFloor / VaGradientText）

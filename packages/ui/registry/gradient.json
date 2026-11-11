@@ -1,0 +1,30 @@
+{
+  "$schema": "https://shadcn-vue.com/schema/registry-item.json",
+  "name": "gradient",
+  "title": "Gradient Floor / Text",
+  "description": "装饰两件：Floor 是页面底部双色光晕（呼吸动画，绝对定位铺底）；Text 是 background-clip 渐变文字（可缓慢流动）。",
+  "type": "registry:ui",
+  "dependencies": [],
+  "registryDependencies": [],
+  "docs": "- `color / color2 / opacity / height` (string / string / number / number，默认 accent / info / 0.5 / 320)：Floor：双色/不透明度/高度\n- `breathing` (boolean，默认 true)：Floor：呼吸动画\n- `text / from / to / angle / animated` (string / … / boolean，默认 - / accent / info / 120 / false)：Text：内容与渐变",
+  "files": [
+    {
+      "path": "components/ui/gradient/VaGradientFloor.vue",
+      "type": "registry:ui",
+      "target": "components/ui/gradient/VaGradientFloor.vue",
+      "content": "<script setup lang=\"ts\">\nimport { computed, withDefaults } from \"vue\";\nimport type { GradientFloorProps } from \"./types\";\n\nconst props = withDefaults(defineProps<GradientFloorProps>(), { breathing: true });\n\nconst style = computed(() => ({\n  \"--va-gf-h\": `${props.height ?? 320}px`,\n  \"--va-gf-x\": `${(props.position ?? 0.5) * 100}%`,\n  \"--va-gf-c1\": props.color ?? \"var(--va-accent)\",\n  \"--va-gf-c2\": props.color2 ?? \"var(--va-info)\",\n  \"--va-gf-o\": String(props.opacity ?? 0.5),\n}));\n</script>\n\n<template>\n  <div class=\"va-gfloor\" :class=\"{ 'va-gfloor--breathe': props.breathing }\" :style=\"style\" aria-hidden=\"true\" />\n</template>\n\n<style>\n/* VaGradientFloor — 底部氛围光晕（装饰层，宿主放绝对定位） */\n\n.va-gfloor {\n  position: absolute;\n  left: -10%;\n  right: -10%;\n  bottom: calc(var(--va-gf-h, 320px) * -0.55);\n  height: var(--va-gf-h, 320px);\n  pointer-events: none;\n  opacity: var(--va-gf-o, 0.5);\n  background:\n    radial-gradient(60% 100% at var(--va-gf-x, 50%) 100%, var(--va-gf-c1, var(--va-accent)), transparent 70%),\n    radial-gradient(40% 80% at calc(100% - var(--va-gf-x, 50%)) 100%, var(--va-gf-c2, var(--va-info)), transparent 70%);\n  filter: blur(48px);\n}\n\n.va-gfloor--breathe {\n  animation: va-gf-breathe 7s ease-in-out infinite;\n}\n\n@keyframes va-gf-breathe {\n  0%, 100% { opacity: var(--va-gf-o, 0.5); transform: translateY(0); }\n  50% { opacity: calc(var(--va-gf-o, 0.5) * 1.25); transform: translateY(-8px); }\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .va-gfloor--breathe { animation: none; }\n}\n</style>\n"
+    },
+    {
+      "path": "components/ui/gradient/VaGradientText.vue",
+      "type": "registry:ui",
+      "target": "components/ui/gradient/VaGradientText.vue",
+      "content": "<script setup lang=\"ts\">\nimport { computed } from \"vue\";\nimport type { GradientTextProps } from \"./types\";\n\nconst props = defineProps<GradientTextProps>();\n\nconst style = computed(() => ({\n  backgroundImage: `linear-gradient(${props.angle ?? 120}deg, ${props.from ?? \"var(--va-accent)\"}, ${props.to ?? \"var(--va-info)\"})`,\n}));\n</script>\n\n<template>\n  <span class=\"va-gtext\" :class=\"{ 'va-gtext--flow': props.animated }\" :style=\"style\">\n    <slot>{{ props.text }}</slot>\n  </span>\n</template>\n\n<style>\n/* VaGradientText — 渐变文字 */\n\n.va-gtext {\n  background-clip: text;\n  -webkit-background-clip: text;\n  color: transparent;\n  -webkit-text-fill-color: transparent;\n}\n\n.va-gtext--flow {\n  background-size: 220% 220%;\n  animation: va-gt-flow 5s ease-in-out infinite;\n}\n\n@keyframes va-gt-flow {\n  0%, 100% { background-position: 0% 50%; }\n  50% { background-position: 100% 50%; }\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .va-gtext--flow { animation: none; background-size: 100% 100%; }\n}\n</style>\n"
+    },
+    {
+      "path": "components/ui/gradient/types.ts",
+      "type": "registry:ui",
+      "target": "components/ui/gradient/types.ts",
+      "content": "/** VaGradientFloor / VaGradientText 的类型定义 */\n\nexport interface GradientFloorProps {\n  /** 光晕主色（CSS 色），默认 accent */\n  color?: string;\n  /** 副色（混合渐变），默认 info */\n  color2?: string;\n  /** 高度 px（默认 320） */\n  height?: number;\n  /** 光晕中心水平位置 0-1（默认 0.5 居中） */\n  position?: number;\n  /** 不透明度 0-1（默认 0.5） */\n  opacity?: number;\n  /** 慢速呼吸（默认 true，reduced-motion 自动停） */\n  breathing?: boolean;\n}\n\n/* ---------- GradientText ---------- */\n\nexport interface GradientTextProps {\n  text?: string;\n  /** 渐变起色（默认 accent） */\n  from?: string;\n  /** 渐变止色（默认 info） */\n  to?: string;\n  /** 渐变角度（默认 120deg） */\n  angle?: number;\n  /** 渐变缓慢流动（默认 false） */\n  animated?: boolean;\n}\n"
+    }
+  ]
+}

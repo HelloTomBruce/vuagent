@@ -296,6 +296,24 @@
       "title": "AI Answer",
       "description": "带来源引用的回答卡：正文 [n] 标记渲染为可点击上标角标（无对应来源原样保留）、来源列表（序号 + 标题 + 出处）、流式光标。",
       "type": "registry:ui"
+    },
+    {
+      "name": "tilt-card",
+      "title": "Tilt Card",
+      "description": "3D 倾斜卡：指针驱动 rotateX/Y（可调最大角与透视）、可选跟随光斑与悬停微放大；reduced-motion 与触屏自动静态。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "blur-crossfade",
+      "title": "Blur Crossfade",
+      "description": "内容切换的模糊交叉过渡：target 变化时新内容 blur-in + 上浮；可调时长/模糊半径/位移；reduced-motion 只留淡入。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "gradient",
+      "title": "Gradient Floor / Text",
+      "description": "装饰两件：Floor 是页面底部双色光晕（呼吸动画，绝对定位铺底）；Text 是 background-clip 渐变文字（可缓慢流动）。",
+      "type": "registry:ui"
     }
   ]
 }

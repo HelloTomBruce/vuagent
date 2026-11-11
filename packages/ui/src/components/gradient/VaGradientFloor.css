@@ -1,0 +1,28 @@
+/* VaGradientFloor — 底部氛围光晕（装饰层，宿主放绝对定位） */
+
+.va-gfloor {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: calc(var(--va-gf-h, 320px) * -0.55);
+  height: var(--va-gf-h, 320px);
+  pointer-events: none;
+  opacity: var(--va-gf-o, 0.5);
+  background:
+    radial-gradient(60% 100% at var(--va-gf-x, 50%) 100%, var(--va-gf-c1, var(--va-accent)), transparent 70%),
+    radial-gradient(40% 80% at calc(100% - var(--va-gf-x, 50%)) 100%, var(--va-gf-c2, var(--va-info)), transparent 70%);
+  filter: blur(48px);
+}
+
+.va-gfloor--breathe {
+  animation: va-gf-breathe 7s ease-in-out infinite;
+}
+
+@keyframes va-gf-breathe {
+  0%, 100% { opacity: var(--va-gf-o, 0.5); transform: translateY(0); }
+  50% { opacity: calc(var(--va-gf-o, 0.5) * 1.25); transform: translateY(-8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-gfloor--breathe { animation: none; }
+}

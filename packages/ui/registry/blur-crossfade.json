@@ -1,0 +1,24 @@
+{
+  "$schema": "https://shadcn-vue.com/schema/registry-item.json",
+  "name": "blur-crossfade",
+  "title": "Blur Crossfade",
+  "description": "内容切换的模糊交叉过渡：target 变化时新内容 blur-in + 上浮；可调时长/模糊半径/位移；reduced-motion 只留淡入。",
+  "type": "registry:ui",
+  "dependencies": [],
+  "registryDependencies": [],
+  "docs": "- `target` (string | number，默认 -)：切换键，变化即重播\n- `duration / blur / rise` (number，默认 300 / 8 / 8)：毫秒 / 模糊 px / 上浮 px",
+  "files": [
+    {
+      "path": "components/ui/blur-crossfade/VaBlurCrossfade.vue",
+      "type": "registry:ui",
+      "target": "components/ui/blur-crossfade/VaBlurCrossfade.vue",
+      "content": "<script setup lang=\"ts\">\nimport { computed } from \"vue\";\nimport type { BlurCrossfadeProps } from \"./types\";\n\nconst props = defineProps<BlurCrossfadeProps>();\n\nconst dur = computed(() => `${props.duration ?? 300}ms`);\nconst blur = computed(() => `${props.blur ?? 8}px`);\nconst rise = computed(() => `${props.rise ?? 8}px`);\n</script>\n\n<template>\n  <div class=\"va-xfade\" :style=\"{ '--va-xf-dur': dur, '--va-xf-blur': blur, '--va-xf-rise': rise }\">\n    <!-- key 变化触发重挂载 → CSS animation 播放 blur-in -->\n    <div :key=\"String(props.target)\" class=\"va-xfade__pane\">\n      <slot />\n    </div>\n  </div>\n</template>\n\n<style>\n/* VaBlurCrossfade — 值切换的模糊交叉淡入 */\n\n.va-xfade { display: block; }\n\n.va-xfade__pane {\n  animation: va-xf-in var(--va-xf-dur, 300ms) var(--va-ease) both;\n}\n\n@keyframes va-xf-in {\n  from {\n    opacity: 0;\n    filter: blur(var(--va-xf-blur, 8px));\n    transform: translateY(var(--va-xf-rise, 8px));\n  }\n  to {\n    opacity: 1;\n    filter: blur(0);\n    transform: translateY(0);\n  }\n}\n\n@media (prefers-reduced-motion: reduce) {\n  /* 模糊/位移关闭，只保留透明度淡入（!important 压过动画关键帧） */\n  .va-xfade__pane {\n    filter: none !important;\n    transform: none !important;\n  }\n}\n</style>\n"
+    },
+    {
+      "path": "components/ui/blur-crossfade/types.ts",
+      "type": "registry:ui",
+      "target": "components/ui/blur-crossfade/types.ts",
+      "content": "/** VaBlurCrossfade 的类型定义 */\n\nexport interface BlurCrossfadeProps {\n  /** 切换键：值变化时旧内容 blur-out、新内容 blur-in */\n  target: string | number;\n  /** 过渡毫秒（默认 300） */\n  duration?: number;\n  /** 初始模糊半径 px（默认 8） */\n  blur?: number;\n  /** 垂直微移 px（默认 8，新内容从下方浮起） */\n  rise?: number;\n}\n"
+    }
+  ]
+}

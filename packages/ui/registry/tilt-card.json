@@ -1,0 +1,24 @@
+{
+  "$schema": "https://shadcn-vue.com/schema/registry-item.json",
+  "name": "tilt-card",
+  "title": "Tilt Card",
+  "description": "3D 倾斜卡：指针驱动 rotateX/Y（可调最大角与透视）、可选跟随光斑与悬停微放大；reduced-motion 与触屏自动静态。",
+  "type": "registry:ui",
+  "dependencies": [],
+  "registryDependencies": [],
+  "docs": "- `maxTilt / perspective` (number / number，默认 8 / 600)：最大倾角度数与透视距离\n- `glare / glareOpacity` (boolean / number，默认 false / 0.18)：跟随光斑\n- `zoom` (boolean，默认 false)：悬停 scale(1.02)",
+  "files": [
+    {
+      "path": "components/ui/tilt-card/VaTiltCard.vue",
+      "type": "registry:ui",
+      "target": "components/ui/tilt-card/VaTiltCard.vue",
+      "content": "<script setup lang=\"ts\">\nimport { computed, ref } from \"vue\";\nimport type { TiltCardProps } from \"./types\";\n\nconst props = defineProps<TiltCardProps>();\n\n/** 倾斜量 -1..1（相对中心），光斑 0..1 */\nconst tilt = ref({ x: 0, y: 0, gx: 0.5, gy: 0.5 });\nconst hovering = ref(false);\n\nfunction onMove(e: MouseEvent) {\n  if (typeof window !== \"undefined\" && window.matchMedia?.(\"(prefers-reduced-motion: reduce)\").matches) return;\n  const el = e.currentTarget as HTMLElement;\n  const rect = el.getBoundingClientRect();\n  const nx = (e.clientX - rect.left) / rect.width;\n  const ny = (e.clientY - rect.top) / rect.height;\n  tilt.value = { x: (0.5 - nx) * 2, y: (ny - 0.5) * 2, gx: nx, gy: ny };\n}\n\nfunction onEnter() {\n  hovering.value = true;\n}\n\nfunction onLeave() {\n  hovering.value = false;\n  tilt.value = { x: 0, y: 0, gx: 0.5, gy: 0.5 };\n}\n\nconst max = computed(() => props.maxTilt ?? 8);\nconst cardStyle = computed(() => ({\n  transform: hovering.value\n    ? `perspective(${props.perspective ?? 600}px) rotateY(${tilt.value.x * max.value}deg) rotateX(${tilt.value.y * max.value}deg)${props.zoom ? \" scale(1.02)\" : \"\"}`\n    : `perspective(${props.perspective ?? 600}px)`,\n}));\n\nconst glareStyle = computed(() =>\n  props.glare && hovering.value\n    ? {\n        opacity: props.glareOpacity ?? 0.18,\n        background: `radial-gradient(240px circle at ${tilt.value.gx * 100}% ${tilt.value.gy * 100}%, rgba(255,255,255,0.9), transparent 60%)`,\n      }\n    : { opacity: 0 },\n);\n</script>\n\n<template>\n  <div\n    class=\"va-tilt\"\n    :style=\"cardStyle\"\n    @mousemove=\"onMove\"\n    @mouseenter=\"onEnter\"\n    @mouseleave=\"onLeave\"\n  >\n    <slot />\n    <span v-if=\"props.glare\" class=\"va-tilt__glare\" :style=\"glareStyle\" aria-hidden=\"true\" />\n  </div>\n</template>\n\n<style>\n/* VaTiltCard — 3D 倾斜卡 */\n\n.va-tilt {\n  position: relative;\n  display: block;\n  border-radius: var(--va-radius-l);\n  transform-style: preserve-3d;\n  transition: transform var(--va-dur-2) var(--va-ease);\n  will-change: transform;\n}\n\n.va-tilt__glare {\n  position: absolute;\n  inset: 0;\n  border-radius: inherit;\n  pointer-events: none;\n  transition: opacity var(--va-dur-2) var(--va-ease);\n}\n\n@media (prefers-reduced-motion: reduce) {\n  /* 倾斜动效整体关闭（JS 侧同样短路） */\n  .va-tilt { transition: none; transform: none !important; }\n  .va-tilt__glare { display: none; }\n}\n\n/* 触屏无 hover：保持静态 */\n@media (hover: none) {\n  .va-tilt { transform: none !important; }\n  .va-tilt__glare { display: none; }\n}\n</style>\n"
+    },
+    {
+      "path": "components/ui/tilt-card/types.ts",
+      "type": "registry:ui",
+      "target": "components/ui/tilt-card/types.ts",
+      "content": "/** VaTiltCard 的类型定义 */\n\nexport interface TiltCardProps {\n  /** 最大倾角（度，默认 8） */\n  maxTilt?: number;\n  /** 透视距离 px（默认 600） */\n  perspective?: number;\n  /** 悬停高光（跟随光斑） */\n  glare?: boolean;\n  /** 高光透明度 0-1（默认 0.18） */\n  glareOpacity?: number;\n  /** 缩放跟随（悬停轻微放大 1.02） */\n  zoom?: boolean;\n}\n"
+    }
+  ]
+}

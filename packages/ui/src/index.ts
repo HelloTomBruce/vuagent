@@ -236,6 +236,16 @@ export type {
 export { VaAiAnswer } from "./components/ai-answer";
 export type { AiAnswerEvents, AiAnswerProps, AnswerSource } from "./components/ai-answer";
 
+// M7 · 动效补齐
+export { VaTiltCard } from "./components/tilt-card";
+export type { TiltCardProps } from "./components/tilt-card";
+
+export { VaBlurCrossfade } from "./components/blur-crossfade";
+export type { BlurCrossfadeProps } from "./components/blur-crossfade";
+
+export { VaGradientFloor, VaGradientText } from "./components/gradient";
+export type { GradientFloorProps, GradientTextProps } from "./components/gradient";
+
 // 工具与算法（InlineDiff 的 diff 能力也可独立使用）
 export { formatMs, formatTokens, toDisplayText } from "./utils/format";
 export { buildDiffUnits, diffResult, tokenize, wordDiff } from "./utils/wordDiff";

@@ -461,3 +461,38 @@ agent 起草邮件、人工确认发送：收件人/主题/正文可就地编辑
 | `direction` | `"diagonal" | "up" | "down" | "left" | "right"` | "diagonal" | 漂移方向 |
 | `fade` | `number` | 70 | 边缘渐隐强度 % |
 
+### Tilt Card
+
+3D 倾斜卡：指针驱动 rotateX/Y（可调最大角与透视）、可选跟随光斑与悬停微放大；reduced-motion 与触屏自动静态。
+
+组件：VaTiltCard
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `maxTilt / perspective` | `number / number` | 8 / 600 | 最大倾角度数与透视距离 |
+| `glare / glareOpacity` | `boolean / number` | false / 0.18 | 跟随光斑 |
+| `zoom` | `boolean` | false | 悬停 scale(1.02) |
+
+### Blur Crossfade
+
+内容切换的模糊交叉过渡：target 变化时新内容 blur-in + 上浮；可调时长/模糊半径/位移；reduced-motion 只留淡入。
+
+组件：VaBlurCrossfade
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `target` | `string | number` | - | 切换键，变化即重播 |
+| `duration / blur / rise` | `number` | 300 / 8 / 8 | 毫秒 / 模糊 px / 上浮 px |
+
+### Gradient Floor / Text
+
+装饰两件：Floor 是页面底部双色光晕（呼吸动画，绝对定位铺底）；Text 是 background-clip 渐变文字（可缓慢流动）。
+
+组件：VaGradientFloor、VaGradientText
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `color / color2 / opacity / height` | `string / string / number / number` | accent / info / 0.5 / 320 | Floor：双色/不透明度/高度 |
+| `breathing` | `boolean` | true | Floor：呼吸动画 |
+| `text / from / to / angle / animated` | `string / … / boolean` | - / accent / info / 120 / false | Text：内容与渐变 |
+

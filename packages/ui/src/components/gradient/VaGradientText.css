@@ -1,0 +1,22 @@
+/* VaGradientText — 渐变文字 */
+
+.va-gtext {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.va-gtext--flow {
+  background-size: 220% 220%;
+  animation: va-gt-flow 5s ease-in-out infinite;
+}
+
+@keyframes va-gt-flow {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-gtext--flow { animation: none; background-size: 100% 100%; }
+}

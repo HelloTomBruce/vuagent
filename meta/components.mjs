@@ -483,4 +483,32 @@ export const components = [
       { name: "@source", type: "-", default: "-", desc: "点击角标或来源行" },
     ],
   },
+
+  /* ---------- M7 · 动效补齐 ---------- */
+  {
+    dir: "tilt-card", slug: "tilt-card", title: "Tilt Card", category: "动效", components: ["VaTiltCard"],
+    desc: "3D 倾斜卡：指针驱动 rotateX/Y（可调最大角与透视）、可选跟随光斑与悬停微放大；reduced-motion 与触屏自动静态。",
+    props: [
+      { name: "maxTilt / perspective", type: "number / number", default: "8 / 600", desc: "最大倾角度数与透视距离" },
+      { name: "glare / glareOpacity", type: "boolean / number", default: "false / 0.18", desc: "跟随光斑" },
+      { name: "zoom", type: "boolean", default: "false", desc: "悬停 scale(1.02)" },
+    ],
+  },
+  {
+    dir: "blur-crossfade", slug: "blur-crossfade", title: "Blur Crossfade", category: "动效", components: ["VaBlurCrossfade"],
+    desc: "内容切换的模糊交叉过渡：target 变化时新内容 blur-in + 上浮；可调时长/模糊半径/位移；reduced-motion 只留淡入。",
+    props: [
+      { name: "target", type: "string | number", default: "-", desc: "切换键，变化即重播" },
+      { name: "duration / blur / rise", type: "number", default: "300 / 8 / 8", desc: "毫秒 / 模糊 px / 上浮 px" },
+    ],
+  },
+  {
+    dir: "gradient", slug: "gradient", title: "Gradient Floor / Text", category: "动效", components: ["VaGradientFloor", "VaGradientText"],
+    desc: "装饰两件：Floor 是页面底部双色光晕（呼吸动画，绝对定位铺底）；Text 是 background-clip 渐变文字（可缓慢流动）。",
+    props: [
+      { name: "color / color2 / opacity / height", type: "string / string / number / number", default: "accent / info / 0.5 / 320", desc: "Floor：双色/不透明度/高度" },
+      { name: "breathing", type: "boolean", default: "true", desc: "Floor：呼吸动画" },
+      { name: "text / from / to / angle / animated", type: "string / … / boolean", default: "- / accent / info / 120 / false", desc: "Text：内容与渐变" },
+    ],
+  },
 ];

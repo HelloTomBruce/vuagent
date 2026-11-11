@@ -1,0 +1,30 @@
+/* VaTiltCard — 3D 倾斜卡 */
+
+.va-tilt {
+  position: relative;
+  display: block;
+  border-radius: var(--va-radius-l);
+  transform-style: preserve-3d;
+  transition: transform var(--va-dur-2) var(--va-ease);
+  will-change: transform;
+}
+
+.va-tilt__glare {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  transition: opacity var(--va-dur-2) var(--va-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 倾斜动效整体关闭（JS 侧同样短路） */
+  .va-tilt { transition: none; transform: none !important; }
+  .va-tilt__glare { display: none; }
+}
+
+/* 触屏无 hover：保持静态 */
+@media (hover: none) {
+  .va-tilt { transform: none !important; }
+  .va-tilt__glare { display: none; }
+}

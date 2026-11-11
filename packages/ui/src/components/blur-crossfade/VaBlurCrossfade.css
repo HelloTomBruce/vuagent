@@ -1,0 +1,28 @@
+/* VaBlurCrossfade — 值切换的模糊交叉淡入 */
+
+.va-xfade { display: block; }
+
+.va-xfade__pane {
+  animation: va-xf-in var(--va-xf-dur, 300ms) var(--va-ease) both;
+}
+
+@keyframes va-xf-in {
+  from {
+    opacity: 0;
+    filter: blur(var(--va-xf-blur, 8px));
+    transform: translateY(var(--va-xf-rise, 8px));
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 模糊/位移关闭，只保留透明度淡入（!important 压过动画关键帧） */
+  .va-xfade__pane {
+    filter: none !important;
+    transform: none !important;
+  }
+}
