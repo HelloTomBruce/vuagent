@@ -45,10 +45,10 @@ watch(
           <span v-if="s.description" class="va-sg__desc">{{ s.description }}</span>
         </div>
         <div v-if="!s.status" class="va-sg__ops">
-          <button class="va-sg__btn va-sg__btn--primary" type="button" @click="emit('complete', s.id)">
+          <button class="va-btn va-btn--sm va-btn--primary va-sg__btn" type="button" @click="emit('complete', s.id)">
             {{ s.actionLabel ?? "完成" }}
           </button>
-          <button v-if="s.optional" class="va-sg__btn" type="button" @click="emit('skip', s.id)">跳过</button>
+          <button v-if="s.optional" class="va-btn va-btn--sm va-sg__btn" type="button" @click="emit('skip', s.id)">跳过</button>
         </div>
         <span v-else class="va-sg__state">{{ s.status === "done" ? "已完成" : "已跳过" }}</span>
       </li>

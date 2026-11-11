@@ -61,9 +61,9 @@ const timeOf = computed(() => (s: PlanStep) => {
               {{ s.title }}
             </button>
             <span class="va-plan__ops">
-              <button class="va-plan__op" type="button" aria-label="上移" :disabled="i === 0" @click="move(i, -1)">↑</button>
-              <button class="va-plan__op" type="button" aria-label="下移" :disabled="i === props.steps.length - 1" @click="move(i, 1)">↓</button>
-              <button class="va-plan__op va-plan__op--danger" type="button" aria-label="删除步骤" @click="remove(s)">✕</button>
+              <button class="va-btn va-btn--ghost va-plan__op" type="button" aria-label="上移" :disabled="i === 0" @click="move(i, -1)">↑</button>
+              <button class="va-btn va-btn--ghost va-plan__op" type="button" aria-label="下移" :disabled="i === props.steps.length - 1" @click="move(i, 1)">↓</button>
+              <button class="va-btn va-btn--ghost va-plan__op va-plan__op--danger" type="button" aria-label="删除步骤" @click="remove(s)">✕</button>
             </span>
           </div>
         </template>
@@ -86,7 +86,7 @@ const timeOf = computed(() => (s: PlanStep) => {
           </div>
           <div class="va-plan__side">
             <span v-if="timeOf(s) !== undefined" class="va-plan__time">{{ timeOf(s) }}</span>
-            <button v-if="s.status === 'error'" class="va-plan__retry" type="button" @click="emit('retry', s)">↻ 重试</button>
+            <button v-if="s.status === 'error'" class="va-btn va-btn--sm va-btn--danger va-plan__retry" type="button" @click="emit('retry', s)">↻ 重试</button>
           </div>
         </template>
       </li>

@@ -25,14 +25,14 @@ const signOf = (t: string) => (t === "add" ? "+" : t === "del" ? "−" : "");
       <span class="va-cdiff__spacer" />
       <button
         v-if="hasCollapsed"
-        class="va-cdiff__btn"
+        class="va-btn va-btn--sm va-cdiff__btn"
         type="button"
         :aria-pressed="expandAll"
         @click="expandAll = !expandAll"
       >
         {{ expandAll ? "折叠上下文" : "全部展开" }}
       </button>
-      <button class="va-cdiff__btn" type="button" :aria-label="copied ? '已复制' : '复制新文件内容'" @click="copy">
+      <button class="va-btn va-btn--sm va-cdiff__btn" type="button" :aria-label="copied ? '已复制' : '复制新文件内容'" @click="copy">
         {{ copied ? "已复制 ✓" : "复制新文件" }}
       </button>
     </header>

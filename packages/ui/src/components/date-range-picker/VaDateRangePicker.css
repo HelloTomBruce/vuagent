@@ -34,6 +34,9 @@
   max-width: calc(100vw - 32px);
 }
 
+.va-drp__preset { border-radius: var(--va-radius-pill); }
+.va-drp__preset:hover:not(:disabled) { border-color: var(--va-accent); color: var(--va-accent); }
+
 .va-drp__presets {
   display: flex;
   gap: var(--va-s2);
@@ -43,18 +46,7 @@
   border-bottom: 1px solid var(--va-edge);
 }
 
-.va-drp__preset {
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-pill);
-  background: var(--va-card);
-  color: var(--va-ink-2);
-  font-size: 12px;
-  padding: 3px 12px;
-  cursor: pointer;
-}
 
-.va-drp__preset:hover { border-color: var(--va-accent); color: var(--va-accent); }
-.va-drp__preset:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
 
 .va-drp__calendars { display: flex; gap: var(--va-s6); }
 

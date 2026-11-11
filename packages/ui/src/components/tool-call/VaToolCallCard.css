@@ -112,19 +112,12 @@
   font-size: 12.5px;
 }
 .va-tcl__error-text { flex: 1; min-width: 0; }
+/* va-btn 基类兜底，仅保留危险 pill 形态 */
 .va-tcl__retry {
-  flex: none;
-  border: 1px solid color-mix(in srgb, var(--_danger) 40%, transparent);
-  background: var(--_card);
-  color: var(--_danger);
   border-radius: var(--va-radius-pill, 999px);
-  font-size: 12px;
-  padding: 3px 10px;
-  cursor: pointer;
-  font-family: inherit;
+  border-color: color-mix(in srgb, var(--_danger) 40%, transparent);
 }
-.va-tcl__retry:hover { background: color-mix(in srgb, var(--_danger) 10%, transparent); }
-.va-tcl__retry:focus-visible { outline: 2px solid var(--_danger); outline-offset: 1px; }
+.va-tcl__retry:hover:not(:disabled) { background: color-mix(in srgb, var(--_danger) 10%, transparent); }
 
 .va-tcl__sec { padding: var(--va-s3, 8px) var(--va-s4, 12px) 0; }
 .va-tcl__sec:last-child { padding-bottom: var(--va-s4, 12px); }

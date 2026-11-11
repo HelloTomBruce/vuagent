@@ -95,20 +95,7 @@
 .va-ckpt__ops:focus-within,
 .va-ckpt__item--current .va-ckpt__ops { opacity: 1; }
 
-.va-ckpt__btn {
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-s);
-  background: var(--va-card);
-  color: var(--va-ink-2);
-  font-size: 12px;
-  padding: 3px 10px;
-  cursor: pointer;
-  transition: border-color var(--va-dur-1) var(--va-ease), background var(--va-dur-1) var(--va-ease);
-}
 
-.va-ckpt__btn:hover { border-color: var(--va-edge-strong); }
-.va-ckpt__btn:disabled { opacity: 0.5; cursor: default; }
-.va-ckpt__btn:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
 
 .va-ckpt__btn--restore { color: var(--va-accent); border-color: color-mix(in srgb, var(--va-accent) 35%, transparent); }
 .va-ckpt__btn--restore[data-armed="true"] {
@@ -117,8 +104,7 @@
   color: var(--va-card);
 }
 
-.va-ckpt__item--restoring .va-ckpt__btn { opacity: 0.6; }
-
+.va-ckpt__item--restoring 
 .va-ckpt__empty {
   margin: 0;
   padding: var(--va-s4);

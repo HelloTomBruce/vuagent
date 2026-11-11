@@ -19,7 +19,7 @@ const emit = defineEmits<SmartRecommendationEvents>();
         <button
           v-for="a in props.actions"
           :key="a.id"
-          class="va-rec__btn"
+          class="va-btn va-btn--sm va-rec__btn"
           type="button"
           :data-primary="a.primary ?? false"
           @click="emit('action', a.id)"

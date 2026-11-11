@@ -87,18 +87,9 @@
 
 .va-usage[data-level="exceeded"] .va-usage__alert { color: var(--va-danger); }
 
-.va-usage__manage {
-  border: 1px solid currentColor;
-  border-radius: var(--va-radius-s);
-  background: transparent;
-  color: inherit;
-  font-size: 12px;
-  padding: 2px 9px;
-  cursor: pointer;
-}
 
-.va-usage__manage:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
-.va-usage__manage:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+.va-usage__manage { border-color: currentColor; }
+.va-usage__manage:hover:not(:disabled) { background: color-mix(in srgb, currentColor 10%, transparent); border-color: currentColor; }
 
 @media (prefers-reduced-motion: reduce) {
   .va-usage__seg { transition: none; }

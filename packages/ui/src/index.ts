@@ -2,6 +2,8 @@
  * @vuagent/ui — Agent Ops UI components for Vue 3
  * 每个组件目录：VaXxx.vue（薄模板）+ VaXxx.css（样式）+ types.ts（类型）+ useXxx.ts（逻辑）+ index.ts（出口）
  */
+// 按钮基类随聚合样式分发（registry 拷贝时生成器会自动内联到组件文件）
+import "./styles/button.css";
 
 // 基础（M1 打样）
 export { VaButton } from "./components/button";

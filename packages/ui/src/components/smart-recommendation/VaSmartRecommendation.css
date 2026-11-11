@@ -56,24 +56,17 @@
   margin-top: var(--va-s4);
 }
 
-.va-rec__btn {
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-s);
-  background: var(--va-card);
-  color: var(--va-ink-2);
-  font-size: 12.5px;
-  padding: 4px 12px;
-  cursor: pointer;
-}
 
-.va-rec__btn:hover { border-color: var(--va-edge-strong); }
-.va-rec__btn:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
 
 .va-rec__btn[data-primary="true"] {
   background: var(--va-info);
   border-color: var(--va-info);
   color: #fff;
-  font-weight: 600;
+}
+
+.va-rec__btn[data-primary="true"]:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--va-info) 85%, #000);
+  border-color: color-mix(in srgb, var(--va-info) 85%, #000);
 }
 
 .va-rec__close {

@@ -35,18 +35,7 @@
 
 .va-cdiff__spacer { flex: 1; }
 
-.va-cdiff__btn {
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-s);
-  background: var(--va-card);
-  color: var(--va-ink-2);
-  font-size: 12px;
-  padding: 3px 10px;
-  cursor: pointer;
-  transition: background var(--va-dur-1) var(--va-ease), border-color var(--va-dur-1) var(--va-ease);
-}
 
-.va-cdiff__btn:hover { border-color: var(--va-edge-strong); }
 .va-cdiff__btn[aria-pressed="true"] { background: var(--va-accent-soft); border-color: transparent; color: var(--va-accent); }
 
 .va-cdiff__body {

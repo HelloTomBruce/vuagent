@@ -51,7 +51,7 @@ const todayTs = new Date(today.getFullYear(), today.getMonth(), today.getDate())
         <button
           v-for="p in presets"
           :key="p.id"
-          class="va-drp__preset"
+          class="va-btn va-btn--sm va-drp__preset"
           type="button"
           @click="applyPreset(p, emitter)"
         >{{ p.label }}</button>

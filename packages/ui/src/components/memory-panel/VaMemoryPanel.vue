@@ -99,13 +99,13 @@ const {
 
           <span class="va-mem__ops">
             <button
-              class="va-mem__op"
+              class="va-btn va-btn--ghost va-mem__op"
               type="button"
               :aria-label="m.paused ? '恢复' : '暂停'"
               :data-on="m.paused || undefined"
               @click="togglePause(m)"
             >{{ m.paused ? "▶" : "⏸" }}</button>
-            <button class="va-mem__op va-mem__op--danger" type="button" aria-label="遗忘" @click="forget(m)">✕</button>
+            <button class="va-btn va-btn--ghost va-mem__op va-mem__op--danger" type="button" aria-label="遗忘" @click="forget(m)">✕</button>
           </span>
         </li>
       </TransitionGroup>

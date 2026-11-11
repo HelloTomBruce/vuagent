@@ -87,16 +87,6 @@
   border-top: 1px solid var(--va-edge);
 }
 
-.va-fm__clear {
-  border: 0;
-  background: transparent;
-  color: var(--va-muted);
-  font-size: 12px;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: var(--va-radius-s);
-}
 
-.va-fm__clear:hover:not(:disabled) { color: var(--va-danger); }
+.va-fm__clear:hover:not(:disabled) { color: var(--va-danger); background: transparent; border-color: transparent; }
 .va-fm__clear:disabled { opacity: 0.4; cursor: default; }
-.va-fm__clear:focus-visible { outline: 2px solid var(--va-accent); }

@@ -115,20 +115,7 @@
   padding: 1px 7px;
 }
 
-.va-pl__use {
-  flex: none;
-  border: 1px solid var(--va-accent);
-  border-radius: var(--va-radius-s);
-  background: var(--va-accent);
-  color: var(--va-card);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 14px;
-  cursor: pointer;
-}
 
-.va-pl__use:hover { background: var(--va-accent-hover); }
-.va-pl__use:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
 
 .va-pl__empty {
   margin: 0;

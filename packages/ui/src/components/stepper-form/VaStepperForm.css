@@ -31,30 +31,7 @@
   margin-right: var(--va-s2);
 }
 
-.va-sf__btn {
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-s);
-  background: var(--va-card);
-  color: var(--va-ink-2);
-  font-size: 13px;
-  padding: 7px 16px;
-  cursor: pointer;
-  transition: border-color var(--va-dur-1) var(--va-ease), background var(--va-dur-1) var(--va-ease);
-}
 
-.va-sf__btn:hover:not(:disabled) { border-color: var(--va-edge-strong); }
-.va-sf__btn:disabled { opacity: 0.45; cursor: default; }
-.va-sf__btn:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
 
-.va-sf__btn--primary {
-  background: var(--va-accent);
-  border-color: var(--va-accent);
-  color: var(--va-card);
-  font-weight: 600;
-}
 
-.va-sf__btn--primary:hover:not(:disabled) { background: var(--va-accent-hover); }
 
-@media (prefers-reduced-motion: reduce) {
-  .va-sf__btn { transition: none; }
-}

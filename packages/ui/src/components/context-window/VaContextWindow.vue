@@ -22,7 +22,7 @@ const { used, percent, hasHistory, shrinking, widthOf, legendKinds } = useContex
       </span>
       <span class="va-ctx__pct">{{ Math.round(percent) }}%</span>
       <button
-        class="va-ctx__compact"
+        class="va-btn va-btn--sm va-ctx__compact"
         type="button"
         :disabled="props.compacting || !hasHistory"
         @click="emit('compact')"

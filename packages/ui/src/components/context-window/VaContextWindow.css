@@ -12,22 +12,13 @@
 .va-ctx__used strong { color: var(--_ink); font-variant-numeric: tabular-nums; }
 .va-ctx__pct { font-size: 11.5px; color: var(--_muted); font-variant-numeric: tabular-nums; }
 
+/* va-btn 基类兜底，仅保留 pill 形态与右贴 */
 .va-ctx__compact {
   margin-left: auto;
   height: 26px;
   padding: 0 var(--va-s4, 12px);
   border-radius: var(--va-radius-pill, 999px);
-  border: 1px solid var(--_edge);
-  background: var(--va-card, #fff);
-  color: var(--_ink);
-  font-size: 12px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: border-color var(--va-dur-1, 120ms) ease;
 }
-.va-ctx__compact:hover:not(:disabled) { border-color: var(--va-edge-strong, rgba(26, 25, 23, 0.22)); }
-.va-ctx__compact:disabled { opacity: 0.45; cursor: default; }
-.va-ctx__compact:focus-visible { outline: 2px solid var(--_accent); outline-offset: 1px; }
 
 /* 格子场 */
 .va-ctx__bar {

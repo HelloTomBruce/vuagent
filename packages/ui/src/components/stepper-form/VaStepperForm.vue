@@ -59,7 +59,7 @@ function goBack() {
 
     <footer class="va-sf__foot">
       <button
-        class="va-sf__btn"
+        class="va-btn va-sf__btn"
         type="button"
         :disabled="step <= 0"
         @click="goBack"
@@ -67,7 +67,7 @@ function goBack() {
       <span class="va-sf__spacer" />
       <span class="va-sf__pos">{{ step + 1 }} / {{ steps.length }}</span>
       <button
-        class="va-sf__btn va-sf__btn--primary"
+        class="va-btn va-btn--primary va-sf__btn"
         type="submit"
         :disabled="props.nextDisabled || props.submitting"
       >

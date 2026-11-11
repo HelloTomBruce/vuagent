@@ -110,19 +110,9 @@
 .va-mem__input:focus { outline: none; }
 
 .va-mem__ops { display: inline-flex; gap: 2px; flex: none; }
-.va-mem__op {
-  width: 22px;
-  height: 22px;
-  border: 0;
-  border-radius: var(--va-radius-s, 8px);
-  background: none;
-  color: var(--_muted);
-  cursor: pointer;
-  font-size: 11px;
-  line-height: 1;
-}
-.va-mem__op:hover { background: var(--va-bg-subtle, #efede7); color: var(--_ink); }
-.va-mem__op:focus-visible { outline: 2px solid var(--_accent); }
+/* va-btn ghost 基类兜底，仅保留 22px 图标方钮形态 */
+.va-mem__op { width: 22px; height: 22px; padding: 0; font-size: 11px; color: var(--_muted); }
+.va-mem__op:hover { color: var(--_ink); }
 .va-mem__op--danger:hover { color: var(--_danger); }
 
 .va-mem__empty { margin: 0; font-size: 12px; color: var(--_muted); text-align: center; padding: var(--va-s3, 8px); }

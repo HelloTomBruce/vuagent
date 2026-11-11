@@ -78,7 +78,7 @@
   word-break: break-word;
 }
 
-/* agent 草稿：左侧强调 + 微光等待态 */
+/* agent 草稿：左侧强调 */
 .va-cmt__item--pending .va-cmt__main {
   background: var(--va-accent-soft);
   border-radius: 0 var(--va-radius-m) var(--va-radius-m) var(--va-radius-m);
@@ -92,29 +92,9 @@
   margin-top: var(--va-s3);
 }
 
-.va-cmt__op {
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-s);
-  background: var(--va-card);
-  color: var(--va-ink-2);
-  font-size: 12px;
-  padding: 3px 10px;
-  cursor: pointer;
-  transition: border-color var(--va-dur-1) var(--va-ease), background var(--va-dur-1) var(--va-ease);
-}
 
-.va-cmt__op:hover { border-color: var(--va-edge-strong); }
-.va-cmt__op:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
 
-.va-cmt__op--primary {
-  background: var(--va-accent);
-  border-color: var(--va-accent);
-  color: var(--va-card);
-}
-.va-cmt__op--primary:hover { background: var(--va-accent-hover); }
 
-.va-cmt__op--ghost { border-color: transparent; color: var(--va-muted); }
-.va-cmt__op--ghost:hover { color: var(--va-danger); border-color: transparent; }
 
 /* 底部输入 */
 .va-cmt__composer {
@@ -148,24 +128,8 @@
   border-color: var(--va-accent);
 }
 
-.va-cmt__send {
-  border: 0;
-  border-radius: var(--va-radius-s);
-  background: var(--va-accent);
-  color: var(--va-card);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 7px 14px;
-  cursor: pointer;
-  transition: background var(--va-dur-1) var(--va-ease);
-}
 
-.va-cmt__send:hover:not(:disabled) { background: var(--va-accent-hover); }
-.va-cmt__send:disabled { opacity: 0.45; cursor: default; }
-.va-cmt__send:focus-visible { outline: 2px solid var(--va-ink); outline-offset: 1px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .va-cmt__op,
-  .va-cmt__area,
-  .va-cmt__send { transition: none; }
+  .va-cmt__area { transition: none; }
 }

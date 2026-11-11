@@ -141,7 +141,8 @@ components/tool-call/
 - 枚举对齐 affectUI：`size: sm/md/lg`、`variant: primary/secondary/ghost/destructive`、`status: running/success/error`、置信度 `signal: 0-3`
 - 时间参数统一毫秒（`startedAt` / `duration`），与 agent 事件流直连
 - `v-model` + 显式 `emits`；`icon` slot 可替换内置 SVG；事件名 camelCase
-- **布尔 props 警告**：不要用 `defineModel` 表达可选布尔（Vue 布尔 cast 使未绑定值为 `false`，无法区分"未绑定"与"绑定 false"）——用 `props.open !== undefined` 判定受控 + touched 哨兵回落 `defaultOpen`（参见 ToolCallCard）
+- **布尔 props 警告**：不要用 `defineModel` 表达可选布尔（Vue 布尔 cast 使未绑定值为 `false`，无法区分"未绑定"与"绑定 false"）——用 `props.open !== undefined` 判定受控 + touched 哨兵回落 `defaultOpen`（参见 ToolCallCard）；「默认开启」语义的可选布尔一律 `withDefaults` 显式默认值（M6 踩坑：`xxx !== false` 写法在未传时同样被 cast 坑掉）
+- **按钮样式收敛**（M6 后约定）：标准动作按钮叠加 `src/styles/button.css` 的 `.va-btn` 基类（`--sm/--lg` 尺寸、`--primary/--ghost/--danger/--ink/--success` 变体），组件 CSS 只写形态覆盖（pill 圆角、定高、图标方钮尺寸）与色彩特例；链接风/图标风/区块展开器（如 CodeDiff 展开条、Segmented 内部钮）不收敛。基类随 `styles.css` 聚合分发；registry 生成器检测到组件用 `.va-btn` 会把基类自动内联进拷贝文件，单文件体验不变。结构性组件复用（如 StepperForm→ProgressTracker）走 meta `deps` 字段 → `registryDependencies` 声明
 
 ### 4.1 缺口规划（M5–M7，对标 affectUI 全量 103+ 项）
 

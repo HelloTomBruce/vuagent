@@ -1,0 +1,84 @@
+/* ============================================================
+   按钮基类 —— 全库动作按钮的单一样式来源。
+   组件叠加使用：class="va-btn va-btn--primary va-xxx__submit"，
+   组件自己的 CSS 只写布局/色彩覆盖（width、pill 圆角等）。
+   registry 生成器会把本文件自动内联进用了 va-btn 的组件拷贝。
+   ============================================================ */
+
+.va-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-card);
+  color: var(--va-ink-2);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 5px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--va-dur-1) var(--va-ease), background var(--va-dur-1) var(--va-ease),
+    color var(--va-dur-1) var(--va-ease);
+}
+
+.va-btn:hover:not(:disabled) { border-color: var(--va-edge-strong); }
+
+.va-btn:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+
+.va-btn:disabled { opacity: 0.45; cursor: default; }
+
+/* 尺寸 */
+.va-btn--sm { font-size: 12px; padding: 3px 10px; }
+.va-btn--lg { font-size: 14px; padding: 7px 18px; }
+
+/* 变体 */
+.va-btn--primary {
+  background: var(--va-accent);
+  border-color: var(--va-accent);
+  color: var(--va-card);
+  font-weight: 600;
+}
+
+.va-btn--primary:hover:not(:disabled) {
+  background: var(--va-accent-hover);
+  border-color: var(--va-accent-hover);
+}
+
+.va-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.va-btn--ghost:hover:not(:disabled) { background: var(--va-bg-subtle); }
+
+.va-btn--danger { border-color: transparent; background: transparent; color: var(--va-danger); }
+
+.va-btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--va-danger) 10%, transparent);
+  border-color: transparent;
+}
+
+/* 语义色实底（成功/危险确认场景，按需叠加） */
+.va-btn--success {
+  background: var(--va-success);
+  border-color: var(--va-success);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* 墨色实底：审批/决策/应用这类"终审"主操作（区别于 accent 常规主操作） */
+.va-btn--ink {
+  background: var(--va-ink);
+  border-color: var(--va-ink);
+  color: var(--va-card);
+  font-weight: 600;
+}
+
+.va-btn--ink:hover:not(:disabled) { opacity: 0.88; }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-btn { transition: none; }
+}

@@ -55,7 +55,7 @@ const segStyle = (i: number, used: number) => ({
     <p v-if="level !== 'ok'" class="va-usage__alert" role="status">
       <template v-if="level === 'exceeded'">已超出限额，新任务将被限流</template>
       <template v-else>已用 {{ Math.round(ratio * 100) }}%，接近本期限额</template>
-      <button class="va-usage__manage" type="button" @click="emit('manage')">管理额度</button>
+      <button class="va-btn va-btn--sm va-usage__manage" type="button" @click="emit('manage')">管理额度</button>
     </p>
 
     <ul v-else class="va-usage__legend">

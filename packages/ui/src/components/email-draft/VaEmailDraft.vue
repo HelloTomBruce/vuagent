@@ -25,7 +25,7 @@ const empty = () => !(props.body ?? "").trim() || !(props.subject ?? "").trim() 
       <span class="va-mail__title">邮件草稿</span>
       <span class="va-mail__badge">Agent 起草 · 人工确认</span>
       <span class="va-mail__spacer" />
-      <button class="va-mail__regen" type="button" :disabled="props.drafting" @click="emit('regenerate')">
+      <button class="va-btn va-btn--sm va-mail__regen" type="button" :disabled="props.drafting" @click="emit('regenerate')">
         重新起草
       </button>
     </header>
@@ -88,7 +88,7 @@ const empty = () => !(props.body ?? "").trim() || !(props.subject ?? "").trim() 
       <span v-else class="va-mail__hint">发送前请核对收件人与内容</span>
       <span class="va-mail__spacer" />
       <button
-        class="va-mail__send"
+        class="va-btn va-btn--primary va-mail__send"
         type="submit"
         :disabled="props.sending || props.drafting || empty()"
       >{{ props.sending ? "发送中…" : "发送" }}</button>

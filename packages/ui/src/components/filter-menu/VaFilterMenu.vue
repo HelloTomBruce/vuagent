@@ -103,7 +103,7 @@ const checked = (groupId: string, opt: string) => {
         </div>
       </section>
       <footer class="va-fm__foot">
-        <button class="va-fm__clear" type="button" :disabled="!activeCount" @click="clearAll">清除全部</button>
+        <button class="va-btn va-btn--ghost va-btn--sm va-fm__clear" type="button" :disabled="!activeCount" @click="clearAll">清除全部</button>
       </footer>
     </div>
   </div>
