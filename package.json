@@ -12,11 +12,6 @@
     "docs:build": "pnpm --filter @vuagent/docs build",
     "dev": "pnpm --filter @vuagent/playground dev"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/HelloTomBruce/vuagent.git"

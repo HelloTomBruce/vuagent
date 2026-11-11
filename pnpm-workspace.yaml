@@ -1,3 +1,7 @@
 packages:
   - "packages/*"
   - "apps/*"
+
+# pnpm ≥10 从这里读构建许可（package.json#pnpm 已废弃）
+allowBuilds:
+  esbuild: true
