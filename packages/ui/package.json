@@ -1,6 +1,6 @@
 {
   "name": "@vuagent/ui",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Agent Ops UI components for Vue 3 — plans, approvals, tool calls, context, inboxes.",
   "type": "module",
   "license": "MIT",
@@ -48,5 +48,26 @@
     "vitest": "^3.2.4",
     "vue": "^3.5.21",
     "vue-tsc": "^3.0.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HelloTomBruce/vuagent.git",
+    "directory": "packages/ui"
+  },
+  "homepage": "https://hellotombruce.github.io/vuagent",
+  "bugs": {
+    "url": "https://github.com/HelloTomBruce/vuagent/issues"
+  },
+  "keywords": [
+    "vue",
+    "vue3",
+    "agent",
+    "ai",
+    "components",
+    "ui",
+    "shadcn",
+    "registry",
+    "agent-ops",
+    "chat-ui"
+  ]
 }

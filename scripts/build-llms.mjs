@@ -36,7 +36,7 @@ for (const cat of CATEGORIES) {
   short += `\n## ${cat}\n\n`;
   full += `\n## ${cat}\n\n`;
   for (const c of list) {
-    short += `- [${c.title}](https://vuagent.dev/components/${c.slug}): ${c.desc}（${c.components.join(" / ")}）\n`;
+    short += `- [${c.title}](https://hellotombruce.github.io/vuagent/components/${c.slug}): ${c.desc}（${c.components.join(" / ")}）\n`;
     full += `### ${c.title}\n\n${c.desc}\n\n组件：${c.components.join("、")}\n\n| Prop / 事件 | 类型 | 默认 | 说明 |\n|---|---|---|---|\n`;
     for (const p of c.props) {
       full += `| \`${p.name}\` | \`${p.type}\` | ${p.default} | ${p.desc} |\n`;

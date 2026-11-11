@@ -1,17 +1,45 @@
-# Vuagent（代号）
+# Vuagent
 
 Vue 生态第一个 **Agent Ops 组件库**——为 AI agent 产品的运行时操作界面而生：计划、审批、工具调用流、上下文窗口、任务收件箱。全 MIT 开源，零运行时依赖，单文件可拷贝。
 
+- 文档站：<https://hellotombruce.github.io/vuagent/>
 - 设计与架构文档：[DESIGN.md](./DESIGN.md)
+- 给 AI 编码工具的能力清单：[llms.txt](./llms.txt) / [llms-full.txt](./llms-full.txt)
 - 视觉风格：暖静 Calm（亮暗双主题，跟随系统）
 - 前缀：类名 `va-`，CSS 变量 `--va-`
 
-## 快速开始
+## 安装
+
+**方式一 · npm 整包**
+
+```bash
+npm i @vuagent/ui
+```
+
+```ts
+import { VaToolCallCard } from "@vuagent/ui";
+import "@vuagent/ui/tokens.css"; // 或 styles.css（聚合样式，含按钮基类）
+```
+
+**方式二 · shadcn-vue registry（单文件拷贝，源码进你的仓库）**
+
+在 `components.json` 的 `registries` 注册（或按 shadcn-vue 文档任一注册方式）：
+
+```json
+{ "@vuagent": "https://hellotombruce.github.io/vuagent/r/{name}.json" }
+```
+
+```bash
+npx shadcn-vue add @vuagent/tool-call        # 任意组件名见 llms.txt
+```
+
+## 开发
 
 ```bash
 pnpm install
 pnpm build        # 构建所有包
 pnpm typecheck    # 全仓类型检查
+pnpm test         # 95 vitest（含 SSR smoke）
 ```
 
 ## 包结构

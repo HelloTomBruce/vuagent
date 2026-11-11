@@ -1,7 +1,7 @@
 {
   "$schema": "https://shadcn-vue.com/schema/registry.json",
   "name": "@vuagent",
-  "homepage": "https://vuagent.dev",
+  "homepage": "https://hellotombruce.github.io/vuagent",
   "items": [
     {
       "name": "tool-call",

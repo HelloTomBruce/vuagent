@@ -85,9 +85,9 @@ for (const c of components) {
 const index = {
   $schema: "https://shadcn-vue.com/schema/registry.json",
   name: "@vuagent",
-  homepage: "https://vuagent.dev",
+  homepage: "https://hellotombruce.github.io/vuagent",
   items,
 };
 fs.writeFileSync(path.join(OUT_DIR, "index.json"), `${JSON.stringify(index, null, 2)}\n`);
 console.log(`\n${items.length} 条 item 写入 packages/ui/registry/（含 index.json）`);
-console.log(`宿主使用：在 components.json 注册 {"@vuagent": "https://your-host/r/{name}.json"} 后 npx shadcn-vue add @vuagent/<name>`);
+console.log(`宿主使用：在 components.json 注册 {"@vuagent": "https://hellotombruce.github.io/vuagent/r/{name}.json"} 后 npx shadcn-vue add @vuagent/<name>`);

@@ -2,6 +2,8 @@ import { defineConfig } from "vitepress";
 
 export default defineConfig({
   lang: "zh-CN",
+  // GitHub Pages 子路径部署
+  base: "/vuagent/",
   title: "Vuagent",
   description: "Vue 生态第一个 Agent Ops 组件库：计划 / 审批 / 工具调用 / 上下文 / 收件箱",
   themeConfig: {
@@ -20,6 +22,6 @@ export default defineConfig({
       },
       { text: "组件", items: [{ text: "组件总览", link: "/components/" }] },
     ],
-    socialLinks: [{ icon: "github", link: "https://github.com/vuagent/vuagent" }],
+    socialLinks: [{ icon: "github", link: "https://github.com/HelloTomBruce/vuagent" }],
   },
 });

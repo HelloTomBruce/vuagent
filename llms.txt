@@ -13,90 +13,90 @@
 
 ## Agent-Ops
 
-- [Tool Call / Group](https://vuagent.dev/components/tool-call): agent 的一次工具调用：实时秒表、失败自动展开并给出重试；Group 自动汇总多张卡。（VaToolCallCard / VaToolCallGroup）
-- [Agent Plan](https://vuagent.dev/components/agent-plan): 执行计划：编辑态可重命名/排序/增删，运行态逐项计时打勾、失败可重试。（VaAgentPlan）
-- [Approval Card](https://vuagent.dev/components/approval-card): 审批门：风险徽章 + 命令预览 + 倒计时自动拒绝（悬停暂停）+ Enter/Esc 快捷键，决策后 morph 成结果行。（VaApprovalCard）
-- [Decision Inbox](https://vuagent.dev/components/decision-inbox): 业务决策收件箱：每条两个答案，选完确认并折叠离开列表。（VaDecisionInbox）
-- [Agent Inbox](https://vuagent.dev/components/agent-inbox): 后台任务收件箱：过滤 tab 带计数、live 时钟、行展开看步骤与操作，排序变化平滑滑动。（VaAgentInbox）
-- [Context Window](https://vuagent.dev/components/context-window): 上下文可视化：按 token 占比的格子场，悬停点亮、文件可移除、压缩对话时历史微光收缩。（VaContextWindow）
-- [Inline Diff](https://vuagent.dev/components/inline-diff): AI 文案修改逐词接受/拒绝：CJK 逐字分词的零依赖 diff、撤销栈、全部决断后应用。（VaInlineDiff）
-- [Memory Panel](https://vuagent.dev/components/memory-panel): 助手记忆面板：分类过滤、就地编辑、暂停/遗忘（带撤销托盘）、总开关。（VaMemoryPanel）
-- [Code Diff](https://vuagent.dev/components/code-diff): 文件级代码 diff：±行渲染、行内词级高亮、上下文折叠与展开、+N −M 统计、复制新文件——agent 改代码的验收主界面。（VaCodeDiff）
-- [File Tree](https://vuagent.dev/components/file-tree): 带变更标记的文件树：M/A/D/U 徽章、目录折叠、目录变更计数、完整方向键导航；buildFileTree() 可从扁平 git 变更列表直接建树。（VaFileTree）
-- [Terminal Log](https://vuagent.dev/components/terminal-log): 命令输出流：深底终端窗、等宽、ANSI 常用色（含 256/真彩、\r 进度条重写）、语义行着色、自动滚动（上翻暂停）、行复制。（VaTerminalLog）
-- [Checkpoint List](https://vuagent.dev/components/checkpoint-list): 检查点/回滚时间线：每步快照摘要与相对时间、当前位标记、diff 预览入口、二次确认的一键恢复（3 秒武器化窗口）。（VaCheckpointList）
-- [Change Summary](https://vuagent.dev/components/change-summary): agent 一轮工作摘要卡：N 文件 +adds −dels、耗时与工具调用次数、逐文件行（M/A/D 徽章 + 增删计数），可折叠长列表。（VaChangeSummary）
+- [Tool Call / Group](https://hellotombruce.github.io/vuagent/components/tool-call): agent 的一次工具调用：实时秒表、失败自动展开并给出重试；Group 自动汇总多张卡。（VaToolCallCard / VaToolCallGroup）
+- [Agent Plan](https://hellotombruce.github.io/vuagent/components/agent-plan): 执行计划：编辑态可重命名/排序/增删，运行态逐项计时打勾、失败可重试。（VaAgentPlan）
+- [Approval Card](https://hellotombruce.github.io/vuagent/components/approval-card): 审批门：风险徽章 + 命令预览 + 倒计时自动拒绝（悬停暂停）+ Enter/Esc 快捷键，决策后 morph 成结果行。（VaApprovalCard）
+- [Decision Inbox](https://hellotombruce.github.io/vuagent/components/decision-inbox): 业务决策收件箱：每条两个答案，选完确认并折叠离开列表。（VaDecisionInbox）
+- [Agent Inbox](https://hellotombruce.github.io/vuagent/components/agent-inbox): 后台任务收件箱：过滤 tab 带计数、live 时钟、行展开看步骤与操作，排序变化平滑滑动。（VaAgentInbox）
+- [Context Window](https://hellotombruce.github.io/vuagent/components/context-window): 上下文可视化：按 token 占比的格子场，悬停点亮、文件可移除、压缩对话时历史微光收缩。（VaContextWindow）
+- [Inline Diff](https://hellotombruce.github.io/vuagent/components/inline-diff): AI 文案修改逐词接受/拒绝：CJK 逐字分词的零依赖 diff、撤销栈、全部决断后应用。（VaInlineDiff）
+- [Memory Panel](https://hellotombruce.github.io/vuagent/components/memory-panel): 助手记忆面板：分类过滤、就地编辑、暂停/遗忘（带撤销托盘）、总开关。（VaMemoryPanel）
+- [Code Diff](https://hellotombruce.github.io/vuagent/components/code-diff): 文件级代码 diff：±行渲染、行内词级高亮、上下文折叠与展开、+N −M 统计、复制新文件——agent 改代码的验收主界面。（VaCodeDiff）
+- [File Tree](https://hellotombruce.github.io/vuagent/components/file-tree): 带变更标记的文件树：M/A/D/U 徽章、目录折叠、目录变更计数、完整方向键导航；buildFileTree() 可从扁平 git 变更列表直接建树。（VaFileTree）
+- [Terminal Log](https://hellotombruce.github.io/vuagent/components/terminal-log): 命令输出流：深底终端窗、等宽、ANSI 常用色（含 256/真彩、\r 进度条重写）、语义行着色、自动滚动（上翻暂停）、行复制。（VaTerminalLog）
+- [Checkpoint List](https://hellotombruce.github.io/vuagent/components/checkpoint-list): 检查点/回滚时间线：每步快照摘要与相对时间、当前位标记、diff 预览入口、二次确认的一键恢复（3 秒武器化窗口）。（VaCheckpointList）
+- [Change Summary](https://hellotombruce.github.io/vuagent/components/change-summary): agent 一轮工作摘要卡：N 文件 +adds −dels、耗时与工具调用次数、逐文件行（M/A/D 徽章 + 增删计数），可折叠长列表。（VaChangeSummary）
 
 ## Chat
 
-- [Thinking Loader](https://vuagent.dev/components/thinking-loader): 思考态加载器：阶段轮播 + 微光标签；完成后转为对勾与用时。（VaThinkingLoader）
-- [Composer](https://vuagent.dev/components/composer): 任务输入框：自动增高、Enter 发送（Shift+Enter 换行、中文输入法安全）、可插入模型选择等前缀。（VaComposer）
-- [Model Picker](https://vuagent.dev/components/model-picker): 模型选择菜单：触发按钮 + 键盘可导航的下拉列表。（VaModelPicker）
-- [Stream Answer](https://vuagent.dev/components/stream-answer): 流式回答：按节奏逐字吐出 source，带流式光标，完成后 emit complete，支持重放。（VaStreamAnswer）
-- [Message Actions / Text](https://vuagent.dev/components/message-actions): AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输入）、版本切换；MessageText 提供版本交叉淡入。（VaMessageActions / VaMessageText）
-- [Comment Thread](https://vuagent.dev/components/comment-thread): 评论线程：agent 起草待审条目（采纳/重写/丢弃操作条）、人发评论、首字母头像、⌘/Ctrl+Enter 发布。（VaCommentThread）
-- [Email Draft](https://vuagent.dev/components/email-draft): agent 起草邮件、人工确认发送：收件人/主题/正文可就地编辑、语气 chips、起草骨架、发送校验与错误回显、重新起草。（VaEmailDraft）
+- [Thinking Loader](https://hellotombruce.github.io/vuagent/components/thinking-loader): 思考态加载器：阶段轮播 + 微光标签；完成后转为对勾与用时。（VaThinkingLoader）
+- [Composer](https://hellotombruce.github.io/vuagent/components/composer): 任务输入框：自动增高、Enter 发送（Shift+Enter 换行、中文输入法安全）、可插入模型选择等前缀。（VaComposer）
+- [Model Picker](https://hellotombruce.github.io/vuagent/components/model-picker): 模型选择菜单：触发按钮 + 键盘可导航的下拉列表。（VaModelPicker）
+- [Stream Answer](https://hellotombruce.github.io/vuagent/components/stream-answer): 流式回答：按节奏逐字吐出 source，带流式光标，完成后 emit complete，支持重放。（VaStreamAnswer）
+- [Message Actions / Text](https://hellotombruce.github.io/vuagent/components/message-actions): AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输入）、版本切换；MessageText 提供版本交叉淡入。（VaMessageActions / VaMessageText）
+- [Comment Thread](https://hellotombruce.github.io/vuagent/components/comment-thread): 评论线程：agent 起草待审条目（采纳/重写/丢弃操作条）、人发评论、首字母头像、⌘/Ctrl+Enter 发布。（VaCommentThread）
+- [Email Draft](https://hellotombruce.github.io/vuagent/components/email-draft): agent 起草邮件、人工确认发送：收件人/主题/正文可就地编辑、语气 chips、起草骨架、发送校验与错误回显、重新起草。（VaEmailDraft）
 
 ## 基础
 
-- [Button](https://vuagent.dev/components/button): 语义按钮：四变体 × 三尺寸，加载态标签微光。（VaButton）
-- [Segmented Control](https://vuagent.dev/components/segmented-control): 分段控件：滑块指示器平滑滑动，完整键盘导航。（VaSegmentedControl）
-- [Toaster](https://vuagent.dev/components/toaster): 全局通知：vaToaster.add() 任意位置发通知，宿主组件渲染堆叠，自动消失可手动关。（VaToaster）
-- [Skeleton / Shimmer Text](https://vuagent.dev/components/skeleton): 骨架屏与微光文字：共享一道柔和扫光。（VaSkeleton / VaShimmerText）
-- [Number Ticker](https://vuagent.dev/components/number-ticker): 里程表数字滚动：进视口从零数起，数值变化每一位独立滚动。（VaNumberTicker）
-- [Usage Meter](https://vuagent.dev/components/usage-meter): 用量仪表：多段堆叠条（fast/slow tokens、credits）+ 图例 + 限额预警（默认 80%）/超限态与「管理额度」入口。（VaUsageMeter）
-- [Command Menu](https://vuagent.dev/components/command-menu): ⌘K 命令面板：触发按钮 + 居中对话框，子串过滤、分组渲染、↑↓ 循环高亮、Enter 选中、Esc/遮罩关闭、焦点圈进与恢复。（VaCommandMenu）
-- [Dropzone](https://vuagent.dev/components/dropzone): 拖放上传区：拖入高亮（计数防抖）、点击/键盘选择、大小校验拒绝、文件列表带进度条与错误回显、受控列表由宿主驱动。（VaDropzone）
-- [Combobox](https://vuagent.dev/components/combobox): 可搜索下拉选择：输入过滤、↑↓ 循环高亮、Enter 选中、Esc 关闭；creatable 可把输入创建为新值。（VaCombobox）
-- [Filter Menu](https://vuagent.dev/components/filter-menu): 过滤条件下拉：checkbox 多选组 + radio 单选组，触发按钮带激活计数徽章，一键清除全部。（VaFilterMenu）
-- [OTP Input](https://vuagent.dev/components/otp-input): 验证码格子输入：自动跳格与选中、退格回退、整段粘贴分发、方向键移动、填满回调。（VaOtpInput）
-- [Profile Menu](https://vuagent.dev/components/profile-menu): 头像账户菜单：首字母色块头像、未读徽标、用户信息头 + 菜单列表（danger 项）、Esc/外部点击关闭。（VaProfileMenu）
-- [Progress Tracker](https://vuagent.dev/components/progress-tracker): 步骤进度条（横/竖）：done/current/pending/error 四态节点 + 完成段连线填充，点击节点回调。（VaProgressTracker）
+- [Button](https://hellotombruce.github.io/vuagent/components/button): 语义按钮：四变体 × 三尺寸，加载态标签微光。（VaButton）
+- [Segmented Control](https://hellotombruce.github.io/vuagent/components/segmented-control): 分段控件：滑块指示器平滑滑动，完整键盘导航。（VaSegmentedControl）
+- [Toaster](https://hellotombruce.github.io/vuagent/components/toaster): 全局通知：vaToaster.add() 任意位置发通知，宿主组件渲染堆叠，自动消失可手动关。（VaToaster）
+- [Skeleton / Shimmer Text](https://hellotombruce.github.io/vuagent/components/skeleton): 骨架屏与微光文字：共享一道柔和扫光。（VaSkeleton / VaShimmerText）
+- [Number Ticker](https://hellotombruce.github.io/vuagent/components/number-ticker): 里程表数字滚动：进视口从零数起，数值变化每一位独立滚动。（VaNumberTicker）
+- [Usage Meter](https://hellotombruce.github.io/vuagent/components/usage-meter): 用量仪表：多段堆叠条（fast/slow tokens、credits）+ 图例 + 限额预警（默认 80%）/超限态与「管理额度」入口。（VaUsageMeter）
+- [Command Menu](https://hellotombruce.github.io/vuagent/components/command-menu): ⌘K 命令面板：触发按钮 + 居中对话框，子串过滤、分组渲染、↑↓ 循环高亮、Enter 选中、Esc/遮罩关闭、焦点圈进与恢复。（VaCommandMenu）
+- [Dropzone](https://hellotombruce.github.io/vuagent/components/dropzone): 拖放上传区：拖入高亮（计数防抖）、点击/键盘选择、大小校验拒绝、文件列表带进度条与错误回显、受控列表由宿主驱动。（VaDropzone）
+- [Combobox](https://hellotombruce.github.io/vuagent/components/combobox): 可搜索下拉选择：输入过滤、↑↓ 循环高亮、Enter 选中、Esc 关闭；creatable 可把输入创建为新值。（VaCombobox）
+- [Filter Menu](https://hellotombruce.github.io/vuagent/components/filter-menu): 过滤条件下拉：checkbox 多选组 + radio 单选组，触发按钮带激活计数徽章，一键清除全部。（VaFilterMenu）
+- [OTP Input](https://hellotombruce.github.io/vuagent/components/otp-input): 验证码格子输入：自动跳格与选中、退格回退、整段粘贴分发、方向键移动、填满回调。（VaOtpInput）
+- [Profile Menu](https://hellotombruce.github.io/vuagent/components/profile-menu): 头像账户菜单：首字母色块头像、未读徽标、用户信息头 + 菜单列表（danger 项）、Esc/外部点击关闭。（VaProfileMenu）
+- [Progress Tracker](https://hellotombruce.github.io/vuagent/components/progress-tracker): 步骤进度条（横/竖）：done/current/pending/error 四态节点 + 完成段连线填充，点击节点回调。（VaProgressTracker）
 
 ## 动效
 
-- [Text Reveal](https://vuagent.dev/components/text-reveal): 文本入场：逐词/逐字从轻微模糊与位移中浮现，滚动进视口触发。（VaTextReveal）
-- [Grid Background](https://vuagent.dev/components/grid-background): 缓慢漂移的细网格背景，边缘渐隐，可作 Hero 底纹；内容放默认插槽。（VaGridBackground）
-- [Tilt Card](https://vuagent.dev/components/tilt-card): 3D 倾斜卡：指针驱动 rotateX/Y（可调最大角与透视）、可选跟随光斑与悬停微放大；reduced-motion 与触屏自动静态。（VaTiltCard）
-- [Blur Crossfade](https://vuagent.dev/components/blur-crossfade): 内容切换的模糊交叉过渡：target 变化时新内容 blur-in + 上浮；可调时长/模糊半径/位移；reduced-motion 只留淡入。（VaBlurCrossfade）
-- [Gradient Floor / Text](https://vuagent.dev/components/gradient): 装饰两件：Floor 是页面底部双色光晕（呼吸动画，绝对定位铺底）；Text 是 background-clip 渐变文字（可缓慢流动）。（VaGradientFloor / VaGradientText）
+- [Text Reveal](https://hellotombruce.github.io/vuagent/components/text-reveal): 文本入场：逐词/逐字从轻微模糊与位移中浮现，滚动进视口触发。（VaTextReveal）
+- [Grid Background](https://hellotombruce.github.io/vuagent/components/grid-background): 缓慢漂移的细网格背景，边缘渐隐，可作 Hero 底纹；内容放默认插槽。（VaGridBackground）
+- [Tilt Card](https://hellotombruce.github.io/vuagent/components/tilt-card): 3D 倾斜卡：指针驱动 rotateX/Y（可调最大角与透视）、可选跟随光斑与悬停微放大；reduced-motion 与触屏自动静态。（VaTiltCard）
+- [Blur Crossfade](https://hellotombruce.github.io/vuagent/components/blur-crossfade): 内容切换的模糊交叉过渡：target 变化时新内容 blur-in + 上浮；可调时长/模糊半径/位移；reduced-motion 只留淡入。（VaBlurCrossfade）
+- [Gradient Floor / Text](https://hellotombruce.github.io/vuagent/components/gradient): 装饰两件：Floor 是页面底部双色光晕（呼吸动画，绝对定位铺底）；Text 是 background-clip 渐变文字（可缓慢流动）。（VaGradientFloor / VaGradientText）
 
 ## 表单
 
-- [Stepper Form](https://vuagent.dev/components/stepper-form): 分步表单壳：步骤条 + 每步具名插槽（#step-{id}）+ 上一步/下一步导航，nextDisabled 承接宿主校验，最后一步转提交。（VaStepperForm）
-- [Setup Guide](https://vuagent.dev/components/setup-guide): 上手引导清单：逐项完成/跳过（optional 步骤）、进度计数、全部就绪收尾提示，完成时触发 allDone。（VaSetupGuide）
-- [Prompt Library](https://vuagent.dev/components/prompt-library): 提示词库：搜索（标题/正文/标签）+ 分类 tab + 卡片网格 + 使用按钮。（VaPromptLibrary）
-- [Date Range Picker](https://vuagent.dev/components/date-range-picker): 日期范围选择：双月日历（周一起始、零依赖手写）、两次点击选范围（反向自动交换）、悬停预览区间、今天/7天/30天预设。（VaDateRangePicker）
-- [Integration Picker / Settings](https://vuagent.dev/components/integration): 集成对接两件套：Picker 是服务卡片网格（已连接态、点击切换）；Settings 是配置面板（开关 + API key 等字段 + 保存/断开）。（VaIntegrationPicker / VaIntegrationSettings）
+- [Stepper Form](https://hellotombruce.github.io/vuagent/components/stepper-form): 分步表单壳：步骤条 + 每步具名插槽（#step-{id}）+ 上一步/下一步导航，nextDisabled 承接宿主校验，最后一步转提交。（VaStepperForm）
+- [Setup Guide](https://hellotombruce.github.io/vuagent/components/setup-guide): 上手引导清单：逐项完成/跳过（optional 步骤）、进度计数、全部就绪收尾提示，完成时触发 allDone。（VaSetupGuide）
+- [Prompt Library](https://hellotombruce.github.io/vuagent/components/prompt-library): 提示词库：搜索（标题/正文/标签）+ 分类 tab + 卡片网格 + 使用按钮。（VaPromptLibrary）
+- [Date Range Picker](https://hellotombruce.github.io/vuagent/components/date-range-picker): 日期范围选择：双月日历（周一起始、零依赖手写）、两次点击选范围（反向自动交换）、悬停预览区间、今天/7天/30天预设。（VaDateRangePicker）
+- [Integration Picker / Settings](https://hellotombruce.github.io/vuagent/components/integration): 集成对接两件套：Picker 是服务卡片网格（已连接态、点击切换）；Settings 是配置面板（开关 + API key 等字段 + 保存/断开）。（VaIntegrationPicker / VaIntegrationSettings）
 
 ## 反馈
 
-- [Smart Recommendation](https://vuagent.dev/components/smart-recommendation): agent 建议卡：标题 + 理由 + 收益标签 + 主/次操作按钮，可关闭忽略。（VaSmartRecommendation）
-- [Notification Stack](https://vuagent.dev/components/notification-stack): 通知中心列表：未读徽标与未读点、语义 icon（info/success/warning/danger/agent）、相对时间、单条/全部已读。（VaNotificationStack）
-- [Tips Panel](https://vuagent.dev/components/tips-panel): 使用技巧面板：高亮小卡承载 1-N 条 tip，单条可关闭。（VaTipsPanel）
-- [Reaction Bar](https://vuagent.dev/components/reaction-bar): emoji 快速反馈条：aria-pressed 切换态、计数徽章、按下微缩动效（reduced-motion 降级）。（VaReactionBar）
+- [Smart Recommendation](https://hellotombruce.github.io/vuagent/components/smart-recommendation): agent 建议卡：标题 + 理由 + 收益标签 + 主/次操作按钮，可关闭忽略。（VaSmartRecommendation）
+- [Notification Stack](https://hellotombruce.github.io/vuagent/components/notification-stack): 通知中心列表：未读徽标与未读点、语义 icon（info/success/warning/danger/agent）、相对时间、单条/全部已读。（VaNotificationStack）
+- [Tips Panel](https://hellotombruce.github.io/vuagent/components/tips-panel): 使用技巧面板：高亮小卡承载 1-N 条 tip，单条可关闭。（VaTipsPanel）
+- [Reaction Bar](https://hellotombruce.github.io/vuagent/components/reaction-bar): emoji 快速反馈条：aria-pressed 切换态、计数徽章、按下微缩动效（reduced-motion 降级）。（VaReactionBar）
 
 ## 图表
 
-- [KPI Chart](https://vuagent.dev/components/kpi-chart): 指标卡 + sparkline：手写 SVG 折线（中点平滑/面积渐变/描线入场），环比涨跌徽章（invertDelta 适配错误率类「跌=好」），aria 摘要。（VaKpiChart）
-- [Breakdown Chart](https://vuagent.dev/components/breakdown-chart): 横向分布条：按值降序、色板/自定义色、barScale 按最大项或总量、maxRows 折叠「其他」、行可点选。（VaBreakdownChart）
-- [Compact Breakdown](https://vuagent.dev/components/compact-breakdown): 单行堆叠占比条 + 内联图例：一行放下的迷你分布（嵌入卡片头、表格行内）。（VaCompactBreakdown）
-- [Experiment Card](https://vuagent.dev/components/experiment-card): A/B 实验对比卡：变体并列（胜者描边 + ✓）、置信度条与结论（未达显著给「继续观察」）、running 态实时时长 + 结束/重开。（VaExperimentCard）
-- [AI Answer](https://vuagent.dev/components/ai-answer): 带来源引用的回答卡：正文 [n] 标记渲染为可点击上标角标（无对应来源原样保留）、来源列表（序号 + 标题 + 出处）、流式光标。（VaAiAnswer）
+- [KPI Chart](https://hellotombruce.github.io/vuagent/components/kpi-chart): 指标卡 + sparkline：手写 SVG 折线（中点平滑/面积渐变/描线入场），环比涨跌徽章（invertDelta 适配错误率类「跌=好」），aria 摘要。（VaKpiChart）
+- [Breakdown Chart](https://hellotombruce.github.io/vuagent/components/breakdown-chart): 横向分布条：按值降序、色板/自定义色、barScale 按最大项或总量、maxRows 折叠「其他」、行可点选。（VaBreakdownChart）
+- [Compact Breakdown](https://hellotombruce.github.io/vuagent/components/compact-breakdown): 单行堆叠占比条 + 内联图例：一行放下的迷你分布（嵌入卡片头、表格行内）。（VaCompactBreakdown）
+- [Experiment Card](https://hellotombruce.github.io/vuagent/components/experiment-card): A/B 实验对比卡：变体并列（胜者描边 + ✓）、置信度条与结论（未达显著给「继续观察」）、running 态实时时长 + 结束/重开。（VaExperimentCard）
+- [AI Answer](https://hellotombruce.github.io/vuagent/components/ai-answer): 带来源引用的回答卡：正文 [n] 标记渲染为可点击上标角标（无对应来源原样保留）、来源列表（序号 + 标题 + 出处）、流式光标。（VaAiAnswer）
 
 ## Screens
 
-- [App Shell](https://vuagent.dev/components/app-shell): 应用外壳：品牌侧栏 + 导航（徽标/禁用/哨兵受控）+ 顶栏与主区插槽；窄屏自动抽屉化（scrim + 汉堡）。（VaAppShell）
-- [Agent Chat](https://vuagent.dev/components/agent-chat): 对话页骨架：消息流（用户/agent 气泡 + 工具 chips）、思考态三点、贴底自动滚动、#composer 插槽接 VaComposer。（VaAgentChat）
-- [Agent Run](https://vuagent.dev/components/agent-run): 运行页骨架：头部（状态徽章 + 耗时 + actions 插槽）+ 三栏（计划 | 执行流 | 上下文），窄屏自动降栏；内容全插槽注入。（VaAgentRun）
-- [Onboarding](https://vuagent.dev/components/onboarding): 上手引导页：居中 hero（品牌徽标 + 大标题 + 主/次 CTA）+ 步骤区插槽（放 SetupGuide 等）。（VaOnboarding）
-- [Settings / Billing](https://vuagent.dev/components/settings-billing): 设置/账单页：左侧设置导航（哨兵受控）+ 用量插槽 + 套餐卡网格（当前/推荐态、特性清单、切换回调）。（VaSettingsBilling）
+- [App Shell](https://hellotombruce.github.io/vuagent/components/app-shell): 应用外壳：品牌侧栏 + 导航（徽标/禁用/哨兵受控）+ 顶栏与主区插槽；窄屏自动抽屉化（scrim + 汉堡）。（VaAppShell）
+- [Agent Chat](https://hellotombruce.github.io/vuagent/components/agent-chat): 对话页骨架：消息流（用户/agent 气泡 + 工具 chips）、思考态三点、贴底自动滚动、#composer 插槽接 VaComposer。（VaAgentChat）
+- [Agent Run](https://hellotombruce.github.io/vuagent/components/agent-run): 运行页骨架：头部（状态徽章 + 耗时 + actions 插槽）+ 三栏（计划 | 执行流 | 上下文），窄屏自动降栏；内容全插槽注入。（VaAgentRun）
+- [Onboarding](https://hellotombruce.github.io/vuagent/components/onboarding): 上手引导页：居中 hero（品牌徽标 + 大标题 + 主/次 CTA）+ 步骤区插槽（放 SetupGuide 等）。（VaOnboarding）
+- [Settings / Billing](https://hellotombruce.github.io/vuagent/components/settings-billing): 设置/账单页：左侧设置导航（哨兵受控）+ 用量插槽 + 套餐卡网格（当前/推荐态、特性清单、切换回调）。（VaSettingsBilling）
 
 ## Blocks
 
-- [Task Board](https://vuagent.dev/components/task-board): 任务看板：列 × 卡片（优先级色点、负责人首字母、角标 meta），列计数自动、卡片哨兵受控选中。（VaTaskBoard）
-- [Pricing Plans / AI Workspace](https://vuagent.dev/components/workspace-blocks): Blocks 两件：PricingPlans 定价卡组（推荐/当前态 + 特性清单 + CTA）；AIWorkspace 文件栏 + 预览区双栏工作块（M/A/D 徽标、选中联动、作用域插槽传当前文件）。（VaPricingPlans / VaAIWorkspace）
+- [Task Board](https://hellotombruce.github.io/vuagent/components/task-board): 任务看板：列 × 卡片（优先级色点、负责人首字母、角标 meta），列计数自动、卡片哨兵受控选中。（VaTaskBoard）
+- [Pricing Plans / AI Workspace](https://hellotombruce.github.io/vuagent/components/workspace-blocks): Blocks 两件：PricingPlans 定价卡组（推荐/当前态 + 特性清单 + CTA）；AIWorkspace 文件栏 + 预览区双栏工作块（M/A/D 徽标、选中联动、作用域插槽传当前文件）。（VaPricingPlans / VaAIWorkspace）
 
 ## Illustrations
 
-- [Voice Orb / Agent Team / Model Wheel](https://vuagent.dev/components/illustrations): 插画三件：VoiceOrb 语音球（idle/listening/speaking 三态波纹与声浪）；AgentTeam 环形悬浮徽标阵；ModelWheel 模型轮盘（缓慢自转）。纯装饰、reduced-motion 全降级。（VaVoiceOrb / VaAgentTeam / VaModelWheel）
+- [Voice Orb / Agent Team / Model Wheel](https://hellotombruce.github.io/vuagent/components/illustrations): 插画三件：VoiceOrb 语音球（idle/listening/speaking 三态波纹与声浪）；AgentTeam 环形悬浮徽标阵；ModelWheel 模型轮盘（缓慢自转）。纯装饰、reduced-motion 全降级。（VaVoiceOrb / VaAgentTeam / VaModelWheel）
