@@ -236,7 +236,16 @@ function sendChat(text: string) {
 </template>
 
 <style scoped>
-.m7 { margin: -24px -8px; }
+/* AppShell 是整页应用设计（100vh 侧栏 / sticky topbar）；
+   demo 里收进固定高度卡片：横向负边距对消 wrap padding（只横向，不碰垂直），
+   高度约束 + 内部滚动，避免顶住上方 <h2> 标题 */
+.m7 {
+  margin: 0 -24px;
+  height: 640px;
+}
+.m7 :deep(.va-shell) { height: 100%; }
+.m7 :deep(.va-shell__side) { height: 100%; }
+.m7 :deep(.va-shell__content) { overflow-y: auto; }
 .m7__kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 16px; }
 .m7__row { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; align-items: start; margin-bottom: 16px; }
 .m7__card {
