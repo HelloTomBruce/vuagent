@@ -1,0 +1,72 @@
+/* VaAgentRun — agent 运行页骨架（计划 | 执行流 | 上下文） */
+
+.va-run {
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s5);
+}
+
+.va-run__head {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s4);
+  flex-wrap: wrap;
+}
+
+.va-run__title { font-size: 16px; font-weight: 700; color: var(--va-ink); }
+
+.va-run__status {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: var(--va-radius-pill);
+}
+
+.va-run__status[data-status="running"] { background: var(--va-accent-soft); color: var(--va-accent); }
+.va-run__status[data-status="success"] { background: color-mix(in srgb, var(--va-success) 14%, transparent); color: var(--va-success); }
+.va-run__status[data-status="error"] { background: color-mix(in srgb, var(--va-danger) 12%, transparent); color: var(--va-danger); }
+
+.va-run__spacer { flex: 1; }
+
+.va-run__time {
+  font-family: var(--va-font-mono);
+  font-size: 12.5px;
+  color: var(--va-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.va-run__actions { display: flex; gap: var(--va-s2); }
+
+.va-run__grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(0, 2.2fr) minmax(220px, 1fr);
+  gap: var(--va-s5);
+  align-items: start;
+}
+
+.va-run--compact .va-run__grid { grid-template-columns: 1fr; }
+
+.va-run__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s3);
+  min-width: 0;
+}
+
+.va-run__col-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--va-muted);
+}
+
+@media (max-width: 1200px) {
+  .va-run__grid { grid-template-columns: 1fr 1fr; }
+  .va-run__col--stream { grid-column: 1 / -1; order: -1; }
+}
+
+@media (max-width: 760px) {
+  .va-run__grid { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,152 @@
+/* VaSettingsBilling — 设置/账单页（左导航 + 用量区 + 套餐卡） */
+
+.va-bill {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: var(--va-s6);
+  align-items: start;
+}
+
+.va-bill__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: var(--va-s5);
+}
+
+.va-bill__title {
+  margin: 0 0 var(--va-s3);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--va-ink);
+  padding: 0 var(--va-s3);
+}
+
+.va-bill__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--va-s3);
+  border: 0;
+  border-radius: var(--va-radius-s);
+  background: transparent;
+  color: var(--va-ink-2);
+  font: inherit;
+  font-size: 13px;
+  padding: 7px var(--va-s3);
+  cursor: pointer;
+  text-align: left;
+}
+
+.va-bill__item:hover { background: var(--va-bg-subtle); color: var(--va-ink); }
+.va-bill__item:focus-visible { outline: 2px solid var(--va-accent); outline-offset: -2px; }
+.va-bill__item[data-active="true"] { background: var(--va-card); color: var(--va-ink); font-weight: 600; box-shadow: var(--va-shadow-1); }
+
+.va-bill__badge {
+  min-width: 18px;
+  height: 18px;
+  border-radius: var(--va-radius-pill);
+  background: var(--va-accent);
+  color: var(--va-card);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  padding: 0 5px;
+}
+
+.va-bill__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s6);
+  min-width: 0;
+}
+
+.va-bill__section-title {
+  margin: 0 0 var(--va-s4);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--va-ink);
+}
+
+.va-bill__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--va-s4);
+}
+
+.va-bill__plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s3);
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-m);
+  background: var(--va-card);
+  padding: var(--va-s5);
+}
+
+.va-bill__plan[data-recommended="true"] {
+  border-color: color-mix(in srgb, var(--va-accent) 45%, transparent);
+  box-shadow: 0 0 0 3px var(--va-accent-soft);
+}
+
+.va-bill__plan[data-current="true"] {
+  border-color: color-mix(in srgb, var(--va-success) 45%, transparent);
+}
+
+.va-bill__plan-head {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s2);
+}
+
+.va-bill__plan-name { font-size: 13.5px; font-weight: 700; color: var(--va-ink); }
+
+.va-bill__flag {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: var(--va-radius-pill);
+  background: var(--va-accent-soft);
+  color: var(--va-accent);
+}
+
+.va-bill__flag--current {
+  background: color-mix(in srgb, var(--va-success) 14%, transparent);
+  color: var(--va-success);
+}
+
+.va-bill__price {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--va-ink);
+}
+
+.va-bill__features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s2);
+  flex: 1;
+}
+
+.va-bill__features li {
+  font-size: 12.5px;
+  color: var(--va-ink-2);
+  display: flex;
+  gap: var(--va-s2);
+}
+
+.va-bill__features li::before {
+  content: "✓";
+  color: var(--va-success);
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .va-bill { grid-template-columns: 1fr; }
+  .va-bill__nav { position: static; flex-direction: row; flex-wrap: wrap; }
+}

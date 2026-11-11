@@ -1,0 +1,71 @@
+/* VaOnboarding — 上手引导页（hero + 步骤区） */
+
+.va-ob {
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s7);
+  align-items: center;
+  padding: var(--va-s7) var(--va-s5);
+  text-align: center;
+}
+
+.va-ob__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--va-s4);
+  max-width: 560px;
+}
+
+.va-ob__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--va-s2);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--va-muted);
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-pill);
+  padding: 3px 12px;
+  background: var(--va-card);
+}
+
+.va-ob__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--va-accent);
+}
+
+.va-ob__title {
+  margin: 0;
+  font-size: clamp(26px, 5vw, 38px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--va-ink);
+}
+
+.va-ob__subtitle {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--va-ink-2);
+}
+
+.va-ob__ctas {
+  display: flex;
+  gap: var(--va-s3);
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: var(--va-s2);
+}
+
+.va-ob__cta { min-width: 140px; }
+
+.va-ob__steps {
+  width: min(640px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s5);
+  text-align: left;
+}

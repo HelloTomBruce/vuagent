@@ -1,0 +1,150 @@
+/* VaAgentChat — agent 对话页骨架 */
+
+.va-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-l);
+  background: var(--va-card);
+  overflow: hidden;
+}
+
+.va-chat__head {
+  padding: var(--va-s4) var(--va-s5);
+  border-bottom: 1px solid var(--va-edge);
+  background: var(--va-bg-subtle);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--va-ink);
+}
+
+.va-chat__stream {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--va-s5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s5);
+}
+
+.va-chat__empty {
+  margin: auto;
+  font-size: 13px;
+  color: var(--va-muted);
+}
+
+.va-chat__msg {
+  display: flex;
+  gap: var(--va-s3);
+  max-width: 86%;
+}
+
+.va-chat__msg[data-role="user"] { align-self: flex-end; flex-direction: row-reverse; }
+
+.va-chat__avatar {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.va-chat__avatar[data-role="agent"] { background: var(--va-accent-soft); color: var(--va-accent); }
+.va-chat__avatar[data-role="user"] { background: var(--va-bg-subtle); color: var(--va-ink-2); }
+
+.va-chat__bubble {
+  border-radius: var(--va-radius-m);
+  padding: var(--va-s3) var(--va-s4);
+  font-size: 13.5px;
+  line-height: 1.65;
+  min-width: 0;
+}
+
+.va-chat__msg[data-role="agent"] .va-chat__bubble {
+  background: var(--va-bg-subtle);
+  color: var(--va-ink);
+  border-top-left-radius: 4px;
+}
+
+.va-chat__msg[data-role="user"] .va-chat__bubble {
+  background: var(--va-ink);
+  color: var(--va-card);
+  border-top-right-radius: 4px;
+}
+
+.va-chat__text { margin: 0; white-space: pre-wrap; word-break: break-word; }
+
+.va-chat__tools {
+  display: flex;
+  gap: var(--va-s2);
+  flex-wrap: wrap;
+  margin-top: var(--va-s3);
+}
+
+.va-chat__tool {
+  font-family: var(--va-font-mono);
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: var(--va-radius-pill);
+  background: var(--va-card);
+  color: var(--va-muted);
+  border: 1px solid var(--va-edge);
+}
+
+/* 思考态三点 */
+.va-chat__bubble--thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: var(--va-s4) var(--va-s5);
+}
+
+.va-chat__pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--va-muted);
+  animation: va-chat-hop 1.2s ease-in-out infinite;
+}
+
+.va-chat__pulse:nth-child(2) { animation-delay: 0.15s; }
+.va-chat__pulse:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes va-chat-hop {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+.va-chat__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.va-chat__composer {
+  border-top: 1px solid var(--va-edge);
+  padding: var(--va-s4) var(--va-s5);
+  background: var(--va-bg-subtle);
+}
+
+.va-chat__composer-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--va-muted);
+  text-align: center;
+  padding: var(--va-s2);
+  border: 1px dashed var(--va-edge);
+  border-radius: var(--va-radius-s);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-chat__pulse { animation: none; opacity: 0.7; }
+}

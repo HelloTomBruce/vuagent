@@ -1,0 +1,24 @@
+{
+  "$schema": "https://shadcn-vue.com/schema/registry-item.json",
+  "name": "agent-run",
+  "title": "Agent Run",
+  "description": "运行页骨架：头部（状态徽章 + 耗时 + actions 插槽）+ 三栏（计划 | 执行流 | 上下文），窄屏自动降栏；内容全插槽注入。",
+  "type": "registry:ui",
+  "dependencies": [],
+  "registryDependencies": [],
+  "docs": "- `status / statusLabel / duration` (\"running\"|\"success\"|\"error\" / string / number，默认 - / - / -)：运行状态与耗时 ms\n- `compact` (boolean，默认 false)：单栏顺排\n- `#plan / default / #aside / #actions` (-，默认 -)：三栏与操作区插槽",
+  "files": [
+    {
+      "path": "components/ui/agent-run/VaAgentRun.vue",
+      "type": "registry:ui",
+      "target": "components/ui/agent-run/VaAgentRun.vue",
+      "content": "<script setup lang=\"ts\">\nimport type { AgentRunProps } from \"./types\";\nimport { formatMs } from \"../../utils/format\";\n\nconst props = defineProps<AgentRunProps>();\n\nconst STATUS_TEXT = { running: \"运行中\", success: \"已完成\", error: \"失败\" } as const;\n</script>\n\n<template>\n  <section class=\"va-run\" :class=\"{ 'va-run--compact': props.compact }\">\n    <header class=\"va-run__head\">\n      <span class=\"va-run__title\">{{ props.title ?? \"Agent 运行\" }}</span>\n      <span\n        v-if=\"props.status\"\n        class=\"va-run__status\"\n        :data-status=\"props.status\"\n        role=\"status\"\n      >{{ props.statusLabel ?? STATUS_TEXT[props.status] }}</span>\n      <span class=\"va-run__spacer\" />\n      <span v-if=\"props.duration !== undefined\" class=\"va-run__time\">{{ formatMs(props.duration) }}</span>\n      <div v-if=\"$slots.actions\" class=\"va-run__actions\"><slot name=\"actions\" /></div>\n    </header>\n\n    <div class=\"va-run__grid\">\n      <section class=\"va-run__col va-run__col--plan\" :aria-label=\"`计划`\">\n        <h3 class=\"va-run__col-title\">计划</h3>\n        <slot name=\"plan\" />\n      </section>\n      <section class=\"va-run__col va-run__col--stream\" aria-label=\"执行流\">\n        <h3 class=\"va-run__col-title\">执行流</h3>\n        <slot />\n      </section>\n      <section class=\"va-run__col va-run__col--aside\" aria-label=\"上下文\">\n        <h3 class=\"va-run__col-title\">上下文</h3>\n        <slot name=\"aside\" />\n      </section>\n    </div>\n  </section>\n</template>\n\n<style>\n/* VaAgentRun — agent 运行页骨架（计划 | 执行流 | 上下文） */\n\n.va-run {\n  display: flex;\n  flex-direction: column;\n  gap: var(--va-s5);\n}\n\n.va-run__head {\n  display: flex;\n  align-items: center;\n  gap: var(--va-s4);\n  flex-wrap: wrap;\n}\n\n.va-run__title { font-size: 16px; font-weight: 700; color: var(--va-ink); }\n\n.va-run__status {\n  font-size: 11.5px;\n  font-weight: 600;\n  padding: 2px 10px;\n  border-radius: var(--va-radius-pill);\n}\n\n.va-run__status[data-status=\"running\"] { background: var(--va-accent-soft); color: var(--va-accent); }\n.va-run__status[data-status=\"success\"] { background: color-mix(in srgb, var(--va-success) 14%, transparent); color: var(--va-success); }\n.va-run__status[data-status=\"error\"] { background: color-mix(in srgb, var(--va-danger) 12%, transparent); color: var(--va-danger); }\n\n.va-run__spacer { flex: 1; }\n\n.va-run__time {\n  font-family: var(--va-font-mono);\n  font-size: 12.5px;\n  color: var(--va-muted);\n  font-variant-numeric: tabular-nums;\n}\n\n.va-run__actions { display: flex; gap: var(--va-s2); }\n\n.va-run__grid {\n  display: grid;\n  grid-template-columns: minmax(240px, 1fr) minmax(0, 2.2fr) minmax(220px, 1fr);\n  gap: var(--va-s5);\n  align-items: start;\n}\n\n.va-run--compact .va-run__grid { grid-template-columns: 1fr; }\n\n.va-run__col {\n  display: flex;\n  flex-direction: column;\n  gap: var(--va-s3);\n  min-width: 0;\n}\n\n.va-run__col-title {\n  margin: 0;\n  font-size: 11px;\n  font-weight: 700;\n  letter-spacing: 0.06em;\n  text-transform: uppercase;\n  color: var(--va-muted);\n}\n\n@media (max-width: 1200px) {\n  .va-run__grid { grid-template-columns: 1fr 1fr; }\n  .va-run__col--stream { grid-column: 1 / -1; order: -1; }\n}\n\n@media (max-width: 760px) {\n  .va-run__grid { grid-template-columns: 1fr; }\n}\n</style>\n"
+    },
+    {
+      "path": "components/ui/agent-run/types.ts",
+      "type": "registry:ui",
+      "target": "components/ui/agent-run/types.ts",
+      "content": "/** VaAgentRun 的类型定义 */\n\nexport interface AgentRunProps {\n  /** 运行标题 */\n  title?: string;\n  /** 状态徽章：running/success/error */\n  status?: \"running\" | \"success\" | \"error\";\n  /** 状态文案（如「正在执行第 3/5 步」） */\n  statusLabel?: string;\n  /** 已运行 ms（配合 startedAt 由宿主计算后传入） */\n  duration?: number;\n  /** 布局密度：三栏（默认，≥1200px）/ 单栏顺排 */\n  compact?: boolean;\n}\n\nexport interface AgentRunEvents {\n  /* 无：各区内容由插槽注入（plan / stream / aside / actions） */\n}\n"
+    }
+  ]
+}

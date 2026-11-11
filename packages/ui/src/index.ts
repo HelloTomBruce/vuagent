@@ -246,6 +246,22 @@ export type { BlurCrossfadeProps } from "./components/blur-crossfade";
 export { VaGradientFloor, VaGradientText } from "./components/gradient";
 export type { GradientFloorProps, GradientTextProps } from "./components/gradient";
 
+// M7 · Screens 精选（页面骨架，slot 编排既有组件）
+export { VaAppShell } from "./components/app-shell";
+export type { AppShellEvents, AppShellProps, NavItem } from "./components/app-shell";
+
+export { VaAgentChat } from "./components/agent-chat";
+export type { AgentChatEvents, AgentChatProps, ChatMessage } from "./components/agent-chat";
+
+export { VaAgentRun } from "./components/agent-run";
+export type { AgentRunEvents, AgentRunProps } from "./components/agent-run";
+
+export { VaOnboarding } from "./components/onboarding";
+export type { OnboardingEvents, OnboardingProps } from "./components/onboarding";
+
+export { VaSettingsBilling } from "./components/settings-billing";
+export type { BillingPlan, SettingsBillingEvents, SettingsBillingProps } from "./components/settings-billing";
+
 // 工具与算法（InlineDiff 的 diff 能力也可独立使用）
 export { formatMs, formatTokens, toDisplayText } from "./utils/format";
 export { buildDiffUnits, diffResult, tokenize, wordDiff } from "./utils/wordDiff";

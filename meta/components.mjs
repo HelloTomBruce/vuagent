@@ -511,4 +511,54 @@ export const components = [
       { name: "text / from / to / angle / animated", type: "string / … / boolean", default: "- / accent / info / 120 / false", desc: "Text：内容与渐变" },
     ],
   },
+
+  /* ---------- M7 · Screens 精选 ---------- */
+  {
+    dir: "app-shell", slug: "app-shell", title: "App Shell", category: "Screens", components: ["VaAppShell"],
+    desc: "应用外壳：品牌侧栏 + 导航（徽标/禁用/哨兵受控）+ 顶栏与主区插槽；窄屏自动抽屉化（scrim + 汉堡）。",
+    props: [
+      { name: "brand / nav", type: "string / NavItem[]", default: `"Vuagent" / -`, desc: "品牌与导航项" },
+      { name: "v-model:active", type: "string", default: "-", desc: "当前导航项" },
+      { name: "v-model:sidebar-open", type: "boolean", default: "false", desc: "窄屏抽屉态" },
+      { name: "#topbar / #sidebar-foot / default", type: "-", default: "-", desc: "顶栏/侧栏尾/主内容插槽" },
+    ],
+  },
+  {
+    dir: "agent-chat", slug: "agent-chat", title: "Agent Chat", category: "Screens", components: ["VaAgentChat"],
+    desc: "对话页骨架：消息流（用户/agent 气泡 + 工具 chips）、思考态三点、贴底自动滚动、#composer 插槽接 VaComposer。",
+    props: [
+      { name: "messages", type: "ChatMessage[]", default: "-", desc: "id/role/text/tools" },
+      { name: "thinking / thinkingLabel", type: "boolean / string", default: "false / 思考中…", desc: "生成中态" },
+      { name: "maxHeight", type: "number", default: "-", desc: "消息区高度（缺省撑满容器）" },
+      { name: "#composer / #stream-foot", type: "-", default: "-", desc: "输入区/流尾部插槽" },
+    ],
+  },
+  {
+    dir: "agent-run", slug: "agent-run", title: "Agent Run", category: "Screens", components: ["VaAgentRun"],
+    desc: "运行页骨架：头部（状态徽章 + 耗时 + actions 插槽）+ 三栏（计划 | 执行流 | 上下文），窄屏自动降栏；内容全插槽注入。",
+    props: [
+      { name: "status / statusLabel / duration", type: `"running"|"success"|"error" / string / number`, default: "- / - / -", desc: "运行状态与耗时 ms" },
+      { name: "compact", type: "boolean", default: "false", desc: "单栏顺排" },
+      { name: "#plan / default / #aside / #actions", type: "-", default: "-", desc: "三栏与操作区插槽" },
+    ],
+  },
+  {
+    dir: "onboarding", slug: "onboarding", title: "Onboarding", category: "Screens", components: ["VaOnboarding"],
+    desc: "上手引导页：居中 hero（品牌徽标 + 大标题 + 主/次 CTA）+ 步骤区插槽（放 SetupGuide 等）。",
+    props: [
+      { name: "title / subtitle", type: "string / string", default: "- / -", desc: "主副标题" },
+      { name: "ctaLabel / secondaryCtaLabel", type: "string / string", default: `"开始使用" / -`, desc: "CTA 文案" },
+      { name: "@cta / @secondaryCta", type: "-", default: "-", desc: "CTA 回调" },
+    ],
+  },
+  {
+    dir: "settings-billing", slug: "settings-billing", title: "Settings / Billing", category: "Screens", components: ["VaSettingsBilling"],
+    desc: "设置/账单页：左侧设置导航（哨兵受控）+ 用量插槽 + 套餐卡网格（当前/推荐态、特性清单、切换回调）。",
+    props: [
+      { name: "nav / v-model:active", type: `NavItem[] / string`, default: "- / -", desc: "设置导航" },
+      { name: "plans", type: "BillingPlan[]", default: "-", desc: "name/price/features/current/recommended" },
+      { name: "@choosePlan", type: "-", default: "-", desc: "切换套餐" },
+      { name: "#usage / #plans / default", type: "-", default: "-", desc: "用量/自定义套餐/更多内容插槽" },
+    ],
+  },
 ];
