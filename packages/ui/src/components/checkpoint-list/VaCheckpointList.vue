@@ -65,10 +65,10 @@ function onRestore(id: string) {
           </div>
         </div>
         <div class="va-ckpt__ops">
-          <button class="va-btn va-btn--sm va-ckpt__btn" type="button" @click="emit('preview', c.id)">diff</button>
+          <button class="va-act va-act--sm va-ckpt__btn" type="button" @click="emit('preview', c.id)">diff</button>
           <button
             v-if="!c.current"
-            class="va-btn va-btn--sm va-ckpt__btn va-ckpt__btn--restore"
+            class="va-act va-act--sm va-ckpt__btn va-ckpt__btn--restore"
             type="button"
             :disabled="props.restoring !== undefined"
             :data-armed="armed === c.id"

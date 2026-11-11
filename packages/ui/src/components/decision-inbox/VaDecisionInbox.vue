@@ -55,8 +55,8 @@ function choose(d: Decision, which: DecisionAnswer) {
             已选择「{{ states[d.id]?.answered === "primary" ? d.primary : d.secondary }}」
           </div>
           <div v-else class="va-dib__actions">
-            <button class="va-btn va-btn--ink va-dib__btn" type="button" @click="choose(d, 'primary')">{{ d.primary }}</button>
-            <button class="va-btn va-dib__btn" type="button" @click="choose(d, 'secondary')">{{ d.secondary }}</button>
+            <button class="va-act va-act--ink va-dib__btn" type="button" @click="choose(d, 'primary')">{{ d.primary }}</button>
+            <button class="va-act va-dib__btn" type="button" @click="choose(d, 'secondary')">{{ d.secondary }}</button>
           </div>
         </template>
       </article>

@@ -66,9 +66,9 @@ const initialsOf = (author: string, initials?: string) => initials ?? author.sli
           </header>
           <p class="va-cmt__text">{{ c.text }}</p>
           <footer v-if="c.pending" class="va-cmt__pending-ops">
-            <button class="va-btn va-btn--sm va-btn--primary va-cmt__op" type="button" @click="emit('adopt', c.id)">以此发布</button>
-            <button class="va-btn va-btn--sm va-cmt__op" type="button" @click="emit('rewrite', c.id)">让 agent 重写</button>
-            <button class="va-btn va-btn--sm va-btn--ghost va-cmt__op va-cmt__op--discard" type="button" @click="emit('discard', c.id)">丢弃</button>
+            <button class="va-act va-act--sm va-act--primary va-cmt__op" type="button" @click="emit('adopt', c.id)">以此发布</button>
+            <button class="va-act va-act--sm va-cmt__op" type="button" @click="emit('rewrite', c.id)">让 agent 重写</button>
+            <button class="va-act va-act--sm va-act--ghost va-cmt__op va-cmt__op--discard" type="button" @click="emit('discard', c.id)">丢弃</button>
           </footer>
         </div>
       </article>
@@ -89,7 +89,7 @@ const initialsOf = (author: string, initials?: string) => initials ?? author.sli
         @keydown="onKeydown"
       />
       <button
-        class="va-btn va-btn--primary va-cmt__send"
+        class="va-act va-act--primary va-cmt__send"
         type="submit"
         :disabled="!text.trim() || props.busy"
       >{{ props.busy ? "发布中…" : "发布" }}</button>

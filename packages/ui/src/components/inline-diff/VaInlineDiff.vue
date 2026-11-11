@@ -49,12 +49,12 @@ const {
     </p>
 
     <footer v-if="changeIdx.length" class="va-dif__foot">
-      <button class="va-btn va-btn--sm va-dif__btn" type="button" :disabled="!undoStack.length" @click="undo">撤销</button>
-      <button class="va-btn va-btn--sm va-dif__btn" type="button" :disabled="!pendingCount" @click="acceptAll">全部接受</button>
-      <button class="va-btn va-btn--sm va-dif__btn" type="button" :disabled="!pendingCount" @click="rejectAll">全部拒绝</button>
+      <button class="va-act va-act--sm va-dif__btn" type="button" :disabled="!undoStack.length" @click="undo">撤销</button>
+      <button class="va-act va-act--sm va-dif__btn" type="button" :disabled="!pendingCount" @click="acceptAll">全部接受</button>
+      <button class="va-act va-act--sm va-dif__btn" type="button" :disabled="!pendingCount" @click="rejectAll">全部拒绝</button>
       <span class="va-dif__spacer" />
-      <button class="va-btn va-btn--sm va-btn--ghost va-dif__btn" type="button" @click="reset">重置</button>
-      <button class="va-btn va-btn--sm va-btn--ink va-dif__btn" type="button" :disabled="pendingCount > 0" @click="apply">
+      <button class="va-act va-act--sm va-act--ghost va-dif__btn" type="button" @click="reset">重置</button>
+      <button class="va-act va-act--sm va-act--ink va-dif__btn" type="button" :disabled="pendingCount > 0" @click="apply">
         应用修改
       </button>
     </footer>

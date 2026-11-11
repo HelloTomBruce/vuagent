@@ -50,7 +50,7 @@
 
 .va-dif__foot { display: flex; align-items: center; gap: var(--va-s2, 4px); margin-top: var(--va-s3, 8px); flex-wrap: wrap; }
 .va-dif__spacer { flex: 1; }
-/* va-btn / ghost / ink 基类兜底，仅保留 pill 形态 */
+/* va-act / ghost / ink 基类兜底，仅保留 pill 形态 */
 .va-dif__btn {
   height: 26px;
   padding: 0 var(--va-s4, 12px);

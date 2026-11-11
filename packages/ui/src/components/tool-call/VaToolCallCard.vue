@@ -56,7 +56,7 @@ const { id, isOpen, timeLabel, argsText, resultText, expanded, isLong, toggle } 
       <div class="va-tcl__inner">
         <div v-if="props.error" class="va-tcl__error">
           <span class="va-tcl__error-text">{{ props.error }}</span>
-          <button class="va-btn va-btn--sm va-btn--danger va-tcl__retry" type="button" @click="emit('retry')">↻ 重试</button>
+          <button class="va-act va-act--sm va-act--danger va-tcl__retry" type="button" @click="emit('retry')">↻ 重试</button>
         </div>
         <section v-if="argsText" class="va-tcl__sec">
           <h4 class="va-tcl__sec-title">参数</h4>

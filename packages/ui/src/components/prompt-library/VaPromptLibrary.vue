@@ -83,7 +83,7 @@ const filtered = computed(() => {
           <span v-if="p.tags?.length" class="va-pl__tags">
             <span v-for="t in p.tags" :key="t" class="va-pl__tag">#{{ t }}</span>
           </span>
-          <button class="va-btn va-btn--sm va-btn--primary va-pl__use" type="button" @click="emit('use', p)">使用</button>
+          <button class="va-act va-act--sm va-act--primary va-pl__use" type="button" @click="emit('use', p)">使用</button>
         </footer>
       </li>
     </ul>

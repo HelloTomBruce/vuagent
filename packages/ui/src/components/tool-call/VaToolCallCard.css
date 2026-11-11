@@ -52,7 +52,8 @@
 .va-tcl__spin {
   position: absolute;
   inset: -3px;
-  border-radius: inherit;
+  /* 50% 真圆环；inherit 会拿到方角 tile 的 radius，变成"方框在转" */
+  border-radius: 50%;
   border: 2px solid transparent;
   border-top-color: var(--_accent);
   animation: va-tcl-spin 0.9s linear infinite;
@@ -112,7 +113,7 @@
   font-size: 12.5px;
 }
 .va-tcl__error-text { flex: 1; min-width: 0; }
-/* va-btn 基类兜底，仅保留危险 pill 形态 */
+/* va-act 基类兜底，仅保留危险 pill 形态 */
 .va-tcl__retry {
   border-radius: var(--va-radius-pill, 999px);
   border-color: color-mix(in srgb, var(--_danger) 40%, transparent);

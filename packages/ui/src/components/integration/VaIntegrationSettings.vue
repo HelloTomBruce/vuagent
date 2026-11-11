@@ -82,9 +82,9 @@ function save() {
     <footer v-if="enabled" class="va-is__foot">
       <span v-if="props.savedLabel" class="va-is__saved" role="status">{{ props.savedLabel }}</span>
       <span class="va-is__spacer" />
-      <button class="va-btn va-btn--ghost va-btn--sm va-is__disc" type="button" @click="emit('disconnect')">断开连接</button>
+      <button class="va-act va-act--ghost va-act--sm va-is__disc" type="button" @click="emit('disconnect')">断开连接</button>
       <button
-        class="va-btn va-btn--primary va-is__save"
+        class="va-act va-act--primary va-is__save"
         type="button"
         :disabled="props.saving || !!missingRequired.length"
         @click="save"

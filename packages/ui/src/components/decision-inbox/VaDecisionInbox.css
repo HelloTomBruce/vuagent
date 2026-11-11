@@ -61,7 +61,7 @@
 .va-dib__detail { margin: 2px 0 0; font-size: 12px; color: var(--_muted); }
 
 .va-dib__actions { display: flex; gap: var(--va-s2, 4px); margin-top: var(--va-s3, 8px); }
-/* va-btn / va-btn--ink 基类兜底，仅保留 28px 定高形态 */
+/* va-act / va-act--ink 基类兜底，仅保留 28px 定高形态 */
 .va-dib__btn { height: 28px; padding: 0 var(--va-s4, 12px); border-radius: var(--va-radius-m, 10px); font-size: 12.5px; }
 .va-dib__btn:active { transform: scale(0.97); }
 

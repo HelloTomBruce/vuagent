@@ -47,8 +47,8 @@ const { result, denyReason, paused, percent, riskLabel, onApprove, onDeny, onKey
       <pre v-if="props.preview" class="va-acd__preview">{{ props.preview }}</pre>
 
       <div class="va-acd__actions">
-        <button class="va-btn va-acd__btn" type="button" @click="onDeny">{{ props.denyLabel }}</button>
-        <button class="va-btn va-btn--ink va-acd__btn" type="button" @click="onApprove">{{ props.confirmLabel }}</button>
+        <button class="va-act va-acd__btn" type="button" @click="onDeny">{{ props.denyLabel }}</button>
+        <button class="va-act va-act--ink va-acd__btn" type="button" @click="onApprove">{{ props.confirmLabel }}</button>
         <span v-if="props.shortcuts && !result" class="va-acd__kbd-hint">
           <kbd>Enter</kbd> 批准 · <kbd>Esc</kbd> 拒绝
         </span>

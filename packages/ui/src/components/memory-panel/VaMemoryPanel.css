@@ -110,7 +110,7 @@
 .va-mem__input:focus { outline: none; }
 
 .va-mem__ops { display: inline-flex; gap: 2px; flex: none; }
-/* va-btn ghost 基类兜底，仅保留 22px 图标方钮形态 */
+/* va-act ghost 基类兜底，仅保留 22px 图标方钮形态 */
 .va-mem__op { width: 22px; height: 22px; padding: 0; font-size: 11px; color: var(--_muted); }
 .va-mem__op:hover { color: var(--_ink); }
 .va-mem__op--danger:hover { color: var(--_danger); }

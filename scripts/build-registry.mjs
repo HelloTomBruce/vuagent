@@ -15,7 +15,7 @@ const OUT_DIR = path.join(ROOT, "packages/ui/registry");
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
-/** 内联 SFC 的 <style src="...">，使拷出的单文件自带样式；用到 .va-btn 时自动附带按钮基类 */
+/** 内联 SFC 的 <style src="...">，使拷出的单文件自带样式；用到 .va-act 时自动附带按钮基类 */
 const BUTTON_BASE = path.join(ROOT, "packages/ui/src/styles/button.css");
 
 function inlineCss(sfcContent, dir) {
@@ -24,7 +24,7 @@ function inlineCss(sfcContent, dir) {
     (_, cssName) => `<style>\n${fs.readFileSync(path.join(dir, `${cssName}.css`), "utf8").trim()}\n</style>`,
   );
   // 组件模板使用了按钮基类 → 把基类追加进内联样式（源码中基类来自全局 button.css）
-  if (/class="[^"]*\bva-btn\b/.test(out)) {
+  if (/class="[^"]*\bva-act\b/.test(out)) {
     const base = fs.readFileSync(BUTTON_BASE, "utf8").trim();
     out = out.replace(/<style>\n([\s\S]*?)\n<\/style>/, (_, css) => `<style>\n${css}\n\n/* 按钮基类（自动附带） */\n${base}\n</style>`);
   }

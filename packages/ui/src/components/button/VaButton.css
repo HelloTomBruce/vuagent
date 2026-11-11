@@ -79,21 +79,20 @@
 .va-btn__icon { display: inline-flex; align-items: center; }
 .va-btn__icon svg { width: 1em; height: 1em; }
 
-/* 加载态：左侧小转圈 + 标签降透明（任何变体/主题下都可见） */
-.va-btn--loading { cursor: progress; position: relative; padding-left: calc(var(--va-s5, 16px) + 2px); }
+/* 加载态：流内小转圈（走 flex gap 与文字对齐）+ 标签降透明（任何变体/主题下都可见） */
+.va-btn--loading { cursor: progress; }
 .va-btn--loading::before {
   content: "";
-  position: absolute;
-  left: var(--va-s3, 8px);
-  top: 50%;
-  width: 10px;
-  height: 10px;
-  margin-top: -5px;
+  flex: none;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
   border-top-color: currentColor;
   animation: va-btn-spin 0.9s linear infinite;
 }
+/* 有 icon 插槽时用转圈顶替，避免并排 */
+.va-btn--loading .va-btn__icon { display: none; }
 .va-btn--loading .va-btn__label { opacity: 0.6; }
 
 @keyframes va-btn-spin { to { transform: rotate(360deg); } }

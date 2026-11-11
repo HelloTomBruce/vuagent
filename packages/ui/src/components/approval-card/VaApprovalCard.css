@@ -66,7 +66,7 @@
 }
 
 .va-acd__actions { display: flex; align-items: center; gap: var(--va-s2, 4px); margin-top: var(--va-s4, 12px); }
-/* va-btn / va-btn--ink 基类兜底，仅保留 30px 定高形态 */
+/* va-act / va-act--ink 基类兜底，仅保留 30px 定高形态 */
 .va-acd__btn { height: 30px; padding: 0 var(--va-s5, 16px); border-radius: var(--va-radius-m, 10px); }
 .va-acd__btn:active { transform: scale(0.97); }
 

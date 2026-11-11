@@ -12,7 +12,7 @@
 .va-ctx__used strong { color: var(--_ink); font-variant-numeric: tabular-nums; }
 .va-ctx__pct { font-size: 11.5px; color: var(--_muted); font-variant-numeric: tabular-nums; }
 
-/* va-btn 基类兜底，仅保留 pill 形态与右贴 */
+/* va-act 基类兜底，仅保留 pill 形态与右贴 */
 .va-ctx__compact {
   margin-left: auto;
   height: 26px;
