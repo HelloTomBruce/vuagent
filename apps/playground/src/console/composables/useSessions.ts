@@ -20,6 +20,8 @@ export interface SessionsOptions {
   chat: ChatStreamApi;
   isNewChat: Ref<boolean>;
   activeWorkspaceId: Ref<string>;
+  /** 当前会话绑定的权限模式（切换会话时从 session.permission 恢复） */
+  activePermission: Ref<string>;
   /** 种子消息里展示的工作区路径（原 currentWorkspace.value?.rootPath） */
   getWorkspaceRootPath: () => string;
   scrollToBottom: () => void;
@@ -64,6 +66,7 @@ export function useSessions(options: SessionsOptions) {
     workspaceId: string;
     title: string;
     activeModelProfileId?: string;
+    permission?: string;
   }): Promise<SessionItem | null> {
     try {
       const newSess = await createSessionApi(payload);
@@ -91,8 +94,13 @@ export function useSessions(options: SessionsOptions) {
     activeSessionId.value = session.id;
     options.activeWorkspaceId.value = session.workspaceId;
     options.isNewChat.value = false;
+    // 权限模式随会话恢复，避免跨会话互相影响
+    options.activePermission.value = session.permission || "review";
     editingSessionId.value = null;
     chat.planSteps.value = [];
+    // 先归零上下文仪表，随后由历史 telemetry 水合（或运行时 usage 事件覆盖），
+    // 避免残留上一个会话的数值
+    chat.contextUsed.value = 0;
 
     const isCurrentlyStreaming = Boolean(chat.sessionRunningMap.get(session.id));
 
@@ -126,6 +134,13 @@ export function useSessions(options: SessionsOptions) {
                 timestamp: t.timestamp || Date.now(),
               });
             } else {
+              // 用最后一个带 contextTokens 的 turn 水合上下文仪表
+              // （该值为本 turn 最后一步的真实窗口占用；旧数据无此字段则保持 0）
+              const ctxTokens = t.telemetry?.contextTokens;
+              if (typeof ctxTokens === "number" && ctxTokens > 0) {
+                chat.contextUsed.value = ctxTokens;
+              }
+
               if (t.prompt) {
                 unpacked.push({
                   id: `turn-user-${t.id}`,
@@ -180,6 +195,8 @@ export function useSessions(options: SessionsOptions) {
                 cards: restoredCards,
                 // 按 contentOffset 重建输出时序块（审批卡回到发生位置）
                 blocks: rebuildBlocksFromHistory(asstContent, restoredCards),
+                // 恢复三泳道轨迹（落库时 detail/result 已截断）
+                trajEvents: (t.telemetry?.events as MessageTurn["trajEvents"]) || [],
                 timestamp: t.completedAt || t.createdAt || Date.now(),
               });
 
@@ -189,6 +206,7 @@ export function useSessions(options: SessionsOptions) {
             }
           }
         }
+
 
         // 4. 服务端此会话正处于活跃运行态（支持刷新页面后断点重连继续输出）
         if (detail.isRunning) {

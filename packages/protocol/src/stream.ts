@@ -90,8 +90,11 @@ export type HarnessStreamEvent =
     }
   | {
       type: "usage";
+      /** 本步发送的全部上下文（含重发历史）——窗口占用口径，非跨步累加的计费口径 */
       promptTokens: number;
+      /** 本步模型输出 token */
       completionTokens: number;
+      /** promptTokens + completionTokens（本步完成后的上下文占用） */
       totalTokens: number;
       /** 生效模型配置声明的上下文窗口（若有） */
       contextWindow?: number;
@@ -102,6 +105,22 @@ export type HarnessStreamEvent =
       toolName: string;
       args: Record<string, unknown>;
       timeoutMs: number;
+    }
+  | {
+      type: "traj";
+      /** 单条轨迹事件（对齐 dsh 三泳道台账），实时追加到当前 assistant turn */
+      event: {
+        id: string;
+        at: number;
+        endAt?: number;
+        lane: "input" | "model" | "tool";
+        role: "user" | "assistant" | "tool" | "system" | "context";
+        title: string;
+        detail?: string;
+        result?: string;
+        turn: number;
+        durationMs?: number;
+      };
     }
   | {
       type: "resumed";

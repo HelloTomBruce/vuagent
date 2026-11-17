@@ -148,6 +148,8 @@ export function useWorkspaces(options: WorkspacesOptions = {}) {
     fetchWorkspaces,
     pickAndCreateWorkspace,
     toggleWorkspaceExpand,
+    /** 激活工作区并触发新会话（空态引导卡/侧栏共用） */
+    activateWorkspace,
     selectWorkspace,
     askDeleteWorkspace,
     deleteWorkspace,

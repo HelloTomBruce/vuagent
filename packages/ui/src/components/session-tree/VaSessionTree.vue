@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { Archive, ArchiveRestore, Check, ChevronDown, ChevronRight, FolderClosed, Pen, Pin, PinOff, Plus, Search, Trash2, X } from "lucide-vue-next";
 import type { SessionTreeEvents, SessionTreeProps, TreeSession } from "./types";
 
@@ -8,9 +8,27 @@ const props = withDefaults(defineProps<SessionTreeProps>(), {
   workspaceCreateMode: "input",
   newSession: false,
   searchable: false,
+  collapsible: false,
+  hoverOps: false,
 });
 
 const emit = defineEmits<SessionTreeEvents>();
+
+/* 工作区分组折叠（collapsible 模式）：新工作区默认展开 */
+const expandedWs = reactive(new Set<string>());
+watch(
+  () => props.workspaces.map((w) => w.id).join(","),
+  (ids) => {
+    if (!props.collapsible) return;
+    for (const id of ids.split(",")) if (id) expandedWs.add(id);
+  },
+  { immediate: true }
+);
+function toggleWs(id: string) {
+  if (expandedWs.has(id)) expandedWs.delete(id);
+  else expandedWs.add(id);
+}
+const wsOpen = (id: string) => !props.collapsible || expandedWs.has(id);
 
 /* 顶部常驻「＋ 新建会话」：目标 = 当前工作区（G7） */
 function onNewSession() {
@@ -126,7 +144,7 @@ function onCreate(wId: string) {
 </script>
 
 <template>
-  <div class="va-stree">
+  <div class="va-stree" :data-hover-ops="props.hoverOps || undefined">
     <!-- 常驻新建会话（G7）：目标 = 当前工作区 -->
     <button
       v-if="props.newSession"
@@ -171,6 +189,16 @@ function onCreate(wId: string) {
       :data-current="g.workspace.id === props.currentWorkspaceId || undefined"
     >
       <div class="va-stree__head">
+        <button
+          v-if="props.collapsible"
+          class="va-stree__toggle"
+          type="button"
+          :aria-label="wsOpen(g.workspace.id) ? `收起 ${g.workspace.name} 的会话` : `展开 ${g.workspace.name} 的会话`"
+          @click.stop="toggleWs(g.workspace.id)"
+        >
+          <ChevronDown v-if="wsOpen(g.workspace.id)" :size="13" aria-hidden="true" />
+          <ChevronRight v-else :size="13" aria-hidden="true" />
+        </button>
         <span class="va-stree__ws" :title="g.workspace.description || g.workspace.name">
           <span class="va-stree__ws-icon" aria-hidden="true"><FolderClosed :size="14" /></span>
           <span class="va-stree__ws-name">{{ g.workspace.name }}</span>
@@ -188,7 +216,7 @@ function onCreate(wId: string) {
         ><span v-if="confirmWsId === g.workspace.id" class="va-stree__confirm">确认?</span><Trash2 v-else :size="13" /></button>
       </div>
 
-      <div class="va-stree__list">
+      <div v-if="wsOpen(g.workspace.id)" class="va-stree__list">
         <div
           v-for="s in g.sessions"
           :key="s.id"

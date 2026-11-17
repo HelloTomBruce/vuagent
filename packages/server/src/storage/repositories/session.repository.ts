@@ -11,6 +11,7 @@ export class SessionRepository {
     workspaceId: string;
     title?: string;
     activeModelProfileId?: string;
+    permission?: string;
     systemContext?: string;
   }): Promise<SessionEntity> {
     const id = data.id || `sess-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -21,6 +22,7 @@ export class SessionRepository {
       title: data.title || "新建 Agent 对话",
       status: "active",
       activeModelProfileId: data.activeModelProfileId,
+      permission: data.permission,
       systemContext: data.systemContext,
       turns: [],
       createdAt: now,

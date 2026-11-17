@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { Clock3, Layers, Repeat2, Search, Wrench } from "lucide-vue-next";
 import type { TrajEvent, TrajectoryEvents, TrajectoryProps } from "./types";
 
 const props = withDefaults(defineProps<TrajectoryProps>(), {});

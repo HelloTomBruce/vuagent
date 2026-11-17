@@ -74,7 +74,22 @@ export interface TurnEntity {
     totalTokens?: number;
     promptTokens?: number;
     completionTokens?: number;
+    /** 本 turn 最后一步的真实上下文占用（最后一步 prompt + completion），供前端加载历史时水合仪表 */
+    contextTokens?: number;
     laneEventsCount: number;
+    /** 三泳道轨迹事件明细（detail/result 已截断），供前端 turn 内联轨迹渲染 */
+    events?: Array<{
+      id: string;
+      at: number;
+      endAt?: number;
+      lane: "input" | "model" | "tool";
+      role: "user" | "assistant" | "tool" | "system" | "context";
+      title: string;
+      detail?: string;
+      result?: string;
+      turn: number;
+      durationMs?: number;
+    }>;
   };
   createdAt: number;
   completedAt?: number;
@@ -86,6 +101,8 @@ export interface SessionEntity {
   title: string;
   status: SessionStatus;
   activeModelProfileId?: string;
+  /** 本会话生效的权限模式（review | auto | readonly），随会话持久化 */
+  permission?: string;
   systemContext?: string;
   turns: TurnEntity[];
   createdAt: number;

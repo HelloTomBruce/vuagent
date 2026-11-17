@@ -3,9 +3,9 @@
  * 流事件契约统一来自 @vuagent/protocol（TASK-002），此处 re-export 供 console 模块便捷引用。
  */
 import type { HarnessStreamEvent } from "@vuagent/protocol";
-import type { PlanStep } from "@vuagent/ui";
+import type { PlanStep, TrajEvent } from "@vuagent/ui";
 
-export type { HarnessStreamEvent, PlanStep };
+export type { HarnessStreamEvent, PlanStep, TrajEvent };
 
 export interface WorkspaceItem {
   id: string;
@@ -25,6 +25,8 @@ export interface SessionItem {
   createdAt: number;
   updatedAt: number;
   activeModelProfileId?: string;
+  /** 本会话绑定的权限模式（review | auto | readonly），随会话持久化 */
+  permission?: string;
   isRunning?: boolean;
   turns?: any[];
 }
@@ -78,6 +80,8 @@ export interface MessageTurn {
   /** 输出时序块（live 由 reducer 增量构建；历史按 contentOffset 重建）。缺省时视图回退 content+cards 两段式 */
   blocks?: TurnBlock[];
   checkpointId?: string;
+  /** 三泳道轨迹事件（对齐 dsh：运行中实时追加，历史由 turn.telemetry.events 恢复） */
+  trajEvents?: TrajEvent[];
   timestamp: number;
 }
 
@@ -89,6 +93,8 @@ export interface ModelOption {
   id: string;
   label: string;
   meta: string;
+  /** 模型声明的上下文窗口大小，供 Context 仪表上限展示 */
+  contextWindow?: number;
 }
 
 /** 模型配置为空时的兜底展示列表（与原 Console.vue 保持一致） */

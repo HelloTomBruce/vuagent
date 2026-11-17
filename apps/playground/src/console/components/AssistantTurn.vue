@@ -2,6 +2,7 @@
 /**
  * 助手消息 Turn：思考折叠区 + 输出时序块(文本/卡片交错) + 消息操作 + 流式指示器
  * turn 为 reactive 代理对象，thoughtExpanded 原地切换（与原实现一致）
+ * 三泳道轨迹（turn.trajEvents）不再内联渲染，由右侧边栏轨迹 tab 聚合展示
  */
 import { computed } from "vue";
 import { Bot, Brain, ChevronDown, ChevronUp } from "lucide-vue-next";
@@ -34,6 +35,7 @@ const displayBlocks = computed<TurnBlock[]>(() => {
   for (const c of t.cards || []) blocks.push({ kind: "card", cardId: c.id });
   return blocks;
 });
+
 </script>
 
 <template>

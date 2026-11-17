@@ -41,6 +41,10 @@ export interface SessionTreeProps {
   newSession?: boolean;
   /** 显示会话搜索框（组件内按标题过滤） */
   searchable?: boolean;
+  /** 工作区分组可折叠（chevron 切换，默认全部展开；默认 false 平铺） */
+  collapsible?: boolean;
+  /** 行操作按钮 hover/focus 时才显示（确认态除外）；默认 false 常驻 */
+  hoverOps?: boolean;
 }
 
 export interface SessionTreeEvents {

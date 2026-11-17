@@ -51,6 +51,8 @@ export function useChatStream(options: ChatStreamOptions) {
   function resetTurns() {
     chatTurns.value = [];
     planSteps.value = [];
+    // 新会话：上下文仪表归零（等运行时 usage 事件按真实占用覆盖）
+    contextUsed.value = 0;
   }
 
   function isActiveSession(targetSessionId?: string) {
@@ -58,12 +60,21 @@ export function useChatStream(options: ChatStreamOptions) {
   }
 
   function handleStreamEvent(event: HarnessStreamEvent, turn: MessageTurn, targetSessionId?: string) {
-    // usage 是会话级事件（不挂在具体 turn 上），先行拦截更新上下文 Gauge
+    // usage 是会话级事件（不挂在具体 turn 上），先行拦截更新上下文 Gauge。
+    // 窗口占用口径（与 Codex/Claude Code 一致）：promptTokens 是本步发送的全部上下文
+    // （ReAct 每步重发历史，取"最近一次调用"即真实占用），直接覆盖而非跨步累加。
     if (event.type === "usage") {
-      contextUsed.value = event.totalTokens;
+      contextUsed.value = event.promptTokens + event.completionTokens;
       if (event.contextWindow) {
         contextLimit.value = event.contextWindow;
       }
+      return;
+    }
+
+    // traj 是 turn 级轨迹事件：实时追加到当前 assistant turn（对齐 dsh 轨迹随 turn 生长）
+    if (event.type === "traj") {
+      if (!turn.trajEvents) turn.trajEvents = [];
+      turn.trajEvents.push(event.event);
       return;
     }
 
@@ -185,6 +196,7 @@ export function useChatStream(options: ChatStreamOptions) {
       isStreaming: true,
       cards: [],
       blocks: [],
+      trajEvents: [],
       timestamp: Date.now(),
     };
     chatTurns.value.push(assistantTurn);

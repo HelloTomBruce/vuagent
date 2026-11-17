@@ -22,6 +22,8 @@ export interface ModelProfilesOptions {
 export function useModelProfiles(options: ModelProfilesOptions = {}) {
   const availableModels = ref<ModelOption[]>([...AVAILABLE_MODELS]);
   const activeModel = ref("deepseek-v3");
+  /** 默认模型档（isDefault 或列表首个），新建会话时回退用 */
+  const defaultModelId = ref("");
 
   // 模型设置弹窗状态
   const isModelSettingsOpen = ref(false);
@@ -49,15 +51,24 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
           id: m.id,
           label: m.name,
           meta: `${(m.provider || "custom").toUpperCase()} · ${m.model}`,
+          contextWindow: m.contextWindow || 128000,
         }));
         if (!activeModel.value || !list.some((m) => m.id === activeModel.value)) {
           const def = list.find((m) => m.isDefault) || list[0];
+          defaultModelId.value = def.id;
           activeModel.value = def.id;
+        } else {
+          defaultModelId.value = (list.find((m) => m.isDefault) || list[0]).id;
         }
       }
     } catch (e) {
       console.error("加载模型列表失败:", e);
     }
+  }
+
+  /** 新建会话时回退到默认模型档 */
+  function resetModelToDefault() {
+    if (defaultModelId.value) activeModel.value = defaultModelId.value;
   }
 
   function openModelSettings() {
@@ -222,6 +233,8 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
     testStatus,
     modelForm,
     activeModelObj,
+    defaultModelId,
+    resetModelToDefault,
     fetchModelProfiles,
     openModelSettings,
     closeModelSettings,

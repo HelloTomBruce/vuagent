@@ -284,3 +284,27 @@
 @media (hover: none) {
   .va-stree__op { opacity: 1; }
 }
+
+/* collapsible:工作区分组折叠 chevron */
+.va-stree__toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  padding: 3px;
+  border-radius: var(--va-radius-s, 8px);
+  cursor: pointer;
+  color: var(--va-muted, #6f6d66);
+}
+.va-stree__toggle:hover { background: var(--va-bg-subtle, #efede7); color: var(--va-ink, #1a1917); }
+.va-stree__toggle:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; }
+
+/* hoverOps:行操作完全移除占位,hover/focus 或确认态时才显示 */
+.va-stree[data-hover-ops="true"] .va-stree__op { display: none; }
+.va-stree[data-hover-ops="true"] .va-stree__head:hover .va-stree__op,
+.va-stree[data-hover-ops="true"] .va-stree__head:focus-within .va-stree__op,
+.va-stree[data-hover-ops="true"] .va-stree__session:hover .va-stree__op,
+.va-stree[data-hover-ops="true"] .va-stree__session:focus-within .va-stree__op,
+.va-stree[data-hover-ops="true"] .va-stree__op[data-danger] { display: inline-flex; }

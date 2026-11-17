@@ -86,6 +86,11 @@ function fmtSize(n?: number): string {
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
+
+/** 宿主聚焦输入区（如新建会话后自动聚焦） */
+defineExpose({
+  focus: () => area.value?.focus(),
+});
 </script>
 
 <template>

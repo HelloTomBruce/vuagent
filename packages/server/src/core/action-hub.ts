@@ -23,6 +23,8 @@ export interface SuspendedActionInfo {
   actionId: string;
   toolName: string;
   args: Record<string, unknown>;
+  /** 发起挂起的会话（跨会话审批收件箱跳转用） */
+  sessionId?: string;
   createdAt: number;
   timeoutMs: number;
   expiresAt: number;
@@ -136,6 +138,7 @@ export class ActionHub {
       actionId: entry.actionId,
       toolName: entry.toolName,
       args: entry.args,
+      sessionId: entry.sessionId,
       createdAt: entry.createdAt,
       timeoutMs: entry.timeoutMs,
       expiresAt: entry.createdAt + entry.timeoutMs,

@@ -9,7 +9,7 @@ import { OpenAICompatibleDriver } from "../adapters/openai-driver.js";
 import { MockDriver } from "../adapters/mock-driver.js";
 import { ContextCompactor, type ChatMessage } from "./context-compactor.js";
 import { parsePartialJson } from "./stream-orchestrator.js";
-import { TelemetryLedger } from "./telemetry.js";
+import { TelemetryLedger, clipTrajectoryEvent } from "./telemetry.js";
 import { runSandboxDemoTurn } from "./sandbox-demo.js";
 import type { CheckpointEntity, TurnEntity } from "../storage/interfaces.js";
 
@@ -86,8 +86,9 @@ export class AgentLoop {
     // 恢复历史会话
     for (const pastTurn of session.turns) {
       messages.push({ role: "user", content: pastTurn.prompt });
-      // 提取最新检查点的消息状态
-      const lastCp = pastTurn.checkpoints[pastTurn.checkpoints.length - 1];
+      // 提取最新检查点的消息状态（旧数据 errorTurn 可能无 checkpoints 字段，需防御）
+      const cps = pastTurn.checkpoints;
+      const lastCp = cps && cps.length > 0 ? cps[cps.length - 1] : undefined;
       if (lastCp && Array.isArray(lastCp.messagesSnapshot)) {
         for (const item of lastCp.messagesSnapshot as ChatMessage[]) {
           if (item.role !== "system" && item.role !== "user") {
@@ -99,13 +100,16 @@ export class AgentLoop {
 
     // 追加本轮用户输入
     messages.push({ role: "user", content: req.prompt });
-    telemetry.recordEvent({
-      at: startAt,
-      lane: "input",
-      role: "user",
-      title: "用户输入",
-      detail: req.prompt,
-    });
+    {
+      const ev = telemetry.recordEvent({
+        at: startAt,
+        lane: "input",
+        role: "user",
+        title: "用户输入",
+        detail: req.prompt,
+      });
+      yield { type: "traj", event: clipTrajectoryEvent(ev) };
+    }
 
     const checkpoints: CheckpointEntity[] = [];
     let currentStep = 0;
@@ -134,6 +138,7 @@ export class AgentLoop {
 
     let accumulatedContent = "";
     let accumulatedThought = "";
+    let lastContextTokens = 0;
     const accumulatedCards: Array<{ id: string; type: string; data: any }> = [];
 
     try {
@@ -145,7 +150,11 @@ export class AgentLoop {
         }
 
         currentStep++;
-        const compactedMessages = this.compactor.compact(messages);
+        // 裁剪阈值跟随模型真实窗口（约 85%）：固定 16k 阈值会在长会话中过早清掉历史，
+        // 造成每轮占用跳水（前端仪表呈"清零重算"观感）。工具结果截断与 sanitize 不受影响。
+        const compactedMessages = this.compactor.compact(messages, {
+          maxTokens: Math.floor((modelProfile.contextWindow || 128_000) * 0.85),
+        });
         const toolsDefinition = this.services.toolRegistry.toModelToolDefinitions();
 
         let stepContent = "";
@@ -175,13 +184,16 @@ export class AgentLoop {
 
           if (chunk.type === "usage" && chunk.usage) {
             telemetry.addTokens(chunk.usage.promptTokens, chunk.usage.completionTokens);
-            // 实时推送 token 用量，前端据此渲染真实上下文占用
-            const tokens = telemetry.exportSummary().tokens;
+            // 窗口占用口径（与 Codex/Claude Code 一致）：promptTokens 为本步发送的全部上下文
+            // （ReAct 每步重发历史，取"最近一次调用"即当前真实占用），前端直接覆盖展示；
+            // 跨步累加值仅作为计费口径存入 telemetry.totalTokens，不推给窗口仪表。
+            lastContextTokens =
+              chunk.usage.promptTokens + chunk.usage.completionTokens;
             yield {
               type: "usage",
-              promptTokens: tokens.promptTokens,
-              completionTokens: tokens.completionTokens,
-              totalTokens: tokens.totalTokens,
+              promptTokens: chunk.usage.promptTokens,
+              completionTokens: chunk.usage.completionTokens,
+              totalTokens: lastContextTokens,
               contextWindow: modelProfile.contextWindow,
             };
           }
@@ -248,13 +260,14 @@ export class AgentLoop {
         // 保存本步骤助手的文本输出
         if (stepContent) {
           messages.push({ role: "assistant", content: stepContent });
-          telemetry.recordEvent({
+          const ev = telemetry.recordEvent({
             at: Date.now(),
             lane: "model",
             role: "assistant",
             title: "模型思考回复",
             detail: stepContent,
           });
+          yield { type: "traj", event: clipTrajectoryEvent(ev) };
         }
 
         // 检查是否有工具调用
@@ -421,14 +434,17 @@ export class AgentLoop {
             errorMessage = execRes.error;
           }
 
-          telemetry.recordEvent({
-            at: Date.now(),
-            lane: "tool",
-            role: "tool",
-            title: `工具执行: ${call.name}`,
-            detail: JSON.stringify(parsedArgs),
-            result: isError ? errorMessage : JSON.stringify(executionResult),
-          });
+          {
+            const ev = telemetry.recordEvent({
+              at: Date.now(),
+              lane: "tool",
+              role: "tool",
+              title: `工具执行: ${call.name}`,
+              detail: JSON.stringify(parsedArgs),
+              result: isError ? errorMessage : JSON.stringify(executionResult),
+            });
+            yield { type: "traj", event: clipTrajectoryEvent(ev) };
+          }
 
           yield {
             type: "tool_call_result",
@@ -505,6 +521,11 @@ export class AgentLoop {
           });
         }
 
+        // 收敛半截工具调用：工具循环中被 abort 打断时，assistant.tool_calls 已入上下文
+        // 但部分 tool 响应缺失；补占位结果保证 checkpoint 快照与下一轮恢复的历史
+        // 对模型 API 始终合法（否则触发如 GLM 1214 "messages 参数非法"）
+        this.compactor.patchUnansweredToolCalls(messages);
+
         // 记录本步检查点
         const cp: CheckpointEntity = {
           id: `cp-${turnId}-${currentStep}`,
@@ -540,7 +561,10 @@ export class AgentLoop {
           totalTokens: telemetry.exportSummary().tokens.totalTokens,
           promptTokens: telemetry.exportSummary().tokens.promptTokens,
           completionTokens: telemetry.exportSummary().tokens.completionTokens,
+          contextTokens: lastContextTokens,
           laneEventsCount: telemetry.getEvents().length,
+          // 轨迹事件明细落库（detail/result 截断），历史会话的 turn 内联轨迹由此恢复
+          events: telemetry.getEvents().map(clipTrajectoryEvent),
         },
         createdAt: startAt,
         completedAt: Date.now(),

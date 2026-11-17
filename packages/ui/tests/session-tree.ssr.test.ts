@@ -130,3 +130,39 @@ describe("VaSessionTree SSR · workspaceCreateMode=picker", () => {
     expect(html).not.toContain("本地文件夹路径");
   });
 });
+
+describe("VaSessionTree SSR · collapsible + hoverOps", () => {
+  const base = {
+    workspaces: [{ id: "w", name: "w" }],
+    sessions: [{ id: "s1", title: "跑任务", createdAt: 1, updatedAt: 1, archived: false, workspaceId: "w" }],
+    archived: [],
+    currentWorkspaceId: "w",
+    currentSessionId: "s1",
+  };
+
+  it("collapsible：渲染折叠 chevron,默认展开;关闭时不渲染", async () => {
+    const open = await renderToString(
+      createSSRApp({ render: () => h(VaSessionTree, { ...base, collapsible: true }) }),
+    );
+    expect(open).toContain("va-stree__toggle");
+    expect(open).toContain("收起 w 的会话"); // 默认展开 → aria 为收起
+    expect(open).toContain("跑任务"); // 默认展开,会话可见
+
+    const off = await renderToString(
+      createSSRApp({ render: () => h(VaSessionTree, { ...base }) }),
+    );
+    expect(off).not.toContain("va-stree__toggle");
+    expect(off).toContain("跑任务");
+  });
+
+  it("hoverOps：根节点带 data-hover-ops,操作按钮由 CSS 控制显隐", async () => {
+    const html = await renderToString(
+      createSSRApp({ render: () => h(VaSessionTree, { ...base, hoverOps: true }) }),
+    );
+    expect(html).toContain('data-hover-ops="true"');
+    const plain = await renderToString(
+      createSSRApp({ render: () => h(VaSessionTree, { ...base }) }),
+    );
+    expect(plain).not.toContain("data-hover-ops");
+  });
+});

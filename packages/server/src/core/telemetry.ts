@@ -96,3 +96,13 @@ export class TelemetryLedger {
     return [...this.events];
   }
 }
+
+/** 轨迹事件正文截断上限（SSE 推送与落库共用，控制载荷体积） */
+const TRAJ_TEXT_LIMIT = 500;
+
+/** 截断轨迹事件的 detail/result（返回新对象，不修改原事件） */
+export function clipTrajectoryEvent(e: TrajectoryEvent): TrajectoryEvent {
+  const clip = (s?: string) =>
+    s && s.length > TRAJ_TEXT_LIMIT ? `${s.slice(0, TRAJ_TEXT_LIMIT)}…[截断]` : s;
+  return { ...e, detail: clip(e.detail), result: clip(e.result) };
+}

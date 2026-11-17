@@ -103,6 +103,7 @@ export function createSessionApi(body: {
   workspaceId: string;
   title: string;
   activeModelProfileId?: string;
+  permission?: string;
 }): Promise<SessionItem | null> {
   return httpSend<SessionItem>("/api/sessions", "POST", body);
 }
@@ -171,6 +172,21 @@ export async function testModelConnectionApi(body: {
 /* ==========================================================================
    HITL 审批 / 中止
    ========================================================================== */
+
+/** 跨会话待审批列表（审批收件箱数据源） */
+export interface SuspendedActionItem {
+  actionId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  sessionId?: string;
+  createdAt: number;
+  timeoutMs: number;
+  expiresAt: number;
+}
+
+export async function listSuspendedActions(): Promise<SuspendedActionItem[] | null> {
+  return httpGet<SuspendedActionItem[]>("/api/action/suspended");
+}
 
 export async function submitAction(
   actionId: string,

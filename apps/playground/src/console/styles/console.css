@@ -97,6 +97,9 @@
 .va-console__ws-head {
   display: flex;
   align-items: center;
+  /* 锁定行高：hover 时右侧 ws-count/ws-ops 显隐切换不改变行高（内容统一 18px 高） */
+  min-height: 32px;
+  box-sizing: border-box;
   padding: 7px 8px;
   cursor: pointer;
   border-radius: var(--va-radius-s, 8px);
@@ -138,7 +141,12 @@
   font-size: 11px;
   color: var(--va-muted, #6f6d66);
   background: var(--va-bg-subtle, #efede7);
-  padding: 1px 6px;
+  /* 与 ws-ops 操作按钮同高（18px），hover 显隐切换时行高恒定 */
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  box-sizing: border-box;
+  padding: 0 6px;
   border-radius: var(--va-radius-pill, 999px);
 }
 
@@ -162,6 +170,9 @@
 .va-console__session-item {
   display: flex;
   align-items: center;
+  /* 锁定行高：hover 时 session-ops 显隐切换不改变行高 */
+  min-height: 30px;
+  box-sizing: border-box;
   padding: 6px 8px;
   border-radius: var(--va-radius-s, 8px);
   cursor: pointer;
@@ -224,12 +235,18 @@
 .va-console__icon-btn-xs {
   background: none;
   border: none;
-  padding: 3px;
+  /* 统一 18px 方形，与 ws-count 徽标同高，保证行内显隐切换零高度抖动 */
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  padding: 0;
+  justify-content: center;
   border-radius: 4px;
   color: var(--va-muted, #6f6d66);
   cursor: pointer;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 .va-console__icon-btn-xs:hover {
   background: var(--va-card, #ffffff);
@@ -238,9 +255,14 @@
 .va-console__icon-btn-xs--danger {
   color: var(--va-danger, #d5453c) !important;
   font-weight: 700;
+  /* “确定?”为文本按钮（--danger 仅在确认态出现）：放开宽度，保持 18px 高度 */
+  width: auto;
+  padding: 0 5px;
 }
 .va-console__confirm-text {
   font-size: 10.5px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .va-console__rename-input {
@@ -308,7 +330,7 @@
 }
 
 .va-console__welcome-hero {
-  max-width: 760px;
+  max-width: 880px;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -316,59 +338,9 @@
   text-align: center;
 }
 
-.va-console__hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
-  color: var(--va-accent, #c2410c);
-  border-radius: var(--va-radius-pill, 999px);
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 16px;
-}
-
-.va-console__hero-title {
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  margin-bottom: 8px;
-  color: var(--va-ink, #1a1917);
-}
-
-.va-console__hero-sub {
-  font-size: 14px;
-  color: var(--va-muted, #6f6d66);
-  margin-bottom: 20px;
-  max-width: 580px;
-  line-height: 1.6;
-}
-
-.va-console__ws-target-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
-  background: var(--va-card, #ffffff);
-  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
-  padding: 6px 14px;
-  border-radius: var(--va-radius-pill, 999px);
-  color: var(--va-ink-2, #43413c);
-  margin-bottom: 28px;
-}
-.va-console__ws-target-tag strong {
-  color: var(--va-ink, #1a1917);
-}
-.va-console__ws-target-tag small {
-  color: var(--va-muted, #6f6d66);
-  font-family: var(--va-font-mono, monospace);
-  font-size: 11px;
-}
-
 .va-console__welcome-composer-box {
   width: 100%;
-  max-width: 760px;
+  align-self: stretch;
 }
 
 /* 聊天视图 */
@@ -725,55 +697,17 @@
   justify-content: center;
   flex-shrink: 0;
 }
-
-.va-console__composer-wrapper {
+/* VaComposer 是 flex 子项,默认不拉伸——显式撑满并居中(留呼吸上限) */
+.va-console__bottom-composer > .va-cmp {
+  flex: 1;
   width: 100%;
-  max-width: 860px;
-  background: var(--va-card, #ffffff);
-  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
-  border-radius: var(--va-radius-m, 10px);
-  box-shadow: var(--va-shadow-2, 0 4px 12px rgba(26, 25, 23, 0.08));
-  display: flex;
-  flex-direction: column;
-  padding: 8px 12px 8px 14px;
-  transition: border-color var(--va-dur-2, 200ms) ease, box-shadow var(--va-dur-2, 200ms) ease;
+  max-width: 980px;
 }
 
-.va-console__composer-wrapper:focus-within {
-  border-color: color-mix(in srgb, var(--va-accent, #c2410c) 45%, var(--va-edge));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--va-accent, #c2410c) 12%, transparent);
-}
 
-.va-console__composer-textarea {
-  border: none;
-  outline: none;
-  resize: none;
-  background: none;
-  font-family: inherit;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--va-ink, #1a1917);
-  padding: 4px 0 8px 0;
-  min-height: 52px;
-}
-.va-console__composer-textarea::placeholder {
-  color: var(--va-muted, #6f6d66);
-}
 
-.va-console__composer-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 6px;
-  border-top: 1px solid var(--va-edge, rgba(26, 25, 23, 0.06));
-}
 
-.va-console__toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
+
 
 .va-console__dropdown-wrap {
   position: relative;
@@ -813,6 +747,12 @@
   color: var(--va-muted, #6f6d66);
   padding: 0 6px;
   font-family: var(--va-font-mono, monospace);
+}
+
+/* 上下文窗口仪表面板（VaContextWindow 宿主） */
+.va-console__ctx-panel {
+  width: 280px;
+  padding: 4px;
 }
 
 .va-console__dropdown-menu {
@@ -884,31 +824,6 @@
   font-weight: 600;
 }
 
-.va-console__btn-send {
-  height: 32px;
-  padding: 0 14px;
-  background: var(--va-ink, #1a1917);
-  color: var(--va-card, #ffffff);
-  border: none;
-  border-radius: var(--va-radius-s, 8px);
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: opacity var(--va-dur-1, 120ms) ease;
-}
-.va-console__btn-send:hover:not(:disabled) {
-  opacity: 0.88;
-}
-.va-console__btn-send:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-.va-console__btn-send--stop {
-  background: var(--va-danger, #d5453c) !important;
-}
 
 /* 提示词建议 Chips */
 .va-console__suggestions {
@@ -1435,4 +1350,137 @@
 /* 消息操作条 */
 .va-console__message-actions {
   margin-top: 6px;
+}
+
+
+/* ==========================================================================
+   聊天区 + 右侧栏 布局与右侧 tab 容器（轨迹 / …）
+   ========================================================================== */
+.va-console__chat-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.va-console__right-sidebar {
+  width: 340px;
+  min-width: 340px;
+  height: 100%;
+  border-left: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  background: var(--va-card, #ffffff);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.va-console__rtabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 10px 0;
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+}
+
+.va-console__rtab {
+  border: none;
+  background: none;
+  padding: 6px 12px 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--va-muted, #6f6d66);
+  cursor: pointer;
+  border-radius: var(--va-radius-s, 8px) var(--va-radius-s, 8px) 0 0;
+  border-bottom: 2px solid transparent;
+}
+
+.va-console__rtab:hover {
+  color: var(--va-ink, #1a1917);
+}
+
+.va-console__rtab--active {
+  color: var(--va-accent, #c2410c);
+  border-bottom-color: var(--va-accent, #c2410c);
+}
+
+.va-console__rtab-collapse {
+  margin-left: auto;
+  border: none;
+  background: none;
+  padding: 4px;
+  border-radius: 4px;
+  color: var(--va-muted, #6f6d66);
+  cursor: pointer;
+  display: flex;
+}
+
+.va-console__rtab-collapse:hover {
+  background: var(--va-bg-subtle, #efede7);
+  color: var(--va-ink, #1a1917);
+}
+
+.va-console__rtab-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+
+.va-console__rtab-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--va-muted, #6f6d66);
+  text-align: center;
+}
+
+.va-console__rtab-empty p {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.va-console__rtab-empty small {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+/* 侧栏收起后的重开细条 */
+.va-console__rsb-reopen {
+  width: 28px;
+  min-width: 28px;
+  height: 100%;
+  border: none;
+  border-left: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  background: var(--va-bg-subtle, #efede7);
+  color: var(--va-muted, #6f6d66);
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12px;
+}
+
+.va-console__rsb-reopen:hover {
+  color: var(--va-accent, #c2410c);
+}
+
+/* 权限模式分段控件（VaSegmentedControl 宿主） */
+.va-console__perm-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.va-console__perm-icon {
+  color: var(--va-muted, #6f6d66);
+  flex-shrink: 0;
+}
+
+/* 模型设置齿轮按钮（VaComposer actions slot 内） */
+.va-console__model-settings-btn {
+  margin-left: 2px;
 }
