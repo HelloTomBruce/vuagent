@@ -20,8 +20,8 @@ const header = `# Vuagent
 
 ## 安装与使用
 
-- npm：\`npm i @vuagent/ui\`，从 \`@vuagent/ui\` 导入组件，并引入 \`@vuagent/ui/tokens.css\`
-- shadcn-vue registry：注册 \`"@vuagent": "<registry 地址>/{name}.json"\` 后 \`npx shadcn-vue add @vuagent/<name>\`（文件落到 components/ui/<name>/）
+- npm：\`npm i @vuagent/ui\`，从 \`@vuagent/ui\` 导入组件，并引入 \`@vuagent/ui/tokens.css\` 与 \`@vuagent/ui/styles.css\`（组件样式）
+- shadcn-vue registry：注册 \`"@vuagent": "https://hellotombruce.github.io/vuagent/r/{name}.json"\` 后 \`npx shadcn-vue add @vuagent/<name>\`（文件落到 components/ui/<name>/，条目自包含）
 - 基础约定：Props 枚举对齐 affectUI（size: sm/md/lg，status: running/success/error）；时间统一毫秒；事件名 camelCase
 - 主题：覆盖 \`:root\` 上的 \`--va-*\` 设计令牌即可全库换肤；组件级覆盖用局部变量（如 --va-btn-ink）
 - llms-full.txt：全部组件的 props 明细表

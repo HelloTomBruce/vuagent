@@ -2,6 +2,10 @@
 
 ## 0.2.0
 
+### Patch Changes
+
+- 发布自包含修复：`@vuagent/protocol` 类型内联进 runtime（此前 `workspace:*` 依赖发布后无法解析）、`lucide-vue-next` 随构建内联移入 devDependencies——npm 包零运行时依赖（peer 仅 vue）；新增 LICENSE 随包分发
+
 ### Minor Changes
 
 - M5-M7 交付：全库 60 项（43 组件 + Screens/Blocks/插画精选 + Motion 补齐）

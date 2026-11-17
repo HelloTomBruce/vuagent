@@ -12,6 +12,7 @@ npm i @vuagent/ui
 // main.ts
 import { createApp } from "vue";
 import "@vuagent/ui/tokens.css"; // 设计令牌（亮暗双主题）
+import "@vuagent/ui/styles.css"; // 全部组件样式
 import App from "./App.vue";
 
 createApp(App).mount("#app");
@@ -35,7 +36,7 @@ import { VaButton, VaToolCallCard } from "@vuagent/ui";
 ```json
 {
   "registries": {
-    "@vuagent": "https://your-registry-host/{name}.json"
+    "@vuagent": "https://hellotombruce.github.io/vuagent/r/{name}.json"
   }
 }
 ```

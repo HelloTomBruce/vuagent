@@ -3,12 +3,13 @@
  */
 
 import type { Component } from "vue";
+// 类型内联自 @vuagent/protocol（保持 npm 发布包自包含，见 ./protocol-types.ts 头注释）
 import type {
   AgentComponentBaseProps,
   AgentComponentStatus,
   MessageBlock,
   UIStreamEvent,
-} from "@vuagent/protocol";
+} from "./protocol-types";
 
 export type {
   AgentComponentBaseProps,

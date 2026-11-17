@@ -103,13 +103,6 @@ importers:
         version: 3.2.7(@types/node@22.20.5)(supports-color@8.1.1)(tsx@4.23.15)(yaml@2.9.1)
 
   packages/ui:
-    dependencies:
-      '@vuagent/protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      lucide-vue-next:
-        specifier: ^1.0.0
-        version: 1.0.0(vue@3.5.45(typescript@5.9.3))
     devDependencies:
       '@vitejs/plugin-vue':
         specifier: ^6.0.1
@@ -117,6 +110,9 @@ importers:
       '@vue/server-renderer':
         specifier: ^3.5.45
         version: 3.5.45
+      lucide-vue-next:
+        specifier: ^1.0.0
+        version: 1.0.0(vue@3.5.45(typescript@5.9.3))
       typescript:
         specifier: ~5.9.2
         version: 5.9.3
