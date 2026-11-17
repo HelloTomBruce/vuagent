@@ -40,6 +40,20 @@ function extraFiles(dir) {
   });
 }
 
+/** 从组件源码 import 自动检测外部 npm 依赖（排除 vue / 相对路径 / @vuagent 内部包），写入 dependencies */
+function externalDeps(files) {
+  const pkgs = new Set();
+  for (const f of files) {
+    const src = String(f.content);
+    for (const m of src.matchAll(/from\s+["']([^"']+)["']|import\s+["']([^"']+)["']/g)) {
+      const spec = m[1] ?? m[2];
+      if (spec.startsWith(".") || spec === "vue" || spec.startsWith("vue/") || spec.startsWith("@vuagent/")) continue;
+      pkgs.add(spec.split("/").slice(0, spec.startsWith("@") ? 2 : 1).join("/"));
+    }
+  }
+  return [...pkgs];
+}
+
 const items = [];
 for (const c of components) {
   const dir = path.join(UI_SRC, c.dir);
@@ -70,7 +84,7 @@ for (const c of components) {
     title: c.title,
     description: c.desc,
     type: "registry:ui",
-    dependencies: [],
+    dependencies: externalDeps(files),
     // 组件间依赖（如 StepperForm → ProgressTracker）：宿主 add 时自动拉取
     registryDependencies: (c.deps ?? []).map((d) => `@vuagent/${d}`),
     docs: c.props.map((p) => `- \`${p.name}\` (${p.type}${p.default ? `，默认 ${p.default}` : ""})：${p.desc}`).join("\n"),
@@ -79,7 +93,8 @@ for (const c of components) {
 
   fs.writeFileSync(path.join(OUT_DIR, `${c.slug}.json`), `${JSON.stringify(item, null, 2)}\n`);
   items.push({ name: c.slug, title: c.title, description: c.desc, type: "registry:ui" });
-  console.log(`✓ registry/${c.slug}.json（${files.length} 个文件${c.deps?.length ? ` · 依赖 ${c.deps.join(", ")}` : ""}）`);
+  const depNote = [...item.dependencies, ...item.registryDependencies];
+  console.log(`✓ registry/${c.slug}.json（${files.length} 个文件${depNote.length ? ` · 依赖 ${depNote.join(", ")}` : ""}）`);
 }
 
 const index = {
