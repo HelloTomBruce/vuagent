@@ -4,7 +4,8 @@ import { createRouter, createWebHistory } from "vue-router";
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: "/", redirect: "/m7" },
+    { path: "/", redirect: "/console" },
+    { path: "/console", name: "console", component: () => import("./Console.vue"), meta: { title: "Agent 控制台" } },
     { path: "/m1", name: "m1", component: () => import("./M1Demo.vue"), meta: { title: "M1 打样" } },
     { path: "/run", name: "run", component: () => import("./AgentRunDemo.vue"), meta: { title: "旗舰编排" } },
     { path: "/m3", name: "m3", component: () => import("./M3Demo.vue"), meta: { title: "M3 Chat" } },

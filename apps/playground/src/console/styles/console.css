@@ -1,0 +1,1438 @@
+/* ==========================================================================
+   设计体系与全局容器 (Tokens from @vuagent/ui)
+   ========================================================================== */
+.va-console {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  background: var(--va-bg, #f7f6f2);
+  color: var(--va-ink, #1a1917);
+  font-family: var(--va-font, system-ui, -apple-system, sans-serif);
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   左侧边栏 (280px)
+   ========================================================================== */
+.va-console__sidebar {
+  width: 280px;
+  min-width: 280px;
+  height: 100%;
+  background: var(--va-card, #ffffff);
+  border-right: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+.va-console__sidebar-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+}
+
+.va-console__btn-new-chat {
+  width: 100%;
+  height: 38px;
+  background: var(--va-accent, #c2410c);
+  color: #fff;
+  border: none;
+  border-radius: var(--va-radius-m, 10px);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: opacity var(--va-dur-1, 120ms) ease, transform var(--va-dur-1, 120ms) ease;
+}
+.va-console__btn-new-chat:hover {
+  opacity: 0.92;
+}
+.va-console__btn-new-chat:active {
+  transform: scale(0.98);
+}
+
+.va-console__tree-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.va-console__section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--va-muted, #6f6d66);
+}
+
+.va-console__icon-btn {
+  background: none;
+  border: none;
+  color: var(--va-muted, #6f6d66);
+  cursor: pointer;
+  padding: 3px;
+  border-radius: var(--va-radius-s, 8px);
+  display: flex;
+  align-items: center;
+}
+.va-console__icon-btn:hover {
+  background: var(--va-bg-subtle, #efede7);
+  color: var(--va-ink, #1a1917);
+}
+
+/* 工作区卡片 */
+.va-console__ws-card {
+  border-radius: var(--va-radius-s, 8px);
+  overflow: hidden;
+}
+
+.va-console__ws-head {
+  display: flex;
+  align-items: center;
+  padding: 7px 8px;
+  cursor: pointer;
+  border-radius: var(--va-radius-s, 8px);
+  font-size: 13px;
+  font-weight: 600;
+  gap: 6px;
+  transition: background var(--va-dur-1, 120ms) ease;
+}
+.va-console__ws-head:hover {
+  background: var(--va-bg-subtle, #efede7);
+}
+.va-console__ws-head--active {
+  background: color-mix(in srgb, var(--va-accent) 8%, transparent);
+  color: var(--va-accent);
+}
+
+.va-console__toggle-arrow {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--va-muted, #6f6d66);
+  display: flex;
+  cursor: pointer;
+}
+
+.va-console__ws-folder-icon {
+  color: var(--va-accent, #c2410c);
+  flex-shrink: 0;
+}
+
+.va-console__ws-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.va-console__ws-count {
+  font-size: 11px;
+  color: var(--va-muted, #6f6d66);
+  background: var(--va-bg-subtle, #efede7);
+  padding: 1px 6px;
+  border-radius: var(--va-radius-pill, 999px);
+}
+
+.va-console__ws-ops {
+  display: none;
+  gap: 3px;
+}
+.va-console__ws-head:hover .va-console__ws-ops {
+  display: flex;
+}
+
+/* 会话行 */
+.va-console__session-list {
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.va-console__session-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: var(--va-radius-s, 8px);
+  cursor: pointer;
+  font-size: 12.5px;
+  gap: 6px;
+  color: var(--va-ink-2, #43413c);
+  transition: background var(--va-dur-1, 120ms) ease;
+}
+.va-console__session-item:hover {
+  background: var(--va-bg-subtle, #efede7);
+  color: var(--va-ink, #1a1917);
+}
+.va-console__session-item--active {
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1)) !important;
+  color: var(--va-accent, #c2410c) !important;
+  font-weight: 500;
+}
+
+.va-console__session-icon {
+  flex-shrink: 0;
+  opacity: 0.65;
+}
+
+.va-console__running-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+  animation: vaPulseDot 1.4s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+@keyframes vaPulseDot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.55;
+  }
+}
+
+.va-console__session-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.va-console__session-ops {
+  display: none;
+  gap: 2px;
+}
+.va-console__session-item:hover .va-console__session-ops {
+  display: flex;
+}
+
+.va-console__icon-btn-xs {
+  background: none;
+  border: none;
+  padding: 3px;
+  border-radius: 4px;
+  color: var(--va-muted, #6f6d66);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.va-console__icon-btn-xs:hover {
+  background: var(--va-card, #ffffff);
+  color: var(--va-ink, #1a1917);
+}
+.va-console__icon-btn-xs--danger {
+  color: var(--va-danger, #d5453c) !important;
+  font-weight: 700;
+}
+.va-console__confirm-text {
+  font-size: 10.5px;
+}
+
+.va-console__rename-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--va-accent, #c2410c);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  background: var(--va-card, #ffffff);
+  color: var(--va-ink, #1a1917);
+  outline: none;
+}
+
+.va-console__empty-tip {
+  font-size: 11.5px;
+  color: var(--va-muted, #6f6d66);
+  padding: 6px 8px;
+}
+
+/* 归档 */
+.va-console__archived-section {
+  margin-top: 14px;
+  border-top: 1px dashed var(--va-edge, rgba(26, 25, 23, 0.12));
+  padding-top: 8px;
+}
+.va-console__archived-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--va-muted, #6f6d66);
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: var(--va-radius-s, 8px);
+}
+.va-console__archived-toggle:hover {
+  background: var(--va-bg-subtle, #efede7);
+}
+
+/* ==========================================================================
+   中间主交互区域 (Center Stage)
+   ========================================================================== */
+.va-console__main {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 欢迎页视图 */
+.va-console__welcome-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 60px 24px;
+  overflow-y: auto;
+}
+
+.va-console__welcome-hero {
+  max-width: 760px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.va-console__hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  color: var(--va-accent, #c2410c);
+  border-radius: var(--va-radius-pill, 999px);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.va-console__hero-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+  color: var(--va-ink, #1a1917);
+}
+
+.va-console__hero-sub {
+  font-size: 14px;
+  color: var(--va-muted, #6f6d66);
+  margin-bottom: 20px;
+  max-width: 580px;
+  line-height: 1.6;
+}
+
+.va-console__ws-target-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  padding: 6px 14px;
+  border-radius: var(--va-radius-pill, 999px);
+  color: var(--va-ink-2, #43413c);
+  margin-bottom: 28px;
+}
+.va-console__ws-target-tag strong {
+  color: var(--va-ink, #1a1917);
+}
+.va-console__ws-target-tag small {
+  color: var(--va-muted, #6f6d66);
+  font-family: var(--va-font-mono, monospace);
+  font-size: 11px;
+}
+
+.va-console__welcome-composer-box {
+  width: 100%;
+  max-width: 760px;
+}
+
+/* 聊天视图 */
+.va-console__chat-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.va-console__top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 24px;
+  background: var(--va-card, #ffffff);
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  flex-shrink: 0;
+}
+
+.va-console__session-heading {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+}
+
+.va-console__meta-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.va-console__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--va-muted, #6f6d66);
+  background: var(--va-bg-subtle, #efede7);
+  padding: 2px 8px;
+  border-radius: var(--va-radius-pill, 999px);
+}
+.va-console__tag--perm {
+  color: var(--va-info, #2563eb);
+}
+
+/* 消息瀑布流 */
+.va-console__messages-stream {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.va-console__turn-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* 用户气泡 */
+.va-console__user-bubble-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.va-console__user-bubble {
+  max-width: 70%;
+  background: var(--va-accent, #c2410c);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: var(--va-radius-m, 10px) 2px var(--va-radius-m, 10px) var(--va-radius-m, 10px);
+  box-shadow: var(--va-shadow-1, 0 1px 2px rgba(26, 25, 23, 0.06));
+}
+
+.va-console__user-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.va-console__user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--va-bg-subtle, #efede7);
+  color: var(--va-ink, #1a1917);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* 助手 Turn */
+.va-console__assistant-turn {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.va-console__agent-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--va-radius-s, 8px);
+  background: var(--va-ink, #1a1917);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.va-console__turn-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 思考过程折叠框 */
+.va-console__thought-box {
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-s, 8px);
+  overflow: hidden;
+}
+
+.va-console__thought-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--va-bg-subtle, #efede7);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.va-console__thought-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--va-ink-2, #43413c);
+}
+.va-console__thought-title small {
+  color: var(--va-muted, #6f6d66);
+  font-weight: normal;
+}
+
+.va-console__pulse-icon {
+  color: var(--va-accent, #c2410c);
+  animation: vaPulse 2s infinite ease-in-out;
+}
+
+@keyframes vaPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.92); }
+}
+
+.va-console__thought-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--va-muted, #6f6d66);
+  font-size: 11.5px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.va-console__thought-content {
+  padding: 10px 14px;
+  font-family: var(--va-font-mono, monospace);
+  font-size: 12px;
+  color: var(--va-muted, #6f6d66);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  max-height: 240px;
+  overflow-y: auto;
+  border-top: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+}
+
+.va-console__markdown-content {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--va-ink, #1a1917);
+  /* markdown 渲染后不再需要 pre-wrap：md 输出标签间的换行符会被它放大成空行 */
+  white-space: normal;
+}
+
+/* 操作卡片流 */
+.va-console__action-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.va-console__card-item {
+  width: 100%;
+}
+
+.va-console__approval-detail {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.va-console__cmd-label {
+  font-weight: 600;
+  color: var(--va-muted, #6f6d66);
+}
+.va-console__code-block {
+  margin: 6px 0 0 0;
+  padding: 8px 10px;
+  background: var(--va-bg-subtle, #efede7);
+  border-radius: var(--va-radius-s, 8px);
+  font-family: var(--va-font-mono, monospace);
+  font-size: 11.5px;
+  overflow-x: auto;
+}
+
+.va-console__streaming-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--va-accent, #c2410c);
+}
+
+.va-console__cursor-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--va-accent, #c2410c);
+  animation: vaBlink 1s infinite;
+}
+
+@keyframes vaBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.va-console__checkpoint-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--va-bg-subtle, #efede7);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-pill, 999px);
+  font-size: 11px;
+  color: var(--va-muted, #6f6d66);
+  width: fit-content;
+}
+
+.va-console__rollback-btn {
+  background: none;
+  border: none;
+  color: var(--va-info, #2563eb);
+  cursor: pointer;
+  font-size: 11px;
+  text-decoration: underline;
+  padding: 0;
+}
+
+/* ==========================================================================
+   固定在输入框上方的任务执行计划 (VaAgentPlan)
+   ========================================================================== */
+.va-console__docked-plan {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 24px;
+  z-index: 10;
+}
+
+.va-console__plan-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-bottom: none;
+  border-radius: var(--va-radius-m, 10px) var(--va-radius-m, 10px) 0 0;
+  cursor: pointer;
+  box-shadow: 0 -2px 8px rgba(26, 25, 23, 0.04);
+}
+
+.va-console__plan-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--va-ink, #1a1917);
+}
+
+.va-console__plan-icon {
+  color: var(--va-accent, #c2410c);
+}
+
+.va-console__plan-active-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--va-accent, #c2410c);
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  padding: 2px 8px;
+  border-radius: var(--va-radius-pill, 999px);
+  font-weight: normal;
+}
+
+.va-console__spin {
+  animation: vaSpin 1.2s infinite linear;
+}
+
+@keyframes vaSpin {
+  100% { transform: rotate(360deg); }
+}
+
+.va-console__plan-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--va-muted, #6f6d66);
+}
+
+.va-console__plan-drawer {
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-top: none;
+  padding: 12px 14px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+/* ==========================================================================
+   底栏 Composer
+   ========================================================================== */
+.va-console__bottom-composer {
+  padding: 10px 24px 18px 24px;
+  background: var(--va-bg, #f7f6f2);
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.va-console__composer-wrapper {
+  width: 100%;
+  max-width: 860px;
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-m, 10px);
+  box-shadow: var(--va-shadow-2, 0 4px 12px rgba(26, 25, 23, 0.08));
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px 8px 14px;
+  transition: border-color var(--va-dur-2, 200ms) ease, box-shadow var(--va-dur-2, 200ms) ease;
+}
+
+.va-console__composer-wrapper:focus-within {
+  border-color: color-mix(in srgb, var(--va-accent, #c2410c) 45%, var(--va-edge));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--va-accent, #c2410c) 12%, transparent);
+}
+
+.va-console__composer-textarea {
+  border: none;
+  outline: none;
+  resize: none;
+  background: none;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--va-ink, #1a1917);
+  padding: 4px 0 8px 0;
+  min-height: 52px;
+}
+.va-console__composer-textarea::placeholder {
+  color: var(--va-muted, #6f6d66);
+}
+
+.va-console__composer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 6px;
+  border-top: 1px solid var(--va-edge, rgba(26, 25, 23, 0.06));
+}
+
+.va-console__toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.va-console__dropdown-wrap {
+  position: relative;
+}
+
+.va-console__seat-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  background: none;
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-pill, 999px);
+  color: var(--va-ink-2, #43413c);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: all var(--va-dur-1, 120ms) ease;
+}
+.va-console__seat-btn:hover {
+  border-color: var(--va-accent, #c2410c);
+  color: var(--va-accent, #c2410c);
+}
+
+.va-console__seat-text {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.va-console__seat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--va-muted, #6f6d66);
+  padding: 0 6px;
+  font-family: var(--va-font-mono, monospace);
+}
+
+.va-console__dropdown-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 50;
+  min-width: 220px;
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-m, 10px);
+  box-shadow: var(--va-shadow-3, 0 12px 32px rgba(26, 25, 23, 0.12));
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.va-console__menu-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--va-muted, #6f6d66);
+  padding: 4px 8px;
+}
+
+.va-console__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--va-radius-s, 8px);
+  background: none;
+  border: none;
+  color: var(--va-ink, #1a1917);
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+}
+.va-console__menu-item:hover {
+  background: var(--va-bg-subtle, #efede7);
+}
+.va-console__menu-item--active {
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  color: var(--va-accent, #c2410c);
+  font-weight: 600;
+}
+
+.va-console__menu-item-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.va-console__menu-item-name {
+  font-size: 12.5px;
+}
+.va-console__menu-item-desc {
+  font-size: 10.5px;
+  color: var(--va-muted, #6f6d66);
+}
+
+.va-console__menu-divider {
+  height: 1px;
+  background: var(--va-edge, rgba(26, 25, 23, 0.12));
+  margin: 4px 0;
+}
+
+.va-console__menu-item--action {
+  color: var(--va-accent, #c2410c);
+  font-weight: 600;
+}
+
+.va-console__btn-send {
+  height: 32px;
+  padding: 0 14px;
+  background: var(--va-ink, #1a1917);
+  color: var(--va-card, #ffffff);
+  border: none;
+  border-radius: var(--va-radius-s, 8px);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: opacity var(--va-dur-1, 120ms) ease;
+}
+.va-console__btn-send:hover:not(:disabled) {
+  opacity: 0.88;
+}
+.va-console__btn-send:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.va-console__btn-send--stop {
+  background: var(--va-danger, #d5453c) !important;
+}
+
+/* 提示词建议 Chips */
+.va-console__suggestions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.va-console__sug-label {
+  font-size: 12px;
+  color: var(--va-muted, #6f6d66);
+}
+
+.va-console__chip {
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  color: var(--va-ink-2, #43413c);
+  border-radius: var(--va-radius-pill, 999px);
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--va-dur-1, 120ms) ease;
+}
+.va-console__chip:hover {
+  border-color: var(--va-accent, #c2410c);
+  color: var(--va-accent, #c2410c);
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+}
+
+/* ==========================================================================
+   侧边栏底部 (Sidebar Footer)
+   ========================================================================== */
+.va-console__sidebar-footer {
+  padding: 10px 12px;
+  border-top: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  background: var(--va-card, #ffffff);
+}
+
+.va-console__footer-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-s, 8px);
+  background: var(--va-bg, #f7f6f2);
+  color: var(--va-ink-2, #43413c);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--va-dur-1, 120ms) ease;
+}
+.va-console__footer-btn:hover {
+  border-color: var(--va-accent, #c2410c);
+  color: var(--va-accent, #c2410c);
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+}
+
+/* ==========================================================================
+   模型设置模态弹窗 (Model Settings Modal)
+   ========================================================================== */
+.va-console__modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(20, 19, 17, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.va-console__modal-box {
+  width: 100%;
+  max-width: 780px;
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.14));
+  border-radius: var(--va-radius-l, 16px);
+  box-shadow: var(--va-shadow-3, 0 12px 32px rgba(26, 25, 23, 0.18));
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  overflow: hidden;
+  animation: vaModalZoom var(--va-dur-2, 200ms) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes vaModalZoom {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.va-console__modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 18px 24px 14px 24px;
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+}
+
+.va-console__modal-title-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.va-console__modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--va-ink, #1a1917);
+}
+
+.va-console__modal-title-icon {
+  color: var(--va-accent, #c2410c);
+}
+
+.va-console__modal-sub {
+  font-size: 12px;
+  color: var(--va-muted, #6f6d66);
+  margin: 0;
+}
+
+.va-console__modal-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* 左侧配置列表 */
+.va-console__modal-left {
+  width: 240px;
+  border-right: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  background: var(--va-bg, #f7f6f2);
+  display: flex;
+  flex-direction: column;
+}
+
+.va-console__modal-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--va-muted, #6f6d66);
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.08));
+}
+
+.va-console__btn-add-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  padding: 2px 8px;
+  border-radius: var(--va-radius-pill, 999px);
+  font-size: 11px;
+  color: var(--va-ink, #1a1917);
+  cursor: pointer;
+}
+.va-console__btn-add-profile:hover {
+  border-color: var(--va-accent, #c2410c);
+  color: var(--va-accent, #c2410c);
+}
+
+.va-console__modal-profile-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.va-console__profile-card {
+  padding: 10px 12px;
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.1));
+  border-radius: var(--va-radius-s, 8px);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all var(--va-dur-1, 120ms) ease;
+}
+.va-console__profile-card:hover {
+  border-color: color-mix(in srgb, var(--va-accent) 45%, var(--va-edge));
+}
+.va-console__profile-card--active {
+  border-color: var(--va-accent, #c2410c) !important;
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.08)) !important;
+}
+
+.va-console__profile-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.va-console__profile-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--va-ink, #1a1917);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.va-console__default-chip {
+  font-size: 10px;
+  background: var(--va-accent, #c2410c);
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: var(--va-radius-pill, 999px);
+  font-weight: 600;
+}
+
+.va-console__new-chip {
+  font-size: 10px;
+  background: var(--va-info, #2563eb);
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: var(--va-radius-pill, 999px);
+}
+
+.va-console__profile-card-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.va-console__provider-pill {
+  color: var(--va-muted, #6f6d66);
+  text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.va-console__model-id {
+  color: var(--va-muted, #6f6d66);
+  font-family: var(--va-font-mono, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 右侧表单 */
+.va-console__modal-right {
+  flex: 1;
+  padding: 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.va-console__form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.flex-1 { flex: 1; }
+
+.va-console__form-row {
+  display: flex;
+  gap: 14px;
+}
+
+.va-console__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--va-ink-2, #43413c);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.va-console__input,
+.va-console__select {
+  height: 34px;
+  padding: 0 10px;
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.16));
+  border-radius: var(--va-radius-s, 8px);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--va-ink, #1a1917);
+  outline: none;
+  transition: border-color var(--va-dur-1, 120ms) ease;
+}
+.va-console__input:focus,
+.va-console__select:focus {
+  border-color: var(--va-accent, #c2410c);
+}
+.font-mono {
+  font-family: var(--va-font-mono, monospace);
+}
+
+.va-console__input-with-action {
+  display: flex;
+  position: relative;
+}
+.va-console__input-with-action .va-console__input {
+  flex: 1;
+  padding-right: 36px;
+}
+.va-console__input-addon-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--va-muted, #6f6d66);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+}
+
+.va-console__range {
+  height: 28px;
+  accent-color: var(--va-accent, #c2410c);
+}
+
+.va-console__checkbox-row {
+  display: flex;
+  align-items: center;
+  padding-top: 4px;
+}
+.va-console__checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--va-ink, #1a1917);
+  cursor: pointer;
+}
+
+.va-console__test-status-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--va-radius-s, 8px);
+  font-size: 12px;
+}
+.va-console__test-status-box--ok {
+  background: color-mix(in srgb, var(--va-success, #1a7f4b) 12%, transparent);
+  color: var(--va-success, #1a7f4b);
+}
+.va-console__test-status-box--err {
+  background: color-mix(in srgb, var(--va-danger, #d5453c) 12%, transparent);
+  color: var(--va-danger, #d5453c);
+}
+
+/* 弹窗底栏操作 */
+.va-console__modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-top: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  background: var(--va-bg-subtle, #efede7);
+}
+
+.va-console__foot-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.va-console__btn-delete-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  color: var(--va-danger, #d5453c);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.va-console__btn-delete-profile:hover {
+  text-decoration: underline;
+}
+
+.va-console__btn-ghost {
+  height: 32px;
+  padding: 0 12px;
+  background: none;
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.16));
+  border-radius: var(--va-radius-s, 8px);
+  color: var(--va-ink, #1a1917);
+  font-size: 12.5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.va-console__btn-ghost:hover {
+  background: var(--va-card, #ffffff);
+}
+
+.va-console__btn-primary {
+  height: 32px;
+  padding: 0 16px;
+  background: var(--va-accent, #c2410c);
+  color: #fff;
+  border: none;
+  border-radius: var(--va-radius-s, 8px);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--va-dur-1, 120ms) ease;
+}
+.va-console__btn-primary:hover {
+  opacity: 0.9;
+}
+
+/* ==========================================================================
+   Markdown 正文渲染 (TASK-004)
+   ========================================================================== */
+.va-console__markdown-body {
+  line-height: 1.65;
+  word-break: break-word;
+}
+.va-console__markdown-body p {
+  margin: 0 0 7px;
+}
+.va-console__markdown-body p:last-child {
+  margin-bottom: 0;
+}
+.va-console__markdown-body h1,
+.va-console__markdown-body h2,
+.va-console__markdown-body h3,
+.va-console__markdown-body h4 {
+  margin: 12px 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--va-ink, #1a1917);
+}
+.va-console__markdown-body h1 { font-size: 17px; }
+.va-console__markdown-body h2 { font-size: 16px; }
+.va-console__markdown-body ul,
+.va-console__markdown-body ol {
+  margin: 4px 0 8px;
+  padding-left: 22px;
+}
+.va-console__markdown-body li {
+  margin: 2px 0;
+}
+.va-console__markdown-body li > p {
+  margin-bottom: 2px;
+}
+.va-console__markdown-body code {
+  font-family: var(--va-font-mono, monospace);
+  font-size: 12.5px;
+  background: var(--va-bg-subtle, #efede7);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--va-accent, #c2410c);
+}
+.va-console__markdown-body pre {
+  margin: 6px 0 8px;
+  padding: 9px 12px;
+  background: var(--va-bg-subtle, #efede7);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.08));
+  border-radius: var(--va-radius-s, 8px);
+  overflow-x: auto;
+}
+.va-console__markdown-body pre code {
+  background: none;
+  padding: 0;
+  color: var(--va-ink, #1a1917);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.va-console__markdown-body blockquote {
+  margin: 6px 0 8px;
+  padding: 5px 12px;
+  border-left: 3px solid var(--va-accent, #c2410c);
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.06));
+  color: var(--va-ink-2, #43413c);
+  border-radius: 0 var(--va-radius-s, 8px) var(--va-radius-s, 8px) 0;
+}
+.va-console__markdown-body blockquote p:last-child {
+  margin-bottom: 0;
+}
+.va-console__markdown-body table {
+  border-collapse: collapse;
+  margin: 6px 0 8px;
+  font-size: 12.5px;
+  width: 100%;
+}
+.va-console__markdown-body th,
+.va-console__markdown-body td {
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  padding: 5px 10px;
+  text-align: left;
+}
+.va-console__markdown-body th {
+  background: var(--va-bg-subtle, #efede7);
+  font-weight: 600;
+}
+.va-console__markdown-body a {
+  color: var(--va-info, #2563eb);
+  text-decoration: underline;
+}
+.va-console__markdown-body hr {
+  border: none;
+  border-top: 1px dashed var(--va-edge, rgba(26, 25, 23, 0.16));
+  margin: 12px 0;
+}
+
+/* 消息操作条 */
+.va-console__message-actions {
+  margin-top: 6px;
+}

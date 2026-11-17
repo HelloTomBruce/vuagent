@@ -4,3 +4,16 @@ dist/
 .DS_Store
 .vite/
 .dsh-browser
+.zcode
+.env
+.env.local
+
+# ag-ui-langgraph（真实 LLM harness）
+apps/ag-ui-langgraph/.venv/
+apps/ag-ui-langgraph/workspace/
+apps/ag-ui-langgraph/.env
+apps/ag-ui-langgraph/.vuagent/
+apps/ag-ui-langgraph/workspaces/
+
+# vuagent harness 运行时数据
+.vuagent/

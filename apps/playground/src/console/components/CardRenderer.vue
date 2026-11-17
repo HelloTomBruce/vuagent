@@ -1,0 +1,152 @@
+<script setup lang="ts">
+/**
+ * Agent 动态操作卡片统一分发器
+ * - 结构化卡片按 ActionCard.type 分发
+ * - "ui" 持久化卡按 data.component（ui_* 契约名）动态分发到对应 Va* 组件
+ */
+import { computed } from "vue";
+import {
+  VaApprovalCard,
+  VaCodeDiff,
+  VaFileTree,
+  VaMetricChart,
+  VaTerminalLog,
+  VaToolCallCard,
+  VaTrajectory,
+} from "@vuagent/ui";
+import type { ActionCard } from "../types";
+
+const props = defineProps<{ card: ActionCard }>();
+
+defineEmits<{
+  (e: "approve"): void;
+  (e: "deny", reason?: string): void;
+}>();
+
+// toolcall 卡片状态映射：streaming/executing 统一为 VaToolCallCard 的 running
+const callStatus = computed(() => {
+  const s = props.card.data?.status as string | undefined;
+  return s === "error" ? "error" : s === "done" ? "success" : "running";
+});
+
+const callSummary = computed(() => {
+  const s = props.card.data?.status as string | undefined;
+  if (s === "streaming") return "生成调用参数中…";
+  if (s === "executing") return "沙箱执行中…";
+  if (s === "error") return "执行失败";
+  return "执行完成";
+});
+
+// "ui" 持久化卡：可渲染的契约组件集合
+// （ui_approval_card 由 HITL 流负责、ui_agent_plan 由 planSteps/DockedPlanBar 负责，此处不渲染）
+const UI_RENDERABLE = new Set([
+  "ui_code_diff",
+  "ui_metric_chart",
+  "ui_file_tree",
+  "ui_trajectory",
+]);
+
+const uiProps = computed<Record<string, any>>(() => props.card.data?.props || {});
+const uiComponent = computed(() => String(props.card.data?.component || ""));
+const uiRenderable = computed(() => UI_RENDERABLE.has(uiComponent.value));
+</script>
+
+<template>
+  <div class="va-console__card-item">
+    <!-- ui_* 契约持久化卡：按 component 动态分发 -->
+    <template v-if="card.type === 'ui'">
+      <VaCodeDiff
+        v-if="uiRenderable && uiComponent === 'ui_code_diff'"
+        :file-name="uiProps.fileName"
+        :old-text="uiProps.oldText"
+        :new-text="uiProps.newText"
+        :layout="uiProps.layout || 'unified'"
+        :max-height="uiProps.maxHeight"
+      />
+      <VaMetricChart
+        v-else-if="uiRenderable && uiComponent === 'ui_metric_chart'"
+        :title="uiProps.title"
+        :series="uiProps.series"
+      />
+      <VaFileTree
+        v-else-if="uiRenderable && uiComponent === 'ui_file_tree'"
+        :title="uiProps.title"
+        :tree="uiProps.tree"
+        :default-expand-depth="uiProps.defaultExpandDepth"
+      />
+      <VaTrajectory
+        v-else-if="uiRenderable && uiComponent === 'ui_trajectory'"
+        :events="uiProps.events"
+        :ledger-max-height="uiProps.ledgerMaxHeight"
+      />
+    </template>
+
+    <!-- 工具调用链卡片 (VaToolCallCard)：start → args_delta → executing → result 全生命周期 -->
+    <VaToolCallCard
+      v-else-if="card.type === 'toolcall'"
+      :name="card.data.toolName"
+      :summary="callSummary"
+      :status="callStatus"
+      :args="card.data.args"
+      :result="card.data.result"
+      :error="card.data.error"
+      :started-at="card.data.startedAt"
+      :duration="card.data.duration"
+      :default-open="card.data.status === 'error' || card.data.status === 'streaming'"
+    />
+
+    <!-- HITL 审批卡片 (VaApprovalCard) -->
+    <VaApprovalCard
+      v-else-if="card.type === 'approval'"
+      :title="card.data.title || `申请执行: ${card.data.toolName || '工具'}`"
+      :risk="card.data.risk"
+      :preview="card.data.command"
+      :detail="card.data.detail"
+      :status="card.data.status || 'pending'"
+      :reason="card.data.reason"
+      :countdown="card.data.status === 'approved' || card.data.status === 'denied' ? undefined : card.data.expiresInSec"
+      :collapsible="true"
+      :default-collapsed="card.data.status === 'approved' || card.data.status === 'denied'"
+      @approve="$emit('approve')"
+      @deny="(reason) => $emit('deny', reason)"
+    />
+
+    <!-- 代码变更 Diff 卡片 (VaCodeDiff) -->
+    <VaCodeDiff
+      v-else-if="card.type === 'diff'"
+      :file-name="card.data.file"
+      :old-text="card.data.oldCode"
+      :new-text="card.data.newCode"
+      :layout="card.data.view || 'unified'"
+    />
+
+    <!-- 终端命令日志 (VaTerminalLog) -->
+    <VaTerminalLog
+      v-else-if="card.type === 'terminal'"
+      :title="card.data.title"
+      :lines="card.data.lines"
+    />
+
+    <!-- 性能监控指标 (VaMetricChart) -->
+    <VaMetricChart
+      v-else-if="card.type === 'metric'"
+      :title="card.data.title"
+      :series="card.data.series"
+    />
+
+    <!-- 工作区文件树 (VaFileTree) -->
+    <VaFileTree
+      v-else-if="card.type === 'tree'"
+      :title="card.data.title"
+      :tree="card.data.tree"
+      :default-expand-depth="card.data.defaultExpandDepth"
+    />
+
+    <!-- 执行轨迹时间线 (VaTrajectory) -->
+    <VaTrajectory
+      v-else-if="card.type === 'trajectory'"
+      :events="card.data.events"
+      :ledger-max-height="card.data.ledgerMaxHeight"
+    />
+  </div>
+</template>

@@ -5,13 +5,14 @@
   "scripts": {
     "build": "pnpm --filter @vuagent/ui build && pnpm --filter @vuagent/playground build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm --filter @vuagent/ui test && pnpm --filter @vuagent/agent-demo test",
+    "test": "pnpm --filter @vuagent/protocol test && pnpm --filter @vuagent/ui test && pnpm --filter @vuagent/server test && pnpm --filter @vuagent/playground test",
+    "server:dev": "pnpm --filter @vuagent/server dev",
     "registry": "node scripts/build-registry.mjs",
     "llms": "node scripts/build-llms.mjs",
     "docs:dev": "pnpm --filter @vuagent/docs dev",
     "docs:build": "pnpm --filter @vuagent/docs build",
     "dev": "pnpm --filter @vuagent/playground dev",
-    "demo": "pnpm --filter @vuagent/agent-demo dev"
+    "console": "concurrently -k -n server,web -c yellow,cyan \"pnpm --filter @vuagent/server dev\" \"pnpm --filter @vuagent/playground dev\""
   },
   "repository": {
     "type": "git",
@@ -22,6 +23,7 @@
     "url": "https://github.com/HelloTomBruce/vuagent/issues"
   },
   "devDependencies": {
-    "@changesets/cli": "^3.0.3"
+    "@changesets/cli": "^3.0.3",
+    "concurrently": "^9.1.2"
   }
 }

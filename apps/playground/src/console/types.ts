@@ -1,0 +1,165 @@
+/**
+ * Console 领域模型与静态配置
+ * 流事件契约统一来自 @vuagent/protocol（TASK-002），此处 re-export 供 console 模块便捷引用。
+ */
+import type { HarnessStreamEvent } from "@vuagent/protocol";
+import type { PlanStep } from "@vuagent/ui";
+
+export type { HarnessStreamEvent, PlanStep };
+
+export interface WorkspaceItem {
+  id: string;
+  name: string;
+  rootPath: string;
+  permission: "read-only" | "read-write" | "danger";
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SessionItem {
+  id: string;
+  workspaceId: string;
+  title: string;
+  status: "active" | "archived";
+  archived?: boolean;
+  createdAt: number;
+  updatedAt: number;
+  activeModelProfileId?: string;
+  isRunning?: boolean;
+  turns?: any[];
+}
+
+export interface ModelProfileItem {
+  id: string;
+  name: string;
+  provider: string;
+  model: string;
+  baseUrl?: string;
+  apiKey?: string;
+  contextWindow?: number;
+  temperature?: number;
+  isDefault?: boolean;
+}
+
+export interface ActionCard {
+  id: string;
+  type:
+    | "approval"
+    | "diff"
+    | "terminal"
+    | "metric"
+    | "checkpoint"
+    | "tree"
+    | "trajectory"
+    /** 工具调用链卡片（tool_call_start → args_delta → executing → result 全生命周期） */
+    | "toolcall"
+    /** ui_* 契约工具持久化卡：{component, props} 原始载荷，CardRenderer 按组件名动态分发 */
+    | "ui";
+  data: any;
+}
+
+/**
+ * 消息输出时序块（plan.md 设计的混排模型落地）
+ * 文本与卡片按真实输出顺序交错，卡片不再固定堆在正文末尾
+ */
+export type TurnBlock =
+  | { kind: "text"; content: string }
+  | { kind: "card"; cardId: string };
+
+export interface MessageTurn {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  thought?: string;
+  thoughtExpanded?: boolean;
+  thoughtDuration?: number;
+  isStreaming?: boolean;
+  cards?: ActionCard[];
+  /** 输出时序块（live 由 reducer 增量构建；历史按 contentOffset 重建）。缺省时视图回退 content+cards 两段式 */
+  blocks?: TurnBlock[];
+  checkpointId?: string;
+  timestamp: number;
+}
+
+/* ==========================================================================
+   静态配置
+   ========================================================================== */
+
+export interface ModelOption {
+  id: string;
+  label: string;
+  meta: string;
+}
+
+/** 模型配置为空时的兜底展示列表（与原 Console.vue 保持一致） */
+export const AVAILABLE_MODELS: ModelOption[] = [
+  { id: "deepseek-v3", label: "DeepSeek V3", meta: "DeepSeek 官方推理API" },
+  { id: "qwen-2.5-72b", label: "Qwen 2.5 72B", meta: "阿里云通义旗舰" },
+  { id: "claude-3-7-sonnet", label: "Claude 3.7 Sonnet", meta: "Anthropic 旗舰编排" },
+  { id: "ollama-local", label: "Ollama (Local)", meta: "本地部署模型" },
+];
+
+export interface PermissionMode {
+  id: string;
+  label: string;
+  desc: string;
+}
+
+export const PERMISSION_MODES: PermissionMode[] = [
+  { id: "review", label: "严格审批 (Review)", desc: "写文件、命令执行等需人工确认" },
+  { id: "auto", label: "自动执行 (Auto)", desc: "工具沙箱全自动运行" },
+  { id: "readonly", label: "只读沙箱 (Read-Only)", desc: "禁止一切写入与执行操作" },
+];
+
+export interface ProviderPreset {
+  name: string;
+  model: string;
+  baseUrl: string;
+  contextWindow: number;
+}
+
+/** 新建模型配置时按 provider 预填（与原 onProviderChange switch 分支一致） */
+export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
+  deepseek: {
+    name: "DeepSeek V3",
+    model: "deepseek-chat",
+    baseUrl: "https://api.deepseek.com/v1",
+    contextWindow: 128000,
+  },
+  anthropic: {
+    name: "Claude 3.7 Sonnet",
+    model: "claude-3-7-sonnet-20250219",
+    baseUrl: "https://api.anthropic.com/v1",
+    contextWindow: 200000,
+  },
+  openai: {
+    name: "OpenAI GPT-4o",
+    model: "gpt-4o",
+    baseUrl: "https://api.openai.com/v1",
+    contextWindow: 128000,
+  },
+  ollama: {
+    name: "Ollama 本地模型",
+    model: "qwen2.5-coder:7b",
+    baseUrl: "http://localhost:11434/v1",
+    contextWindow: 32000,
+  },
+  custom: {
+    name: "兼容模型 (Custom)",
+    model: "custom-model",
+    baseUrl: "http://localhost:8000/v1",
+    contextWindow: 32000,
+  },
+};
+
+export const DEFAULT_MODEL_FORM: ModelProfileItem = {
+  id: "",
+  name: "",
+  provider: "deepseek",
+  model: "deepseek-chat",
+  baseUrl: "https://api.deepseek.com/v1",
+  apiKey: "",
+  contextWindow: 128000,
+  temperature: 0.2,
+  isDefault: false,
+};

@@ -1,0 +1,147 @@
+/**
+ * @vuagent/protocol
+ * Harness 标准事件流 (HarnessStreamEvent) —— 全链路单一事实来源
+ * server (SSE 推送) 与 Web 前端 (流式消费) 共用此契约。
+ * 旧 UIStreamEvent (events.ts) 仍为 @vuagent/ui runtime 兼容保留，新增消费请使用本契约。
+ */
+
+/**
+ * UI 工具（protocol-tools.ts）执行结果的统一载荷：
+ * 模型调用 ui_* 工具后，server 通过 tool_call_result.data 传出，
+ * 前端据 component 名分发到对应 Va* 卡片渲染
+ */
+export interface UiComponentRenderResult {
+  rendered?: boolean;
+  /** VuagentToolName：ui_approval_card / ui_code_diff / ui_metric_chart / ui_agent_plan / ui_file_tree / ui_trajectory */
+  component?: string;
+  props?: Record<string, unknown>;
+}
+
+export type HarnessStreamEvent =
+  | {
+      type: "thought_delta";
+      messageId?: string;
+      delta: string;
+    }
+  | {
+      type: "text_delta";
+      messageId: string;
+      delta: string;
+    }
+  | {
+      type: "ui_agent_plan";
+      title: string;
+      steps: Array<{
+        id: string;
+        title: string;
+        status: "pending" | "running" | "done" | "error";
+        duration?: number;
+        startedAt?: number;
+      }>;
+    }
+  | {
+      type: "ui_code_diff";
+      file: string;
+      oldCode: string;
+      newCode: string;
+      additions?: number;
+      deletions?: number;
+    }
+  | {
+      type: "ui_terminal_log";
+      title?: string;
+      lines: Array<{
+        text: string;
+        kind?: "cmd" | "stdout" | "stderr" | "ok" | "warn";
+      }>;
+    }
+  | {
+      type: "ui_metric_chart";
+      title?: string;
+      points: Array<{
+        time: string;
+        value: number;
+      }>;
+    }
+  | {
+      type: "tool_call_start";
+      messageId: string;
+      toolCallId: string;
+      toolName: string;
+    }
+  | {
+      type: "tool_call_args_delta";
+      toolCallId: string;
+      partialArgs: Record<string, unknown>;
+    }
+  | {
+      type: "tool_call_executing";
+      toolCallId: string;
+      toolName: string;
+      args: Record<string, unknown>;
+    }
+  | {
+      type: "tool_call_result";
+      toolCallId: string;
+      toolName: string;
+      status: "done" | "error";
+      data?: unknown;
+      error?: string;
+    }
+  | {
+      type: "usage";
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+      /** 生效模型配置声明的上下文窗口（若有） */
+      contextWindow?: number;
+    }
+  | {
+      type: "suspended";
+      actionId: string;
+      toolName: string;
+      args: Record<string, unknown>;
+      timeoutMs: number;
+    }
+  | {
+      type: "resumed";
+      actionId: string;
+      payload: unknown;
+    }
+  | {
+      type: "turn_end";
+      stepCount: number;
+      durationMs: number;
+    }
+  | {
+      type: "error";
+      message: string;
+      code?: string;
+    };
+
+/** 常见事件类型守卫 */
+export function isUsageEvent(
+  event: HarnessStreamEvent
+): event is Extract<HarnessStreamEvent, { type: "usage" }> {
+  return event.type === "usage";
+}
+
+export function isToolCallEvent(
+  event: HarnessStreamEvent
+): event is Extract<
+  HarnessStreamEvent,
+  {
+    type:
+      | "tool_call_start"
+      | "tool_call_args_delta"
+      | "tool_call_executing"
+      | "tool_call_result";
+  }
+> {
+  return (
+    event.type === "tool_call_start" ||
+    event.type === "tool_call_args_delta" ||
+    event.type === "tool_call_executing" ||
+    event.type === "tool_call_result"
+  );
+}

@@ -39,7 +39,7 @@ router.afterEach((to) => {
       </VaButton>
     </header>
 
-    <main :key="String(route.path)" class="pg__main">
+    <main :key="String(route.path)" class="pg__main" :class="{ 'pg__main--fullscreen': route.name === 'console' }">
       <RouterView />
     </main>
   </div>
@@ -50,6 +50,28 @@ router.afterEach((to) => {
   max-width: 1080px;
   margin: 0 auto;
   padding: 20px 24px 72px;
+}
+
+.pg:has(.pg__main--fullscreen) {
+  max-width: 100vw;
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pg:has(.pg__main--fullscreen) .pg__bar {
+  margin: 0;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+}
+
+.pg__main--fullscreen {
+  flex: 1;
+  overflow: hidden;
+  height: calc(100vh - 49px);
 }
 
 .pg__bar {

@@ -1,0 +1,26 @@
+{
+  "name": "@vuagent/server",
+  "version": "0.2.0",
+  "description": "Standard Agent Harness Server with ReAct loop, HITL interrupt, tool sandbox, state checkpoints, progressive streaming and telemetry",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.8",
+    "@sinclair/typebox": "^0.34.48",
+    "@vuagent/protocol": "workspace:*",
+    "hono": "^4.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "tsx": "^4.19.3",
+    "typescript": "~5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
