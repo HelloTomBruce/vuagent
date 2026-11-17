@@ -7,6 +7,15 @@
 export const components = [
   /* ---------- Agent-Ops 旗舰 ---------- */
   {
+    dir: "trajectory", slug: "trajectory", title: "Trajectory", category: "Agent-Ops", components: ["VaTrajectory"],
+    desc: "轨迹视图（dsh 形态）：时长/轮次/调用指标条 + 输入/模型/工具三泳道时间线 + 扁平事件台账（角色彩签、第N轮分组、工具 args→result、搜索）。",
+    props: [
+      { name: "events", type: "TrajEvent[]", default: "-", desc: "lane/role/title/detail/result/at/endAt/turn" },
+      { name: "ledgerMaxHeight", type: "number", default: "-", desc: "台账区最大高度" },
+      { name: "@toggle", type: "-", default: "-", desc: "展开/收起某行" },
+    ],
+  },
+  {
     dir: "tool-call", slug: "tool-call", title: "Tool Call / Group", category: "Agent-Ops", components: ["VaToolCallCard", "VaToolCallGroup"],
     desc: "agent 的一次工具调用：实时秒表、失败自动展开并给出重试；Group 自动汇总多张卡。",
     props: [
@@ -94,6 +103,46 @@ export const components = [
     ],
   },
   {
+    dir: "dock", slug: "dock", title: "Dock", category: "Chat", components: ["VaDock"],
+    desc: "右侧面板停靠容器：tab 胶囊条 + ≤2 分屏（分隔条可拖 20-80%）+ 全屏 + 折叠，面板内容由宿主经作用域插槽注入。",
+    props: [
+      { name: "panes", type: "DockPaneState[]", default: "-", desc: "1-2 个 pane（tabs + activeId），受控" },
+      { name: "ratio", type: "number", default: "0.55", desc: "分屏分隔位置 0.2-0.8" },
+      { name: "fullscreenPane", type: "number | null", default: "null", desc: "全屏 pane 下标" },
+      { name: "#pane", type: "-", default: "-", desc: "作用域插槽（pane-index / tab-id），宿主渲染面板内容" },
+      { name: "@select/@close/@add/@split/@unsplit/@fullscreen/@resize/@collapse", type: "-", default: "-", desc: "停靠操作回调" },
+    ],
+  },
+  {
+    dir: "queue-dock", slug: "queue-dock", title: "Queue Dock", category: "Chat", components: ["VaQueueDock"],
+    desc: "排队消息 dock：运行中入队的消息逐条展示，支持插队（zap 置顶）、行内编辑、移除。",
+    props: [
+      { name: "items", type: "QueueItem[]", default: "-", desc: "id/text" },
+      { name: "disabled", type: "boolean", default: "false", desc: "审批接管期禁操作" },
+      { name: "@sendNow / @edit / @remove", type: "-", default: "-", desc: "插队 / 行内编辑 / 移除（按下标）" },
+    ],
+  },
+  {
+    dir: "conversation-header", slug: "conversation-header", title: "Conversation Header", category: "Chat", components: ["VaConversationHeader"],
+    desc: "会话头：标题行内重命名 + 视图 tabs（聊天/轨迹）+ 运行中/待审批状态徽标。",
+    props: [
+      { name: "title", type: "string", default: "''", desc: "会话标题（空显示未命名）" },
+      { name: "running / elapsedLabel", type: "boolean / string", default: "false / ''", desc: "运行中徽标与计时" },
+      { name: "waitingApproval", type: "boolean", default: "false", desc: "待审批红标" },
+      { name: "views / activeView", type: "HeaderView[] / string", default: "[聊天]", desc: "视图 tabs" },
+      { name: "@update:activeView / @rename", type: "-", default: "-", desc: "视图切换 / 重命名提交" },
+    ],
+  },
+  {
+    dir: "empty-hero", slug: "empty-hero", title: "Empty Hero", category: "Chat", components: ["VaEmptyHero"],
+    desc: "空会话引导：工作区卡片点击即建会话，虚线卡触发新建工作区。",
+    props: [
+      { name: "workspaces", type: "HeroWorkspace[]", default: "[]", desc: "id/name/path" },
+      { name: "creating", type: "boolean", default: "false", desc: "创建中禁用" },
+      { name: "@createSession / @createWorkspace", type: "-", default: "-", desc: "选卡建会话 / 新建工作区" },
+    ],
+  },
+  {
     dir: "composer", slug: "composer", title: "Composer", category: "Chat", components: ["VaComposer"],
     desc: "任务输入框：自动增高、Enter 发送（Shift+Enter 换行、中文输入法安全）、可插入模型选择等前缀。",
     props: [
@@ -109,6 +158,27 @@ export const components = [
     props: [
       { name: "models", type: "ModelItem[]", default: "内置主流模型", desc: "id/name/tag" },
       { name: "v-model:selected", type: "string", default: "-", desc: "选中模型 id" },
+    ],
+  },
+  {
+    dir: "session-manager", slug: "session-manager", title: "Session Manager", category: "Chat", components: ["VaSessionManager"],
+    desc: "会话管理下拉：活跃/归档分组、新建、行内重命名、归档恢复与二次确认删除。",
+    props: [
+      { name: "sessions", type: "SessionItem[]", default: "-", desc: "id/title/createdAt/updatedAt/archived" },
+      { name: "activeId", type: "string", default: "-", desc: "当前会话" },
+      { name: "@select/@create/@rename/@archive/@remove", type: "-", default: "-", desc: "生命周期回调（删除已二次确认）" },
+    ],
+  },
+  {
+    dir: "session-tree", slug: "session-tree", title: "Session List", category: "Chat", components: ["VaSessionTree"],
+    desc: "会话侧栏：工作区为平铺分组标题（无树形折叠）、会话一列排开，支持行内重命名/归档恢复/删除二次确认。",
+    props: [
+      { name: "workspaces", type: "TreeWorkspace[]", default: "-", desc: "工作区分组标题（平铺）" },
+      { name: "sessions", type: "TreeSession[]", default: "-", desc: "非归档会话（按 workspaceId 归组）" },
+      { name: "archived", type: "TreeSession[]", default: "-", desc: "归档会话（底部折叠分区）" },
+      { name: "newSession / searchable", type: "boolean", default: "false", desc: "常驻新建会话钮（目标=当前工作区）/ 会话搜索框" },
+      { name: "running / waitingApproval / pinned", type: "TreeSession 字段", default: "-", desc: "行内状态点（脉冲/红点+徽标）与置顶图钉" },
+      { name: "@selectSession/@createSession/@togglePin/@removeWorkspace/@rename/@archive/@remove", type: "-", default: "-", desc: "操作回调" },
     ],
   },
   {
@@ -365,6 +435,17 @@ export const components = [
       { name: "title / description / impact", type: "string", default: "-", desc: "建议内容与收益标签" },
       { name: "actions", type: "RecommendationAction[]", default: "-", desc: "id/label/primary" },
       { name: "@action / @dismiss", type: "-", default: "-", desc: "操作 / 忽略" },
+    ],
+  },
+  {
+    dir: "capability-card", slug: "capability-card", title: "Capability Card", category: "反馈", components: ["VaCapabilityCard"],
+    desc: "能力级别概念卡：L{n} 徽标 + 描述 + 协议事件/涉及组件双列清单，用于渐进式 agent 搭建说明。",
+    props: [
+      { name: "level", type: "number", default: "-", desc: "级别徽标（L0–L4）" },
+      { name: "name", type: "string", default: "-", desc: "级别名" },
+      { name: "events", type: "string[]", default: "-", desc: "引入的协议事件" },
+      { name: "components", type: "string[]", default: "-", desc: "涉及组件" },
+      { name: "@dismiss", type: "-", default: "-", desc: "dismissible 时可关闭" },
     ],
   },
   {

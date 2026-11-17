@@ -1,0 +1,109 @@
+/* VaDock — 右侧面板停靠容器（tab 条 + ≤2 分屏 + 全屏） */
+.va-dock {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+  background: var(--va-card, #fff);
+  font-family: var(--va-font, system-ui, sans-serif);
+}
+
+.va-dock__pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}
+
+.va-dock__tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 8px 6px;
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  flex-wrap: wrap;
+  min-height: 37px;
+  box-sizing: border-box;
+}
+
+.va-dock__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: var(--va-bg-subtle, #efede7);
+  color: var(--va-muted, #6f6d66);
+  font: inherit;
+  font-size: 11.5px;
+  border-radius: var(--va-radius-pill, 999px);
+  padding: 3px 9px;
+  cursor: pointer;
+  max-width: 100%;
+}
+.va-dock__tab[data-active="true"] {
+  background: var(--va-ink, #1a1917);
+  color: var(--va-card, #fff);
+  font-weight: 600;
+}
+.va-dock__tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.va-dock__tabx {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.55;
+  cursor: pointer;
+  border-radius: 50%;
+}
+.va-dock__tabx:hover { opacity: 1; }
+.va-dock__tab[data-active="true"] .va-dock__tabx:hover { background: rgba(255, 255, 255, 0.18); }
+
+.va-dock__spacer { flex: 1; }
+
+.va-dock__op {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: var(--va-muted, #6f6d66);
+  border-radius: var(--va-radius-s, 8px);
+  cursor: pointer;
+}
+.va-dock__op:hover:not(:disabled) { background: var(--va-bg-subtle, #efede7); color: var(--va-ink, #1a1917); }
+.va-dock__op:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; }
+.va-dock__op:disabled { opacity: 0.4; cursor: default; }
+
+.va-dock__body {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.va-dock__empty {
+  margin: auto;
+  padding: 20px;
+  font-size: 12px;
+  color: var(--va-muted, #6f6d66);
+  text-align: center;
+}
+
+/* 分屏：容器转 grid，列宽由 inline style（ratio）控制：pane1 | divider | pane2 */
+.va-dock[data-split="true"] { display: grid; align-items: stretch; }
+.va-dock[data-split="true"] .va-dock__pane { min-height: 0; }
+
+.va-dock__divider {
+  flex: none;
+  align-self: stretch;
+  background: var(--va-edge, rgba(26, 25, 23, 0.12));
+  cursor: col-resize;
+  min-height: 40px;
+}
+.va-dock__divider:hover, .va-dock__divider:active { background: var(--va-accent, #c2410c); }

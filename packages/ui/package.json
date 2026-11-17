@@ -69,5 +69,9 @@
     "registry",
     "agent-ops",
     "chat-ui"
-  ]
+  ],
+  "dependencies": {
+    "@vuagent/protocol": "workspace:*",
+    "lucide-vue-next": "^1.0.0"
+  }
 }

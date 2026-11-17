@@ -13,6 +13,7 @@
 
 ## Agent-Ops
 
+- [Trajectory](https://hellotombruce.github.io/vuagent/components/trajectory): 轨迹视图（dsh 形态）：时长/轮次/调用指标条 + 输入/模型/工具三泳道时间线 + 扁平事件台账（角色彩签、第N轮分组、工具 args→result、搜索）。（VaTrajectory）
 - [Tool Call / Group](https://hellotombruce.github.io/vuagent/components/tool-call): agent 的一次工具调用：实时秒表、失败自动展开并给出重试；Group 自动汇总多张卡。（VaToolCallCard / VaToolCallGroup）
 - [Agent Plan](https://hellotombruce.github.io/vuagent/components/agent-plan): 执行计划：编辑态可重命名/排序/增删，运行态逐项计时打勾、失败可重试。（VaAgentPlan）
 - [Approval Card](https://hellotombruce.github.io/vuagent/components/approval-card): 审批门：风险徽章 + 命令预览 + 倒计时自动拒绝（悬停暂停）+ Enter/Esc 快捷键，决策后 morph 成结果行。（VaApprovalCard）
@@ -30,8 +31,14 @@
 ## Chat
 
 - [Thinking Loader](https://hellotombruce.github.io/vuagent/components/thinking-loader): 思考态加载器：阶段轮播 + 微光标签；完成后转为对勾与用时。（VaThinkingLoader）
+- [Dock](https://hellotombruce.github.io/vuagent/components/dock): 右侧面板停靠容器：tab 胶囊条 + ≤2 分屏（分隔条可拖 20-80%）+ 全屏 + 折叠，面板内容由宿主经作用域插槽注入。（VaDock）
+- [Queue Dock](https://hellotombruce.github.io/vuagent/components/queue-dock): 排队消息 dock：运行中入队的消息逐条展示，支持插队（zap 置顶）、行内编辑、移除。（VaQueueDock）
+- [Conversation Header](https://hellotombruce.github.io/vuagent/components/conversation-header): 会话头：标题行内重命名 + 视图 tabs（聊天/轨迹）+ 运行中/待审批状态徽标。（VaConversationHeader）
+- [Empty Hero](https://hellotombruce.github.io/vuagent/components/empty-hero): 空会话引导：工作区卡片点击即建会话，虚线卡触发新建工作区。（VaEmptyHero）
 - [Composer](https://hellotombruce.github.io/vuagent/components/composer): 任务输入框：自动增高、Enter 发送（Shift+Enter 换行、中文输入法安全）、可插入模型选择等前缀。（VaComposer）
 - [Model Picker](https://hellotombruce.github.io/vuagent/components/model-picker): 模型选择菜单：触发按钮 + 键盘可导航的下拉列表。（VaModelPicker）
+- [Session Manager](https://hellotombruce.github.io/vuagent/components/session-manager): 会话管理下拉：活跃/归档分组、新建、行内重命名、归档恢复与二次确认删除。（VaSessionManager）
+- [Session List](https://hellotombruce.github.io/vuagent/components/session-tree): 会话侧栏：工作区为平铺分组标题（无树形折叠）、会话一列排开，支持行内重命名/归档恢复/删除二次确认。（VaSessionTree）
 - [Stream Answer](https://hellotombruce.github.io/vuagent/components/stream-answer): 流式回答：按节奏逐字吐出 source，带流式光标，完成后 emit complete，支持重放。（VaStreamAnswer）
 - [Message Actions / Text](https://hellotombruce.github.io/vuagent/components/message-actions): AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输入）、版本切换；MessageText 提供版本交叉淡入。（VaMessageActions / VaMessageText）
 - [Comment Thread](https://hellotombruce.github.io/vuagent/components/comment-thread): 评论线程：agent 起草待审条目（采纳/重写/丢弃操作条）、人发评论、首字母头像、⌘/Ctrl+Enter 发布。（VaCommentThread）
@@ -72,6 +79,7 @@
 ## 反馈
 
 - [Smart Recommendation](https://hellotombruce.github.io/vuagent/components/smart-recommendation): agent 建议卡：标题 + 理由 + 收益标签 + 主/次操作按钮，可关闭忽略。（VaSmartRecommendation）
+- [Capability Card](https://hellotombruce.github.io/vuagent/components/capability-card): 能力级别概念卡：L{n} 徽标 + 描述 + 协议事件/涉及组件双列清单，用于渐进式 agent 搭建说明。（VaCapabilityCard）
 - [Notification Stack](https://hellotombruce.github.io/vuagent/components/notification-stack): 通知中心列表：未读徽标与未读点、语义 icon（info/success/warning/danger/agent）、相对时间、单条/全部已读。（VaNotificationStack）
 - [Tips Panel](https://hellotombruce.github.io/vuagent/components/tips-panel): 使用技巧面板：高亮小卡承载 1-N 条 tip，单条可关闭。（VaTipsPanel）
 - [Reaction Bar](https://hellotombruce.github.io/vuagent/components/reaction-bar): emoji 快速反馈条：aria-pressed 切换态、计数徽章、按下微缩动效（reduced-motion 降级）。（VaReactionBar）

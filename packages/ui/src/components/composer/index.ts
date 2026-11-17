@@ -1,2 +1,2 @@
 export { default as VaComposer } from "./VaComposer.vue";
-export type { ComposerEvents, ComposerProps } from "./types";
+export type { ComposerAttachment, ComposerEvents, ComposerModelOption, ComposerPermissionOption, ComposerProps } from "./types";

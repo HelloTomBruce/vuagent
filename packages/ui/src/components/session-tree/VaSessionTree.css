@@ -1,0 +1,286 @@
+/* VaSessionTree — 工作区为分组标题、会话平铺一列（无树形缩进、无折叠） */
+.va-stree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--va-font, system-ui, sans-serif);
+  font-size: 13px;
+}
+
+.va-stree__new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px dashed var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-s, 8px);
+  background: transparent;
+  color: var(--va-ink-2, #43413c);
+  font: inherit;
+  font-size: 13px;
+  padding: 9px 10px;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+.va-stree__new:hover:not(:disabled) { border-color: var(--va-accent, #c2410c); color: var(--va-accent, #c2410c); }
+.va-stree__new:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; }
+.va-stree__new:disabled { opacity: 0.5; cursor: default; }
+
+.va-stree__ws-create {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+/* 常驻新建会话（主按钮，G7） */
+.va-stree__new-session {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: var(--va-radius-s, 8px);
+  background: var(--va-accent, #c2410c);
+  color: var(--va-card, #fff);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 10px;
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+.va-stree__new-session:hover:not(:disabled) { background: var(--va-accent-hover, #9a3412); }
+.va-stree__new-session:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: 2px; }
+.va-stree__new-session:disabled { opacity: 0.45; cursor: default; }
+
+/* 会话搜索框（G9） */
+.va-stree__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--va-card, #fff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-s, 8px);
+  padding: 5px 8px;
+  margin-bottom: 4px;
+  color: var(--va-muted, #6f6d66);
+}
+.va-stree__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--va-ink, #1a1917);
+  outline: none;
+}
+
+/* 会话行状态点（G8）与置顶标记（G10） */
+.va-stree__dot { flex: none; width: 7px; height: 7px; border-radius: 50%; }
+.va-stree__dot--run { background: var(--va-warning, #b45309); animation: va-stree-pulse 1.2s infinite; }
+.va-stree__dot--warn { background: var(--va-danger, #d5484d); }
+@keyframes va-stree-pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .va-stree__dot--run { animation: none; } }
+
+.va-stree__pin { flex: none; color: var(--va-accent, #c2410c); }
+
+.va-stree__warn-tag {
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--va-danger, #d5484d);
+  border: 1px solid var(--va-danger, #d5484d);
+  border-radius: var(--va-radius-pill, 999px);
+  padding: 0 5px;
+  line-height: 15px;
+}
+
+.va-stree__search-empty { padding: 10px 8px; text-align: center; }
+
+/* 工作区分组：白卡容器（侧栏灰底上的白色卡片），层级 = 卡片 ⊃ 标题行 ⊃ 会话行 */
+.va-stree__group {
+  margin-top: 8px;
+  background: var(--va-card, #fff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: 10px;
+  padding: 3px 3px 4px;
+  box-shadow: var(--va-shadow-1, 0 1px 2px rgba(26, 25, 23, 0.05));
+}
+.va-stree__group[data-current="true"] {
+  border-color: color-mix(in srgb, var(--va-accent, #c2410c) 38%, transparent);
+}
+
+.va-stree__head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 2px 0;
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  margin-bottom: 3px;
+}
+
+.va-stree__ws {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  text-align: left;
+}
+.va-stree__ws-icon { flex: none; display: inline-flex; color: var(--va-muted, #6f6d66); }
+.va-stree__group[data-current="true"] .va-stree__ws-icon { color: var(--va-accent, #c2410c); }
+
+.va-stree__ws-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--va-ink, #1a1917);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.va-stree__group[data-current="true"] .va-stree__ws-name { color: var(--va-accent, #c2410c); }
+
+.va-stree__count {
+  flex: none;
+  min-width: 18px;
+  height: 18px;
+  border-radius: var(--va-radius-pill, 999px);
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  background: var(--va-bg-subtle, #efede7);
+  color: var(--va-muted, #6f6d66);
+}
+.va-stree__group[data-current="true"] .va-stree__count {
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  color: var(--va-accent, #c2410c);
+}
+
+.va-stree__tag {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--va-radius-pill, 999px);
+  padding: 0 7px;
+  line-height: 18px;
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  color: var(--va-accent, #c2410c);
+}
+
+/* 会话平铺列表（与标题同层级，无缩进线） */
+.va-stree__list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.va-stree__session {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  border-radius: var(--va-radius-s, 8px);
+}
+.va-stree__session:hover { background: var(--va-bg-subtle, #efede7); }
+.va-stree__session[data-active="true"] { background: var(--va-accent-soft, rgba(194, 65, 12, 0.08)); }
+.va-stree__session[data-archived="true"] { opacity: 0.6; }
+
+.va-stree__session-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  padding: 7px 8px;
+  cursor: pointer;
+  border-radius: var(--va-radius-s, 8px);
+}
+.va-stree__session-main--static { cursor: default; }
+.va-stree__session-main:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; }
+
+.va-stree__session-title {
+  font-size: 13px;
+  color: var(--va-ink-2, #43413c);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.va-stree__session[data-active="true"] .va-stree__session-title {
+  font-weight: 600;
+  color: var(--va-accent, #c2410c);
+}
+
+.va-stree__time { flex: none; font-size: 11px; color: var(--va-muted, #6f6d66); }
+
+.va-stree__op {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  padding: 4px 6px;
+  border-radius: var(--va-radius-s, 8px);
+  cursor: pointer;
+  color: var(--va-muted, #6f6d66);
+  opacity: 0;
+  transition: opacity var(--va-dur-1, 120ms) ease;
+}
+.va-stree__head:hover .va-stree__op,
+.va-stree__session:hover .va-stree__op { opacity: 1; }
+.va-stree__op:hover:not(:disabled) { background: var(--va-bg-subtle, #efede7); color: var(--va-ink, #1a1917); opacity: 1; }
+.va-stree__op:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; opacity: 1; }
+.va-stree__op:disabled { cursor: default; }
+.va-stree__op[data-danger="true"] { color: var(--va-danger, #d5484d); font-weight: 700; opacity: 1; }
+.va-stree__confirm { white-space: nowrap; }
+
+.va-stree__input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--va-accent, #c2410c);
+  border-radius: var(--va-radius-s, 8px);
+  background: var(--va-card, #fff);
+  color: var(--va-ink, #1a1917);
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+  margin: 2px 0;
+}
+.va-stree__input:focus-visible { outline: none; }
+
+.va-stree__empty { margin: 0; padding: 4px 8px; font-size: 12px; color: var(--va-muted, #6f6d66); line-height: 1.5; }
+
+/* 已归档分区 */
+.va-stree__archived { margin-top: 12px; border-top: 1px dashed var(--va-edge, rgba(26, 25, 23, 0.12)); padding-top: 6px; }
+.va-stree__archived-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--va-muted, #6f6d66);
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: var(--va-radius-s, 8px);
+  text-align: left;
+}
+.va-stree__archived-toggle:hover { background: var(--va-bg-subtle, #efede7); }
+.va-stree__archived-toggle svg { width: 13px; height: 13px; }
+
+/* 触屏/键盘可达：无 hover 时操作常显 */
+@media (hover: none) {
+  .va-stree__op { opacity: 1; }
+}

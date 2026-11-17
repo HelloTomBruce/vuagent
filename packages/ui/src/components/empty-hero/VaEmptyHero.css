@@ -1,0 +1,85 @@
+/* VaEmptyHero — 空会话中央引导 */
+.va-hero {
+  max-width: 560px;
+  margin: auto;
+  padding: 24px;
+  text-align: center;
+  font-family: var(--va-font, system-ui, sans-serif);
+}
+
+.va-hero__mark {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--va-accent, #c2410c);
+  margin: 0 auto 14px;
+}
+
+.va-hero__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--va-ink, #1a1917);
+}
+
+.va-hero__desc {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--va-muted, #6f6d66);
+}
+
+.va-hero__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.va-hero__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  background: var(--va-card, #fff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-m, 10px);
+  padding: 16px 10px;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: var(--va-shadow-1, 0 1px 2px rgba(26, 25, 23, 0.06));
+  min-width: 0;
+}
+.va-hero__card:hover:not(:disabled) { border-color: var(--va-accent, #c2410c); }
+.va-hero__card:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; }
+.va-hero__card:disabled { opacity: 0.5; cursor: default; }
+.va-hero__card > svg { color: var(--va-accent, #c2410c); }
+
+.va-hero__card-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--va-ink, #1a1917);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.va-hero__card-path {
+  font-size: 11px;
+  color: var(--va-muted, #6f6d66);
+  font-family: var(--va-font-mono, ui-monospace, monospace);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.va-hero__card--new {
+  border-style: dashed;
+  background: none;
+  box-shadow: none;
+}
+.va-hero__card--new > svg { color: var(--va-muted, #6f6d66); }
+.va-hero__card--new .va-hero__card-name { color: var(--va-ink-2, #43413c); }

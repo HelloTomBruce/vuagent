@@ -13,6 +13,18 @@
 
 ## Agent-Ops
 
+### Trajectory
+
+轨迹视图（dsh 形态）：时长/轮次/调用指标条 + 输入/模型/工具三泳道时间线 + 扁平事件台账（角色彩签、第N轮分组、工具 args→result、搜索）。
+
+组件：VaTrajectory
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `events` | `TrajEvent[]` | - | lane/role/title/detail/result/at/endAt/turn |
+| `ledgerMaxHeight` | `number` | - | 台账区最大高度 |
+| `@toggle` | `-` | - | 展开/收起某行 |
+
 ### Tool Call / Group
 
 agent 的一次工具调用：实时秒表、失败自动展开并给出重试；Group 自动汇总多张卡。
@@ -195,6 +207,58 @@ agent 一轮工作摘要卡：N 文件 +adds −dels、耗时与工具调用次�
 | `interval` | `number` | 1600 | 每阶段毫秒数 |
 | `done / doneLabel` | `boolean / string` | - | 完成态 |
 
+### Dock
+
+右侧面板停靠容器：tab 胶囊条 + ≤2 分屏（分隔条可拖 20-80%）+ 全屏 + 折叠，面板内容由宿主经作用域插槽注入。
+
+组件：VaDock
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `panes` | `DockPaneState[]` | - | 1-2 个 pane（tabs + activeId），受控 |
+| `ratio` | `number` | 0.55 | 分屏分隔位置 0.2-0.8 |
+| `fullscreenPane` | `number | null` | null | 全屏 pane 下标 |
+| `#pane` | `-` | - | 作用域插槽（pane-index / tab-id），宿主渲染面板内容 |
+| `@select/@close/@add/@split/@unsplit/@fullscreen/@resize/@collapse` | `-` | - | 停靠操作回调 |
+
+### Queue Dock
+
+排队消息 dock：运行中入队的消息逐条展示，支持插队（zap 置顶）、行内编辑、移除。
+
+组件：VaQueueDock
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `items` | `QueueItem[]` | - | id/text |
+| `disabled` | `boolean` | false | 审批接管期禁操作 |
+| `@sendNow / @edit / @remove` | `-` | - | 插队 / 行内编辑 / 移除（按下标） |
+
+### Conversation Header
+
+会话头：标题行内重命名 + 视图 tabs（聊天/轨迹）+ 运行中/待审批状态徽标。
+
+组件：VaConversationHeader
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `title` | `string` | '' | 会话标题（空显示未命名） |
+| `running / elapsedLabel` | `boolean / string` | false / '' | 运行中徽标与计时 |
+| `waitingApproval` | `boolean` | false | 待审批红标 |
+| `views / activeView` | `HeaderView[] / string` | [聊天] | 视图 tabs |
+| `@update:activeView / @rename` | `-` | - | 视图切换 / 重命名提交 |
+
+### Empty Hero
+
+空会话引导：工作区卡片点击即建会话，虚线卡触发新建工作区。
+
+组件：VaEmptyHero
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `workspaces` | `HeroWorkspace[]` | [] | id/name/path |
+| `creating` | `boolean` | false | 创建中禁用 |
+| `@createSession / @createWorkspace` | `-` | - | 选卡建会话 / 新建工作区 |
+
 ### Composer
 
 任务输入框：自动增高、Enter 发送（Shift+Enter 换行、中文输入法安全）、可插入模型选择等前缀。
@@ -218,6 +282,33 @@ agent 一轮工作摘要卡：N 文件 +adds −dels、耗时与工具调用次�
 |---|---|---|---|
 | `models` | `ModelItem[]` | 内置主流模型 | id/name/tag |
 | `v-model:selected` | `string` | - | 选中模型 id |
+
+### Session Manager
+
+会话管理下拉：活跃/归档分组、新建、行内重命名、归档恢复与二次确认删除。
+
+组件：VaSessionManager
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `sessions` | `SessionItem[]` | - | id/title/createdAt/updatedAt/archived |
+| `activeId` | `string` | - | 当前会话 |
+| `@select/@create/@rename/@archive/@remove` | `-` | - | 生命周期回调（删除已二次确认） |
+
+### Session List
+
+会话侧栏：工作区为平铺分组标题（无树形折叠）、会话一列排开，支持行内重命名/归档恢复/删除二次确认。
+
+组件：VaSessionTree
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `workspaces` | `TreeWorkspace[]` | - | 工作区分组标题（平铺） |
+| `sessions` | `TreeSession[]` | - | 非归档会话（按 workspaceId 归组） |
+| `archived` | `TreeSession[]` | - | 归档会话（底部折叠分区） |
+| `newSession / searchable` | `boolean` | false | 常驻新建会话钮（目标=当前工作区）/ 会话搜索框 |
+| `running / waitingApproval / pinned` | `TreeSession 字段` | - | 行内状态点（脉冲/红点+徽标）与置顶图钉 |
+| `@selectSession/@createSession/@togglePin/@removeWorkspace/@rename/@archive/@remove` | `-` | - | 操作回调 |
 
 ### Stream Answer
 
@@ -575,6 +666,20 @@ agent 建议卡：标题 + 理由 + 收益标签 + 主/次操作按钮，可关�
 | `title / description / impact` | `string` | - | 建议内容与收益标签 |
 | `actions` | `RecommendationAction[]` | - | id/label/primary |
 | `@action / @dismiss` | `-` | - | 操作 / 忽略 |
+
+### Capability Card
+
+能力级别概念卡：L{n} 徽标 + 描述 + 协议事件/涉及组件双列清单，用于渐进式 agent 搭建说明。
+
+组件：VaCapabilityCard
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `level` | `number` | - | 级别徽标（L0–L4） |
+| `name` | `string` | - | 级别名 |
+| `events` | `string[]` | - | 引入的协议事件 |
+| `components` | `string[]` | - | 涉及组件 |
+| `@dismiss` | `-` | - | dismissible 时可关闭 |
 
 ### Notification Stack
 

@@ -1,0 +1,69 @@
+/* VaCapabilityCard — 能力级别概念卡（说明当前级别引入的事件与组件） */
+.va-cap {
+  background: var(--va-card, #fff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-m, 10px);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: var(--va-font, system-ui, sans-serif);
+}
+
+.va-cap__head { display: flex; align-items: center; gap: var(--va-s3, 8px); }
+
+.va-cap__badge {
+  flex: none;
+  min-width: 26px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--va-radius-pill, 999px);
+  background: var(--va-accent, #c2410c);
+  color: var(--va-card, #fff);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+.va-cap__title { font-size: 13px; color: var(--va-ink, #1a1917); }
+
+.va-cap__close {
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--va-radius-s, 8px);
+  background: none;
+  color: var(--va-muted, #6f6d66);
+  font-size: 14px;
+  cursor: pointer;
+}
+.va-cap__close:hover { background: var(--va-bg-subtle, #efede7); color: var(--va-ink, #1a1917); }
+.va-cap__close:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; }
+
+.va-cap__desc { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--va-ink-2, #43413c); }
+
+.va-cap__grid { display: flex; gap: 18px; flex-wrap: wrap; }
+.va-cap__col { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.va-cap__label { font-size: 11px; color: var(--va-muted, #6f6d66); }
+
+.va-cap__tag {
+  font-family: var(--va-font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--va-accent, #c2410c);
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  border-radius: var(--va-radius-s, 8px);
+  padding: 1px 6px;
+}
+
+.va-cap__comp { font-size: 11.5px; color: var(--va-ink-2, #43413c); }
+.va-cap__comp + .va-cap__comp::before { content: "·"; margin-right: 6px; color: var(--va-muted, #6f6d66); }
+
+.va-cap__hint {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px dashed var(--va-edge, rgba(26, 25, 23, 0.12));
+  font-size: 12px;
+  color: var(--va-muted, #6f6d66);
+}

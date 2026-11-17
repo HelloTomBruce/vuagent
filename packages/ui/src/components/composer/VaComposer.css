@@ -10,8 +10,9 @@
   border-radius: var(--va-radius-m, 10px);
   padding: var(--va-s2, 4px) var(--va-s2, 4px) var(--va-s2, 4px) var(--va-s4, 12px);
   display: flex;
-  align-items: flex-end;
-  gap: var(--va-s3, 8px);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
   font-family: var(--va-font, system-ui, sans-serif);
   transition: border-color var(--va-dur-2, 200ms) ease, box-shadow var(--va-dur-2, 200ms) ease;
 }
@@ -19,7 +20,6 @@
   border-color: color-mix(in srgb, var(--_accent) 45%, var(--_edge));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--_accent) 12%, transparent);
 }
-.va-cmp--busy { opacity: 0.75; }
 
 .va-cmp__prefix { display: inline-flex; align-items: center; padding-bottom: var(--va-s2, 4px); flex: none; }
 
@@ -36,13 +36,13 @@
   color: var(--_ink);
   padding: var(--va-s3, 8px) 0;
   height: auto;
-  max-height: 160px;
+  /* 初始约 3 行；增长封顶由 autosize JS 按 maxHeight prop 控制 */
+  min-height: 84px;
 }
 .va-cmp__area::placeholder { color: var(--_muted); }
 .va-cmp__area:disabled { cursor: not-allowed; }
 
-.va-cmp__foot { display: flex; align-items: flex-end; gap: var(--va-s2, 4px); padding-bottom: var(--va-s2, 4px); flex: none; }
-.va-cmp__actions { display: inline-flex; gap: 4px; }
+.va-cmp__foot { display: flex; align-items: center; gap: var(--va-s2, 4px); padding: 0 var(--va-s2, 4px) var(--va-s2, 4px); flex: none; }
 
 .va-cmp__send {
   display: inline-flex;
@@ -62,3 +62,110 @@
 .va-cmp__send:disabled { opacity: 0.35; cursor: default; }
 .va-cmp__send:focus-visible { outline: 2px solid var(--_accent); outline-offset: 2px; }
 .va-cmp__send svg { width: 15px; height: 15px; }
+
+/* ---- M2 扩展：模型/权限 seat、菜单、附件 rail ---- */
+.va-cmp__actions { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; position: relative; }
+
+.va-cmp__seat-wrap { position: relative; display: inline-flex; }
+.va-cmp__seat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  background: none;
+  color: var(--va-ink-2, #43413c);
+  font: inherit;
+  font-size: 11px;
+  border-radius: var(--va-radius-pill, 999px);
+  padding: 2px 8px;
+  cursor: pointer;
+  max-width: 220px;
+}
+.va-cmp__seat:hover:not(:disabled), .va-cmp__seat[aria-expanded="true"] { border-color: var(--va-accent, #c2410c); color: var(--va-accent, #c2410c); }
+.va-cmp__seat:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: 1px; }
+.va-cmp__seat:disabled { opacity: 0.45; cursor: default; }
+.va-cmp__seat--icon { padding: 2px 6px; }
+.va-cmp__seat-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.va-cmp__menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  min-width: 200px;
+  background: var(--va-card, #fff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-m, 10px);
+  box-shadow: var(--va-shadow-3, 0 12px 32px rgba(26, 25, 23, 0.12));
+  padding: 5px;
+}
+.va-cmp__menu-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--va-ink-2, #43413c);
+  padding: 7px 9px;
+  border-radius: var(--va-radius-s, 8px);
+  cursor: pointer;
+  text-align: left;
+}
+.va-cmp__menu-row:hover { background: var(--va-bg-subtle, #efede7); }
+.va-cmp__menu-row[data-active="true"] { background: var(--va-accent-soft, rgba(194, 65, 12, 0.08)); color: var(--va-accent, #c2410c); font-weight: 600; }
+.va-cmp__menu-row > svg { flex: none; color: var(--va-accent, #c2410c); }
+.va-cmp__menu-gap { flex: none; width: 13px; }
+.va-cmp__menu-name { font-weight: 600; }
+.va-cmp__menu-meta { margin-left: auto; font-size: 10.5px; color: var(--va-muted, #6f6d66); font-family: var(--va-font-mono, ui-monospace, monospace); }
+.va-cmp__menu-col { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.va-cmp__menu-desc { font-size: 11px; font-weight: 400; color: var(--va-muted, #6f6d66); line-height: 1.45; }
+
+.va-cmp__spin { animation: va-cmp-rot 0.9s linear infinite; }
+@keyframes va-cmp-rot { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .va-cmp__spin { animation: none; } }
+
+.va-cmp__atts { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 8px 0; }
+.va-cmp__att {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--va-bg-subtle, #efede7);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-s, 8px);
+  padding: 4px 8px;
+  font-size: 11.5px;
+  color: var(--va-ink-2, #43413c);
+  max-width: 240px;
+}
+.va-cmp__att > svg { flex: none; color: var(--va-muted, #6f6d66); }
+.va-cmp__att-thumb { width: 22px; height: 22px; border-radius: 5px; object-fit: cover; flex: none; }
+.va-cmp__att-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.va-cmp__att-size { flex: none; font-size: 10px; color: var(--va-muted, #6f6d66); }
+.va-cmp__att-x {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--va-muted, #6f6d66);
+  cursor: pointer;
+}
+.va-cmp__att-x:hover { color: var(--va-danger, #d5484d); background: var(--va-card, #fff); }
+
+.va-cmp--drag { outline: 2px dashed var(--va-accent, #c2410c); outline-offset: -3px; }
+.va-cmp__file { display: none; }
+
+/* 运行中：发送位切换为停止钮 */
+.va-cmp__send--stop {
+  background: var(--va-danger, #d5484d);
+  color: var(--va-card, #fff);
+}
+.va-cmp__send--stop:hover { filter: brightness(1.06); }
+.va-cmp__send--stop svg { width: 13px; height: 13px; }

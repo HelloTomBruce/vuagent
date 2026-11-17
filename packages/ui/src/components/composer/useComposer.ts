@@ -27,7 +27,8 @@ export function useComposer(
 
   function submit() {
     const t = text.value.trim();
-    if (props.disabled || props.busy) return;
+    if (props.disabled) return;
+    // busy 时不拦截：宿主在 send 回调里自行决定排队语义（运行中入队）
     if (!props.allowEmpty && !t) return;
     emit.send(t);
     text.value = "";

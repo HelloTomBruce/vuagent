@@ -1,0 +1,100 @@
+/**
+ * @vuagent/ui - VaAgentRenderer 样式
+ * 遵循 Calm 暖静设计系统
+ */
+
+.va-agent-renderer {
+  position: relative;
+  margin: 12px 0;
+  border-radius: 10px;
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  box-shadow: 0 1px 3px rgba(26, 25, 23, 0.04);
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.va-agent-renderer[data-status="streaming"] {
+  border-style: dashed;
+  border-color: var(--va-edge-strong, rgba(26, 25, 23, 0.22));
+}
+
+.va-agent-renderer[data-status="executing"] {
+  border-color: var(--va-accent, #c2410c);
+  box-shadow: 0 0 0 1px var(--va-accent, #c2410c), 0 2px 8px rgba(194, 65, 12, 0.08);
+}
+
+.va-agent-renderer[data-status="done"] {
+  border-color: var(--va-edge, rgba(26, 25, 23, 0.12));
+}
+
+.va-agent-renderer[data-status="error"] {
+  border-color: #dc2626;
+  background: #fef2f2;
+}
+
+/* 状态标签徽章 */
+.va-agent-renderer-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.85;
+}
+
+.va-agent-renderer-badge.streaming {
+  background: var(--va-bg-subtle, #efede7);
+  color: var(--va-muted, #6f6d66);
+}
+
+.va-agent-renderer-badge.executing {
+  background: #fff7ed;
+  color: var(--va-accent, #c2410c);
+  border: 1px solid rgba(194, 65, 12, 0.2);
+}
+
+.va-agent-renderer-badge.done {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.va-agent-renderer-badge.error {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+/* 兜底未知组件渲染视图 */
+.va-agent-fallback {
+  padding: 14px 16px;
+  background: var(--va-bg-subtle, #efede7);
+}
+
+.va-agent-fallback-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--va-ink, #1a1917);
+}
+
+.va-agent-fallback-code {
+  margin: 0;
+  padding: 10px;
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.1));
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--va-ink-2, #43413c);
+  max-height: 240px;
+  overflow: auto;
+}

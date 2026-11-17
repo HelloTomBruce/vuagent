@@ -49,5 +49,5 @@ export function useCodeDiff(props: CodeDiffProps) {
     () => rows.value.length === 0 || stats.value.additions + stats.value.deletions === 0,
   );
 
-  return { render, stats, hasCollapsed, expandAll, toggleExpand, empty };
+  return { render, stats, hasCollapsed, expandAll, toggleExpand, empty, rows, inline };
 }

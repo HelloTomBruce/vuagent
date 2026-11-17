@@ -33,10 +33,16 @@ export interface FileTreeProps {
   title?: string;
   /** 内容区最大高度 px，超出滚动 */
   maxHeight?: number;
+  /** 懒加载模式（G16）：展开无 children 的目录时发 @load，由宿主按层异步填充 */
+  lazy?: boolean;
 }
 
 export interface FileTreeEvents {
   "update:selected": [path: string | undefined];
   select: [node: FileNode];
   toggle: [node: FileNode, expanded: boolean];
+  /** lazy 模式：目录首次展开且未加载（children === undefined）时触发，宿主异步填 children */
+  load: [node: FileNode];
+  /** 文件行被激活（点击/Enter；静态模式同样触发，宿主决定是否打开预览） */
+  open: [node: FileNode];
 }

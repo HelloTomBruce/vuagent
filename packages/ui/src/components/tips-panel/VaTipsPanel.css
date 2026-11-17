@@ -14,7 +14,7 @@
   margin-bottom: var(--va-s3);
 }
 
-.va-tips__icon { font-size: 14px; line-height: 1; }
+.va-tips__icon { display: inline-flex; align-items: center; color: var(--va-accent, #c2410c); }
 
 .va-tips__title {
   font-size: 12.5px;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Lightbulb } from "lucide-vue-next";
 import type { TipsPanelEvents, TipsPanelProps } from "./types";
 
 const props = defineProps<TipsPanelProps>();
@@ -9,7 +10,7 @@ const emit = defineEmits<TipsPanelEvents>();
 <template>
   <aside v-if="tips.length" class="va-tips" aria-label="使用技巧">
     <header class="va-tips__head">
-      <span class="va-tips__icon" aria-hidden="true">💡</span>
+      <span class="va-tips__icon" aria-hidden="true"><Lightbulb :size="14" /></span>
       <span class="va-tips__title">{{ props.title ?? "使用技巧" }}</span>
     </header>
     <ul class="va-tips__list">

@@ -40,6 +40,22 @@ describe("M7 Screens SSR 渲染", () => {
     expect(html).toContain("主内容");
   });
 
+  it("VaAppShell：bounded 模式输出 data-bounded，默认为 false", async () => {
+    const boundedHtml = await renderToString(
+      createSSRApp({
+        render: () => h(VaAppShell, { brand: "Vuagent", nav: [{ id: "chat", label: "对话" }], bounded: true }),
+      }),
+    );
+    expect(boundedHtml).toContain('data-bounded="true"');
+
+    const defaultHtml = await renderToString(
+      createSSRApp({
+        render: () => h(VaAppShell, { brand: "Vuagent", nav: [{ id: "chat", label: "对话" }] }),
+      }),
+    );
+    expect(defaultHtml).toContain('data-bounded="false"');
+  });
+
   it("VaAgentChat：双角色气泡 + 工具 chips + 思考态 + 空态", async () => {
     const html = await renderToString(
       createSSRApp({

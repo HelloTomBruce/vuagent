@@ -41,6 +41,9 @@ export type {
   DenyReason,
 } from "./components/approval-card";
 
+export { VaMetricChart } from "./components/metric-chart";
+export type { MetricChartProps, MetricSeriesItem } from "./components/metric-chart";
+
 export { VaAgentPlan } from "./components/agent-plan";
 export type { AgentPlanEvents, AgentPlanProps, PlanStep, PlanStepStatus } from "./components/agent-plan";
 
@@ -71,11 +74,27 @@ export type { MemoryItem, MemoryPanelEvents, MemoryPanelProps } from "./componen
 export { VaThinkingLoader } from "./components/thinking-loader";
 export type { ThinkingLoaderProps } from "./components/thinking-loader";
 
+export { VaQueueDock } from "./components/queue-dock";
+export type { QueueDockEvents, QueueDockProps, QueueItem } from "./components/queue-dock";
 export { VaComposer } from "./components/composer";
-export type { ComposerEvents, ComposerProps } from "./components/composer";
+export type { ComposerAttachment, ComposerEvents, ComposerModelOption, ComposerPermissionOption, ComposerProps } from "./components/composer";
 
 export { VaModelPicker, DEFAULT_MODELS } from "./components/model-picker";
 export type { ModelItem, ModelPickerEvents, ModelPickerProps } from "./components/model-picker";
+export { VaDock } from "./components/dock";
+export type { DockEvents, DockPaneState, DockProps, DockTab } from "./components/dock";
+export { VaTrajectory } from "./components/trajectory";
+export type { TrajEvent, TrajLane, TrajRole, TrajStats, TrajectoryEvents, TrajectoryProps } from "./components/trajectory";
+export { VaConversationHeader } from "./components/conversation-header";
+export type { ConversationHeaderEvents, ConversationHeaderProps, HeaderView } from "./components/conversation-header";
+export { VaEmptyHero } from "./components/empty-hero";
+export type { EmptyHeroEvents, EmptyHeroProps, HeroWorkspace } from "./components/empty-hero";
+export { VaCapabilityCard } from "./components/capability-card";
+export type { CapabilityCardEvents, CapabilityCardProps } from "./components/capability-card";
+export { VaSessionManager } from "./components/session-manager";
+export type { SessionItem, SessionManagerEvents, SessionManagerProps } from "./components/session-manager";
+export { VaSessionTree } from "./components/session-tree";
+export type { SessionTreeEvents, SessionTreeProps, TreeSession, TreeWorkspace } from "./components/session-tree";
 
 export { VaStreamAnswer } from "./components/stream-answer";
 export type { StreamAnswerProps } from "./components/stream-answer";
@@ -295,3 +314,7 @@ export type { DiffPiece, DiffToken, DiffTokenType } from "./utils/wordDiff";
 export { useNow } from "./composables/useNow";
 export { useCountdown } from "./composables/useCountdown";
 export { useCopyable } from "./composables/useCopyable";
+
+// Agentic Runtime 运行时核心
+export * from "./runtime/index";
+

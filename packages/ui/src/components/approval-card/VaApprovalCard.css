@@ -45,9 +45,64 @@
   transition: width 0.1s linear;
 }
 
-.va-acd__main { padding: var(--va-s4, 12px); }
+.va-acd__main { padding: var(--va-s3, 8px) var(--va-s4, 12px) var(--va-s4, 12px); }
 
-.va-acd__head { display: flex; align-items: center; gap: var(--va-s3, 8px); }
+.va-acd__head {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s3, 8px);
+  padding: var(--va-s3, 8px) var(--va-s4, 12px);
+  transition: background-color var(--va-dur-2, 200ms) ease;
+}
+
+.va-acd:not(.va-acd--collapsed) .va-acd__head {
+  border-bottom: 1px solid color-mix(in srgb, var(--_edge) 60%, transparent);
+}
+
+.va-acd__head--clickable {
+  cursor: pointer;
+  user-select: none;
+}
+.va-acd__head--clickable:hover {
+  background: color-mix(in srgb, var(--va-bg-subtle, #efede7) 50%, transparent);
+}
+
+.va-acd__status-badge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--va-radius-pill, 999px);
+}
+.va-acd__status-badge svg { width: 12px; height: 12px; }
+.va-acd__status-badge--approved {
+  color: var(--va-success, #1a7f4b);
+  background: color-mix(in srgb, var(--va-success, #1a7f4b) 12%, transparent);
+}
+.va-acd__status-badge--denied {
+  color: var(--_danger);
+  background: color-mix(in srgb, var(--_danger) 12%, transparent);
+}
+
+.va-acd__collapse-btn {
+  background: none;
+  border: none;
+  padding: 3px;
+  border-radius: 4px;
+  color: var(--_muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.va-acd__collapse-btn:hover {
+  background: var(--va-bg-subtle, #efede7);
+  color: var(--_ink);
+}
+.va-acd__collapse-btn svg { width: 14px; height: 14px; }
 .va-acd__risk {
   flex: none;
   font-size: 11px;

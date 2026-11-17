@@ -5,7 +5,9 @@ import { FILE_STATUS_LABEL } from "./types";
 import { countStatus } from "./tree";
 import { useFileTree } from "./useFileTree";
 
-const props = defineProps<FileTreeProps>();
+const props = withDefaults(defineProps<FileTreeProps>(), {
+  lazy: false,
+});
 
 const emit = defineEmits<FileTreeEvents>();
 
@@ -20,14 +22,23 @@ const { toggleDir, currentSelected, select, rows, moveFocus, isActive } = useFil
 
 const rootEl = ref<HTMLElement | null>(null);
 
+/** lazy：目录未加载（children === undefined）且将展开 → 请求宿主按层加载 */
+function requestLoad(row: { node: FileNode; isDir: boolean; expanded: boolean }) {
+  if (props.lazy && row.isDir && !row.expanded && row.node.children === undefined) {
+    emit("load", row.node);
+  }
+}
+
 function activate(row: { node: FileNode; isDir: boolean; expanded: boolean }) {
   if (row.isDir) {
+    requestLoad(row);
     const value = toggleDir(row.node.path);
     emit("toggle", row.node, value);
     return;
   }
   emit("update:selected", select(row.node.path));
   emit("select", row.node);
+  emit("open", row.node);
 }
 
 /** 把焦点移回"当前项"（键盘操作后） */
@@ -51,6 +62,7 @@ function onKeydown(e: KeyboardEvent, row: { node: FileNode; isDir: boolean; expa
     case "ArrowRight":
       if (row.isDir && !row.expanded) {
         e.preventDefault();
+        requestLoad(row);
         emit("toggle", row.node, toggleDir(row.node.path, true));
       }
       break;

@@ -18,6 +18,14 @@ export interface ApprovalCardProps {
   countdown?: number;
   /** 显示快捷键提示（Enter 批准 · Esc 拒绝） */
   shortcuts?: boolean;
+  /** 外部传入状态持久化支持："approved" | "denied" | "pending" */
+  status?: ApprovalResult | "pending";
+  /** 外部传入决策原因，例如超时或用户驳回说明 */
+  reason?: string;
+  /** 是否支持折叠展开，默认 true */
+  collapsible?: boolean;
+  /** 默认是否折叠，不传时若已决策默认折叠，未决策默认展开 */
+  defaultCollapsed?: boolean;
 }
 
 export interface ApprovalCardEvents {

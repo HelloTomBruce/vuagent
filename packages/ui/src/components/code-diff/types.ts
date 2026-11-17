@@ -15,6 +15,8 @@ export interface CodeDiffProps {
   defaultExpandAll?: boolean;
   /** 内容区最大高度 px，超出滚动 */
   maxHeight?: number;
+  /** 布局：unified 统一行（默认，支持上下文折叠）；side 并排双列（展开全部，无折叠） */
+  layout?: "unified" | "side";
 }
 
 export interface CodeDiffStats {
