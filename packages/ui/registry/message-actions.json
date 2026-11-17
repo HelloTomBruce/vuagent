@@ -21,6 +21,12 @@
       "content": "<script setup lang=\"ts\">\nimport type { MessageTextProps } from \"./types\";\n\ndefineProps<MessageTextProps>();\n</script>\n\n<template>\n  <div class=\"va-msg-text\">\n    <Transition name=\"va-msg-text\" mode=\"out-in\">\n      <div :key=\"version\" class=\"va-msg-text__inner\" dir=\"auto\">\n        <slot />\n      </div>\n    </Transition>\n  </div>\n</template>\n\n<style>\n/* VaMessageText — 版本交叉淡入的消息正文 */\n.va-msg-text { min-width: 0; }\n\n.va-msg-text__inner { font-size: 14px; line-height: 1.8; color: var(--va-ink, #1a1917); white-space: pre-wrap; word-break: break-word; }\n\n.va-msg-text-enter-active, .va-msg-text-leave-active { transition: opacity var(--va-dur-2, 200ms) ease; }\n.va-msg-text-enter-from, .va-msg-text-leave-to { opacity: 0; }\n\n@media (prefers-reduced-motion: reduce) {\n  .va-msg-text-enter-active, .va-msg-text-leave-active { transition: none; }\n}\n</style>\n"
     },
     {
+      "path": "components/ui/message-actions/index.ts",
+      "type": "registry:ui",
+      "target": "components/ui/message-actions/index.ts",
+      "content": "export { default as VaMessageActions } from \"./VaMessageActions.vue\";\nexport { default as VaMessageText } from \"./VaMessageText.vue\";\nexport { DEFAULT_FEEDBACK_REASONS } from \"./types\";\nexport type {\n  FeedbackKind,\n  MessageActionKind,\n  MessageActionsEvents,\n  MessageActionsProps,\n  MessageTextProps,\n} from \"./types\";\n"
+    },
+    {
       "path": "components/ui/message-actions/types.ts",
       "type": "registry:ui",
       "target": "components/ui/message-actions/types.ts",

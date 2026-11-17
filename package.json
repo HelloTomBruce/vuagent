@@ -8,6 +8,7 @@
     "test": "pnpm --filter @vuagent/protocol test && pnpm --filter @vuagent/ui test && pnpm --filter @vuagent/server test && pnpm --filter @vuagent/playground test",
     "server:dev": "pnpm --filter @vuagent/server dev",
     "registry": "node scripts/build-registry.mjs",
+    "registry:check": "node scripts/check-registry.mjs",
     "llms": "node scripts/build-llms.mjs",
     "docs:dev": "pnpm --filter @vuagent/docs dev",
     "docs:build": "pnpm --filter @vuagent/docs build",

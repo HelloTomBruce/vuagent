@@ -15,6 +15,12 @@
       "content": "<script setup lang=\"ts\">\nimport { useTemplateRef } from \"vue\";\nimport type { TextRevealProps } from \"./types\";\nimport { useTextReveal } from \"./useTextReveal\";\n\nconst props = withDefaults(defineProps<TextRevealProps>(), {\n  by: \"word\",\n  stagger: 40,\n  delay: 0,\n  duration: 600,\n  as: \"span\",\n  once: true,\n});\n\nconst root = useTemplateRef<HTMLElement>(\"root\");\nconst { shown, pieces, pieceStyle } = useTextReveal(props, root);\n</script>\n\n<template>\n  <component :is=\"props.as\" ref=\"root\" class=\"va-reveal\" :data-shown=\"shown || undefined\">\n    <span\n      v-for=\"(p, i) in pieces\"\n      :key=\"`${i}-${p}`\"\n      class=\"va-reveal__piece\"\n      :style=\"pieceStyle(i)\"\n      :data-space=\"/^\\s+$/.test(p) || undefined\"\n    >{{ p }}</span>\n  </component>\n</template>\n\n<style>\n/* VaTextReveal — 逐词/逐字浮现 */\n.va-reveal { display: inline-block; }\n\n.va-reveal__piece {\n  display: inline-block;\n  white-space: pre;\n  opacity: 0;\n  transform: translateY(6px);\n  filter: blur(4px);\n  transition-property: opacity, transform, filter;\n  transition-timing-function: var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));\n}\n.va-reveal__piece[data-space] { white-space: pre; }\n\n.va-reveal[data-shown] .va-reveal__piece {\n  opacity: 1;\n  transform: none;\n  filter: blur(0);\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .va-reveal__piece {\n    opacity: 1;\n    transform: none;\n    filter: none;\n    transition: none;\n  }\n}\n</style>\n"
     },
     {
+      "path": "components/ui/text-reveal/index.ts",
+      "type": "registry:ui",
+      "target": "components/ui/text-reveal/index.ts",
+      "content": "export { default as VaTextReveal } from \"./VaTextReveal.vue\";\nexport type { TextRevealProps } from \"./types\";\n"
+    },
+    {
       "path": "components/ui/text-reveal/types.ts",
       "type": "registry:ui",
       "target": "components/ui/text-reveal/types.ts",

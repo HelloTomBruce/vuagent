@@ -21,6 +21,12 @@
       "content": "<script setup lang=\"ts\">\nimport { computed } from \"vue\";\nimport type { GradientTextProps } from \"./types\";\n\nconst props = defineProps<GradientTextProps>();\n\nconst style = computed(() => ({\n  backgroundImage: `linear-gradient(${props.angle ?? 120}deg, ${props.from ?? \"var(--va-accent)\"}, ${props.to ?? \"var(--va-info)\"})`,\n}));\n</script>\n\n<template>\n  <span class=\"va-gtext\" :class=\"{ 'va-gtext--flow': props.animated }\" :style=\"style\">\n    <slot>{{ props.text }}</slot>\n  </span>\n</template>\n\n<style>\n/* VaGradientText — 渐变文字 */\n\n.va-gtext {\n  background-clip: text;\n  -webkit-background-clip: text;\n  color: transparent;\n  -webkit-text-fill-color: transparent;\n}\n\n.va-gtext--flow {\n  background-size: 220% 220%;\n  animation: va-gt-flow 5s ease-in-out infinite;\n}\n\n@keyframes va-gt-flow {\n  0%, 100% { background-position: 0% 50%; }\n  50% { background-position: 100% 50%; }\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .va-gtext--flow { animation: none; background-size: 100% 100%; }\n}\n</style>\n"
     },
     {
+      "path": "components/ui/gradient/index.ts",
+      "type": "registry:ui",
+      "target": "components/ui/gradient/index.ts",
+      "content": "export { default as VaGradientFloor } from \"./VaGradientFloor.vue\";\nexport { default as VaGradientText } from \"./VaGradientText.vue\";\nexport type { GradientFloorProps, GradientTextProps } from \"./types\";\n"
+    },
+    {
       "path": "components/ui/gradient/types.ts",
       "type": "registry:ui",
       "target": "components/ui/gradient/types.ts",

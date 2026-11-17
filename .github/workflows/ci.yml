@@ -36,5 +36,13 @@ jobs:
           pnpm registry
           pnpm llms
 
+      # 工件一致性门禁（TASK-009）：改了组件/文档源但不重新生成 → 红
+      - name: Registry freshness gate
+        run: git diff --exit-code -- packages/ui/registry llms.txt llms-full.txt
+
+      # 自包含门禁（TASK-009）：任何条目存在未随包携带的相对引用 → 红
+      - name: Registry self-containment gate
+        run: pnpm registry:check
+
       - name: Docs build
         run: pnpm docs:build

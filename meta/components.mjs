@@ -42,9 +42,17 @@ export const components = [
     desc: "审批门：风险徽章 + 命令预览 + 倒计时自动拒绝（悬停暂停）+ Enter/Esc 快捷键，决策后 morph 成结果行。",
     props: [
       { name: "title", type: "string", default: "-", desc: "请求文案" },
+      { name: "detail", type: "string", default: "-", desc: "补充说明" },
       { name: "risk", type: `"low" | "medium" | "high"`, default: `"medium"`, desc: "风险等级徽章" },
       { name: "preview", type: "string", default: "-", desc: "命令/代码预览" },
+      { name: "confirmLabel", type: "string", default: `"批准"`, desc: "批准按钮文案" },
+      { name: "denyLabel", type: "string", default: `"拒绝"`, desc: "拒绝按钮文案" },
       { name: "countdown", type: "number", default: "-", desc: "秒数，到 0 自动拒绝" },
+      { name: "shortcuts", type: "boolean", default: "true", desc: "显示快捷键提示（Enter 批准 · Esc 拒绝）" },
+      { name: "status", type: `"approved" | "denied" | "pending"`, default: "-", desc: "外部受控决策状态（持久化恢复）" },
+      { name: "reason", type: "string", default: "-", desc: "外部传入决策原因（超时或驳回说明）" },
+      { name: "collapsible", type: "boolean", default: "true", desc: "是否支持折叠展开" },
+      { name: "defaultCollapsed", type: "boolean", default: "-", desc: "默认折叠；不传时已决策默认折叠、未决策默认展开" },
       { name: "@approve / @deny", type: "-", default: "-", desc: "决策回调（deny 带原因）" },
     ],
   },
@@ -313,7 +321,7 @@ export const components = [
     ],
   },
   {
-    dir: "comment-thread", slug: "comment-thread", title: "Comment Thread", category: "Chat", components: ["VaCommentThread"],
+    dir: "comment-thread", slug: "comment-thread", title: "Comment Thread", category: "Chat", components: ["VaCommentThread"], deps: ["checkpoint-list"],
     desc: "评论线程：agent 起草待审条目（采纳/重写/丢弃操作条）、人发评论、首字母头像、⌘/Ctrl+Enter 发布。",
     props: [
       { name: "comments", type: "CommentItem[]", default: "-", desc: "id/author/text/pending…" },
@@ -478,7 +486,7 @@ export const components = [
     ],
   },
   {
-    dir: "notification-stack", slug: "notification-stack", title: "Notification Stack", category: "反馈", components: ["VaNotificationStack"],
+    dir: "notification-stack", slug: "notification-stack", title: "Notification Stack", category: "反馈", components: ["VaNotificationStack"], deps: ["checkpoint-list"],
     desc: "通知中心列表：未读徽标与未读点、语义 icon（info/success/warning/danger/agent）、相对时间、单条/全部已读。",
     props: [
       { name: "notifications", type: "NotificationItem[]", default: "-", desc: "id/title/body/kind/unread/createdAt" },
@@ -503,7 +511,7 @@ export const components = [
     ],
   },
   {
-    dir: "change-summary", slug: "change-summary", title: "Change Summary", category: "Agent-Ops", components: ["VaChangeSummary"],
+    dir: "change-summary", slug: "change-summary", title: "Change Summary", category: "Agent-Ops", components: ["VaChangeSummary"], deps: ["file-tree"],
     desc: "agent 一轮工作摘要卡：N 文件 +adds −dels、耗时与工具调用次数、逐文件行（M/A/D 徽章 + 增删计数），可折叠长列表。",
     props: [
       { name: "files", type: "SummaryFile[]", default: "-", desc: "path/status/additions/deletions" },
@@ -654,7 +662,7 @@ export const components = [
     ],
   },
   {
-    dir: "workspace-blocks", slug: "workspace-blocks", title: "Pricing Plans / AI Workspace", category: "Blocks", components: ["VaPricingPlans", "VaAIWorkspace"],
+    dir: "workspace-blocks", slug: "workspace-blocks", title: "Pricing Plans / AI Workspace", category: "Blocks", components: ["VaPricingPlans", "VaAIWorkspace"], deps: ["file-tree"],
     desc: "Blocks 两件：PricingPlans 定价卡组（推荐/当前态 + 特性清单 + CTA）；AIWorkspace 文件栏 + 预览区双栏工作块（M/A/D 徽标、选中联动、作用域插槽传当前文件）。",
     props: [
       { name: "tiers", type: "PricingTier[]", default: "-", desc: "PricingPlans：套餐档" },

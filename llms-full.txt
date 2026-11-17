@@ -62,9 +62,17 @@ agent 的一次工具调用：实时秒表、失败自动展开并给出重试�
 | Prop / 事件 | 类型 | 默认 | 说明 |
 |---|---|---|---|
 | `title` | `string` | - | 请求文案 |
+| `detail` | `string` | - | 补充说明 |
 | `risk` | `"low" | "medium" | "high"` | "medium" | 风险等级徽章 |
 | `preview` | `string` | - | 命令/代码预览 |
+| `confirmLabel` | `string` | "批准" | 批准按钮文案 |
+| `denyLabel` | `string` | "拒绝" | 拒绝按钮文案 |
 | `countdown` | `number` | - | 秒数，到 0 自动拒绝 |
+| `shortcuts` | `boolean` | true | 显示快捷键提示（Enter 批准 · Esc 拒绝） |
+| `status` | `"approved" | "denied" | "pending"` | - | 外部受控决策状态（持久化恢复） |
+| `reason` | `string` | - | 外部传入决策原因（超时或驳回说明） |
+| `collapsible` | `boolean` | true | 是否支持折叠展开 |
+| `defaultCollapsed` | `boolean` | - | 默认折叠；不传时已决策默认折叠、未决策默认展开 |
 | `@approve / @deny` | `-` | - | 决策回调（deny 带原因） |
 
 ### Decision Inbox

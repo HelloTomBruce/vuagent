@@ -21,6 +21,12 @@
       "content": "<script setup lang=\"ts\">\nimport { computed } from \"vue\";\nimport type { SkeletonProps } from \"./types\";\n\nconst props = withDefaults(defineProps<SkeletonProps>(), {});\n\n/** 数字与纯数字字符串都转 px；其余（%, rem…）原样 */\nconst len = (v: number | string | undefined) => {\n  if (v === undefined) return undefined;\n  if (typeof v === \"number\") return `${v}px`;\n  return /^\\d+(\\.\\d+)?$/.test(v) ? `${v}px` : v;\n};\n\nconst style = computed(() => {\n  const w = len(props.width ?? \"100%\");\n  const h = len(props.height ?? \"12px\");\n  return {\n    width: props.circle ? h : w,\n    height: h,\n    borderRadius: props.circle ? \"50%\" : len(props.radius ?? \"6px\"),\n  };\n});\n</script>\n\n<template>\n  <span class=\"va-skel\" :style=\"style\" aria-hidden=\"true\" />\n</template>\n\n<style>\n/* VaSkeleton — 共享一道扫光的骨架块（底色/高光用中性半透明，亮暗主题都能与卡片区分） */\n.va-skel {\n  display: inline-block;\n  vertical-align: middle;\n  background:\n    linear-gradient(\n      100deg,\n      var(--va-skel-bg, rgba(128, 128, 128, 0.28)) 40%,\n      var(--va-skel-hl, rgba(255, 255, 255, 0.55)) 50%,\n      var(--va-skel-bg, rgba(128, 128, 128, 0.28)) 60%\n    )\n    var(--va-skel-bg, rgba(128, 128, 128, 0.28));\n  background-size: 200% 100%;\n  background-position: 200% 0;\n  animation: va-skel-shimmer 1.6s linear infinite;\n}\n\n@keyframes va-skel-shimmer {\n  from { background-position: 200% 0; }\n  to { background-position: -200% 0; }\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .va-skel { animation: none; }\n}\n</style>\n"
     },
     {
+      "path": "components/ui/skeleton/index.ts",
+      "type": "registry:ui",
+      "target": "components/ui/skeleton/index.ts",
+      "content": "export { default as VaSkeleton } from \"./VaSkeleton.vue\";\nexport { default as VaShimmerText } from \"./VaShimmerText.vue\";\nexport type { ShimmerTextProps, SkeletonProps } from \"./types\";\n"
+    },
+    {
       "path": "components/ui/skeleton/types.ts",
       "type": "registry:ui",
       "target": "components/ui/skeleton/types.ts",

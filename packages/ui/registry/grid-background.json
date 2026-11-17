@@ -15,6 +15,12 @@
       "content": "<script setup lang=\"ts\">\nimport type { GridBackgroundProps } from \"./types\";\nimport { useGridBackground } from \"./useGridBackground\";\n\nconst props = withDefaults(defineProps<GridBackgroundProps>(), {\n  size: 44,\n  speed: 2.4,\n  direction: \"diagonal\",\n  color: undefined,\n  fade: 70,\n});\n\nconst { bgStyle, animStyle, moving } = useGridBackground(props);\n</script>\n\n<template>\n  <div class=\"va-grid\" :data-moving=\"moving || undefined\">\n    <div class=\"va-grid__lines\" :style=\"[bgStyle, animStyle]\" aria-hidden=\"true\" />\n    <div class=\"va-grid__content\"><slot /></div>\n  </div>\n</template>\n\n<style>\n/* VaGridBackground — 缓慢漂移的网格底纹 */\n.va-grid { position: relative; overflow: hidden; }\n\n.va-grid__lines {\n  position: absolute;\n  inset: 0;\n  pointer-events: none;\n}\n\n.va-grid[data-moving] .va-grid__lines {\n  animation-name: va-grid-drift;\n  animation-timing-function: linear;\n  animation-iteration-count: infinite;\n}\n\n/* drift 距离与周期由 useGridBackground 以 CSS 变量注入 */\n@keyframes va-grid-drift {\n  from { background-position: var(--va-grid-from, 0 0); }\n  to { background-position: var(--va-grid-to, 0 0); }\n}\n\n.va-grid__content { position: relative; }\n\n@media (prefers-reduced-motion: reduce) {\n  .va-grid[data-moving] .va-grid__lines { animation: none; }\n}\n</style>\n"
     },
     {
+      "path": "components/ui/grid-background/index.ts",
+      "type": "registry:ui",
+      "target": "components/ui/grid-background/index.ts",
+      "content": "export { default as VaGridBackground } from \"./VaGridBackground.vue\";\nexport type { GridBackgroundProps, GridDirection } from \"./types\";\n"
+    },
+    {
       "path": "components/ui/grid-background/types.ts",
       "type": "registry:ui",
       "target": "components/ui/grid-background/types.ts",
