@@ -270,7 +270,7 @@ export { VaAppShell } from "./components/app-shell";
 export type { AppShellEvents, AppShellProps, NavItem } from "./components/app-shell";
 
 export { VaAgentChat } from "./components/agent-chat";
-export type { AgentChatEvents, AgentChatProps, ChatMessage } from "./components/agent-chat";
+export type { AgentChatEvents, AgentChatProps, ChatThreadMessage } from "./components/agent-chat";
 
 export { VaAgentRun } from "./components/agent-run";
 export type { AgentRunEvents, AgentRunProps } from "./components/agent-run";
@@ -316,5 +316,30 @@ export { useCountdown } from "./composables/useCountdown";
 export { useCopyable } from "./composables/useCopyable";
 
 // Agentic Runtime 运行时核心
-export * from "./runtime/index";
+// 显式按需导出（不用 export *）：
+// 1. 避免 agent-chat 的 ChatThreadMessage 与 runtime 的 ChatMessage 等同名符号被静默遮蔽
+//    （export * 的命名冲突会静默丢弃星号侧，见 TASK-013）；
+// 2. 保持模块图无副作用，保证消费方 tree-shaking（registry 不再有顶层副作用调用）。
+export {
+  AgentUIRegistry,
+  CardSkeleton,
+  ChartSkeleton,
+  CodeSkeleton,
+  getAgentComponent,
+  registerAgentComponent,
+  setupDefaultAgentRegistry,
+  unregisterAgentComponent,
+} from "./runtime/registry";
+export { useAgentChat } from "./runtime/useAgentChat";
+export type { ChatMessage, SendMessageOptions, UseAgentChatOptions } from "./runtime/useAgentChat";
+export type {
+  AgentComponentBaseProps,
+  AgentComponentStatus,
+  AgentRendererProps,
+  CustomProviderConfig,
+  MessageBlock,
+  RegisteredComponentEntry,
+  UIStreamEvent,
+} from "./runtime/types";
+export { default as VaAgentRenderer } from "./runtime/VaAgentRenderer.vue";
 

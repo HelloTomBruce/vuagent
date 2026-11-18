@@ -18,7 +18,12 @@ export function useContextWindow(props: ContextWindowProps) {
     return `${Math.max((p.tokens / scale.value) * 100, 2)}%`;
   }
 
-  const legendKinds = Object.keys(CONTEXT_KIND_LABEL) as ContextKind[];
+  /** 图例与格子一一对应：仅展示当前 parts 中实际出现的分段类型（按 CONTEXT_KIND_LABEL 固定顺序去重） */
+  const legendKinds = computed(() => {
+    const labelOrder = Object.keys(CONTEXT_KIND_LABEL) as ContextKind[];
+    const present = new Set(props.parts.map((p) => p.kind));
+    return labelOrder.filter((k) => present.has(k));
+  });
 
   return { used, scale, percent, hasHistory, shrinking, widthOf, legendKinds };
 }

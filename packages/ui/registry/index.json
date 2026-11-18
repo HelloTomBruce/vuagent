@@ -24,7 +24,7 @@
     {
       "name": "approval-card",
       "title": "Approval Card",
-      "description": "审批门：风险徽章 + 命令预览 + 倒计时自动拒绝（悬停暂停）+ Enter/Esc 快捷键，决策后 morph 成结果行。",
+      "description": "审批门：风险徽章 + 命令预览 + 倒计时自动拒绝（悬停/聚焦暂停）+ alertdialog 初始聚焦与 aria-modal；快捷键安全默认 Enter/Esc 均拒绝，approveShortcut 开启后 Enter 才批准，决策后 morph 成结果行。",
       "type": "registry:ui"
     },
     {

@@ -26,7 +26,11 @@ export interface CustomProviderConfig {
   protocol?: "openai-completions" | "openai-responses" | "anthropic";
 }
 
-export interface RegisteredComponentEntry {
+export interface RegisteredComponentEntry<
+  TArgs extends Record<string, any> = Record<string, any>,
+  TResult = unknown,
+  TPayload = unknown,
+> {
   /** 实体组件（支持普通组件或 defineAsyncComponent） */
   component: Component;
   /** 骨架屏组件（流式加载阶段展示） */
@@ -38,27 +42,29 @@ export interface RegisteredComponentEntry {
    */
   progressive?: boolean;
   /**
-   * 自定义适配器：将大模型生成的 args 转换为该组件特有的 props
+   * 自定义适配器：将大模型生成的 args 转换为该组件特有的 props。
+   * 注意：args 来自模型输出，必须视为不可信输入——各字段需做空值/类型兜底。
    */
   propAdapter?: (
-    args: Record<string, any>,
+    args: TArgs,
     ctx: {
       toolCallId: string;
       status: AgentComponentStatus;
-      result?: any;
-      onSubmitAction?: (payload: any) => Promise<void> | void;
+      result?: TResult;
+      onSubmitAction?: (payload: TPayload) => Promise<void> | void;
     }
   ) => Record<string, any>;
 }
 
-export interface AgentRendererProps {
+export interface AgentRendererProps<TResult = unknown, TPayload = unknown> {
   toolCallId: string;
   componentName: string;
   status: AgentComponentStatus;
-  args: Record<string, any>;
-  result?: any;
+  /** 模型输出的参数（流式阶段可能不完整；异常通道下可能为 null，渲染侧已做兜底） */
+  args: Record<string, any> | null;
+  result?: TResult;
   error?: string;
   apiBaseUrl?: string;
   readonly?: boolean;
-  onSubmitAction?: (payload: any) => Promise<void> | void;
+  onSubmitAction?: (payload: TPayload) => Promise<void> | void;
 }

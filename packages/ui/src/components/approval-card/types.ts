@@ -16,8 +16,14 @@ export interface ApprovalCardProps {
   denyLabel?: string;
   /** 倒计时秒数，到 0 自动拒绝；0 或不传则不限时 */
   countdown?: number;
-  /** 显示快捷键提示（Enter 批准 · Esc 拒绝） */
+  /** 显示快捷键提示（缺省 Enter/Esc 均为拒绝；开启 approveShortcut 后 Enter=批准） */
   shortcuts?: boolean;
+  /**
+   * 危险操作放行开关（安全默认关闭）：
+   * 缺省时 Enter 与 Esc 都触发拒绝，避免误触一键放行高危操作；
+   * 仅当宿主显式传 true 时，Enter 才映射为批准。
+   */
+  approveShortcut?: boolean;
   /** 外部传入状态持久化支持："approved" | "denied" | "pending" */
   status?: ApprovalResult | "pending";
   /** 外部传入决策原因，例如超时或用户驳回说明 */

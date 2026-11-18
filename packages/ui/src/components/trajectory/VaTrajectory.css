@@ -100,7 +100,7 @@
 /* ---- 台账 ---- */
 .va-traj__ledger {
   flex: 1 1 0;
-  min-height: 120px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -197,4 +197,112 @@
   text-align: center;
   font-size: 12.5px;
   color: var(--va-muted, #6f6d66);
+}
+
+/* ---- 去卡片化形态（宽幅主区嵌入，bordered=false） ---- */
+.va-traj--plain .va-traj__panel {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+.va-traj--plain .va-traj__turn {
+  background: var(--va-bg-subtle, #efede7);
+}
+
+/* ---- 主从模式：左台账 + 右详情区 ---- */
+.va-traj--split {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 14px;
+}
+.va-traj--split .va-traj__panel {
+  flex: 1;
+  min-width: 0;
+}
+
+.va-traj__detail {
+  width: 360px;
+  flex-shrink: 0;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-m, 10px);
+  background: var(--va-card, #fff);
+}
+
+.va-traj__detail-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.va-traj__detail-meta {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--va-muted, #6f6d66);
+  font-variant-numeric: tabular-nums;
+}
+.va-traj__detail-close {
+  border: none;
+  background: none;
+  padding: 2px;
+  display: flex;
+  color: var(--va-muted, #6f6d66);
+  cursor: pointer;
+  border-radius: var(--va-radius-s, 8px);
+}
+.va-traj__detail-close:hover {
+  color: var(--va-ink, #1a1917);
+  background: var(--va-bg-subtle, #efede7);
+}
+
+.va-traj__detail-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--va-ink, #1a1917);
+  word-break: break-all;
+  font-family: var(--va-font-mono, ui-monospace, monospace);
+}
+
+.va-traj__detail section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.va-traj__detail h4 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--va-muted, #6f6d66);
+}
+.va-traj__detail pre {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--va-bg, #f7f6f2);
+  border: 1px solid color-mix(in srgb, var(--va-edge, rgba(26, 25, 23, 0.12)) 60%, transparent);
+  border-radius: var(--va-radius-s, 8px);
+  font-family: var(--va-font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.va-traj__detail-none {
+  margin: 0;
+  font-size: 12px;
+  color: var(--va-muted, #6f6d66);
+}
+
+/* 主从模式：行选中态 */
+.va-traj__row[data-selected="true"] {
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.08));
+}
+.va-traj__row[data-selected="true"] .va-traj__dot {
+  background: var(--va-accent, #c2410c);
 }

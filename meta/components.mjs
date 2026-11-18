@@ -39,7 +39,7 @@ export const components = [
   },
   {
     dir: "approval-card", slug: "approval-card", title: "Approval Card", category: "Agent-Ops", components: ["VaApprovalCard"],
-    desc: "审批门：风险徽章 + 命令预览 + 倒计时自动拒绝（悬停暂停）+ Enter/Esc 快捷键，决策后 morph 成结果行。",
+    desc: "审批门：风险徽章 + 命令预览 + 倒计时自动拒绝（悬停/聚焦暂停）+ alertdialog 初始聚焦与 aria-modal；快捷键安全默认 Enter/Esc 均拒绝，approveShortcut 开启后 Enter 才批准，决策后 morph 成结果行。",
     props: [
       { name: "title", type: "string", default: "-", desc: "请求文案" },
       { name: "detail", type: "string", default: "-", desc: "补充说明" },
@@ -48,7 +48,8 @@ export const components = [
       { name: "confirmLabel", type: "string", default: `"批准"`, desc: "批准按钮文案" },
       { name: "denyLabel", type: "string", default: `"拒绝"`, desc: "拒绝按钮文案" },
       { name: "countdown", type: "number", default: "-", desc: "秒数，到 0 自动拒绝" },
-      { name: "shortcuts", type: "boolean", default: "true", desc: "显示快捷键提示（Enter 批准 · Esc 拒绝）" },
+      { name: "shortcuts", type: "boolean", default: "true", desc: "显示快捷键提示（缺省 Enter/Esc 均拒绝）" },
+      { name: "approveShortcut", type: "boolean", default: "false", desc: "显式开启后 Enter=批准；缺省 Enter 与 Esc 均为拒绝（安全默认）" },
       { name: "status", type: `"approved" | "denied" | "pending"`, default: "-", desc: "外部受控决策状态（持久化恢复）" },
       { name: "reason", type: "string", default: "-", desc: "外部传入决策原因（超时或驳回说明）" },
       { name: "collapsible", type: "boolean", default: "true", desc: "是否支持折叠展开" },
@@ -616,7 +617,7 @@ export const components = [
     dir: "agent-chat", slug: "agent-chat", title: "Agent Chat", category: "Screens", components: ["VaAgentChat"],
     desc: "对话页骨架：消息流（用户/agent 气泡 + 工具 chips）、思考态三点、贴底自动滚动、#composer 插槽接 VaComposer。",
     props: [
-      { name: "messages", type: "ChatMessage[]", default: "-", desc: "id/role/text/tools" },
+      { name: "messages", type: "ChatThreadMessage[]", default: "-", desc: "id/role/text/tools" },
       { name: "thinking / thinkingLabel", type: "boolean / string", default: "false / 思考中…", desc: "生成中态" },
       { name: "maxHeight", type: "number", default: "-", desc: "消息区高度（缺省撑满容器）" },
       { name: "#composer / #stream-foot", type: "-", default: "-", desc: "输入区/流尾部插槽" },

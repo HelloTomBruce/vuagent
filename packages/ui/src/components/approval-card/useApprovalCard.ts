@@ -68,13 +68,16 @@ export function useApprovalCard(
     isCollapsed.value = !isCollapsed.value;
   }
 
-  /* ---------- 键盘快捷键 ---------- */
+  /* ---------- 键盘快捷键 ----------
+   * 安全默认：Enter 与 Esc 均为拒绝（Esc 恒为拒绝）；
+   * 仅当宿主显式传入 approveShortcut 时，Enter 才放行批准。 */
   function onKeydown(e: KeyboardEvent) {
     if (result.value) return;
-    const inButton = (e.target as HTMLElement | null)?.closest("button") != null;
+    const inButton = (e.target as HTMLElement | null)?.closest?.("button") != null;
     if (e.key === "Enter" && !inButton) {
       e.preventDefault();
-      onApprove();
+      if (props.approveShortcut) onApprove();
+      else onDeny();
     } else if (e.key === "Escape") {
       e.preventDefault();
       onDeny();

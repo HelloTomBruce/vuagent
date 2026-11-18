@@ -6,7 +6,7 @@
   "type": "registry:ui",
   "dependencies": [],
   "registryDependencies": [],
-  "docs": "- `messages` (ChatMessage[]，默认 -)：id/role/text/tools\n- `thinking / thinkingLabel` (boolean / string，默认 false / 思考中…)：生成中态\n- `maxHeight` (number，默认 -)：消息区高度（缺省撑满容器）\n- `#composer / #stream-foot` (-，默认 -)：输入区/流尾部插槽",
+  "docs": "- `messages` (ChatThreadMessage[]，默认 -)：id/role/text/tools\n- `thinking / thinkingLabel` (boolean / string，默认 false / 思考中…)：生成中态\n- `maxHeight` (number，默认 -)：消息区高度（缺省撑满容器）\n- `#composer / #stream-foot` (-，默认 -)：输入区/流尾部插槽",
   "files": [
     {
       "path": "components/ui/agent-chat/VaAgentChat.vue",
@@ -18,13 +18,13 @@
       "path": "components/ui/agent-chat/index.ts",
       "type": "registry:ui",
       "target": "components/ui/agent-chat/index.ts",
-      "content": "export { default as VaAgentChat } from \"./VaAgentChat.vue\";\nexport type { AgentChatEvents, AgentChatProps, ChatMessage } from \"./types\";\n"
+      "content": "export { default as VaAgentChat } from \"./VaAgentChat.vue\";\nexport type { AgentChatEvents, AgentChatProps, ChatThreadMessage } from \"./types\";\n// eslint-disable-next-line @typescript-eslint/no-deprecated -- 兼容出口：旧名别名仅此处透出，新代码请用 ChatThreadMessage\nexport type { ChatMessage } from \"./types\";\n"
     },
     {
       "path": "components/ui/agent-chat/types.ts",
       "type": "registry:ui",
       "target": "components/ui/agent-chat/types.ts",
-      "content": "/** VaAgentChat 的类型定义 */\n\nexport interface ChatMessage {\n  id: string;\n  role: \"user\" | \"agent\";\n  text: string;\n  /** ms 时间戳 */\n  createdAt?: number;\n  /** agent 消息附带的工具调用名列表（chips 展示） */\n  tools?: string[];\n}\n\nexport interface AgentChatProps {\n  messages: ChatMessage[];\n  /** agent 思考/生成中：消息流底部挂思考态 */\n  thinking?: boolean;\n  /** 思考文案（交给宿主传 ThinkingLoader 场景文案），默认\"思考中…\" */\n  thinkingLabel?: string;\n  /** 标题栏文案 */\n  title?: string;\n  /** 底部输入区换成具名插槽时隐藏内置占位 */\n  composerless?: boolean;\n  /** 消息区最大高度（缺省随容器滚动） */\n  maxHeight?: number;\n}\n\nexport interface AgentChatEvents {\n  /** 底部发送（组件不含输入逻辑，宿主自行接 Composer） */\n  scrollToBottom: [];\n}\n"
+      "content": "/** VaAgentChat 的类型定义 */\n\nexport interface ChatThreadMessage {\n  id: string;\n  role: \"user\" | \"agent\";\n  text: string;\n  /** ms 时间戳 */\n  createdAt?: number;\n  /** agent 消息附带的工具调用名列表（chips 展示） */\n  tools?: string[];\n}\n\n/**\n * @deprecated 与 runtime（useAgentChat）的 ChatMessage 同名冲突，已更名为 ChatThreadMessage；\n * 旧别名保留一个版本，下个大版本移除。\n */\nexport type ChatMessage = ChatThreadMessage;\n\nexport interface AgentChatProps {\n  messages: ChatThreadMessage[];\n  /** agent 思考/生成中：消息流底部挂思考态 */\n  thinking?: boolean;\n  /** 思考文案（交给宿主传 ThinkingLoader 场景文案），默认\"思考中…\" */\n  thinkingLabel?: string;\n  /** 标题栏文案 */\n  title?: string;\n  /** 底部输入区换成具名插槽时隐藏内置占位 */\n  composerless?: boolean;\n  /** 消息区最大高度（缺省随容器滚动） */\n  maxHeight?: number;\n}\n\nexport interface AgentChatEvents {\n  /** 底部发送（组件不含输入逻辑，宿主自行接 Composer） */\n  scrollToBottom: [];\n}\n"
     }
   ]
 }

@@ -1,9 +1,24 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { Clock3, Layers, Repeat2, Search, Wrench } from "lucide-vue-next";
-import type { TrajEvent, TrajectoryEvents, TrajectoryProps } from "./types";
+import { computed, ref, type PropType } from "vue";
+import { Clock3, Layers, Repeat2, Search, Wrench, X } from "lucide-vue-next";
+import type { TrajEvent, TrajectoryEvents } from "./types";
 
-const props = withDefaults(defineProps<TrajectoryProps>(), {});
+/**
+ * 运行时 props 声明（而非类型导入式声明）：
+ * 类型式声明的 props 元数据依赖编译期对 types.ts 的解析，dev HMR 场景下
+ * types.ts 的增量变更偶尔不会触发 SFC 重编译，导致新增 prop 不生效；
+ * 运行时声明与类型文件解耦，热更后必然生效。
+ * 契约类型仍由 types.ts 的 TrajectoryProps 对外导出。
+ */
+const props = defineProps({
+  events: { type: Array as PropType<TrajEvent[]>, required: true },
+  /** 台账区最大高度 px（默认 none，随容器） */
+  ledgerMaxHeight: { type: Number, default: undefined },
+  /** 是否渲染外层面板卡片（宽幅主区嵌入传 false 去卡片化） */
+  bordered: { type: Boolean, default: true },
+  /** 主从模式：点击台账行在右侧详情区展示完整内容 */
+  splitDetail: { type: Boolean, default: false },
+});
 
 const emit = defineEmits<TrajectoryEvents>();
 
@@ -36,7 +51,7 @@ function blockStyle(e: TrajEvent) {
   return { left: `${Math.min(Math.max(left, 0), 99)}%` };
 }
 
-/* ---------- 台账（搜索 + 展开） ---------- */
+/* ---------- 台账（搜索 + 展开 / 主从详情） ---------- */
 const keyword = ref("");
 const expandedIds = ref<Set<string>>(new Set());
 function toggleRow(id: string) {
@@ -46,6 +61,26 @@ function toggleRow(id: string) {
   else next.delete(id);
   expandedIds.value = next;
   emit("toggle", id, open);
+}
+
+/** 主从模式：右侧详情区当前选中的事件；再点同一条或点关闭即收起 */
+const selectedId = ref<string | null>(null);
+const selectedEvent = computed(
+  () => props.events.find((e) => e.id === selectedId.value) ?? null
+);
+function selectRow(id: string) {
+  selectedId.value = selectedId.value === id ? null : id;
+  emit("select", selectedId.value);
+}
+function closeDetail() {
+  selectedId.value = null;
+  emit("select", null);
+}
+
+/** 行激活分发：主从模式 → 右侧详情；传统模式 → 行内展开 */
+function onRowActivate(e: TrajEvent) {
+  if (props.splitDetail) selectRow(e.id);
+  else toggleRow(e.id);
 }
 const filtered = computed(() => {
   const kw = keyword.value.trim().toLowerCase();
@@ -90,7 +125,13 @@ function snippet(e: TrajEvent): string {
 </script>
 
 <template>
-  <div class="va-traj">
+  <div
+    class="va-traj"
+    :class="{
+      'va-traj--plain': props.bordered === false,
+      'va-traj--split': props.splitDetail,
+    }"
+  >
     <div class="va-traj__panel">
     <!-- 指标条：时长/轮次/调用/子调用 + 搜索 -->
     <div class="va-traj__bar">
@@ -132,11 +173,12 @@ function snippet(e: TrajEvent): string {
         :key="e.id"
         class="va-traj__row"
         :title="`${fmtTime(e.at)}${e.endAt ? ` · ${fmtDur(e.endAt - e.at)}` : ''}`"
-        :data-open="expandedIds.has(e.id) || undefined"
+        :data-open="(!props.splitDetail && expandedIds.has(e.id)) || undefined"
+        :data-selected="(props.splitDetail && selectedId === e.id) || undefined"
         role="button"
         tabindex="0"
-        @click="toggleRow(e.id)"
-        @keydown.enter.prevent="toggleRow(e.id)"
+        @click="onRowActivate(e)"
+        @keydown.enter.prevent="onRowActivate(e)"
       >
         <span class="va-traj__rail">
           <span v-if="turnStartIds.has(e.id)" class="va-traj__turn">第{{ e.turn }}轮</span>
@@ -150,6 +192,41 @@ function snippet(e: TrajEvent): string {
       </div>
     </div>
     </div>
+
+    <!-- 主从模式：右侧详情区（完整参数 / 结果） -->
+    <aside v-if="props.splitDetail && selectedEvent" class="va-traj__detail">
+      <header class="va-traj__detail-head">
+        <span class="va-traj__role" :data-role="selectedEvent.role">
+          {{ ROLE_LABEL[selectedEvent.role] ?? selectedEvent.role }}
+        </span>
+        <span class="va-traj__detail-meta">
+          {{ fmtTime(selectedEvent.at) }}<template v-if="selectedEvent.endAt"> · {{ fmtDur(selectedEvent.endAt - selectedEvent.at) }}</template> · 第{{ selectedEvent.turn }}轮
+        </span>
+        <button
+          class="va-traj__detail-close"
+          type="button"
+          title="关闭详情"
+          aria-label="关闭详情"
+          @click="closeDetail"
+        >
+          <X :size="14" />
+        </button>
+      </header>
+
+      <div class="va-traj__detail-title">{{ selectedEvent.title }}</div>
+
+      <section v-if="selectedEvent.detail">
+        <h4>输入 / 参数</h4>
+        <pre>{{ selectedEvent.detail }}</pre>
+      </section>
+      <section v-if="selectedEvent.result">
+        <h4>结果 / 输出</h4>
+        <pre>{{ selectedEvent.result }}</pre>
+      </section>
+      <p v-if="!selectedEvent.detail && !selectedEvent.result" class="va-traj__detail-none">
+        该事件没有更多详情
+      </p>
+    </aside>
   </div>
 </template>
 

@@ -1,6 +1,6 @@
 /** VaAgentChat 的类型定义 */
 
-export interface ChatMessage {
+export interface ChatThreadMessage {
   id: string;
   role: "user" | "agent";
   text: string;
@@ -10,8 +10,14 @@ export interface ChatMessage {
   tools?: string[];
 }
 
+/**
+ * @deprecated 与 runtime（useAgentChat）的 ChatMessage 同名冲突，已更名为 ChatThreadMessage；
+ * 旧别名保留一个版本，下个大版本移除。
+ */
+export type ChatMessage = ChatThreadMessage;
+
 export interface AgentChatProps {
-  messages: ChatMessage[];
+  messages: ChatThreadMessage[];
   /** agent 思考/生成中：消息流底部挂思考态 */
   thinking?: boolean;
   /** 思考文案（交给宿主传 ThinkingLoader 场景文案），默认"思考中…" */

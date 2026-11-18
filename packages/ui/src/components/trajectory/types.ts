@@ -33,8 +33,14 @@ export interface TrajectoryProps {
   events: TrajEvent[];
   /** 台账区最大高度 px（默认none，随容器） */
   ledgerMaxHeight?: number;
+  /** 是否渲染外层面板卡片（边框/底色）。宽幅主区嵌入时传 false 去卡片化；默认 true 保持原形态 */
+  bordered?: boolean;
+  /** 主从模式：点击台账行在右侧详情区展示完整内容（替代行内展开）；默认 false */
+  splitDetail?: boolean;
 }
 
 export interface TrajectoryEvents {
   toggle: [id: string, open: boolean];
+  /** splitDetail 模式下选中变化；null 表示关闭详情区 */
+  select: [id: string | null];
 }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onMounted, ref, useId } from "vue";
 import type { ApprovalRisk, ApprovalResult, DenyReason } from "./types";
 import { useApprovalCard } from "./useApprovalCard";
 
@@ -11,6 +12,8 @@ interface ApprovalCardProps {
   denyLabel?: string;
   countdown?: number;
   shortcuts?: boolean;
+  /** 显式开启后 Enter=批准；缺省 Enter 与 Esc 均为拒绝（安全默认） */
+  approveShortcut?: boolean;
   /** 外部传入状态持久化支持："approved" | "denied" | "pending" */
   status?: ApprovalResult | "pending";
   /** 外部传入决策原因，例如超时或用户驳回说明 */
@@ -29,6 +32,7 @@ const props = withDefaults(defineProps<ApprovalCardProps>(), {
   denyLabel: "拒绝",
   countdown: undefined,
   shortcuts: true,
+  approveShortcut: false,
   status: undefined,
   reason: undefined,
   collapsible: true,
@@ -53,10 +57,31 @@ const {
   approve: () => emit("approve"),
   deny: (reason) => emit("deny", reason),
 });
+
+/* ---------- a11y：alertdialog 初始聚焦 + 焦点内移时暂停倒计时 ---------- */
+const rootEl = ref<HTMLElement | null>(null);
+const detailId = useId();
+
+onMounted(() => {
+  // 审批卡是 agent 危险操作的最后闸门（role=alertdialog）：挂载即聚焦容器，
+  // 让键盘/读屏用户无需先点击即可按 Enter/Esc 拒绝。
+  if (!result.value) rootEl.value?.focus();
+});
+
+// 容器自身获焦（含上面的初始聚焦）不暂停倒计时——否则"超时自动拒绝"会被静默冻结；
+// 焦点进入内部按钮等可交互元素时才暂停，离开卡片即恢复。
+function onFocusIn(e: FocusEvent) {
+  if (e.target !== rootEl.value) paused.value = true;
+}
+function onFocusOut(e: FocusEvent) {
+  if (e.relatedTarget && rootEl.value?.contains(e.relatedTarget as Node)) return;
+  paused.value = false;
+}
 </script>
 
 <template>
   <div
+    ref="rootEl"
     class="va-acd"
     :class="[
       `va-acd--${props.risk}`,
@@ -65,12 +90,14 @@ const {
     ]"
     tabindex="-1"
     role="alertdialog"
+    aria-modal="true"
     :aria-label="props.title"
+    :aria-describedby="props.detail ? detailId : undefined"
     @keydown="onKeydown"
     @pointerenter="paused = true"
     @pointerleave="paused = false"
-    @focusin="paused = true"
-    @focusout="paused = false"
+    @focusin="onFocusIn"
+    @focusout="onFocusOut"
   >
     <!-- 倒计时进度条 (仅未决策且未折叠时展示) -->
     <div v-if="props.countdown && !result && !isCollapsed" class="va-acd__count" aria-hidden="true">
@@ -126,7 +153,7 @@ const {
 
     <!-- 可折叠正文主体 -->
     <div v-show="!isCollapsed" class="va-acd__main">
-      <p v-if="props.detail" class="va-acd__detail">{{ props.detail }}</p>
+      <p v-if="props.detail" :id="detailId" class="va-acd__detail">{{ props.detail }}</p>
       <pre v-if="props.preview" class="va-acd__preview">{{ props.preview }}</pre>
 
       <!-- 待审批交互按钮组 -->
@@ -134,7 +161,8 @@ const {
         <button class="va-act va-acd__btn" type="button" @click.stop="onDeny">{{ props.denyLabel }}</button>
         <button class="va-act va-act--ink va-acd__btn" type="button" @click.stop="onApprove">{{ props.confirmLabel }}</button>
         <span v-if="props.shortcuts && !result" class="va-acd__kbd-hint">
-          <kbd>Enter</kbd> 批准 · <kbd>Esc</kbd> 拒绝
+          <template v-if="props.approveShortcut"><kbd>Enter</kbd> 批准 · <kbd>Esc</kbd> 拒绝</template>
+          <template v-else><kbd>Enter / Esc</kbd> 拒绝</template>
         </span>
       </div>
 

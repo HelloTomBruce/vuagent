@@ -5,6 +5,7 @@
 
 import { ref, shallowRef } from "vue";
 import type { MessageBlock, UIStreamEvent, CustomProviderConfig } from "./types.js";
+import { setupDefaultAgentRegistry } from "./registry.js";
 
 export interface ChatMessage {
   id: string;
@@ -34,6 +35,10 @@ export interface SendMessageOptions {
 }
 
 export function useAgentChat(options: UseAgentChatOptions = {}) {
+  // 兜底初始化：宿主若未显式调用 setupDefaultAgentRegistry()，这里确保内置组件已注册（幂等）。
+  // 注意这是运行时调用而非模块顶层副作用，不影响消费方 tree-shaking。
+  setupDefaultAgentRegistry();
+
   const messages = ref<ChatMessage[]>([]);
   const isStreaming = ref(false);
   const error = ref<string | null>(null);
@@ -304,7 +309,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
   /**
    * 提交 HITL 交互动作
    */
-  const submitAction = async (toolCallId: string, payload: any) => {
+  const submitAction = async <TPayload = unknown>(toolCallId: string, payload: TPayload) => {
     const baseUrl = options.apiBaseUrl || "";
     const res = await fetch(`${baseUrl}/api/action/${toolCallId}`, {
       method: "POST",

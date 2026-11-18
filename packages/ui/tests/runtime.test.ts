@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterEach, vi } from "vitest";
 import { renderToString } from "@vue/server-renderer";
 import { h } from "vue";
 import {
@@ -6,7 +6,14 @@ import {
   VaAgentRenderer,
   getAgentComponent,
   registerAgentComponent,
+  setupDefaultAgentRegistry,
 } from "../src/index.js";
+import { postAgentAction } from "../src/runtime/actionClient";
+
+// registry 已无模块顶层副作用：使用内置组件前必须显式初始化（useAgentChat 内部也会兜底调用）
+beforeAll(() => {
+  setupDefaultAgentRegistry();
+});
 
 describe("Agent Runtime - useAgentChat State Machine", () => {
   it("accumulates text_delta events into contiguous text blocks", () => {
@@ -97,6 +104,33 @@ describe("Agent Runtime - VaAgentRenderer SSR & Fallback", () => {
     expect(html).toContain("foo");
   });
 
+  it("tolerates malformed args (null) and renders approval card fallback title", async () => {
+    const vnode = h(VaAgentRenderer, {
+      toolCallId: "call-null-args",
+      componentName: "ui_approval_card",
+      status: "executing",
+      args: null,
+    });
+
+    const html = await renderToString(vnode);
+    // args 为 null 时 propAdapter 兜底为默认标题，不抛错
+    expect(html).toContain("审批申请");
+  });
+
+  it("tolerates dirty arg types from model output", async () => {
+    const vnode = h(VaAgentRenderer, {
+      toolCallId: "call-dirty-args",
+      componentName: "ui_approval_card",
+      status: "executing",
+      args: { title: 42, risk: "critical", countdown: "soon" },
+    });
+
+    const html = await renderToString(vnode);
+    // title 非字符串 → 兜底默认标题；risk 非法枚举 → 组件默认 medium
+    expect(html).toContain("审批申请");
+    expect(html).toContain("va-acd--medium");
+  });
+
   it("renders registered ui_approval_card component correctly", async () => {
     const vnode = h(VaAgentRenderer, {
       toolCallId: "call-approve-1",
@@ -151,5 +185,38 @@ describe("Agent Runtime - VaAgentRenderer SSR & Fallback", () => {
     const html = await renderToString(vnode);
     expect(html).toContain("全库扫描执行计划");
     expect(html).toContain("初始化依赖图");
+  });
+});
+
+describe("Agent Runtime - postAgentAction 容错（res.ok 检查）", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("HTTP 2xx 时正常返回", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(postAgentAction("http://x", "call-1", { approved: true })).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://x/api/action/call-1",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("HTTP 非 2xx 时抛错（不再静默吞掉失败）", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    await expect(postAgentAction("http://x", "call-1", {})).rejects.toThrow("HTTP 500");
+  });
+
+  it("网络异常时透传错误", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
+    await expect(postAgentAction("http://x", "call-1", {})).rejects.toThrow("network down");
+  });
+
+  it("payload 为 null/undefined 时序列化为空对象", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal("fetch", fetchMock);
+    await postAgentAction("http://x", "call-1", null);
+    expect(fetchMock.mock.calls[0][1].body).toBe("{}");
   });
 });
