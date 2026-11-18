@@ -15,8 +15,14 @@ import {
   VaTrajectory,
 } from "@vuagent/ui";
 import type { ActionCard } from "../types";
+import { toolCardDefaultOpen } from "../utils/auto-collapse";
+import { useInteractionSettings } from "../composables/useInteractionSettings";
 
-const props = defineProps<{ card: ActionCard }>();
+const props = defineProps<{
+  card: ActionCard;
+  /** 所属 turn 是否仍在流式输出：工具卡「结束后一并折叠」的判定信号（TASK-016 修订） */
+  turnStreaming?: boolean;
+}>();
 
 defineEmits<{
   (e: "approve"): void;
@@ -35,6 +41,34 @@ const callSummary = computed(() => {
   if (s === "executing") return "沙箱执行中…";
   if (s === "error") return "执行失败";
   return "执行完成";
+});
+
+const { settings } = useInteractionSettings();
+
+/**
+ * 工具卡初始展开（TASK-016）：开关开时 streaming/executing 展开、done 收起；
+ * 开关关保持原行为。VaToolCallCard 的 defaultOpen 响应式跟随（用户手动操作后不再跟随），
+ * error 恒展开由 open-on-error 兜底（失败诊断不折叠）。
+ */
+const toolCallOpen = computed(() =>
+  toolCardDefaultOpen(settings.value, {
+    turnStreaming: props.turnStreaming,
+    status: props.card.data?.status as string | undefined,
+  })
+);
+
+/**
+ * 审批卡倒计时秒数：优先按 expiresAt 墙钟换算真实剩余（组件重挂载不从头重数），
+ * 无 expiresAt 的旧数据回退 expiresInSec 快照；已决策的卡片不再计时。
+ */
+const approvalCountdown = computed<number | undefined>(() => {
+  const status = props.card.data?.status as string | undefined;
+  if (status === "approved" || status === "denied") return undefined;
+  const expiresAt = props.card.data?.expiresAt as number | undefined;
+  if (typeof expiresAt === "number" && expiresAt > 0) {
+    return Math.max(1, Math.ceil((expiresAt - Date.now()) / 1000));
+  }
+  return props.card.data?.expiresInSec as number | undefined;
 });
 
 // "ui" 持久化卡：可渲染的契约组件集合
@@ -92,7 +126,8 @@ const uiRenderable = computed(() => UI_RENDERABLE.has(uiComponent.value));
       :error="card.data.error"
       :started-at="card.data.startedAt"
       :duration="card.data.duration"
-      :default-open="card.data.status === 'error' || card.data.status === 'streaming'"
+      :default-open="toolCallOpen"
+      :open-on-error="true"
     />
 
     <!-- HITL 审批卡片 (VaApprovalCard) -->
@@ -104,7 +139,7 @@ const uiRenderable = computed(() => UI_RENDERABLE.has(uiComponent.value));
       :detail="card.data.detail"
       :status="card.data.status || 'pending'"
       :reason="card.data.reason"
-      :countdown="card.data.status === 'approved' || card.data.status === 'denied' ? undefined : card.data.expiresInSec"
+      :countdown="approvalCountdown"
       :collapsible="true"
       :default-collapsed="card.data.status === 'approved' || card.data.status === 'denied'"
       @approve="$emit('approve')"

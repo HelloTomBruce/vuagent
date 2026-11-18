@@ -47,7 +47,7 @@ defineEmits<{
   (e: "cancel-rename"): void;
   (e: "toggle-archive", session: SessionItem, event: Event): void;
   (e: "ask-delete-session", sessionId: string, event: Event): void;
-  (e: "open-model-settings"): void;
+  (e: "open-settings"): void;
   (e: "update:renameDraft", value: string): void;
 }>();
 
@@ -244,9 +244,9 @@ const archivedExpanded = ref(false);
 
     <!-- 侧边栏底部：模型设置与全局入口 -->
     <div class="va-console__sidebar-footer">
-      <button class="va-console__footer-btn" type="button" @click="$emit('open-model-settings')">
+      <button class="va-console__footer-btn" type="button" @click="$emit('open-settings')">
         <Settings :size="15" />
-        <span>模型与 API 配置</span>
+        <span>设置</span>
       </button>
     </div>
   </aside>

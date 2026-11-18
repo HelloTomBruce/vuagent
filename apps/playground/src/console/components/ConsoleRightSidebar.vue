@@ -1,19 +1,13 @@
 <script setup lang="ts">
 /**
- * 右侧边栏：tab 容器（轨迹 / 审批 / 后续扩展更多 tab）
- * 对齐 dsh 侧栏形态：会话级聚合视图
- * - 轨迹 tab：三泳道台账 + 时间线（跨 turn 聚合）
- * - 审批 tab：跨会话 HITL 待审批收件箱（VaDecisionInbox）
+ * 右侧边栏：跨会话 HITL 待审批收件箱
+ * （轨迹视图已迁入消息区顶部「对话 / 轨迹」tab——侧栏宽度不适合宽幅台账，见 Console.vue）
  */
-import { ref } from "vue";
-import { ChevronRight, PanelRight } from "lucide-vue-next";
-import { VaDecisionInbox, VaTrajectory } from "@vuagent/ui";
+import { PanelRight } from "lucide-vue-next";
+import { VaDecisionInbox } from "@vuagent/ui";
 import type { Decision } from "@vuagent/ui";
-import type { TrajEvent } from "../types";
 
-const props = defineProps<{
-  /** 会话级聚合轨迹（跨 turn，服务端事件自带 turn 编号） */
-  trajEvents: TrajEvent[];
+defineProps<{
   /** 跨会话待审批决策 */
   decisions: Decision[];
 }>();
@@ -22,32 +16,18 @@ const emit = defineEmits<{
   (e: "collapse"): void;
   (e: "decide", decision: Decision, answer: "primary" | "secondary"): void;
 }>();
-
-/** tab 注册表：新 tab 在此扩展 */
-const tabs = [
-  { id: "traj", label: "轨迹" },
-  { id: "inbox", label: "审批" },
-] as const;
-const activeTab = ref<string>("traj");
 </script>
 
 <template>
   <aside class="va-console__right-sidebar">
-    <!-- tab 头 -->
+    <!-- 侧栏头 -->
     <div class="va-console__rtabs">
-      <button
-        v-for="t in tabs"
-        :key="t.id"
-        class="va-console__rtab"
-        :class="{ 'va-console__rtab--active': activeTab === t.id }"
-        type="button"
-        @click="activeTab = t.id"
-      >
-        {{ t.label }}
+      <button class="va-console__rtab va-console__rtab--active" type="button">
+        审批
         <span
-          v-if="t.id === 'inbox' && props.decisions.length > 0"
+          v-if="decisions.length > 0"
           class="va-console__rtab-badge"
-        >{{ props.decisions.length }}</span>
+        >{{ decisions.length }}</span>
       </button>
       <button
         class="va-console__rtab-collapse"
@@ -55,29 +35,15 @@ const activeTab = ref<string>("traj");
         title="收起侧栏"
         @click="emit('collapse')"
       >
-        <ChevronRight :size="14" />
+        <PanelRight :size="14" />
       </button>
     </div>
 
-    <!-- 轨迹 tab -->
-    <div v-if="activeTab === 'traj'" class="va-console__rtab-body">
-      <VaTrajectory
-        v-if="props.trajEvents.length > 0"
-        :events="props.trajEvents"
-        :ledger-max-height="undefined"
-      />
-      <div v-else class="va-console__rtab-empty">
-        <PanelRight :size="20" />
-        <p>本轮会话还没有轨迹</p>
-        <small>发送任务后，执行步骤将实时显示在这里</small>
-      </div>
-    </div>
-
-    <!-- 审批 tab：跨会话待审批收件箱 -->
-    <div v-else-if="activeTab === 'inbox'" class="va-console__rtab-body">
+    <!-- 待审批收件箱 -->
+    <div class="va-console__rtab-body">
       <VaDecisionInbox
-        v-if="props.decisions.length > 0"
-        :decisions="props.decisions"
+        v-if="decisions.length > 0"
+        :decisions="decisions"
         @decide="(d, a) => emit('decide', d, a)"
       />
       <div v-else class="va-console__rtab-empty">
@@ -94,6 +60,7 @@ const activeTab = ref<string>("traj");
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  cursor: default;
 }
 
 .va-console__rtab-badge {

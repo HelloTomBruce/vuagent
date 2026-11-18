@@ -230,6 +230,9 @@ export function applyStreamEvent(
             command: JSON.stringify(event.args || {}, null, 2),
             status: "pending",
             expiresInSec: Math.round((event.timeoutMs || 60000) / 1000),
+            // 截止时刻（墙钟）：组件重挂载（切会话回来/列表重渲染）时据此换算真实剩余，
+            // 避免以全量 expiresInSec 快照从头重数导致倒数虚高
+            expiresAt: Date.now() + (event.timeoutMs || 60000),
           },
         };
         cards.push(card);

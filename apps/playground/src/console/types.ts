@@ -38,6 +38,8 @@ export interface ModelProfileItem {
   model: string;
   baseUrl?: string;
   apiKey?: string;
+  /** 服务端脱敏回显的掩码（保留末 4 位）；明文 apiKey 不再返回前端（TASK-011） */
+  maskedApiKey?: string;
   contextWindow?: number;
   temperature?: number;
   isDefault?: boolean;

@@ -3,15 +3,69 @@
  * 助手消息 Turn：思考折叠区 + 输出时序块(文本/卡片交错) + 消息操作 + 流式指示器
  * turn 为 reactive 代理对象，thoughtExpanded 原地切换（与原实现一致）
  * 三泳道轨迹（turn.trajEvents）不再内联渲染，由右侧边栏轨迹 tab 聚合展示
+ *
+ * 统一过程折叠（用户反馈）：turn 结束后把「思考过程 + 工具调用卡片」收进一条
+ * 「已完成 · 耗时 Ns」摘要条（文本结果保持可见），点击摘要条随时展开回过程区。
  */
-import { computed } from "vue";
-import { Bot, Brain, ChevronDown, ChevronUp } from "lucide-vue-next";
+import { computed, onMounted, ref, watch } from "vue";
+import { Bot, Brain, CheckCircle2, ChevronDown, ChevronUp } from "lucide-vue-next";
 import { VaMessageActions } from "@vuagent/ui";
 import CardRenderer from "./CardRenderer.vue";
-import { renderMarkdown } from "../utils/markdown";
+import { createCachedBlockRenderer } from "../utils/markdown";
+import {
+  shouldCollapseProcessOnFinish,
+  shouldCollapseThoughtOnFinish,
+} from "../utils/auto-collapse";
+import { useInteractionSettings } from "../composables/useInteractionSettings";
 import type { ActionCard, MessageTurn, TurnBlock } from "../types";
 
 const props = defineProps<{ turn: MessageTurn }>();
+
+/** 块级渲染缓存：流式期间只有尾块在增长，稳定块零重解析、零 DOM 写入 */
+const renderBlockHtml = createCachedBlockRenderer();
+
+const { settings } = useInteractionSettings();
+
+/* ---------- 统一过程折叠（摘要条） ---------- */
+const processCollapsed = ref(false);
+/** 完成时刻的总耗时（秒）：完成后一次性计算；历史恢复的 turn 无从得知真实耗时，不展示该段 */
+const finishDurationSec = ref<number | null>(null);
+
+/** 是否存在可收起的「过程」内容：思考文本或工具调用卡（纯文本回答没有过程，不出摘要条） */
+const hasHideableProcess = computed(
+  () => Boolean(props.turn.thought) || (props.turn.cards || []).some((c) => c.type === "toolcall")
+);
+
+/** 摘要条上的工具调用次数 */
+const processToolCount = computed(
+  () => (props.turn.cards || []).filter((c) => c.type === "toolcall").length
+);
+
+/**
+ * 完成后自动折叠（TASK-016 + 统一摘要条修订）：仅在 isStreaming 由 true→false 的
+ * 跳变时刻触发。两项开关均开 → 整体收进摘要条；否则维持独立折叠行为。
+ * 流式进行中不触发（用户手动展开/收起不被覆盖）。
+ */
+watch(
+  () => props.turn.isStreaming,
+  (streaming, prev) => {
+    if (prev !== true || streaming !== false) return;
+    if (shouldCollapseThoughtOnFinish(settings.value)) {
+      props.turn.thoughtExpanded = false;
+    }
+    if (shouldCollapseProcessOnFinish(settings.value) && hasHideableProcess.value) {
+      finishDurationSec.value = Math.round((Date.now() - props.turn.timestamp) / 100) / 10;
+      processCollapsed.value = true;
+    }
+  }
+);
+
+// 历史会话恢复：turn 挂载时已是完成态，直接落摘要条（真实耗时未知，不展示耗时段）
+onMounted(() => {
+  if (!props.turn.isStreaming && hasHideableProcess.value && shouldCollapseProcessOnFinish(settings.value)) {
+    processCollapsed.value = true;
+  }
+});
 
 defineEmits<{
   (e: "approve", actionId: string): void;
@@ -45,8 +99,26 @@ const displayBlocks = computed<TurnBlock[]>(() => {
     </div>
 
     <div class="va-console__turn-body">
-      <!-- 1. 思考过程 (折叠/展开) -->
-      <div v-if="turn.thought || (turn.isStreaming && !turn.content)" class="va-console__thought-box">
+      <!-- 0. 过程摘要条：完成后把思考+工具调用收进一行，点击展开回过程区 -->
+      <button
+        v-if="processCollapsed"
+        class="va-console__process-summary"
+        type="button"
+        title="展开思考过程与工具调用"
+        @click="processCollapsed = false"
+      >
+        <CheckCircle2 :size="14" />
+        <span>
+          已完成<template v-if="finishDurationSec != null"> · 耗时 {{ finishDurationSec }}s</template><template v-if="processToolCount"> · {{ processToolCount }} 次工具调用</template>
+        </span>
+        <ChevronDown :size="13" class="va-console__process-summary-chevron" />
+      </button>
+
+      <!-- 1. 思考过程 (折叠/展开)：统一摘要条激活时整体隐藏 -->
+      <div
+        v-if="!processCollapsed && (turn.thought || (turn.isStreaming && !turn.content))"
+        class="va-console__thought-box"
+      >
         <div class="va-console__thought-header" @click="turn.thoughtExpanded = !turn.thoughtExpanded">
           <div class="va-console__thought-title">
             <Brain :size="14" class="va-console__pulse-icon" />
@@ -71,13 +143,14 @@ const displayBlocks = computed<TurnBlock[]>(() => {
         <div v-if="block.kind === 'text' && block.content" class="va-console__markdown-content">
           <div
             class="va-console__text-body va-console__markdown-body"
-            v-html="renderMarkdown(block.content)"
+            v-html="renderBlockHtml(block)"
           />
         </div>
 
-        <div v-else-if="block.kind === 'card' && cardById[block.cardId]" class="va-console__action-cards">
+        <div v-else-if="!processCollapsed && block.kind === 'card' && cardById[block.cardId]" class="va-console__action-cards">
           <CardRenderer
             :card="cardById[block.cardId]"
+            :turn-streaming="turn.isStreaming"
             @approve="$emit('approve', cardById[block.cardId].data.actionId)"
             @deny="(reason) => $emit('deny', cardById[block.cardId].data.actionId, reason)"
           />

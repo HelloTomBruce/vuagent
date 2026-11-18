@@ -8,13 +8,16 @@ import { abortSession, openChatStream, openSessionStream } from "../api/client";
 import type { ChatRequestBody } from "../api/client";
 import { extractSSEEvents } from "../stream/sse";
 import { applyStreamEvent } from "../stream/reducer";
+import type { ScrollToBottomOptions } from "./useStickToBottom";
+import type { ContextPart } from "@vuagent/ui";
 import type { HarnessStreamEvent } from "@vuagent/protocol";
 import type { MessageTurn, PlanStep } from "../types";
 
 export interface ChatStreamOptions {
   getActiveSessionId: () => string;
   refreshSessions: () => Promise<void>;
-  scrollToBottom: () => void;
+  /** 流式期间的跟随滚动（钉底时才真正滚动）；发送消息用 { force: true } */
+  scrollToBottom: (options?: ScrollToBottomOptions) => void;
 }
 
 export interface SendPromptOptions {
@@ -42,6 +45,9 @@ export function useChatStream(options: ChatStreamOptions) {
   // 上下文用量（由 usage 事件实时驱动；无事件时保持默认占位）
   const contextUsed = ref(0);
   const contextLimit = ref(128000);
+  // 协议级分段估算（system/history/tools），由 usage 事件的 parts 驱动；
+  // 无 parts（旧服务端/沙箱演示流）时由视图层降级为单段「对话历史」
+  const ctxParts = ref<ContextPart[]>([]);
 
   // 会话级多任务后台执行管理与流缓冲状态
   const sessionTurnsCache = new Map<string, MessageTurn[]>();
@@ -53,6 +59,7 @@ export function useChatStream(options: ChatStreamOptions) {
     planSteps.value = [];
     // 新会话：上下文仪表归零（等运行时 usage 事件按真实占用覆盖）
     contextUsed.value = 0;
+    ctxParts.value = [];
   }
 
   function isActiveSession(targetSessionId?: string) {
@@ -68,6 +75,10 @@ export function useChatStream(options: ChatStreamOptions) {
       if (event.contextWindow) {
         contextLimit.value = event.contextWindow;
       }
+      // 优先消费服务端分段（system/tools/history）；无 parts 时降级为单段历史
+      ctxParts.value = event.parts?.length
+        ? event.parts
+        : [{ id: "history", label: "对话历史", tokens: contextUsed.value, kind: "history" }];
       return;
     }
 
@@ -201,7 +212,8 @@ export function useChatStream(options: ChatStreamOptions) {
     };
     chatTurns.value.push(assistantTurn);
     sessionTurnsCache.set(opts.sessionId, chatTurns.value);
-    options.scrollToBottom();
+    // 用户刚发出消息：强制回底（无视钉底状态）
+    options.scrollToBottom({ force: true });
 
     // 关键：从 reactive 数组取代理对象交给流处理器。
     // 直接改 raw 对象会绕过 Vue proxy 导致真实模型流式期间界面不更新
@@ -242,6 +254,7 @@ export function useChatStream(options: ChatStreamOptions) {
     activeAbortController,
     contextUsed,
     contextLimit,
+    ctxParts,
     sessionTurnsCache,
     sessionRunningMap,
     sessionAbortControllers,

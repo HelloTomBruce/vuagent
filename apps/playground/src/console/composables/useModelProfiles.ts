@@ -34,6 +34,8 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
   const isTestingConnection = ref(false);
   const testStatus = ref<{ ok: boolean; message: string } | null>(null);
   const modelForm = ref<ModelProfileItem>({ ...DEFAULT_MODEL_FORM });
+  /** API Key 输入框占位：编辑已配置 profile 时显示掩码占位，提示留空保持原密钥（TASK-011） */
+  const apiKeyPlaceholder = ref("sk-...");
 
   const activeModelObj = computed(() => {
     return (
@@ -94,13 +96,19 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
     isCreatingNewModel.value = false;
     selectedProfileId.value = profile.id;
     testStatus.value = null;
+    // TASK-011：服务端已脱敏回显，编辑态不回填明文密钥；留空保存即保持原密钥
+    apiKeyPlaceholder.value = profile.maskedApiKey
+      ? `已配置（${profile.maskedApiKey}）· 留空保持不变`
+      : "sk-...";
     modelForm.value = {
       id: profile.id,
       name: profile.name,
       provider: profile.provider,
       model: profile.model,
       baseUrl: profile.baseUrl || "",
-      apiKey: profile.apiKey || "",
+      apiKey: "",
+      // 仅展示用：掩码不参与 buildPayload，不会回传服务端
+      maskedApiKey: profile.maskedApiKey,
       contextWindow: profile.contextWindow || 128000,
       temperature: profile.temperature ?? 0.2,
       isDefault: !!profile.isDefault,
@@ -111,6 +119,7 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
     isCreatingNewModel.value = true;
     selectedProfileId.value = "new";
     testStatus.value = null;
+    apiKeyPlaceholder.value = "sk-...";
     modelForm.value = {
       ...DEFAULT_MODEL_FORM,
       name: "新自定义模型",
@@ -196,6 +205,8 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
     try {
       const form = modelForm.value;
       const result = await testModelConnectionApi({
+        // TASK-011：编辑已保存配置时携带 profileId，未重输密钥则探测复用服务端存储凭据
+        profileId: isCreatingNewModel.value ? undefined : form.id,
         baseUrl: form.baseUrl?.trim() || undefined,
         apiKey: form.apiKey?.trim() || undefined,
         model: form.model.trim(),
@@ -232,6 +243,7 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
     isTestingConnection,
     testStatus,
     modelForm,
+    apiKeyPlaceholder,
     activeModelObj,
     defaultModelId,
     resetModelToDefault,

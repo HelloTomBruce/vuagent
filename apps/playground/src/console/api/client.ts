@@ -3,11 +3,32 @@
  * 约定：业务码非 2xx 时返回 null（由调用方决定兜底行为），网络异常向上抛出（由调用方记录上下文日志）。
  */
 import type { ModelProfileItem, SessionItem, WorkspaceItem } from "../types";
+import type { UsageContextPart } from "@vuagent/protocol";
 
 const JSON_HEADERS: Record<string, string> = { "Content-Type": "application/json" };
 
+/**
+ * TASK-011 安全基线：服务端配置 VUAGENT_TOKEN 后要求 Bearer 鉴权。
+ * 令牌来源：localStorage("vuagent_token") 优先，其次构建期注入的 VITE_VUAGENT_TOKEN。
+ * dev 场景走 vite 代理（同源），令牌随请求头透传到后端。
+ */
+function resolveAuthToken(): string {
+  let token = "";
+  try {
+    token = localStorage.getItem("vuagent_token") || "";
+  } catch {
+    // 非浏览器环境忽略
+  }
+  return token || (import.meta.env?.VITE_VUAGENT_TOKEN as string | undefined) || "";
+}
+
+function authHeaders(): Record<string, string> {
+  const token = resolveAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function httpGet<T>(url: string): Promise<T | null> {
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: authHeaders() });
   if (!res.ok) return null;
   return (await res.json()) as T;
 }
@@ -19,7 +40,7 @@ async function httpSend<T>(
 ): Promise<T | null> {
   const res = await fetch(url, {
     method,
-    headers: body === undefined ? undefined : JSON_HEADERS,
+    headers: { ...authHeaders(), ...(body === undefined ? {} : JSON_HEADERS) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) return null;
@@ -120,6 +141,45 @@ export function deleteSessionById(id: string): Promise<{ success: boolean } | nu
 }
 
 /* ==========================================================================
+   会话手动压缩（TASK-008）
+   ========================================================================== */
+
+export interface CompactSessionResult {
+  success: boolean;
+  /** false 表示历史不足以折叠（返回原占用），前端提示无需压缩 */
+  compacted?: boolean;
+  checkpointId?: string;
+  beforeTokens: number;
+  afterTokens: number;
+  /** 释放的 token 估算（beforeTokens - afterTokens） */
+  freed: number;
+  /** 压缩后的上下文占用（前端仪表直接覆盖展示） */
+  totalTokens: number;
+  /** 压缩后的分段估算（system/history/tools），与 usage 事件 parts 同形 */
+  parts?: UsageContextPart[];
+  /** 累计折叠为摘要的轮次数 */
+  compactedTurnCount: number;
+}
+
+/**
+ * 手动压缩会话历史：服务端把早期轮次摘要化折叠（system + 摘要占位 + 最近 N 轮），
+ * 直接返回压缩后的新占用。非 2xx 时抛出携带服务端错误信息的异常（供 toast 展示）。
+ */
+export async function compactSession(id: string): Promise<CompactSessionResult> {
+  const res = await fetch(`/api/sessions/${id}/compact`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      (json as { error?: string })?.error || `压缩请求失败 [${res.status}] ${res.statusText}`
+    );
+  }
+  return json as CompactSessionResult;
+}
+
+/* ==========================================================================
    模型配置
    ========================================================================== */
 
@@ -154,13 +214,14 @@ export interface ModelProbeResult {
 
 /** 连通性真探测（TASK-005）：发起最小 chat completion，返回首响应时延或真实错误 */
 export async function testModelConnectionApi(body: {
+  profileId?: string;
   baseUrl?: string;
   apiKey?: string;
   model: string;
 }): Promise<ModelProbeResult> {
   const res = await fetch("/api/settings/models/test", {
     method: "POST",
-    headers: JSON_HEADERS,
+    headers: { ...authHeaders(), ...JSON_HEADERS },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -194,7 +255,7 @@ export async function submitAction(
 ): Promise<boolean> {
   const res = await fetch(`/api/action/${actionId}`, {
     method: "POST",
-    headers: JSON_HEADERS,
+    headers: { ...authHeaders(), ...JSON_HEADERS },
     body: JSON.stringify(payload),
   });
   return res.ok;
@@ -202,7 +263,10 @@ export async function submitAction(
 
 export async function abortSession(sessionId: string): Promise<void> {
   try {
-    await fetch(`/api/sessions/${sessionId}/abort`, { method: "POST" });
+    await fetch(`/api/sessions/${sessionId}/abort`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
   } catch {
     // 与原实现一致：中止请求失败静默吞掉
   }
@@ -215,7 +279,7 @@ export async function abortSession(sessionId: string): Promise<void> {
 export async function openChatStream(body: ChatRequestBody): Promise<Response> {
   const res = await fetch("/api/chat", {
     method: "POST",
-    headers: JSON_HEADERS,
+    headers: { ...authHeaders(), ...JSON_HEADERS },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -225,7 +289,7 @@ export async function openChatStream(body: ChatRequestBody): Promise<Response> {
 }
 
 export async function openSessionStream(sessionId: string): Promise<Response> {
-  const res = await fetch(`/api/sessions/${sessionId}/stream`);
+  const res = await fetch(`/api/sessions/${sessionId}/stream`, { headers: authHeaders() });
   if (!res.ok) {
     throw new Error(`服务器返回错误 [${res.status}] ${res.statusText}`);
   }

@@ -14,6 +14,7 @@ import {
 import { useDoubleConfirm } from "./useDoubleConfirm";
 import { rebuildBlocksFromHistory } from "../stream/blocks";
 import type { ChatStreamApi } from "./useChatStream";
+import type { ScrollToBottomOptions } from "./useStickToBottom";
 import type { MessageTurn, SessionItem } from "../types";
 
 export interface SessionsOptions {
@@ -24,7 +25,8 @@ export interface SessionsOptions {
   activePermission: Ref<string>;
   /** 种子消息里展示的工作区路径（原 currentWorkspace.value?.rootPath） */
   getWorkspaceRootPath: () => string;
-  scrollToBottom: () => void;
+  /** 切换会话/加载历史后用 { force: true } 强制回底 */
+  scrollToBottom: (options?: ScrollToBottomOptions) => void;
   /** 删除的是当前激活会话时回调（原 startNewChat） */
   onActiveDeleted: () => void;
 }
@@ -110,7 +112,8 @@ export function useSessions(options: SessionsOptions) {
       chat.isRunning.value = true;
       chat.activeAbortController.value =
         chat.sessionAbortControllers.get(session.id) || null;
-      options.scrollToBottom();
+      // 切换到正在流式的会话：强制回底
+      options.scrollToBottom({ force: true });
       return;
     }
 
@@ -262,7 +265,8 @@ export function useSessions(options: SessionsOptions) {
       console.error("加载会话详情失败:", e);
     }
 
-    options.scrollToBottom();
+    // 历史加载完成：强制回底
+    options.scrollToBottom({ force: true });
   }
 
   function startRenameSession(s: SessionItem, event: Event) {

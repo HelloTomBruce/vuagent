@@ -3,26 +3,32 @@
  * Agent Harness 控制台（编排层）
  * 视图层已组件化至 ./console/components/，数据层在 ./console/composables/：
  *   ConsoleSidebar / VaComposer(座位区 slot) / TurnList(AssistantTurn/CardRenderer)
- *   DockedPlanBar / ModelSettingsModal；样式集中于 console/styles/console.css
+ *   DockedPlanBar / settings/SettingsModal(+ModelProfilesPanel/InteractionPanel)；
+ *   消息区顶部「对话/轨迹」tab（轨迹宽幅视图）；右侧栏仅保留审批收件箱；
+ *   样式集中于 console/styles/console.css
  * 本文件只保留：组合式装配、欢迎页 hero 文案与用户动作编排。
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
-import { Check, ChevronDown, Folder, FolderPlus, History, PanelRight, Settings } from "lucide-vue-next";
-import { formatTokens, VaComposer, VaContextWindow, VaEmptyHero, VaToaster, vaToaster } from "@vuagent/ui";
+import { ArrowDown, ChevronDown, History, MessageSquare, PanelRight, Route } from "lucide-vue-next";
+import { formatTokens, VaComposer, VaContextWindow, VaEmptyHero, VaToaster, VaTrajectory, vaToaster } from "@vuagent/ui";
 import type { ContextPart } from "@vuagent/ui";
 import type { Decision } from "@vuagent/ui";
 import ConsoleSidebar from "./console/components/ConsoleSidebar.vue";
 import SeatDropdown from "./console/components/SeatDropdown.vue";
 import ConsoleRightSidebar from "./console/components/ConsoleRightSidebar.vue";
 import DockedPlanBar from "./console/components/DockedPlanBar.vue";
-import ModelSettingsModal from "./console/components/ModelSettingsModal.vue";
+import SettingsModal from "./console/components/settings/SettingsModal.vue";
+import ModelProfilesPanel from "./console/components/settings/ModelProfilesPanel.vue";
+import InteractionPanel from "./console/components/settings/InteractionPanel.vue";
+import type { SettingsTab } from "./console/components/settings/types";
 import TurnList from "./console/components/TurnList.vue";
-import { listSuspendedActions, patchSession } from "./console/api/client";
+import { listSuspendedActions, compactSession, patchSession } from "./console/api/client";
 import { useApprovals } from "./console/composables/useApprovals";
 import { useChatStream } from "./console/composables/useChatStream";
 import { useModelProfiles } from "./console/composables/useModelProfiles";
 import { useSessions } from "./console/composables/useSessions";
 import type { SessionsApi } from "./console/composables/useSessions";
+import { useStickToBottom } from "./console/composables/useStickToBottom";
 import { useWorkspaces } from "./console/composables/useWorkspaces";
 import { PERMISSION_MODES } from "./console/types";
 import type { SessionItem } from "./console/types";
@@ -31,6 +37,8 @@ import type { SessionItem } from "./console/types";
    纯视图状态
    ========================================================================== */
 const isNewChat = ref<boolean>(true);
+/** 主区视图 tab（用户反馈）：轨迹从右侧栏迁入消息区宽幅展示，对话为默认视图 */
+const mainViewTab = ref<"chat" | "traj">("chat");
 const isRightSidebarCollapsed = ref<boolean>(false);
 const composerText = ref<string>("");
 const activePermission = ref<string>("review");
@@ -40,13 +48,12 @@ const permissionModes = PERMISSION_MODES;
 const chatScrollRef = useTemplateRef<HTMLElement>("chatScrollRef");
 const composerRef = useTemplateRef<{ focus: () => void }>("composerRef");
 
-function scrollToBottom() {
-  nextTick(() => {
-    if (chatScrollRef.value) {
-      chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight;
-    }
-  });
-}
+/**
+ * 贴底跟随：流式输出仅在用户位于底部时自动跟随；用户上翻后立即解除，
+ * 不再每个 SSE 数据块强制 scrollTop = scrollHeight（此前与用户滚轮互相打架导致卡顿）。
+ * 发送消息 / 切换会话等显式动作用 { force: true } 强制回底。
+ */
+const { isPinned: isChatPinned, onScroll: onChatScroll, scrollToBottom } = useStickToBottom(chatScrollRef);
 
 /* ==========================================================================
    组合式装配（数据层）
@@ -120,13 +127,11 @@ const {
   workspaces,
   activeWorkspaceId,
   expandedWorkspaces,
-  currentWorkspace,
   confirmDeleteWorkspaceId,
   activateWorkspace,
   fetchWorkspaces,
   pickAndCreateWorkspace,
   toggleWorkspaceExpand,
-  selectWorkspace,
   askDeleteWorkspace,
   ensureActiveWorkspace,
 } = ws;
@@ -142,6 +147,7 @@ const {
   isTestingConnection,
   testStatus,
   modelForm,
+  apiKeyPlaceholder,
   activeModelObj,
   fetchModelProfiles,
   resetModelToDefault,
@@ -154,6 +160,15 @@ const {
   deleteModelProfile,
   testModelConnection,
 } = models;
+
+/** 统一设置弹窗当前 tab（TASK-017）：默认打开「模型与 API」，保持原模型配置入口行为 */
+const settingsTab = ref<SettingsTab>("models");
+
+/** 打开设置弹窗：可指定落点 tab（缺省「模型与 API」），open/close 状态仍由 useModelProfiles 持有 */
+function openSettings(tab: SettingsTab = "models") {
+  settingsTab.value = tab;
+  openModelSettings();
+}
 
 const {
   sessions,
@@ -184,6 +199,7 @@ const {
   sessionRunningMap,
   contextUsed,
   contextLimit,
+  ctxParts: streamCtxParts,
   resetTurns,
   sendPrompt,
   stopExecution,
@@ -197,13 +213,59 @@ const composerPermissions = computed(() =>
   permissionModes.map((p) => ({ id: p.id, label: p.label, desc: p.desc }))
 );
 
-/** 上下文窗口仪表分段：当前总量即真实占用（协议分段估算待后续迭代接入） */
-const ctxParts = computed<ContextPart[]>(() => [
-  { id: "history", label: "对话历史", tokens: contextUsed.value, kind: "history" },
-]);
+/** 上下文窗口仪表分段：优先消费 usage 事件的协议级分段(system/tools/history)；
+ *  无分段（旧服务端/沙箱演示流/新会话未运行）时降级为单段「对话历史」 */
+const ctxParts = computed<ContextPart[]>(() =>
+  streamCtxParts.value.length > 0
+    ? streamCtxParts.value
+    : [{ id: "history", label: "对话历史", tokens: contextUsed.value, kind: "history" }]
+);
 
-function onCompactHint() {
-  vaToaster.add({ title: "压缩对话功能即将开放", kind: "info" });
+/** 压缩中：历史格子微光收缩（VaContextWindow 内置动画），按钮进入禁用态 */
+const isCompacting = ref(false);
+
+/** TASK-008 手动压缩：调服务端压缩接口 → 消费返回的新占用(totalTokens/parts)刷新仪表 → toast 释放量 */
+async function onCompactSession() {
+  if (isCompacting.value) return;
+  const sid = activeSessionId.value;
+  if (!sid || isNewChat.value) {
+    vaToaster.add({ title: "新会话暂无历史可压缩", kind: "info" });
+    return;
+  }
+  if (isRunning.value) {
+    vaToaster.add({ title: "会话执行中，请等待本轮结束后再压缩", kind: "warning" });
+    return;
+  }
+  isCompacting.value = true;
+  try {
+    const result = await compactSession(sid);
+    if (!result.compacted) {
+      vaToaster.add({
+        title: "历史较少，暂无需压缩",
+        description: `当前占用 ${formatTokens(result.totalTokens)} tokens`,
+        kind: "info",
+      });
+      return;
+    }
+    // 压缩完成：直接消费服务端返回的新占用，仪表断崖回落（格子宽度过渡动画自动生效）
+    contextUsed.value = result.totalTokens;
+    streamCtxParts.value = result.parts?.length
+      ? result.parts
+      : [{ id: "history", label: "对话历史", tokens: result.totalTokens, kind: "history" }];
+    vaToaster.add({
+      title: `已压缩，释放 ${formatTokens(result.freed)} tokens`,
+      description: `${result.compactedTurnCount} 轮早期历史已折叠为摘要`,
+      kind: "success",
+    });
+  } catch (e) {
+    vaToaster.add({
+      title: "压缩失败",
+      description: e instanceof Error ? e.message : String(e),
+      kind: "danger",
+    });
+  } finally {
+    isCompacting.value = false;
+  }
 }
 
 /** 空态引导的工作区卡片（VaEmptyHero） */
@@ -296,6 +358,7 @@ function startNewChat(targetWorkspaceId?: string) {
   }
   activeSessionId.value = "";
   isNewChat.value = true;
+  mainViewTab.value = "chat";
   // 新会话回到默认权限模式与默认模型档（各会话的绑定由 session 字段恢复）
   activePermission.value = "review";
   resetModelToDefault();
@@ -306,6 +369,7 @@ function startNewChat(targetWorkspaceId?: string) {
 
 /** 选择会话：加载历史后一并恢复会话绑定的权限模式与模型档 */
 async function onSelectSession(s: SessionItem) {
+  mainViewTab.value = "chat";
   await selectSession(s);
   // 恢复会话绑定的模型档（档位已被删除则保持当前选择）
   const mid = s.activeModelProfileId;
@@ -369,6 +433,8 @@ async function handleSend(promptOverride?: string) {
   }
 
   composerText.value = "";
+  // 发送任务：若正停留在轨迹 tab，自动切回对话视图跟随输出
+  mainViewTab.value = "chat";
   await sendPrompt(prompt, {
     sessionId: currentSessionId,
     workspaceId: activeWorkspaceId.value,
@@ -410,7 +476,7 @@ function quickFillPrompt(text: string) {
       @cancel-rename="cancelRenameSession"
       @toggle-archive="toggleArchiveSession"
       @ask-delete-session="askDeleteSession"
-      @open-model-settings="openModelSettings"
+      @open-settings="openSettings"
       @update:rename-draft="renameDraft = $event"
     />
 
@@ -444,37 +510,6 @@ function quickFillPrompt(text: string) {
               @update:permission="onSelectPermission"
             >
               <template #actions>
-                <!-- 工作区切换（仅新建会话时可选） -->
-                <SeatDropdown>
-                  <template #trigger>
-                    <Folder :size="12" />
-                    <span class="va-console__seat-text">{{ currentWorkspace?.name || "选择工作区" }}</span>
-                    <ChevronDown :size="11" />
-                  </template>
-                  <div class="va-console__menu-header">切换工作区</div>
-                  <button
-                    v-for="w in workspaces"
-                    :key="w.id"
-                    class="va-console__menu-item"
-                    :class="{ 'va-console__menu-item--active': w.id === activeWorkspaceId }"
-                    type="button"
-                    @click="selectWorkspace(w.id)"
-                  >
-                    <Folder :size="13" />
-                    <span class="va-console__menu-item-name">{{ w.name }}</span>
-                    <Check v-if="w.id === activeWorkspaceId" :size="13" />
-                  </button>
-                  <div class="va-console__menu-divider" />
-                  <button
-                    class="va-console__menu-item va-console__menu-item--action"
-                    type="button"
-                    @click="pickAndCreateWorkspace"
-                  >
-                    <FolderPlus :size="14" />
-                    <span>新建工作区 (系统弹窗)…</span>
-                  </button>
-                </SeatDropdown>
-
                 <!-- 上下文窗口仪表（VaContextWindow，点击展开分段面板） -->
                 <SeatDropdown>
                   <template #trigger>
@@ -487,18 +522,11 @@ function quickFillPrompt(text: string) {
                       :parts="ctxParts"
                       :capacity="contextLimit"
                       :removable="false"
-                      @compact="onCompactHint"
+                      :compacting="isCompacting"
+                      @compact="onCompactSession"
                     />
                   </div>
                 </SeatDropdown>
-                <button
-                  class="va-console__icon-btn-xs va-console__model-settings-btn"
-                  type="button"
-                  title="管理与配置模型…"
-                  @click="openModelSettings"
-                >
-                  <Settings :size="13" />
-                </button>
               </template>
             </VaComposer>
 
@@ -534,15 +562,71 @@ function quickFillPrompt(text: string) {
       <!-- 场景 B：聊天与执行流视图（聊天区 + 右侧栏） -->
       <div v-else class="va-console__chat-layout">
       <section class="va-console__chat-view">
-        <!-- 消息瀑布流 (滚动区域) -->
-        <div ref="chatScrollRef" class="va-console__messages-stream">
-          <TurnList
-            :turns="chatTurns"
-            @approve="(actionId) => submitApproval(actionId, true)"
-            @deny="(actionId, reason) => submitApproval(actionId, false, reason)"
-            @regenerate="regenerateTurn"
-            @feedback="onFeedback"
+        <!-- 主区视图 tab：对话 / 轨迹（轨迹自右侧栏迁入，宽幅展示） -->
+        <div class="va-console__mtabs">
+          <button
+            class="va-console__mtab"
+            :class="{ 'va-console__mtab--active': mainViewTab === 'chat' }"
+            type="button"
+            @click="mainViewTab = 'chat'"
+          >
+            <MessageSquare :size="14" />
+            <span>对话</span>
+          </button>
+          <button
+            class="va-console__mtab"
+            :class="{ 'va-console__mtab--active': mainViewTab === 'traj' }"
+            type="button"
+            @click="mainViewTab = 'traj'"
+          >
+            <Route :size="14" />
+            <span>轨迹</span>
+          </button>
+        </div>
+
+        <!-- 对话视图：消息瀑布流（滚动区域；wrap 提供「回到底部」按钮的定位锚点） -->
+        <div v-show="mainViewTab === 'chat'" class="va-console__stream-wrap">
+          <div
+            ref="chatScrollRef"
+            class="va-console__messages-stream"
+            @scroll.passive="onChatScroll"
+          >
+            <TurnList
+              :turns="chatTurns"
+              @approve="(actionId) => submitApproval(actionId, true)"
+              @deny="(actionId, reason) => submitApproval(actionId, false, reason)"
+              @regenerate="regenerateTurn"
+              @feedback="onFeedback"
+            />
+          </div>
+
+          <!-- 上翻解除钉底后出现；点击强制回底并恢复流式跟随 -->
+          <button
+            v-if="!isChatPinned"
+            class="va-console__scroll-bottom"
+            type="button"
+            title="回到底部"
+            @click="scrollToBottom({ force: true })"
+          >
+            <ArrowDown :size="13" />
+            <span>回到底部</span>
+          </button>
+        </div>
+
+        <!-- 轨迹视图：三泳道台账 + 时间线（宽幅去卡片化 + 主从详情） -->
+        <div v-show="mainViewTab === 'traj'" class="va-console__traj-view">
+          <VaTrajectory
+            v-if="sessionTrajEvents.length > 0"
+            :events="sessionTrajEvents"
+            :ledger-max-height="undefined"
+            :bordered="false"
+            split-detail
           />
+          <div v-else class="va-console__traj-empty">
+            <Route :size="20" />
+            <p>本轮会话还没有轨迹</p>
+            <small>发送任务后，执行步骤将实时显示在这里</small>
+          </div>
         </div>
 
         <!-- 输入框上方的任务执行计划 -->
@@ -572,15 +656,6 @@ function quickFillPrompt(text: string) {
             @update:permission="onSelectPermission"
           >
             <template #actions>
-              <!-- 工作区只读徽标：会话已绑定，切换请新建会话 -->
-              <span
-                class="va-console__seat-badge"
-                title="会话已绑定该工作区；如需切换工作区请新建会话"
-              >
-                <Folder :size="12" />
-                <span>{{ currentWorkspace?.name || "工作区" }}</span>
-              </span>
-
               <!-- 上下文窗口仪表（VaContextWindow，点击展开分段面板） -->
               <SeatDropdown>
                 <template #trigger>
@@ -593,27 +668,19 @@ function quickFillPrompt(text: string) {
                     :parts="ctxParts"
                     :capacity="contextLimit"
                     :removable="false"
-                    @compact="onCompactHint"
+                    :compacting="isCompacting"
+                    @compact="onCompactSession"
                   />
                 </div>
               </SeatDropdown>
-            <button
-              class="va-console__icon-btn-xs va-console__model-settings-btn"
-              type="button"
-              title="管理与配置模型…"
-              @click="openModelSettings"
-            >
-              <Settings :size="13" />
-            </button>
             </template>
           </VaComposer>
         </div>
       </section>
 
-      <!-- 右侧栏：tab 容器（轨迹 / …） -->
+      <!-- 右侧栏：跨会话 HITL 待审批收件箱（轨迹已迁入主区 tab） -->
       <ConsoleRightSidebar
         v-if="!isRightSidebarCollapsed"
-        :traj-events="sessionTrajEvents"
         :decisions="pendingDecisions"
         @decide="onDecide"
         @collapse="isRightSidebarCollapsed = true"
@@ -630,25 +697,36 @@ function quickFillPrompt(text: string) {
       </div>
     </main>
 
-    <!-- 模型设置模态弹窗 -->
-    <ModelSettingsModal
+    <!-- 统一设置弹窗（TASK-017）：外壳 + 左导航，面板按 tab 插槽分发 -->
+    <SettingsModal
       v-if="isModelSettingsOpen"
-      :model-profiles="modelProfiles"
-      :selected-profile-id="selectedProfileId"
-      :is-creating-new-model="isCreatingNewModel"
-      :show-api-key="showApiKey"
-      :is-testing-connection="isTestingConnection"
-      :test-status="testStatus"
-      :model-form="modelForm"
+      v-model:active-tab="settingsTab"
       @close="closeModelSettings"
-      @create-new="createNewProfile"
-      @select-profile="selectProfileForEdit"
-      @provider-change="onProviderChange"
-      @save="saveModelProfile"
-      @delete-profile="deleteModelProfile(modelForm.id)"
-      @test="testModelConnection"
-      @update:show-api-key="showApiKey = $event"
-    />
+    >
+      <template #models>
+        <ModelProfilesPanel
+          :model-profiles="modelProfiles"
+          :selected-profile-id="selectedProfileId"
+          :is-creating-new-model="isCreatingNewModel"
+          :show-api-key="showApiKey"
+          :is-testing-connection="isTestingConnection"
+          :test-status="testStatus"
+          :model-form="modelForm"
+          :api-key-placeholder="apiKeyPlaceholder"
+          @close="closeModelSettings"
+          @create-new="createNewProfile"
+          @select-profile="selectProfileForEdit"
+          @provider-change="onProviderChange"
+          @save="saveModelProfile"
+          @delete-profile="deleteModelProfile(modelForm.id)"
+          @test="testModelConnection"
+          @update:show-api-key="showApiKey = $event"
+        />
+      </template>
+      <template #interaction>
+        <InteractionPanel />
+      </template>
+    </SettingsModal>
 
     <!-- 全局通知宿主（反馈/系统提示） -->
     <VaToaster />
