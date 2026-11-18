@@ -1,5 +1,5 @@
 import type { HarnessStreamEvent } from "./types.js";
-import type { TurnEntity, WorkspaceEntity } from "../storage/interfaces.js";
+import type { CheckpointEntity, TurnEntity, WorkspaceEntity } from "../storage/interfaces.js";
 
 export interface SandboxDemoContext {
   workspace: WorkspaceEntity;
@@ -10,6 +10,13 @@ export interface SandboxDemoContext {
   messageId: string;
   turnId: string;
   startAt: number;
+  /** TASK-008：与主流程一致的上下文快照，演示轮次同样落 checkpoint（可压缩/可恢复） */
+  messagesSnapshot?: unknown[];
+  /** 演示轮次的窗口占用与分段估算（agent-loop 用 ContextCompactor 按同一口径计算） */
+  usage?: {
+    promptTokens: number;
+    parts: Array<{ id: string; label: string; tokens: number; kind: "system" | "history" | "tools" }>;
+  };
 }
 
 /**
@@ -144,6 +151,26 @@ export async function *runSandboxDemoTurn(
 
   const fullContent = `已接收任务指令：**${prompt}**\n\nAgent 已在工作区 \`${workspace.name}\` 建立沙箱并开始规划。\n\n${tipText}`;
 
+  // TASK-008：演示轮次同样落 checkpoint 与窗口占用口径——
+  // 历史可恢复、手动压缩在演示会话上同样可用（与主流程一致）。
+  // 快照在 turn 开始时被捕获（system + 历史 + 当前 prompt），此处补入本轮 assistant 演示回复，
+  // 使历史重建与手动压缩的摘要要点（"助手:"行）对演示轮次同样完整
+  const demoSnapshot = ctx.messagesSnapshot?.length
+    ? [...ctx.messagesSnapshot, { role: "assistant", content: fullContent }]
+    : undefined;
+  const checkpoints: CheckpointEntity[] = demoSnapshot
+    ? [
+        {
+          id: `cp-${turnId}-1`,
+          turnId,
+          stepIndex: 1,
+          messagesSnapshot: demoSnapshot,
+          snapshotAt: Date.now(),
+        },
+      ]
+    : [];
+  const promptTokens = ctx.usage?.promptTokens ?? 120;
+
   const turnEntity: TurnEntity = {
     id: turnId,
     sessionId: ctx.sessionId,
@@ -154,13 +181,15 @@ export async function *runSandboxDemoTurn(
     plan: planData,
     status: "done",
     stepCount: 1,
-    checkpoints: [],
+    checkpoints,
     telemetry: {
       durationMs: totalDuration,
       ttftMs: 50,
       totalTokens: 256,
-      promptTokens: 120,
+      promptTokens,
       completionTokens: 136,
+      // 前端 selectSession 水合仪表的口径字段（压缩后刷新同样依赖它）
+      contextTokens: promptTokens + 136,
       laneEventsCount: 4,
     },
     createdAt: startAt,

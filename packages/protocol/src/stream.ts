@@ -17,6 +17,19 @@ export interface UiComponentRenderResult {
   props?: Record<string, unknown>;
 }
 
+/**
+ * usage 事件的上下文分段估算（复用 ui 库 ContextPart 形状：id/label/tokens/kind）。
+ * kind 限定为服务端 ContextCompactor.estimateParts 可产出的三段；
+ * 对 @vuagent/ui 的 ContextPart（kind 含 file）结构兼容，前端可直接消费。
+ */
+export interface UsageContextPart {
+  id: string;
+  /** 悬停 tooltip 的分段名称，如 "系统提示" */
+  label: string;
+  tokens: number;
+  kind: "system" | "history" | "tools";
+}
+
 export type HarnessStreamEvent =
   | {
       type: "thought_delta";
@@ -98,6 +111,8 @@ export type HarnessStreamEvent =
       totalTokens: number;
       /** 生效模型配置声明的上下文窗口（若有） */
       contextWindow?: number;
+      /** 协议级分段估算（system/history/tools），前端仪表据此渲染分段格子；旧版本服务端可缺省 */
+      parts?: UsageContextPart[];
     }
   | {
       type: "suspended";

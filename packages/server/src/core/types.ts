@@ -36,6 +36,12 @@ export interface HarnessTool<T = Record<string, unknown>> {
   parameters: TSchema | Record<string, unknown>;
   riskLevel?: ToolRiskLevel;
   requiresApproval?: boolean;
+  /**
+   * 声明式元数据：该工具是否会写工作区（写文件 / 执行命令等副作用）。
+   * read-only 模式与 read-only 工作区的权限闸门据此判定（TASK-012），
+   * 取代按工具名字符串黑名单的脆弱实现 —— 带写副作用的工具必须显式声明 true。
+   */
+  writesWorkspace?: boolean;
   execute: (ctx: ToolExecutionContext<T>) => Promise<unknown>;
 }
 

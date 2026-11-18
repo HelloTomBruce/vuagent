@@ -1,3 +1,5 @@
+import { encode } from "gpt-tokenizer";
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
   content?: string;
@@ -13,10 +15,49 @@ export interface ChatMessage {
   }>;
 }
 
+/** 上下文仪表分段类型：系统提示词 / 对话历史 / 工具结果（与 @vuagent/ui ContextPart.kind 子集同形） */
+export type ContextPartKind = "system" | "history" | "tools";
+
+/** usage 事件下发的分段估算结构（复用 ui 库 ContextPart 形状：id/label/tokens/kind） */
+export interface ContextPartEstimate {
+  id: string;
+  /** 悬停 tooltip 的分段名称，如 "系统提示" */
+  label: string;
+  tokens: number;
+  kind: ContextPartKind;
+}
+
+/** 手动压缩摘要占位消息的固定起始标记，二次压缩时据此识别旧摘要块 */
+export const COMPACT_SUMMARY_MARKER = "[上下文压缩摘要]";
+
+export interface ManualCompactOptions {
+  /**
+   * 摘要化折叠后完整保留的最近历史 token 量（行业口径 keep.tokens，缺省 15000）。
+   * 按 token 而非轮次保留：轮次的 token 差异可达两个数量级，按轮数保留不可控。
+   */
+  keepTokens?: number;
+  /** 此前已累计折叠的轮次数（二次压缩时衔接累计口径） */
+  previousCompactedTurns?: number;
+}
+
+export interface ManualCompactResult {
+  /** 压缩后的消息序列（已 sanitize，tool_calls↔tool 配对合法） */
+  messages: ChatMessage[];
+  /** 注入的摘要占位文本 */
+  summary: string;
+  /** 本次实际新折叠的轮次数（不含此前累计；0 表示历史不足无需折叠） */
+  foldedTurnCount: number;
+  /** 累计折叠轮次数（写入 session.compaction.compactedTurnCount） */
+  totalCompactedTurns: number;
+}
+
 export interface CompactorOptions {
   maxContextTokens?: number; // 默认 16k
   maxToolResultChars?: number; // 单条工具执行结果超过此长度时截断
-  preserveRecentTurns?: number; // 保留最近完整轮次
+  /** 手动压缩保留窗口（keep.tokens 口径），缺省 15000 */
+  keepTokens?: number;
+  /** 自动裁剪尾部保留轮次数，缺省 4 */
+  preserveRecentTurns?: number;
 }
 
 /**
@@ -31,36 +72,69 @@ export interface CompactorOptions {
 export class ContextCompactor {
   private maxTokens: number;
   private maxToolChars: number;
+  private keepTokens: number;
   private preserveRecent: number;
 
   constructor(options: CompactorOptions = {}) {
     this.maxTokens = options.maxContextTokens ?? 16_000;
     this.maxToolChars = options.maxToolResultChars ?? 2_000;
+    this.keepTokens = options.keepTokens ?? 15_000;
     this.preserveRecent = options.preserveRecentTurns ?? 4;
   }
 
   /**
-   * 粗略预估消息的 Token 数量。
-   * ASCII 约 4 字符 1 Token；CJK 等非 ASCII 约 1.5 字符 1 Token（混合文本加权求和）。
+   * 精确统计消息序列的 Token 数量（gpt-tokenizer / o200k_base BPE 分词）。
+   * 计数范围与 OpenAI Chat Completions 计费口径对齐：每条消息含约 4 token 的
+   * 消息级包裹开销（role 标记、定界符），tool_calls 的函数名与 JSON 参数逐字计数，
+   * 序列整体含 2 token 的对话边界开销。
    */
   estimateTokens(messages: ChatMessage[]): number {
-    let asciiChars = 0;
-    let cjkChars = 0;
-    const countChars = (s: string) => {
-      for (const ch of s) {
-        if (ch.charCodeAt(0) > 0x7f) cjkChars++;
-        else asciiChars++;
-      }
-    };
+    let total = 2; // 对话首尾定界
     for (const msg of messages) {
-      if (msg.content) countChars(msg.content);
-      if (msg.tool_calls) {
-        for (const tc of msg.tool_calls) {
-          countChars(tc.function.name + tc.function.arguments);
-        }
+      total += this.#messageTokens(msg);
+    }
+    return total;
+  }
+
+  /** 单条消息 token 计数：4 token 包裹开销 + 正文 + 工具调用声明；tool 响应 +1 定界 */
+  #messageTokens(msg: ChatMessage): number {
+    let n = 4;
+    if (msg.content) n += encode(msg.content).length;
+    if (msg.tool_calls) {
+      for (const tc of msg.tool_calls) {
+        n += encode(tc.function.name).length;
+        n += encode(tc.function.arguments).length;
+        n += 3; // 函数调用包裹开销
       }
     }
-    return Math.ceil(asciiChars / 4 + cjkChars / 1.5);
+    if (msg.role === "tool") n += 1; // tool 响应定界
+    return n;
+  }
+
+  /**
+   * 按消息角色分段统计上下文占用，供前端 Context 仪表渲染分段格子。
+   * 逐条消息计数后按段聚合（各段之和 = estimateTokens(messages) − 2 的对话边界开销）。
+   * 分段规则：
+   * - system：系统提示词（role:system 的 content）
+   * - tools：工具结果（role:tool 的 content）
+   * - history：user/assistant 正文（assistant.tool_calls 的调用声明也计入本段，
+   *   工具结果本体在 role:tool 消息中，归 tools 段）
+   * 返回时省略 tokens 为 0 的分段（如纯对话不产出 tools 段）。
+   */
+  estimateParts(messages: ChatMessage[]): ContextPartEstimate[] {
+    const acc: Record<ContextPartKind, number> = { system: 0, history: 0, tools: 0 };
+    for (const msg of messages) {
+      const n = this.#messageTokens(msg);
+      if (msg.role === "system") acc.system += n;
+      else if (msg.role === "tool") acc.tools += n;
+      else acc.history += n;
+    }
+    const parts: ContextPartEstimate[] = [
+      { id: "system", label: "系统提示", tokens: acc.system, kind: "system" },
+      { id: "history", label: "对话历史", tokens: acc.history, kind: "history" },
+      { id: "tools", label: "工具结果", tokens: acc.tools, kind: "tools" },
+    ];
+    return parts.filter((p) => p.tokens > 0);
   }
 
   /**
@@ -144,6 +218,149 @@ export class ContextCompactor {
       result.push(m);
     }
     return result;
+  }
+
+  /**
+   * 手动压缩（TASK-008 显式干预入口，与自动滑动窗口 compact 互补）。
+   * 行业通用语义（对齐 OpenCode keep.tokens / Claude Code /compact）：
+   * 1. 保留 system 提示词完整原文；
+   * 2. 从尾部按 token 预算保留最近原始对话（keepTokens，默认 15k）——
+   *    精确细节不丢，按 token 而非轮次（轮次间 token 差异可达两个数量级）；
+   * 3. 其余早期历史折叠为一段摘要占位消息（role:user）；
+   * 4. 保留区内超长工具结果截断（head+tail），工具输出是占用大头且可随时重取；
+   * 5. 输出经 sanitize 兜底，保证 tool_calls↔tool 配对合法。
+   *
+   * 保留区边界只落在轮次块边界（user 消息起新块），绝不拆散 tool_calls↔tool 配对。
+   * 二次压缩时旧摘要块作为普通历史块参与折叠，其要点行继承合并进新摘要。
+   */
+  manualCompact(messages: ChatMessage[], opts: ManualCompactOptions = {}): ManualCompactResult {
+    const keepTokens = Math.max(1, opts.keepTokens ?? this.keepTokens);
+    const previousCompacted = opts.previousCompactedTurns ?? 0;
+
+    const systemMessages = messages.filter((m) => m.role === "system");
+
+    // 轮次块划分（user 消息起新块；system 摘离）
+    const blocks: ChatMessage[][] = [];
+    let current: ChatMessage[] | null = null;
+    for (const msg of messages) {
+      if (msg.role === "system") continue;
+      if (msg.role === "user" || !current) {
+        current = [msg];
+        blocks.push(current);
+      } else {
+        current.push(msg);
+      }
+    }
+
+    const isSummaryBlock = (block: ChatMessage[] | undefined) =>
+      Boolean(block?.length && (block[0].content || "").startsWith(COMPACT_SUMMARY_MARKER));
+
+    // 2. 从尾部按 token 预算圈定保留区：整块纳入，块级累计超预算即停。
+    //    最后一个块（当前对话尾部）无论如何保留，保证压缩后上下文非空。
+    //    旧摘要块不占保留预算（它本来就是压缩产物，留在保留区只会白吃预算）。
+    const blockTokens = blocks.map((b) => this.estimateTokens(b));
+    let keepStart = blocks.length - 1;
+    let keptTokens = 0;
+    for (let i = blocks.length - 1; i >= 0; i--) {
+      const isLast = i === blocks.length - 1;
+      const isOldSummary = isSummaryBlock(blocks[i]);
+      if (!isLast && !isOldSummary && keptTokens > 0 && keptTokens + blockTokens[i] > keepTokens) break;
+      keptTokens += isOldSummary ? 0 : blockTokens[i];
+      keepStart = i;
+      if (!isOldSummary && keptTokens >= keepTokens) break;
+    }
+
+    const folded = blocks.slice(0, keepStart);
+    const kept = blocks.slice(keepStart);
+
+    // 历史不足以折叠（无可折叠块，或只有旧摘要块）：原样透传（仅 sanitize）
+    if (folded.length === 0 || (folded.length === 1 && isSummaryBlock(folded[0]))) {
+      return {
+        messages: this.sanitize(messages),
+        summary: isSummaryBlock(blocks[0]) ? blocks[0][0].content || "" : "",
+        foldedTurnCount: 0,
+        totalCompactedTurns: previousCompacted,
+      };
+    }
+
+    // 3. 折叠区摘要：旧摘要块的要点行继承合并 + 新折叠块的要点行
+    const carriedLines: string[] = [];
+    if (isSummaryBlock(folded[0])) {
+      carriedLines.push(...(folded[0][0].content || "").split("\n").slice(1));
+    }
+
+    const digestLines: string[] = [];
+    let foldedMessageCount = 0;
+    for (const block of folded) {
+      if (isSummaryBlock(block)) continue;
+      foldedMessageCount += block.length;
+      const parts: string[] = [];
+      for (const msg of block) {
+        if (msg.role === "user" && msg.content) {
+          parts.push(`用户:${ContextCompactor.#clipDigest(msg.content, 120)}`);
+        } else if (msg.role === "assistant" && msg.content) {
+          parts.push(`助手:${ContextCompactor.#clipDigest(msg.content, 120)}`);
+        } else if (msg.role === "assistant" && msg.tool_calls?.length) {
+          const names = Array.from(new Set(msg.tool_calls.map((tc) => tc.function.name))).join("、");
+          parts.push(`调用工具 ${names}×${msg.tool_calls.length}`);
+        }
+      }
+      if (parts.length > 0) {
+        digestLines.push(`${digestLines.length + 1}. ${parts.join(" → ")}`);
+      }
+    }
+
+    // 摘要行数封顶：超长会话的要点只保留最近若干条，防止摘要本身膨胀成新的占用大头
+    let allLines = [...carriedLines, ...digestLines];
+    const MAX_SUMMARY_LINES = 20;
+    if (allLines.length > MAX_SUMMARY_LINES) {
+      const dropped = allLines.length - MAX_SUMMARY_LINES;
+      allLines = [`…(更早 ${dropped} 条要点从略)`, ...allLines.slice(-MAX_SUMMARY_LINES)];
+    }
+
+    // 新折叠的轮次数：首个折叠块是旧摘要占位（非真实轮次）时扣减 1
+    const newFoldedTurns = folded.length - (isSummaryBlock(folded[0]) ? 1 : 0);
+    const totalCompactedTurns = previousCompacted + newFoldedTurns;
+
+    const summary = [
+      `${COMPACT_SUMMARY_MARKER} 更早的对话已折叠为要点概述（累计 ${totalCompactedTurns} 轮 / 最近折叠 ${foldedMessageCount} 条消息），近期对话完整保留在下方：`,
+      ...(allLines.length > 0 ? allLines : ["（该段历史无可提取的正文要点）"]),
+    ].join("\n");
+
+    // 4. 保留区截断：除最后一块（当前对话尾部）外，超长工具结果按 head+tail 截断
+    const keptMessages: ChatMessage[] = [];
+    kept.forEach((block, blockIndex) => {
+      const isLastBlock = blockIndex === kept.length - 1;
+      for (const msg of block) {
+        if (!isLastBlock && msg.role === "tool" && (msg.content?.length ?? 0) > this.maxToolChars) {
+          keptMessages.push({
+            ...msg,
+            content: `${msg.content!.slice(0, 800)}\n\n... [压缩截断超长工具输出 (原长度 ${msg.content!.length} 字符)] ...\n\n${msg.content!.slice(-400)}`,
+          });
+        } else {
+          keptMessages.push(msg);
+        }
+      }
+    });
+
+    const compacted: ChatMessage[] = [
+      ...systemMessages,
+      { role: "user", content: summary },
+      ...keptMessages,
+    ];
+
+    return {
+      messages: this.sanitize(compacted),
+      summary,
+      foldedTurnCount: newFoldedTurns,
+      totalCompactedTurns,
+    };
+  }
+
+  /** 摘要行裁剪：压平空白并截断超长正文 */
+  static #clipDigest(s: string, max: number): string {
+    const text = s.replace(/\s+/g, " ").trim();
+    return text.length > max ? `${text.slice(0, max)}…` : text;
   }
 
   /**

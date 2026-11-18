@@ -18,6 +18,7 @@ export * from "./storage/drivers/sqlite.driver.js";
 export * from "./storage/repositories/workspace.repository.js";
 export * from "./storage/repositories/session.repository.js";
 export * from "./storage/repositories/settings.repository.js";
+export * from "./security.js";
 export * from "./server.js";
 
 // 如果直接通过 node 执行本文件，启动 HTTP 监听

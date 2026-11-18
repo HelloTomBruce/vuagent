@@ -15,6 +15,7 @@
     "@hono/node-server": "^1.13.8",
     "@sinclair/typebox": "^0.34.48",
     "@vuagent/protocol": "workspace:*",
+    "gpt-tokenizer": "^4.1.2",
     "hono": "^4.7.2"
   },
   "devDependencies": {

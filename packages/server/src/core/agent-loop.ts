@@ -11,6 +11,8 @@ import { ContextCompactor, type ChatMessage } from "./context-compactor.js";
 import { parsePartialJson } from "./stream-orchestrator.js";
 import { TelemetryLedger, clipTrajectoryEvent } from "./telemetry.js";
 import { runSandboxDemoTurn } from "./sandbox-demo.js";
+import { buildSystemPrompt } from "./system-prompt.js";
+import { resolveEffectivePermissionMode, resolveLivePermissionMode } from "./permissions.js";
 import type { CheckpointEntity, TurnEntity } from "../storage/interfaces.js";
 
 export interface AgentLoopServices {
@@ -70,27 +72,52 @@ export class AgentLoop {
 
     const messages: ChatMessage[] = [];
 
-    // 系统提示词
-    const systemPromptParts: string[] = [
-      "你是一个基于标准 Harness 运行的高级智能体助手。",
-      `当前工作区: ${workspace.name} (路径: ${workspace.rootPath})`,
-      workspace.systemInstruction || "",
-      session.systemContext || "",
-    ].filter(Boolean);
+    // TASK-014：生效权限模式（请求级∩会话级，更严者生效）在轮次开始时解析一次，
+    // 系统提示词的「模式声明」与下方工具仲裁的「模式执行」共用同一解析结果，口径不漂移
+    const effectiveMode = resolveEffectivePermissionMode(req.permission, session.permission);
 
+    // 系统提示词（TASK-014 重构）：运行环境披露（平台/OS/shell/日期/git）
+    // + 权限模式声明 + 操作纪律 + 工作区/会话自定义指令，对标 Codex ## Environment 机制
     messages.push({
       role: "system",
-      content: systemPromptParts.join("\n\n"),
+      content: buildSystemPrompt({
+        workspace,
+        effectiveMode,
+        sessionSystemContext: session.systemContext,
+      }),
     });
 
+    // TASK-008 手动压缩：被折叠轮次不入上下文，改为注入一条摘要占位消息，
+    // 使上下文占用断崖回落；折叠轮次之后的历史照常按 checkpoint 快照恢复。
+    // （自动滑动窗口裁剪 compact 仍在每步生效，二者互补）
+    const compaction = session.compaction;
+    if (compaction?.summary) {
+      messages.push({ role: "user", content: compaction.summary });
+    }
+
     // 恢复历史会话
-    for (const pastTurn of session.turns) {
+    for (let turnIndex = 0; turnIndex < session.turns.length; turnIndex++) {
+      const pastTurn = session.turns[turnIndex];
+      // 压缩覆盖的轮次：正文已折叠进摘要，跳过原始内容
+      if (compaction && turnIndex < compaction.compactedTurnCount) continue;
       messages.push({ role: "user", content: pastTurn.prompt });
       // 提取最新检查点的消息状态（旧数据 errorTurn 可能无 checkpoints 字段，需防御）
       const cps = pastTurn.checkpoints;
       const lastCp = cps && cps.length > 0 ? cps[cps.length - 1] : undefined;
       if (lastCp && Array.isArray(lastCp.messagesSnapshot)) {
-        for (const item of lastCp.messagesSnapshot as ChatMessage[]) {
+        const snapshot = lastCp.messagesSnapshot as ChatMessage[];
+        // 快照是「截至本步的完整历史」（含此前轮次），只回放本 turn 提问之后的消息；
+        // 逐条全量重放会与更早轮次的快照叠加，assistant 内容随轮次成倍重复
+        let start = 0;
+        for (let i = snapshot.length - 1; i >= 0; i--) {
+          const item = snapshot[i];
+          if (item.role === "user" && item.content === pastTurn.prompt) {
+            start = i + 1;
+            break;
+          }
+        }
+        for (let i = start; i < snapshot.length; i++) {
+          const item = snapshot[i];
           if (item.role !== "system" && item.role !== "user") {
             messages.push(item);
           }
@@ -120,6 +147,8 @@ export class AgentLoop {
 
     if (!isMock && !hasApiKey) {
       // 未配置大模型 API Key 时进入沙箱演示分支（TASK-005：演示脚本剥离至 core/sandbox-demo.ts，核心引擎保持纯净）
+      // TASK-008：携带与主流程同口径的上下文快照与占用估算，演示轮次同样落 checkpoint——
+      // 历史可恢复、手动压缩在演示会话上同样可用
       yield* runSandboxDemoTurn(
         {
           workspace,
@@ -130,6 +159,11 @@ export class AgentLoop {
           messageId: currentMsgId,
           turnId,
           startAt,
+          messagesSnapshot: JSON.parse(JSON.stringify(messages)),
+          usage: {
+            promptTokens: this.compactor.estimateTokens(messages),
+            parts: this.compactor.estimateParts(messages),
+          },
         },
         (turnEntity) => this.services.sessionRepo.appendTurn(session.id, turnEntity)
       );
@@ -189,12 +223,29 @@ export class AgentLoop {
             // 跨步累加值仅作为计费口径存入 telemetry.totalTokens，不推给窗口仪表。
             lastContextTokens =
               chunk.usage.promptTokens + chunk.usage.completionTokens;
+            // 协议级分段估算（system/history/tools）：按本步实际发送的上下文统计，
+            // 与 promptTokens 同口径。本步助手输出（completionTokens）并入 history 段——
+            // 下一步起它就是重发历史的一部分，且最后一步的输出不会再有后续 usage 覆盖，
+            // 并入后分段之和 ≈ totalTokens，仪表触发器文案与面板数值保持一致。
+            const parts = this.compactor.estimateParts(compactedMessages);
+            const historyPart = parts.find((p) => p.kind === "history");
+            if (historyPart) {
+              historyPart.tokens += chunk.usage.completionTokens;
+            } else if (chunk.usage.completionTokens > 0) {
+              parts.push({
+                id: "history",
+                label: "对话历史",
+                tokens: chunk.usage.completionTokens,
+                kind: "history",
+              });
+            }
             yield {
               type: "usage",
               promptTokens: chunk.usage.promptTokens,
               completionTokens: chunk.usage.completionTokens,
               totalTokens: lastContextTokens,
               contextWindow: modelProfile.contextWindow,
+              parts,
             };
           }
 
@@ -272,7 +323,17 @@ export class AgentLoop {
 
         // 检查是否有工具调用
         if (pendingToolCalls.size === 0) {
-          // 无工具调用，表示 Agent 任务已彻底完成
+          // 无工具调用，表示 Agent 任务已彻底完成。
+          // 纯文本完成步同样落检查点（TASK-008 修复）：此前提前 break 跳过了末尾的
+          // checkpoint 记录，纯对话轮次没有 messagesSnapshot——历史重建会丢失 assistant
+          // 回复（上下文只剩连续 user 消息），手动压缩也取不到完整历史快照
+          checkpoints.push({
+            id: `cp-${turnId}-${currentStep}`,
+            turnId,
+            stepIndex: currentStep,
+            messagesSnapshot: JSON.parse(JSON.stringify(messages)),
+            snapshotAt: Date.now(),
+          });
           break;
         }
 
@@ -337,29 +398,54 @@ export class AgentLoop {
           accumulatedCards.push(callCard);
 
           const toolDef = this.services.toolRegistry.get(call.name);
-          const permission = req.permission || "review";
 
           let executionResult: unknown;
           let isError = false;
           let errorMessage: string | undefined;
 
+          // TASK-012 权限仲裁（评审 P0-2 修复）：
+          // ① 请求级 req.permission 与会话级 session.permission 取交集，更严者生效。
+          //    严重度：read-only(3) > review(2) > auto(1)
+          // TASK-014：轮次起点交集解析（effectiveMode）供系统提示词声明；
+          // 运行中改档感知（用户反馈）：逐工具调用重读会话最新档，与起点不一致
+          // （UI 改档即 PATCH 会话）则以最新会话档为准——正在输出的轮次对
+          // 「后续工具调用」立即可感知权限变化，而非等到下一轮才生效
+          let mode = effectiveMode;
+          try {
+            const latestSession = await this.services.sessionRepo.get(req.sessionId);
+            if (latestSession) {
+              mode = resolveLivePermissionMode(
+                effectiveMode,
+                session.permission,
+                latestSession.permission
+              );
+            }
+          } catch {
+            // 会话读取失败时保守回落轮次起点口径，不阻断仲裁
+          }
+
+          // ② 声明式元数据取代旧字符串黑名单：是否写工作区由工具定义自述
+          //    （修复 fs_write 不在 "write_file/edit_file/..." 黑名单导致的只读静默写绕过）
+          const writesWorkspace = toolDef?.writesWorkspace === true;
+
           // 权限模式与审批判断
           let requiresApproval = false;
-          if (permission === "auto") {
-            // 自动执行模式：Agent 自主执行工具，无需人工审批介入
-            requiresApproval = false;
-          } else if (permission === "read-only" || permission === "readonly") {
-            // 只读模式：禁止写操作与高危执行
-            const isWriteTool = ["write_file", "edit_file", "run_command", "bash_run", "delete_file"].includes(call.name);
-            if (isWriteTool) {
-              isError = true;
-              errorMessage = `[只读模式限制] 当前工作区权限为只读 (read-only)，已拦截写操作工具 [${call.name}]`;
-              executionResult = { approved: false, reason: errorMessage };
-            }
-          } else {
-            // 审批模式 (review)：高风险或需审批的工具进入 HITL 挂起
+
+          // ③ 工作区级硬闸门：read-only 工作区在任何模式（含 auto）下都拦截写工作区工具
+          if (writesWorkspace && workspace.permission === "read-only") {
+            isError = true;
+            errorMessage = `[工作区权限限制] 当前工作区权限为只读 (read-only)，已拦截写操作工具 [${call.name}]`;
+            executionResult = { approved: false, reason: errorMessage };
+          } else if (mode === "read-only" && writesWorkspace) {
+            // ④ 只读模式：按工具元数据拦截一切写工作区工具（含 bash_run 等执行副作用）
+            isError = true;
+            errorMessage = `[只读模式限制] 当前权限模式为只读 (read-only)，已拦截写操作工具 [${call.name}]`;
+            executionResult = { approved: false, reason: errorMessage };
+          } else if (mode === "review") {
+            // ⑤ 审批模式 (review)：高风险或需审批的工具进入 HITL 挂起
             requiresApproval = toolDef?.requiresApproval === true || toolDef?.riskLevel === "high";
           }
+          // ⑥ auto 模式：Agent 自主执行无需审批介入；工作区级硬闸门（③）仍然生效
 
           // HITL 拦截机制 (仅在需要人工审批且未被只读限制时进入)
           if (requiresApproval && !isError) {

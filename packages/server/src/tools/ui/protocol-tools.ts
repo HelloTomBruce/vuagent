@@ -18,6 +18,7 @@ export const UIApprovalCardTool: HarnessTool = {
   parameters: ApprovalCardToolSchema,
   riskLevel: "high",
   requiresApproval: true,
+  writesWorkspace: false, // 纯渲染契约工具，无工作区副作用
   execute: async (ctx) => {
     return {
       rendered: true,
@@ -33,6 +34,7 @@ export const UICodeDiffTool: HarnessTool = {
   parameters: CodeDiffToolSchema,
   riskLevel: "low",
   requiresApproval: false,
+  writesWorkspace: false,
   execute: async (ctx) => {
     return {
       rendered: true,
@@ -48,6 +50,7 @@ export const UIMetricChartTool: HarnessTool = {
   parameters: MetricChartToolSchema,
   riskLevel: "low",
   requiresApproval: false,
+  writesWorkspace: false,
   execute: async (ctx) => {
     return {
       rendered: true,
@@ -63,6 +66,7 @@ export const UIAgentPlanTool: HarnessTool = {
   parameters: AgentPlanToolSchema,
   riskLevel: "low",
   requiresApproval: false,
+  writesWorkspace: false,
   execute: async (ctx) => {
     return {
       rendered: true,
@@ -78,6 +82,7 @@ export const UIFileTreeTool: HarnessTool = {
   parameters: FileTreeToolSchema,
   riskLevel: "low",
   requiresApproval: false,
+  writesWorkspace: false,
   execute: async (ctx) => {
     return {
       rendered: true,
@@ -93,6 +98,7 @@ export const UITrajectoryTool: HarnessTool = {
   parameters: TrajectoryToolSchema,
   riskLevel: "low",
   requiresApproval: false,
+  writesWorkspace: false,
   execute: async (ctx) => {
     return {
       rendered: true,

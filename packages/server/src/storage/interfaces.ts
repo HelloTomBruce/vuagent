@@ -21,7 +21,7 @@ export interface ModelProfileEntity {
   provider: "openai" | "anthropic" | "deepseek" | "qwen" | "ollama" | "custom";
   model: string;
   baseUrl?: string;
-  apiKey?: string; // 服务端安全存储，查询时脱敏
+  apiKey?: string; // 服务端安全存储；HTTP 查询/回显接口一律经 sanitizeModelProfile 脱敏（maskedApiKey，保留末 4 位），明文只在服务端内部使用
   contextWindow?: number;
   parameters?: {
     temperature?: number;
@@ -95,6 +95,26 @@ export interface TurnEntity {
   completedAt?: number;
 }
 
+/**
+ * 手动压缩记录（TASK-008）：一次「压缩对话」操作的持久化元数据。
+ * 下一轮 runTurn 重建历史时，前 compactedTurnCount 轮不入上下文，
+ * 改为注入 summary 占位消息，使上下文占用断崖回落。
+ */
+export interface SessionCompactionEntity {
+  /** 累计被折叠为摘要的轮次数（session.turns 前 N 轮） */
+  compactedTurnCount: number;
+  /** 注入到上下文开头的摘要文本（role:user 占位消息内容） */
+  summary: string;
+  /** 本次压缩落库的 compaction checkpoint id */
+  checkpointId: string;
+  /** 压缩前上下文占用估算（tokens） */
+  beforeTokens: number;
+  /** 压缩后上下文占用估算（tokens） */
+  afterTokens: number;
+  /** 压缩时间戳 */
+  compactedAt: number;
+}
+
 export interface SessionEntity {
   id: string;
   workspaceId: string;
@@ -105,6 +125,8 @@ export interface SessionEntity {
   permission?: string;
   systemContext?: string;
   turns: TurnEntity[];
+  /** 最近一次手动压缩记录（TASK-008），历史重建时据此折叠轮次并注入摘要 */
+  compaction?: SessionCompactionEntity;
   createdAt: number;
   updatedAt: number;
 }

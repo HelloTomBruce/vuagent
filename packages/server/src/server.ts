@@ -1,9 +1,10 @@
 import { Hono } from "hono";
-import { cors } from "hono/cors";
 import path from "node:path";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import type { IStorageDriver } from "./storage/drivers/base.driver.js";
+import { applySecurityBaseline, BYO_FORBIDDEN_MESSAGE, isProfileSelectionOnly, resolveSecurityConfig, sanitizeModelProfile } from "./security.js";
+import type { ModelProfileEntity } from "./storage/interfaces.js";
 
 const execAsync = promisify(exec);
 import { SQLiteStorageDriver } from "./storage/drivers/sqlite.driver.js";
@@ -14,8 +15,10 @@ import { SettingsRepository } from "./storage/repositories/settings.repository.j
 import { ToolRegistry } from "./core/tool-registry.js";
 import { ActionHub } from "./core/action-hub.js";
 import { AgentLoop } from "./core/agent-loop.js";
+import { ContextCompactor, type ChatMessage } from "./core/context-compactor.js";
 import { StreamOrchestrator } from "./core/stream-orchestrator.js";
 import { SessionExecutionHub } from "./core/session-execution-hub.js";
+import type { CheckpointEntity, TurnEntity } from "./storage/interfaces.js";
 import type { IModelDriver } from "./adapters/model-driver.js";
 import { OpenAICompatibleDriver } from "./adapters/openai-driver.js";
 import { FsReadTool, FsWriteTool } from "./tools/system/fs-tools.js";
@@ -26,11 +29,15 @@ export interface ServerOptions {
   storageDriver?: IStorageDriver;
   modelDriver?: IModelDriver;
   dbPath?: string;
+  /** 安全基线覆盖项（测试注入用）；缺省走 VUAGENT_* 环境变量 */
+  security?: { authToken?: string; allowByoProvider?: boolean; extraOrigins?: string[] };
 }
 
 export function createHarnessServer(options: ServerOptions = {}) {
   const app = new Hono();
-  app.use("*", cors());
+  // 安全基线（TASK-011）：CORS/Origin 白名单 + 可选 Bearer 鉴权，替代原先 cors() 全开
+  const security = resolveSecurityConfig(options.security);
+  applySecurityBaseline(app, security);
 
   // 1. 初始化存储层
   const driver: IStorageDriver =
@@ -53,6 +60,8 @@ export function createHarnessServer(options: ServerOptions = {}) {
   }
 
   const actionHub = new ActionHub();
+  // TASK-008：压缩器单例，AgentLoop（自动滑动窗口）与会话压缩接口（手动摘要化）共用裁剪口径
+  const compactor = new ContextCompactor();
   const modelDriver: IModelDriver =
     options.modelDriver ||
     new OpenAICompatibleDriver(
@@ -67,6 +76,7 @@ export function createHarnessServer(options: ServerOptions = {}) {
     toolRegistry,
     actionHub,
     modelDriver,
+    compactor,
   });
 
   const executionHub = new SessionExecutionHub(agentLoop);
@@ -90,6 +100,40 @@ export function createHarnessServer(options: ServerOptions = {}) {
 
     if (!prompt) {
       return c.json({ error: "prompt is required" }, 400);
+    }
+
+    // providerConfig / modelOverride 信任边界（TASK-011）：
+    // 默认拒绝前端自备 baseUrl/apiKey（SSRF 面）；BYO 开关显式放行；
+    // modelOverride 仅允许切换服务端已登记 profile
+    let modelProfileId: string | undefined = body.modelProfileId;
+    let modelOverride: Partial<ModelProfileEntity> | undefined;
+    const hasProviderConfig = body.providerConfig !== undefined && body.providerConfig !== null;
+    const hasModelOverride = body.modelOverride !== undefined && body.modelOverride !== null;
+
+    if (hasProviderConfig || hasModelOverride) {
+      if (security.allowByoProvider) {
+        // 自备供应商模式：显式开启后透传（行为与历史版本一致）
+        modelOverride = body.modelOverride || body.providerConfig;
+      } else if (hasProviderConfig) {
+        return c.json({ error: BYO_FORBIDDEN_MESSAGE, code: "PROVIDER_OVERRIDE_FORBIDDEN" }, 403);
+      } else if (isProfileSelectionOnly(body.modelOverride)) {
+        // 走 listProfiles 触发默认 profile 懒播种，避免全新库下误判未登记
+        const profiles = await settingsRepo.listProfiles();
+        const profile = profiles.find((p) => p.id === body.modelOverride.id);
+        if (!profile) {
+          return c.json(
+            {
+              error: `Forbidden: modelOverride.id "${body.modelOverride.id}" 不是服务端已登记的模型 profile`,
+              code: "PROVIDER_OVERRIDE_FORBIDDEN",
+            },
+            403
+          );
+        }
+        // 合法：仅切换服务端已登记 profile，等价于 modelProfileId
+        if (!modelProfileId) modelProfileId = body.modelOverride.id;
+      } else {
+        return c.json({ error: BYO_FORBIDDEN_MESSAGE, code: "PROVIDER_OVERRIDE_FORBIDDEN" }, 403);
+      }
     }
 
     // 默认工作区兜底
@@ -130,8 +174,8 @@ export function createHarnessServer(options: ServerOptions = {}) {
               workspaceId,
               prompt,
               permission: body.permission || "review",
-              modelProfileId: body.modelProfileId,
-              modelOverride: body.modelOverride || body.providerConfig,
+              modelProfileId,
+              modelOverride,
               maxSteps: body.maxSteps,
               timeoutMs: body.timeoutMs,
             },
@@ -386,18 +430,146 @@ export function createHarnessServer(options: ServerOptions = {}) {
     return c.json({ success: ok }, ok ? 200 : 404);
   });
 
-  // 模型配置接口
+  // TASK-008 手动压缩：把当前会话历史摘要化折叠（system + 摘要占位 + 最近 keepTokens 原始对话），
+  // 上下文占用断崖回落；直接返回新占用（totalTokens/parts）供前端刷新仪表。
+  // 与自动滑动窗口裁剪（ContextCompactor.compact，每步生效）互补，此处为用户显式干预入口。
+  app.post("/api/sessions/:id/compact", async (c) => {
+    const sessionId = c.req.param("id");
+    const session = await sessionRepo.get(sessionId);
+    if (!session) return c.json({ error: "Session not found" }, 404);
+
+    // 执行中的会话压缩会与 ReAct 回环竞争上下文状态，拒绝并提示稍后再试
+    if (executionHub.isRunning(sessionId)) {
+      return c.json(
+        { error: "会话正在执行中，请等待本轮结束后再压缩", code: "SESSION_RUNNING" },
+        409
+      );
+    }
+
+    const body = await c.req.json().catch(() => ({}));
+    const keepTokens =
+      typeof body?.keepTokens === "number" && body.keepTokens >= 1000
+        ? Math.floor(body.keepTokens)
+        : undefined;
+
+    // 1. 取会话最近 checkpoint 快照作为完整历史（旧数据 checkpoints 可能缺字段，防御式遍历）
+    let snapshot: ChatMessage[] | null = null;
+    let snapshotTurn: TurnEntity | null = null;
+    let snapshotCp: CheckpointEntity | null = null;
+    for (let i = session.turns.length - 1; i >= 0; i--) {
+      const turn = session.turns[i];
+      const cps = Array.isArray(turn.checkpoints) ? turn.checkpoints : [];
+      for (let j = cps.length - 1; j >= 0; j--) {
+        const cp = cps[j];
+        if (cp && Array.isArray(cp.messagesSnapshot) && cp.messagesSnapshot.length > 0) {
+          snapshot = cp.messagesSnapshot as ChatMessage[];
+          snapshotTurn = turn;
+          snapshotCp = cp;
+          break;
+        }
+      }
+      if (snapshot) break;
+    }
+
+    if (!snapshot || !snapshotTurn) {
+      return c.json({ error: "会话暂无可压缩的历史消息", code: "NO_HISTORY" }, 400);
+    }
+
+    const beforeTokens = compactor.estimateTokens(snapshot);
+    const previousCompacted = session.compaction?.compactedTurnCount ?? 0;
+
+    // 2. 摘要化折叠：保留 system + 摘要占位 + 最近 keepTokens 原始对话（sanitize 保证配对合法）
+    const folded = compactor.manualCompact(snapshot, {
+      keepTokens,
+      previousCompactedTurns: previousCompacted,
+    });
+
+    // 历史不足以折叠（无新折叠轮次）：原占用返回，前端提示无需压缩
+    if (folded.foldedTurnCount === 0) {
+      return c.json({
+        success: true,
+        compacted: false,
+        checkpointId: snapshotCp?.id,
+        beforeTokens,
+        afterTokens: beforeTokens,
+        freed: 0,
+        totalTokens: beforeTokens,
+        parts: compactor.estimateParts(snapshot),
+        compactedTurnCount: previousCompacted,
+      });
+    }
+
+    const afterMessages = folded.messages;
+    const afterTokens = compactor.estimateTokens(afterMessages);
+    const parts = compactor.estimateParts(afterMessages);
+
+    // 3. 落 compaction checkpoint（挂在最近带快照的轮次上，可追溯可回滚）
+    if (!Array.isArray(snapshotTurn.checkpoints)) {
+      snapshotTurn.checkpoints = [];
+    }
+    const checkpointId = `cp-compact-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    snapshotTurn.checkpoints.push({
+      id: checkpointId,
+      turnId: snapshotTurn.id,
+      stepIndex: (snapshotCp?.stepIndex ?? 0) + 1,
+      messagesSnapshot: JSON.parse(JSON.stringify(afterMessages)),
+      snapshotAt: Date.now(),
+    });
+
+    // 4. 前端水合口径：selectSession 按「最后一个带 contextTokens 的 turn」恢复仪表，
+    //    同步压缩后的占用，保证刷新页面后显示压缩后的值
+    if (snapshotTurn.telemetry) {
+      snapshotTurn.telemetry.contextTokens = afterTokens;
+    } else {
+      snapshotTurn.telemetry = { durationMs: 0, laneEventsCount: 0, contextTokens: afterTokens };
+    }
+
+    // 5. 持久化压缩元数据：下一轮 runTurn 重建历史时据此折叠轮次并注入摘要占位
+    const compactionRecord = {
+      compactedTurnCount: folded.totalCompactedTurns,
+      summary: folded.summary,
+      checkpointId,
+      beforeTokens,
+      afterTokens,
+      compactedAt: Date.now(),
+    };
+    session.compaction = compactionRecord;
+    await sessionRepo.update(sessionId, {
+      turns: session.turns,
+      compaction: compactionRecord,
+    });
+
+    return c.json({
+      success: true,
+      compacted: true,
+      checkpointId,
+      beforeTokens,
+      afterTokens,
+      freed: Math.max(0, beforeTokens - afterTokens),
+      totalTokens: afterTokens,
+      parts,
+      compactedTurnCount: folded.totalCompactedTurns,
+    });
+  });
+
+  // 模型配置接口（TASK-011：apiKey 脱敏回显，任何响应不包含明文密钥）
   app.get("/api/settings/models", async (c) => {
     const list = await settingsRepo.listProfiles();
-    return c.json(list);
+    return c.json(list.map(sanitizeModelProfile));
   });
 
   // 模型连通性真探测（TASK-005）：用表单配置发起最小 chat 探测，返回真实首响应时延或错误
+  // TASK-011：支持 profileId 兜底——编辑已保存配置且未重新输入密钥时，探测走服务端存储的凭据
   app.post("/api/settings/models/test", async (c) => {
     const body = await c.req.json().catch(() => ({}));
-    const endpoint = String(body.baseUrl || process.env.OPENAI_BASE_URL || "https://api.openai.com/v1");
-    const apiKey = body.apiKey || process.env.OPENAI_API_KEY;
-    const model = String(body.model || "gpt-4o-mini");
+    const storedProfile = body.profileId
+      ? await settingsRepo.getProfile(String(body.profileId))
+      : null;
+    const endpoint = String(
+      body.baseUrl || storedProfile?.baseUrl || process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
+    );
+    const apiKey = body.apiKey || storedProfile?.apiKey || process.env.OPENAI_API_KEY;
+    const model = String(body.model || storedProfile?.model || "gpt-4o-mini");
 
     const startedAt = Date.now();
     const controller = new AbortController();
@@ -438,7 +610,7 @@ export function createHarnessServer(options: ServerOptions = {}) {
   app.post("/api/settings/models", async (c) => {
     const body = await c.req.json();
     const profile = await settingsRepo.createProfile(body);
-    return c.json(profile, 201);
+    return c.json(sanitizeModelProfile(profile), 201);
   });
 
   app.patch("/api/settings/models/:id", async (c) => {
@@ -446,7 +618,7 @@ export function createHarnessServer(options: ServerOptions = {}) {
     const body = await c.req.json();
     const updated = await settingsRepo.updateProfile(id, body);
     if (!updated) return c.json({ error: "Profile not found" }, 404);
-    return c.json(updated);
+    return c.json(sanitizeModelProfile(updated));
   });
 
   app.delete("/api/settings/models/:id", async (c) => {

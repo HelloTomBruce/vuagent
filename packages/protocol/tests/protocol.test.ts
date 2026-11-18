@@ -10,7 +10,9 @@ import {
   ApprovalActionPayloadSchema,
   isTextDeltaEvent,
   isComponentEvent,
+  isUsageEvent,
   type UIStreamEvent,
+  type HarnessStreamEvent,
 } from "../src/index.js";
 
 describe("@vuagent/protocol - TypeBox Schemas", () => {
@@ -132,5 +134,36 @@ describe("@vuagent/protocol - Event Type Guards", () => {
     };
     expect(isTextDeltaEvent(event)).toBe(false);
     expect(isComponentEvent(event)).toBe(true);
+  });
+});
+
+describe("@vuagent/protocol - usage 事件分段 (parts)", () => {
+  it("usage 事件可携带 system/history/tools 三段分段", () => {
+    const event: HarnessStreamEvent = {
+      type: "usage",
+      promptTokens: 320,
+      completionTokens: 80,
+      totalTokens: 400,
+      contextWindow: 128000,
+      parts: [
+        { id: "system", label: "系统提示", tokens: 96, kind: "system" },
+        { id: "history", label: "对话历史", tokens: 224, kind: "history" },
+        { id: "tools", label: "工具结果", tokens: 80, kind: "tools" },
+      ],
+    };
+    expect(isUsageEvent(event)).toBe(true);
+    expect(event.parts?.map((p) => p.kind)).toEqual(["system", "history", "tools"]);
+    expect(event.parts?.reduce((t, p) => t + p.tokens, 0)).toBe(400);
+  });
+
+  it("parts 为可选字段(旧服务端无分段时兼容)", () => {
+    const event: HarnessStreamEvent = {
+      type: "usage",
+      promptTokens: 10,
+      completionTokens: 5,
+      totalTokens: 15,
+    };
+    expect(isUsageEvent(event)).toBe(true);
+    expect(event.parts).toBeUndefined();
   });
 });

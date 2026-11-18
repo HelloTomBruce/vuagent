@@ -1,5 +1,6 @@
 import type { IStorageDriver } from "../drivers/base.driver.js";
 import type { ModelProfileEntity } from "../interfaces.js";
+import { maskApiKey } from "../../security.js";
 
 const COLLECTION = "model_profiles";
 
@@ -87,9 +88,21 @@ export class SettingsRepository {
       await this.unsetDefault();
     }
 
+    // TASK-011 安全基线：
+    // 1. 空值 apiKey（undefined/""）= 保留服务端已存密钥（脱敏回显后前端不再持有明文）
+    // 2. 与已存密钥的掩码完全相等的值 = 客户端误回显脱敏值，同样视为未修改；
+    //    仅以前缀判断会误伤极小概率真实以 **** 开头的新密钥，故按 maskApiKey 精确比对
+    // 3. maskedApiKey 是回显掩码字段，永不落库
+    const { maskedApiKey: _maskedIgnored, ...rest } = updates as Partial<ModelProfileEntity> & {
+      maskedApiKey?: string;
+    };
+    if (!rest.apiKey || rest.apiKey === maskApiKey(existing.apiKey)) {
+      delete rest.apiKey;
+    }
+
     const updated: ModelProfileEntity = {
       ...existing,
-      ...updates,
+      ...rest,
       updatedAt: Date.now(),
     };
     await this.driver.set(COLLECTION, id, updated);
