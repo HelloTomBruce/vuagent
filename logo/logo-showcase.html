@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vuagent Logo — V 轨迹</title>
+<style>
+  :root {
+    --bg: #f7f6f2;
+    --bg-subtle: #efede7;
+    --card: #ffffff;
+    --ink: #1a1917;
+    --ink-2: #43413c;
+    --muted: #6f6d66;
+    --edge: rgba(26, 25, 23, 0.12);
+    --accent: #c2410c;
+    --accent-soft: rgba(194, 65, 12, 0.1);
+    --dark-bg: #141311;
+    --dark-card: #1e1c1a;
+    --dark-ink: #f0eee9;
+    --radius-l: 16px;
+    --radius-m: 10px;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 32px 96px; }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 88px 0 64px; display: grid; grid-template-columns: 1fr auto; gap: 48px; align-items: center; }
+  .kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 20px;
+  }
+  .kicker::before { content: ""; width: 24px; height: 2px; background: var(--accent); border-radius: 2px; }
+  h1 { font-size: 46px; font-weight: 750; letter-spacing: -0.02em; line-height: 1.15; }
+  h1 .v { color: var(--accent); }
+  .hero p.lede { margin-top: 18px; max-width: 520px; font-size: 16.5px; color: var(--ink-2); }
+  .hero-stage {
+    width: 240px; height: 240px; border-radius: var(--radius-l);
+    background: var(--card); border: 1px solid var(--edge);
+    box-shadow: 0 12px 32px rgba(26,25,23,0.08);
+    display: grid; place-items: center;
+  }
+  .hero-stage svg { width: 168px; height: 168px; }
+  .hero-meta { margin-top: 14px; text-align: center; font-size: 12.5px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  /* hero draw-in animation (mask-reveal: dashed strokes can't draw via dashoffset) */
+  .anim .rv { stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw 900ms var(--ease) forwards; }
+  .anim .rv-plan { animation-delay: 150ms;  animation-duration: 850ms; }
+  .anim .rv-ring { animation-delay: 920ms;  animation-duration: 480ms; }
+  .anim .rv-exec { animation-delay: 1330ms; animation-duration: 620ms; }
+  .anim .nd-done { transform-origin: center; transform-box: fill-box; transform: scale(0); animation: pop 380ms var(--ease) 1900ms forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes pop  { to { transform: scale(1); } }
+  @media (prefers-reduced-motion: reduce) {
+    .anim * { animation: none !important; stroke-dashoffset: 0 !important; transform: none !important; }
+  }
+
+  /* ---------- sections ---------- */
+  section { margin-top: 72px; }
+  h2 { font-size: 26px; font-weight: 720; letter-spacing: -0.01em; display: flex; align-items: baseline; gap: 12px; }
+  h2 .num { font-size: 13px; font-weight: 600; color: var(--accent); font-family: ui-monospace, Menlo, monospace; }
+  .section-sub { color: var(--muted); margin-top: 6px; font-size: 14.5px; }
+
+  /* anatomy */
+  .anatomy { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 28px; }
+  .anatomy-card {
+    background: var(--card); border: 1px solid var(--edge); border-radius: var(--radius-l);
+    padding: 24px; text-align: center;
+  }
+  .anatomy-card svg { width: 108px; height: 108px; }
+  .anatomy-card h3 { font-size: 16px; font-weight: 680; margin-top: 10px; }
+  .anatomy-card .tag { display: inline-block; margin-top: 4px; font-size: 11.5px; font-weight: 600; color: var(--accent); background: var(--accent-soft); padding: 2px 10px; border-radius: 999px; }
+  .anatomy-card p { margin-top: 10px; font-size: 13.5px; color: var(--muted); }
+  .anatomy-card .dim { opacity: 0.14; }
+
+  /* variants grid */
+  .variants { margin-top: 28px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .v-cell { border-radius: var(--radius-l); overflow: hidden; border: 1px solid var(--edge); background: var(--card); }
+  .v-cell.dark { background: var(--dark-bg); border-color: rgba(240,238,233,0.1); }
+  .v-cell .stage { height: 190px; display: grid; place-items: center; padding: 24px; }
+  .v-cell .stage svg { max-width: 100%; max-height: 100%; }
+  .v-cell .stage.bg-subtle { background: var(--bg-subtle); }
+  .v-cell.dark .stage { background: var(--dark-card); }
+  .v-cell figcaption {
+    padding: 12px 16px; border-top: 1px solid var(--edge);
+    font-size: 12.5px; color: var(--muted);
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  }
+  .v-cell.dark figcaption { border-top-color: rgba(240,238,233,0.1); color: rgba(240,238,233,0.55); }
+  .v-cell figcaption code { font-size: 11.5px; color: inherit; opacity: 0.85; }
+  .v-cell.wide { grid-column: span 3; }
+  .v-cell.wide .stage { height: 150px; }
+
+  /* scale row */
+  .scale-row { margin-top: 28px; display: flex; align-items: flex-end; gap: 40px; flex-wrap: wrap;
+    background: var(--card); border: 1px solid var(--edge); border-radius: var(--radius-l); padding: 32px 36px 24px; }
+  .scale-item { text-align: center; }
+  .scale-item .lbl { margin-top: 12px; font-size: 12px; color: var(--muted); font-family: ui-monospace, Menlo, monospace; }
+  .scale-item img, .scale-item svg { display: block; }
+
+  /* usage */
+  .usage-grid { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .usage-card { background: var(--dark-bg); color: var(--dark-ink); border-radius: var(--radius-l); padding: 22px 24px; border: 1px solid rgba(240,238,233,0.08); }
+  .usage-card h3 { font-size: 14px; font-weight: 640; margin-bottom: 12px; color: rgba(240,238,233,0.92); display: flex; gap: 8px; align-items: center; }
+  .usage-card h3::before { content: ""; width: 7px; height: 7px; border-radius: 2px; background: var(--accent); }
+  .usage-card pre { font-size: 12.5px; line-height: 1.7; color: rgba(240,238,233,0.78); overflow-x: auto; white-space: pre; }
+  .usage-card .cm { color: rgba(240,238,233,0.35); }
+
+  /* palette */
+  .palette { margin-top: 28px; display: flex; gap: 16px; flex-wrap: wrap; }
+  .swatch { flex: 1; min-width: 130px; background: var(--card); border: 1px solid var(--edge); border-radius: var(--radius-m); overflow: hidden; }
+  .swatch .chip { height: 64px; }
+  .swatch .info { padding: 10px 14px; font-size: 12.5px; }
+  .swatch .info b { display: block; font-size: 13px; }
+  .swatch .info span { color: var(--muted); font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; }
+
+  /* rules */
+  .rules { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .rule-card { border-radius: var(--radius-l); padding: 22px 24px; border: 1px solid var(--edge); background: var(--card); }
+  .rule-card.bad { border-color: rgba(213,69,60,0.35); }
+  .rule-card h3 { font-size: 14px; font-weight: 700; }
+  .rule-card.ok h3 { color: #1a7f4b; }
+  .rule-card.bad h3 { color: #d5453c; }
+  .rule-card ul { margin: 10px 0 0 18px; font-size: 13.5px; color: var(--ink-2); }
+  .rule-card li { margin-top: 6px; }
+
+  footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--edge); font-size: 12.5px; color: var(--muted); }
+
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; }
+    .anatomy, .variants, .usage-grid, .rules { grid-template-columns: 1fr; }
+    .v-cell.wide { grid-column: span 1; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ HERO ============ -->
+  <header class="hero">
+    <div>
+      <div class="kicker">Vuagent · Brand Mark</div>
+      <h1><span class="v">V</span> 轨迹<span style="color:var(--muted);font-weight:500;"> — 一笔写完 Agent 的一生</span></h1>
+      <p class="lede">
+        标识由一条 Agent 执行轨迹构成字母 <b>V</b>(Vue · Vuagent)。
+        左笔画是<b>虚线的计划</b>,途经<b>橙色审批门</b>后变为<b>实线的执行</b>,最终抵达<b>完成的端点</b> ——
+        这正是 Vuagent 组件库所操作的 Agent 运行时:计划、审批、执行、结果。
+      </p>
+    </div>
+    <div>
+      <div class="hero-stage">
+        <svg class="anim" viewBox="0 0 96 96" fill="none" stroke-linecap="round" aria-hidden="true">
+          <defs>
+            <mask id="rv-mask" maskUnits="userSpaceOnUse">
+              <path class="rv rv-plan" d="M25 20 L43.35 61.48" stroke="#fff" stroke-width="9" pathLength="100"/>
+              <circle class="rv rv-ring" cx="48" cy="72" r="9.5" stroke="#fff" stroke-width="9" pathLength="100"/>
+              <path class="rv rv-exec" d="M52.65 61.48 L71 20" stroke="#fff" stroke-width="9" pathLength="100"/>
+            </mask>
+          </defs>
+          <g mask="url(#rv-mask)">
+            <path d="M25 20 L43.35 61.48" stroke="#1A1917" stroke-width="6.5" stroke-dasharray="6.5 12.5"/>
+            <path d="M52.65 61.48 L71 20" stroke="#C2410C" stroke-width="6.5"/>
+            <circle cx="48" cy="72" r="9.5" stroke="#C2410C" stroke-width="6"/>
+            <circle class="nd-done" cx="71" cy="20" r="5.5" fill="#C2410C"/>
+          </g>
+        </svg>
+      </div>
+      <div class="hero-meta">vuagent-mark.svg · 96×96 grid</div>
+    </div>
+  </header>
+
+  <!-- ============ 01 CONCEPT ============ -->
+  <section>
+    <h2><span class="num">01</span>概念解析:四个部件,一句话故事</h2>
+    <p class="section-sub">每个部件都对应 Vuagent 的一个 Agent-Ops 组件域 —— 标识即产品地图。</p>
+    <div class="anatomy">
+      <div class="anatomy-card">
+        <svg viewBox="0 0 96 96" fill="none" stroke-linecap="round">
+          <path d="M25 20 L43.35 61.48" stroke="#1A1917" stroke-width="6.5" stroke-dasharray="6.5 12.5"/>
+          <path class="dim" d="M52.65 61.48 L71 20" stroke="#1A1917" stroke-width="6.5"/>
+          <circle class="dim" cx="48" cy="72" r="9.5" stroke="#1A1917" stroke-width="6"/>
+          <circle class="dim" cx="71" cy="20" r="5.5" fill="#1A1917"/>
+        </svg>
+        <h3>计划 <em style="font-style:normal;color:var(--muted);font-size:12px;">plan → do</em></h3>
+        <span class="tag">VaAgentPlan</span>
+        <p>虚线:从用户的请求(左上)开始,以「提议」的姿态一段段铺向审批门 —— 还没发生,但已可见。</p>
+      </div>
+      <div class="anatomy-card">
+        <svg viewBox="0 0 96 96" fill="none" stroke-linecap="round">
+          <path class="dim" d="M25 20 L43.35 61.48" stroke="#1A1917" stroke-width="6.5" stroke-dasharray="6.5 12.5"/>
+          <path class="dim" d="M52.65 61.48 L71 20" stroke="#1A1917" stroke-width="6.5"/>
+          <circle cx="48" cy="72" r="9.5" stroke="#C2410C" stroke-width="6"/>
+          <circle class="dim" cx="71" cy="20" r="5.5" fill="#1A1917"/>
+        </svg>
+        <h3>审批门 <em style="font-style:normal;color:var(--muted);font-size:12px;">approval gate</em></h3>
+        <span class="tag">VaApprovalCard</span>
+        <p>V 的顶点 = 力量汇聚处。开放的圆环是危险操作前的「等待人工放行」。</p>
+      </div>
+      <div class="anatomy-card">
+        <svg viewBox="0 0 96 96" fill="none" stroke-linecap="round">
+          <path class="dim" d="M25 20 L43.35 61.48" stroke="#1A1917" stroke-width="6.5" stroke-dasharray="6.5 12.5"/>
+          <path d="M52.65 61.48 L71 20" stroke="#C2410C" stroke-width="6.5"/>
+          <circle class="dim" cx="48" cy="72" r="9.5" stroke="#1A1917" stroke-width="6"/>
+          <circle class="dim" cx="25" cy="20" r="5.5" fill="#1A1917"/>
+          <circle cx="71" cy="20" r="5.5" fill="#C2410C"/>
+        </svg>
+        <h3>执行 → 完成 <em style="font-style:normal;color:var(--muted);font-size:12px;">execution → done</em></h3>
+        <span class="tag">VaTrajectory</span>
+        <p>越过审批门,虚线变成实线:提案已成为事实。橙色端点 = 交付结果。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 VARIANTS ============ -->
+  <section>
+    <h2><span class="num">02</span>变体全家桶</h2>
+    <p class="section-sub">亮 / 暗双主题与项目 <code>--va-*</code> 设计令牌同源;徽章版用于头像与社交场合。</p>
+    <div class="variants">
+      <figure class="v-cell">
+        <div class="stage bg-subtle"><img src="./vuagent-mark.svg" alt="主标" style="width:132px"></div>
+        <figcaption><span>主标 · 亮色底</span><code>vuagent-mark.svg</code></figcaption>
+      </figure>
+      <figure class="v-cell dark">
+        <div class="stage"><img src="./vuagent-mark-dark.svg" alt="主标暗色" style="width:132px"></div>
+        <figcaption><span>主标 · 暗色底</span><code>vuagent-mark-dark.svg</code></figcaption>
+      </figure>
+      <figure class="v-cell">
+        <div class="stage"><img src="./vuagent-badge.svg" alt="徽章亮" style="width:118px"></div>
+        <figcaption><span>徽章 · 纸色瓷砖</span><code>vuagent-badge.svg</code></figcaption>
+      </figure>
+      <figure class="v-cell dark">
+        <div class="stage"><img src="./vuagent-badge-dark.svg" alt="徽章暗" style="width:118px"></div>
+        <figcaption><span>徽章 · 墨色瓷砖</span><code>vuagent-badge-dark.svg</code></figcaption>
+      </figure>
+      <figure class="v-cell">
+        <div class="stage"><img src="./vuagent-favicon.svg" alt="favicon" style="width:72px"></div>
+        <figcaption><span>简化版 · 小尺寸可读</span><code>vuagent-favicon.svg</code></figcaption>
+      </figure>
+      <figure class="v-cell">
+        <div class="stage" style="gap:16px;display:flex;align-items:center;justify-content:center;">
+          <img src="./vuagent-favicon.svg" style="width:28px" alt="">
+          <span style="font-size:34px;font-weight:750;letter-spacing:-0.03em;">vuagent</span>
+        </div>
+        <figcaption><span>favicon + 字标示例</span><code>app header</code></figcaption>
+      </figure>
+      <figure class="v-cell wide">
+        <div class="stage"><img src="./vuagent-lockup.svg" alt="横版组合亮" style="height:96px"></div>
+        <figcaption><span>横版组合 · 亮</span><code>vuagent-lockup.svg</code></figcaption>
+      </figure>
+      <figure class="v-cell dark wide">
+        <div class="stage"><img src="./vuagent-lockup-dark.svg" alt="横版组合暗" style="height:96px"></div>
+        <figcaption><span>横版组合 · 暗</span><code>vuagent-lockup-dark.svg</code></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ 03 SCALE ============ -->
+  <section>
+    <h2><span class="num">03</span>缩放测试</h2>
+    <p class="section-sub">虚线纹理在 16px 退化为质感而非噪音;favicon 版用实线笔顺保证极小尺寸可读。</p>
+    <div class="scale-row">
+      <div class="scale-item"><img src="./vuagent-mark.svg" style="width:96px" alt=""><div class="lbl">96px</div></div>
+      <div class="scale-item"><img src="./vuagent-mark.svg" style="width:48px" alt=""><div class="lbl">48px</div></div>
+      <div class="scale-item"><img src="./vuagent-mark.svg" style="width:32px" alt=""><div class="lbl">32px</div></div>
+      <div class="scale-item"><img src="./vuagent-mark.svg" style="width:16px" alt=""><div class="lbl">16px</div></div>
+      <div style="width:1px;align-self:stretch;background:var(--edge);"></div>
+      <div class="scale-item"><img src="./vuagent-badge.svg" style="width:64px" alt=""><div class="lbl">badge 64</div></div>
+      <div class="scale-item"><img src="./vuagent-badge.svg" style="width:32px" alt=""><div class="lbl">badge 32</div></div>
+      <div class="scale-item"><img src="./vuagent-favicon.svg" style="width:32px" alt=""><div class="lbl">favicon 32</div></div>
+      <div class="scale-item"><img src="./vuagent-favicon.svg" style="width:16px" alt=""><div class="lbl">favicon 16</div></div>
+    </div>
+  </section>
+
+  <!-- ============ 04 PALETTE ============ -->
+  <section>
+    <h2><span class="num">04</span>色板:全部来自 <code style="font-size:18px;">--va-*</code> 设计令牌</h2>
+    <div class="palette">
+      <div class="swatch"><div class="chip" style="background:#C2410C"></div><div class="info"><b>烧橙 · 焦点</b><span>--va-accent #C2410C</span></div></div>
+      <div class="swatch"><div class="chip" style="background:#1A1917"></div><div class="info"><b>墨 · 计划</b><span>--va-ink #1A1917</span></div></div>
+      <div class="swatch"><div class="chip" style="background:#F7F6F2;border-bottom:1px solid var(--edge)"></div><div class="info"><b>纸 · 画布</b><span>--va-bg #F7F6F2</span></div></div>
+      <div class="swatch"><div class="chip" style="background:#141311"></div><div class="info"><b>夜 · 暗底</b><span>dark --va-bg #141311</span></div></div>
+    </div>
+  </section>
+
+  <!-- ============ 05 USAGE ============ -->
+  <section>
+    <h2><span class="num">05</span>接入方式</h2>
+    <div class="usage-grid">
+      <div class="usage-card">
+        <h3>README 徽章头部</h3>
+        <pre>&lt;div align="center"&gt;
+  &lt;img src="./logo/vuagent-lockup.svg"
+       alt="Vuagent"
+       width="420"&gt;
+&lt;/div&gt;</pre>
+      </div>
+      <div class="usage-card">
+        <h3>VitePress 文档站</h3>
+        <pre><span class="cm">// apps/docs/.vitepress/config.ts</span>
+export default defineConfig({
+  themeConfig: {
+    logo: "/logo/vuagent-mark.svg",
+    // 暗色主题自动切换:
+    // logo: { light: ..., dark: ... }
+  }
+})</pre>
+      </div>
+      <div class="usage-card">
+        <h3>Favicon</h3>
+        <pre>&lt;link rel="icon" type="image/svg+xml"
+      href="/logo/vuagent-favicon.svg"&gt;
+
+<span class="cm">// GitHub 仓库 Social Preview:
+// Settings → Social preview 上传
+// logo/vuagent-badge.svg 导出的 PNG</span></pre>
+      </div>
+      <div class="usage-card">
+        <h3>npm README / GitHub 深色适配</h3>
+        <pre>&lt;picture&gt;
+  &lt;source media="(prefers-color-scheme: dark)"
+          srcset="./logo/vuagent-lockup-dark.svg"&gt;
+  &lt;img src="./logo/vuagent-lockup.svg"
+       alt="Vuagent" width="420"&gt;
+&lt;/picture&gt;</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 06 RULES ============ -->
+  <section>
+    <h2><span class="num">06</span>使用守则</h2>
+    <div class="rules">
+      <div class="rule-card ok">
+        <h3>✓ 这样用</h3>
+        <ul>
+          <li>保持四部件完整:计划虚线、审批环、执行实线、端点,不可增删</li>
+          <li>净空区:标识四周留出 ≥ 1/4 标识高度的空白</li>
+          <li>最小尺寸:主标 24px 起,favicon 版 16px 起</li>
+          <li>只允许纸底亮色 / 墨底暗色两套官方配色</li>
+          <li>动效仅按 hero 区的方式整段描画,尊重 <code>prefers-reduced-motion</code></li>
+        </ul>
+      </div>
+      <div class="rule-card bad">
+        <h3>✗ 不要这样</h3>
+        <ul>
+          <li>不要旋转、倾斜、加投影或描边</li>
+          <li>不要把虚线改成实线、把审批环填充实心</li>
+          <li>不要替换为渐变色 / 霓虹色 —— 保持「暖纸 + 烧橙」的手作气质</li>
+          <li>不要拉伸变形,缩放请等比</li>
+          <li>不要在标识周围加竞争性的强色块</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Vuagent Brand · 「V 轨迹」概念标识 · 7 个 SVG 资产 · 颜色与几何网格与 @vuagent/ui 设计令牌同源 · MIT
+  </footer>
+</div>
+</body>
+</html>
