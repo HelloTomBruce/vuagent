@@ -70,6 +70,36 @@ export class ToolRegistry {
   }
 
   /**
+   * 入参校验闸门（TASK-055 的 Kind+Value.Check 逻辑收口为公开方法，TASK-059）：
+   * - agent-loop 工具执行段在 HITL 挂起判断前调用——非法入参不产生审批卡；
+   * - execute 内部同调本方法，保持直接调用方的兜底拦截不变。
+   * 仅对 TypeBox schema（带 Kind 符号）校验；schema 缺失/非 TypeBox 保持放行（向后兼容）。
+   */
+  validateParams(toolName: string, args: unknown): { ok: boolean; error?: string } {
+    const tool = this.get(toolName);
+    if (!tool) {
+      return {
+        ok: false,
+        error: `Tool [${toolName}] is not registered in harness`,
+      };
+    }
+    const schema = tool.parameters as TSchema;
+    if (schema && typeof schema === "object" && typeof schema[Kind] === "string") {
+      const errors = [...Value.Errors(schema, args ?? {})].slice(0, 3);
+      if (errors.length > 0) {
+        const detail = errors
+          .map((e) => `${e.path || "/"} ${e.message}`)
+          .join("; ");
+        return {
+          ok: false,
+          error: `参数校验失败: ${detail}。请修正入参后重试（勿编造工具不支持的参数）。`,
+        };
+      }
+    }
+    return { ok: true };
+  }
+
+  /**
    * 沙箱执行工具调用
    * 包含：超时保护、权限校验、异常捕获自愈
    */
@@ -93,22 +123,16 @@ export class ToolRegistry {
 
     try {
       // TASK-055 参数校验硬闸门：模型幻觉出的非法入参在进入工具执行前拦截。
-      // 仅对 TypeBox schema（带 Kind 符号）校验；schema 缺失/非 TypeBox 保持放行（向后兼容）。
-      const schema = tool.parameters as TSchema;
-      if (schema && typeof schema === "object" && typeof schema[Kind] === "string") {
-        const errors = [...Value.Errors(schema, ctx.args ?? {})].slice(0, 3);
-        if (errors.length > 0) {
-          const detail = errors
-            .map((e) => `${e.path || "/"} ${e.message}`)
-            .join("; ");
-          return {
-            toolCallId: ctx.toolCallId,
-            toolName,
-            isError: true,
-            error: `参数校验失败: ${detail}。请修正入参后重试（勿编造工具不支持的参数）。`,
-            durationMs: Date.now() - start,
-          };
-        }
+      // TASK-059：闸门逻辑收口至 validateParams，与 HITL 挂起前的前置校验共用同一文案。
+      const validation = this.validateParams(toolName, ctx.args);
+      if (!validation.ok) {
+        return {
+          toolCallId: ctx.toolCallId,
+          toolName,
+          isError: true,
+          error: validation.error,
+          durationMs: Date.now() - start,
+        };
       }
 
       // 超时控制器

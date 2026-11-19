@@ -186,6 +186,18 @@ export async function* executeToolCallStep(
     }
     // ⑥ auto 模式：Agent 自主执行无需审批介入；工作区级硬闸门（③）仍然生效
 
+    // TASK-059 入参闸门前移：幻觉入参在 HITL 挂起判断前拦截——
+    // 非法入参直接走 isError 路径回喂模型（附校验错误文案），
+    // 不产生审批卡、不占用人工注意力；审批卡只在「参数合法且需人工决策」时出现。
+    // （!isError 守卫：工具禁用/只读拦截已裁决时，不覆写既有错误）
+    if (!isError) {
+      const validation = deps.toolRegistry.validateParams(call.name, parsedArgs);
+      if (!validation.ok) {
+        isError = true;
+        errorMessage = validation.error;
+      }
+    }
+
     // HITL 拦截机制 (仅在需要人工审批且未被只读限制时进入)
     if (requiresApproval && !isError) {
       // 登记审批卡片进入持久化记录表
