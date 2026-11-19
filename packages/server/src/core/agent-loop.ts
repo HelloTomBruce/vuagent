@@ -1,4 +1,4 @@
-import type { HarnessStreamEvent, AgentTurnRequest, ToolExecutionContext } from "./types.js";
+import type { HarnessStreamEvent, AgentTurnRequest } from "./types.js";
 import type { WorkspaceRepository } from "../storage/repositories/workspace.repository.js";
 import type { SessionRepository } from "../storage/repositories/session.repository.js";
 import type { SettingsRepository } from "../storage/repositories/settings.repository.js";
@@ -14,7 +14,7 @@ import { parsePartialJson } from "./stream-orchestrator.js";
 import { TelemetryLedger, clipTrajectoryEvent } from "./telemetry.js";
 import { runSandboxDemoTurn } from "./sandbox-demo.js";
 import { buildSystemPrompt } from "./system-prompt.js";
-import { resolveEffectivePermissionMode, resolveLivePermissionMode } from "./permissions.js";
+import { resolveEffectivePermissionMode } from "./permissions.js";
 import { defaultNamespaceValues, getNamespaceSchema } from "./config-schema.js";
 import { combineAbortSignals, ClassifiedModelError } from "../adapters/resilience.js";
 import {
@@ -23,10 +23,13 @@ import {
   mapAbortCause,
   type HarnessEventSink,
   type HarnessOpsCode,
-  type HarnessOpsEvent,
 } from "./event-sink.js";
 import type { CostRecorder } from "./pricing-table.js";
-import type { CheckpointEntity, TurnEntity } from "../storage/interfaces.js";
+import type { CheckpointEntity } from "../storage/interfaces.js";
+import { OpsReporter } from "./ops-reporter.js";
+import { TurnPersistence } from "./turn-persistence.js";
+import { buildHistoryMessages } from "./history-builder.js";
+import { executeToolCallStep } from "./tool-step-executor.js";
 
 /** 整轮看门狗超时钳制边界（TASK-048）：请求级覆盖同样受钳 */
 const TURN_TIMEOUT_MIN_MS = 30_000;
@@ -59,6 +62,13 @@ export interface AgentLoopServices {
 /**
  * 核心调度器：AgentLoop
  * 实现 ReAct 循环调度、HITL 挂起校验、沙箱工具分发、检查点快照与可观测台账
+ *
+ * 结构（TASK-057 四刀拆分，纯结构不改行为）：
+ * - core/ops-reporter.ts      每轮预绑 sessionId/turnId 的运维事件发射器
+ * - core/turn-persistence.ts  running 行 / per-step 增量 / 终态 upsert / 成本记账
+ * - core/tool-step-executor.ts 工具执行段（启停→闸门→权限→HITL→执行→卡片收敛）
+ * - core/history-builder.ts   历史重建（压缩折叠 + checkpoint 快照回放）
+ * 本文件只保留编排骨架：配置解析 → 上下文组装 → ReAct 回环 → 终态收尾。
  */
 export class AgentLoop {
   private compactor: ContextCompactor;
@@ -67,15 +77,6 @@ export class AgentLoop {
   constructor(private services: AgentLoopServices) {
     this.compactor = services.compactor ?? new ContextCompactor();
     this.ops = services.eventSink ?? createNoopSink();
-  }
-
-  /** 运维事件发射（sink 故障不阻断主链路） */
-  private emitOps(event: HarnessOpsEvent): void {
-    try {
-      this.ops.emit(event);
-    } catch {
-      // sink 故障静默
-    }
   }
 
   /**
@@ -152,13 +153,21 @@ export class AgentLoop {
     const turnNumber = session.turns.length + 1;
     const telemetry = new TelemetryLedger(turnId, turnNumber);
 
-    // TASK-051 运维事件：轮次开始（effectiveMode 在下方 TASK-014 段才声明，
-    // 此处用请求级与会话级原始值即可，运维画像不需要交集解析结果）
-    this.emitOps({
-      type: "turn_start",
-      at: startAt,
+    // 每轮运维事件发射器（预绑 sessionId/turnId）与持久化助手
+    const ops = new OpsReporter(this.ops, { sessionId: session.id, turnId });
+    const persistence = new TurnPersistence({
+      sessionRepo: this.services.sessionRepo,
+      costRecorder: this.services.costRecorder,
+      ops,
+      telemetry,
       sessionId: session.id,
       turnId,
+    });
+
+    // TASK-051 运维事件：轮次开始（effectiveMode 在下方 TASK-014 段才声明，
+    // 此处用请求级与会话级原始值即可，运维画像不需要交集解析结果）
+    ops.turnStart({
+      at: startAt,
       model: modelProfile.model,
       permission: req.permission ?? session.permission,
     });
@@ -185,46 +194,11 @@ export class AgentLoop {
       }),
     });
 
-    // TASK-008 手动压缩：被折叠轮次不入上下文，改为注入一条摘要占位消息，
-    // 使上下文占用断崖回落；折叠轮次之后的历史照常按 checkpoint 快照恢复。
-    // （自动滑动窗口裁剪 compact 仍在每步生效，二者互补）
-    const compaction = session.compaction;
-    if (compaction?.summary) {
-      messages.push({ role: "user", content: compaction.summary });
-    }
+    // 历史重建（压缩折叠 + checkpoint 快照回放 + 追加本轮用户输入）
+    messages.push(
+      ...buildHistoryMessages({ session, currentPrompt: req.prompt })
+    );
 
-    // 恢复历史会话
-    for (let turnIndex = 0; turnIndex < session.turns.length; turnIndex++) {
-      const pastTurn = session.turns[turnIndex];
-      // 压缩覆盖的轮次：正文已折叠进摘要，跳过原始内容
-      if (compaction && turnIndex < compaction.compactedTurnCount) continue;
-      messages.push({ role: "user", content: pastTurn.prompt });
-      // 提取最新检查点的消息状态（旧数据 errorTurn 可能无 checkpoints 字段，需防御）
-      const cps = pastTurn.checkpoints;
-      const lastCp = cps && cps.length > 0 ? cps[cps.length - 1] : undefined;
-      if (lastCp && Array.isArray(lastCp.messagesSnapshot)) {
-        const snapshot = lastCp.messagesSnapshot as ChatMessage[];
-        // 快照是「截至本步的完整历史」（含此前轮次），只回放本 turn 提问之后的消息；
-        // 逐条全量重放会与更早轮次的快照叠加，assistant 内容随轮次成倍重复
-        let start = 0;
-        for (let i = snapshot.length - 1; i >= 0; i--) {
-          const item = snapshot[i];
-          if (item.role === "user" && item.content === pastTurn.prompt) {
-            start = i + 1;
-            break;
-          }
-        }
-        for (let i = start; i < snapshot.length; i++) {
-          const item = snapshot[i];
-          if (item.role !== "system" && item.role !== "user") {
-            messages.push(item);
-          }
-        }
-      }
-    }
-
-    // 追加本轮用户输入
-    messages.push({ role: "user", content: req.prompt });
     {
       const ev = telemetry.recordEvent({
         at: startAt,
@@ -279,79 +253,21 @@ export class AgentLoop {
 
     // TASK-049 即时落库：轮次开始即落 running 行（中途崩溃留痕），
     // 每 step 增量更新，终态 appendTurn upsert 兜底（幂等替换，不产生重复行）
-    try {
-      await this.services.sessionRepo.appendTurn(session.id, {
-        id: turnId,
-        sessionId: session.id,
-        prompt: req.prompt,
-        status: "running",
-        stepCount: 0,
-        checkpoints: [],
-        cards: [],
-        createdAt: startAt,
-      });
-    } catch {
-      // 初始落库失败不阻断执行；终态 appendTurn 仍会兜底落库
-    }
-
-    /** TASK-052 成本记账（fire-and-forget fail-open）：done/error/abort 收尾均记，口径=telemetry 累计 */
-    const recordCost = (): void => {
-      const rec = this.services.costRecorder;
-      if (!rec) return;
-      const summary = telemetry.exportSummary();
-      if (summary.tokens.totalTokens <= 0) return;
-      rec({
-        turnId,
-        sessionId: session.id,
-        model: modelProfile.model,
-        promptTokens: summary.tokens.promptTokens,
-        completionTokens: summary.tokens.completionTokens,
-        finishedAt: Date.now(),
-      }).catch(() => {
-        this.emitOps({
-          type: "warn",
-          at: Date.now(),
-          sessionId: session.id,
-          turnId,
-          code: "COST_RECORD_FAILED",
-          detail: "成本记账失败（fail-open，不影响主链路）",
-        });
-      });
-    };
+    await persistence.appendRunningRow({ prompt: req.prompt, startAt });
 
     /** 每 step 结束后的增量进度落盘（best-effort，失败不影响主链路） */
-    const persistProgress = async (): Promise<void> => {      // TASK-051：step 级运维事件
-      this.emitOps({
-        type: "step_finish",
-        at: Date.now(),
-        sessionId: session.id,
-        turnId,
-        step: currentStep,
-        durationMs: Date.now() - startAt,
-      });
-      try {
-        await this.services.sessionRepo.updateTurn(session.id, turnId, {
-          status: "running",
+    const persistProgress = async (): Promise<void> =>
+      persistence.persistProgress(
+        {
           content: accumulatedContent,
           thought: accumulatedThought,
           cards: accumulatedCards,
           stepCount: currentStep,
           checkpoints,
-          telemetry: {
-            durationMs: Date.now() - startAt,
-            ttftMs: telemetry.exportSummary().ttftMs,
-            totalTokens: telemetry.exportSummary().tokens.totalTokens,
-            promptTokens: telemetry.exportSummary().tokens.promptTokens,
-            completionTokens: telemetry.exportSummary().tokens.completionTokens,
-            contextTokens: lastContextTokens,
-            laneEventsCount: telemetry.getEvents().length,
-            events: telemetry.getEvents().map(clipTrajectoryEvent),
-          },
-        });
-      } catch {
-        // 增量落盘失败静默：终态收尾仍会兜底
-      }
-    };
+          contextTokens: lastContextTokens,
+        },
+        startAt
+      );
 
     // TASK-048 整轮看门狗：独立 controller + 定时器，与客户端 abort 信号合并。
     // 超时/用户停止共用同一收尾路径（中止 → 抽干 → 落库），消息按 watchdogFired 区分成因。
@@ -380,14 +296,7 @@ export class AgentLoop {
           // R5 修复：成因经 mapAbortCause 集中映射（watchdog > signal.reason=new_task > user），
           // hub abort(kind) 透传的 preempt 不再被误记为 TURN_ABORTED
           const cause = mapAbortCause({ watchdogFired, signalReason: runSignal.reason });
-          this.emitOps({
-            type: "abort",
-            at: Date.now(),
-            sessionId: session.id,
-            turnId,
-            reason: cause.opsReason,
-            code: cause.code,
-          });
+          ops.abort({ reason: cause.opsReason, code: cause.code });
           // TASK-054：aborted 控制事件取代旧假 text_delta 文案
           yield {
             type: "aborted",
@@ -427,18 +336,7 @@ export class AgentLoop {
               modelProfile.baseUrl || (modelProfile.provider === "ollama" ? "http://localhost:11434/v1" : "https://api.openai.com/v1"),
               {
                 // TASK-051：TASK-048 韧性层的重试遥测接缝 → model_retry 运维事件
-                onRetry: (info) => {
-                  this.emitOps({
-                    type: "model_retry",
-                    at: Date.now(),
-                    sessionId: session.id,
-                    turnId,
-                    attempt: info.attempt,
-                    errorClass: info.errorClass,
-                    delayMs: info.delayMs,
-                    reason: info.reason,
-                  });
-                },
+                onRetry: (info) => ops.modelRetry(info),
               }
             );
 
@@ -590,322 +488,30 @@ export class AgentLoop {
           })),
         });
 
-        // 逐个执行工具调用
-        for (const call of callsArray) {
-          if (runSignal.aborted) break;
-
-          let parsedArgs: Record<string, unknown> = {};
-          try {
-            parsedArgs = JSON.parse(call.argumentsStr || "{}");
-          } catch {
-            parsedArgs = parsePartialJson(call.argumentsStr) || {};
-          }
-
-          yield {
-            type: "tool_call_executing",
-            toolCallId: call.id,
-            toolName: call.name,
-            args: parsedArgs,
-          };
-
-          // TASK-006：工具调用链卡片持久化（刷新后卡片可恢复）
-          // contentOffset 对齐 blocks 时序定位机制；tool_call_result 时原地收敛终态
-          const callCard: {
-            id: string;
-            type: string;
-            data: {
-              toolName: string;
-              status: string;
-              args: Record<string, unknown>;
-              startedAt: number;
-              contentOffset: number;
-              result?: unknown;
-              error?: string;
-              duration?: number;
-            };
-          } = {
-            id: `call-${call.id}`,
-            type: "toolcall",
-            data: {
-              toolName: call.name,
-              status: "executing",
-              args: parsedArgs,
-              startedAt: Date.now(),
-              contentOffset: accumulatedContent.length,
-            },
-          };
-          accumulatedCards.push(callCard);
-
-          const toolDef = this.services.toolRegistry.get(call.name);
-
-          let executionResult: unknown;
-          let isError = false;
-          let errorMessage: string | undefined;
-
-          // 工具启停仲裁（TASK-019）+ per-tool 覆盖（TASK-026）：逐调用实时重读该工具
-          // 配置记录——模型上下文可能残留轮次开始时的旧 definitions（禁用前已下发），
-          // 此兜底保证禁用语义不被绕过；禁用即最终裁决，不再进入权限链与执行
-          const toolCfg = await this.services.toolConfigRepo.get(call.name);
-          if (toolCfg && toolCfg.enabled === false) {
-            isError = true;
-            errorMessage = `工具 [${call.name}] 已被禁用（设置 → 工具 页可重新启用）`;
-            executionResult = { disabled: true, reason: errorMessage };
-          }
-
-          // TASK-012 权限仲裁（评审 P0-2 修复）：
-          // ① 请求级 req.permission 与会话级 session.permission 取交集，更严者生效。
-          //    严重度：read-only(3) > review(2) > auto(1)
-          // TASK-014：轮次起点交集解析（effectiveMode）供系统提示词声明；
-          // 运行中改档感知（用户反馈）：逐工具调用重读会话最新档，与起点不一致
-          // （UI 改档即 PATCH 会话）则以最新会话档为准——正在输出的轮次对
-          // 「后续工具调用」立即可感知权限变化，而非等到下一轮才生效
-          let mode = effectiveMode;
-          try {
-            const latestSession = await this.services.sessionRepo.get(req.sessionId);
-            if (latestSession) {
-              mode = resolveLivePermissionMode(
-                effectiveMode,
-                session.permission,
-                latestSession.permission
-              );
-            }
-          } catch {
-            // 会话读取失败时保守回落轮次起点口径，不阻断仲裁
-          }
-
-          // ② 声明式元数据取代旧字符串黑名单：是否写工作区由工具定义自述
-          //    （修复 fs_write 不在 "write_file/edit_file/..." 黑名单导致的只读静默写绕过）
-          const writesWorkspace = toolDef?.writesWorkspace === true;
-
-          // 权限模式与审批判断
-          let requiresApproval = false;
-
-          // ③ 工作区级硬闸门：read-only 工作区在任何模式（含 auto）下都拦截写工具
-          //    （!isError 守卫：工具已被禁用裁决时，权限链不得覆写禁用错误）
-          if (!isError && writesWorkspace && workspace.permission === "read-only") {
-            isError = true;
-            errorMessage = `[工作区权限限制] 当前工作区权限为只读 (read-only)，已拦截写操作工具 [${call.name}]`;
-            executionResult = { approved: false, reason: errorMessage };
-          } else if (mode === "read-only" && writesWorkspace) {
-            // ④ 只读模式：按工具元数据拦截一切写工作区工具（含 bash_run 等执行副作用）
-            isError = true;
-            errorMessage = `[只读模式限制] 当前权限模式为只读 (read-only)，已拦截写操作工具 [${call.name}]`;
-            executionResult = { approved: false, reason: errorMessage };
-          } else if (mode === "review") {
-            // ⑤ 审批模式 (review)：高风险或需审批的工具进入 HITL 挂起。
-            // TASK-026 per-tool requiresApproval 覆盖（deny-wins）：
-            // override=true 可追加审批（低风险工具提升为需审批）；override=false
-            // 不放宽既有推导——安全项只能升不能降，存储的 false 视为无效。
-            requiresApproval =
-              toolDef?.requiresApproval === true ||
-              toolDef?.riskLevel === "high" ||
-              toolCfg?.requiresApproval === true;
-          }
-          // ⑥ auto 模式：Agent 自主执行无需审批介入；工作区级硬闸门（③）仍然生效
-
-          // HITL 拦截机制 (仅在需要人工审批且未被只读限制时进入)
-          if (requiresApproval && !isError) {
-            // 登记审批卡片进入持久化记录表
-            // contentOffset：审批挂起发生时的正文长度，前端据此把审批卡重建回文本流中的真实位置
-            const approvalCard = {
-              id: `approval-${call.id}`,
-              type: "approval",
-              data: {
-                actionId: call.id,
-                toolName: call.name,
-                title: `申请执行工具: ${call.name}`,
-                command: `${call.name} ${JSON.stringify(parsedArgs, null, 2)}`,
-                risk: toolDef?.riskLevel || "high",
-                expiresInSec: 180,
-                status: "pending",
-                reason: "" as string | undefined,
-                resolvedAt: 0 as number | undefined,
-                contentOffset: accumulatedContent.length,
-              },
-            };
-            accumulatedCards.push(approvalCard);
-
-            // 提前挂起并进入等待表，确保外部可以立刻查询到该挂起项
-            //（TASK-025：挂起超时接入配置中心 execution.approvalTimeoutMs，默认 180s）
-            const actionPromise = this.services.actionHub.waitForAction(call.id, {
-              toolName: call.name,
-              args: parsedArgs,
-              timeoutMs: approvalTimeoutMs,
-              sessionId: req.sessionId,
-            });
-
-            yield {
-              type: "suspended",
-              actionId: call.id,
-              toolName: call.name,
-              args: parsedArgs,
-              timeoutMs: approvalTimeoutMs,
-            };
-
-            const userAction = await actionPromise;
-
-            // 审批完成后立即同步卡片决策状态，保证后续持久化与重连完全一致
-            approvalCard.data.status = userAction.approved ? "approved" : "denied";
-            approvalCard.data.reason = userAction.note || userAction.reason;
-            (approvalCard.data as any).resolvedAt = Date.now();
-
-            yield {
-              type: "resumed",
-              actionId: call.id,
-              payload: userAction,
-            };
-
-            if (!userAction.approved) {
-              isError = true;
-              errorMessage = `操作被用户驳回: ${userAction.note || userAction.reason || "未批准"}`;
-              executionResult = { approved: false, reason: errorMessage };
-            }
-          }
-
-          // 若未被驳回，在沙箱中执行工具
-          let toolDurationMs = 0;
-          if (!isError) {
-            // TASK-026 per-tool 超时覆盖：
-            // - bash_run：生效命令超时 = per-tool timeoutMs 覆盖 > 模型请求 timeoutMs > 默认 30s，
-            //   再按 tools.bashTimeoutCeilingMs 全局封顶；执行器竞速超时放宽 10s 让内层
-            //   exec 先触发（保留 timedOut:true 结构化契约，而非笼统的 "timed out" 错误）
-            // - 其他工具：per-tool timeoutMs 覆盖执行器 60s 超时上限
-            let executorTimeoutMs: number | undefined;
-            if (call.name === "bash_run") {
-              const argTimeout =
-                typeof parsedArgs.timeoutMs === "number" && Number.isFinite(parsedArgs.timeoutMs)
-                  ? parsedArgs.timeoutMs
-                  : undefined;
-              const requested = toolCfg?.timeoutMs ?? argTimeout ?? 30_000;
-              const effective = Math.min(Math.max(1, requested), bashTimeoutCeilingMs);
-              parsedArgs = { ...parsedArgs, timeoutMs: effective };
-              executorTimeoutMs = effective + 10_000;
-            } else if (
-              typeof toolCfg?.timeoutMs === "number" &&
-              Number.isFinite(toolCfg.timeoutMs) &&
-              toolCfg.timeoutMs > 0
-            ) {
-              executorTimeoutMs = toolCfg.timeoutMs;
-            }
-
-            const ctx: ToolExecutionContext = {
-              toolCallId: call.id,
-              args: parsedArgs,
-              workspace,
-              actionHub: this.services.actionHub,
-              abortSignal: runSignal,
-            };
-
-            const execRes = await this.services.toolRegistry.execute(
-              call.name,
-              ctx,
-              executorTimeoutMs
-            );
-            isError = execRes.isError;
-            executionResult = execRes.result;
-            errorMessage = execRes.error;
-            toolDurationMs = execRes.durationMs;
-          }
-
+        // 逐个执行工具调用（启停仲裁 → 工作区闸门 → 权限模式 → HITL 审批 → 执行 → 卡片收敛）
+        yield* executeToolCallStep(
           {
-            const ev = telemetry.recordEvent({
-              at: Date.now(),
-              lane: "tool",
-              role: "tool",
-              title: `工具执行: ${call.name}`,
-              detail: JSON.stringify(parsedArgs),
-              result: isError ? errorMessage : JSON.stringify(executionResult),
-            });
-            yield { type: "traj", event: clipTrajectoryEvent(ev) };
-          }
-
-          // TASK-051：工具结果运维事件（含禁用/驳回/执行失败三类非 ok 路径）
-          this.emitOps({
-            type: "tool_result",
-            at: Date.now(),
+            toolConfigRepo: this.services.toolConfigRepo,
+            sessionRepo: this.services.sessionRepo,
+            toolRegistry: this.services.toolRegistry,
+            actionHub: this.services.actionHub,
+            ops,
+          },
+          {
+            calls: callsArray,
+            runSignal,
+            workspace,
             sessionId: session.id,
-            turnId,
-            tool: call.name,
-            ok: !isError,
-            durationMs: toolDurationMs,
-            code: isError ? "TOOL_EXECUTION_FAILED" : undefined,
-            error: isError ? errorMessage : undefined,
-          });
-
-          yield {
-            type: "tool_call_result",
-            toolCallId: call.id,
-            toolName: call.name,
-            status: isError ? "error" : "done",
-            data: executionResult,
-            error: errorMessage,
-          };
-
-          // TASK-006：收敛调用链卡片终态并派生持久化卡片
-          callCard.data.status = isError ? "error" : "done";
-          callCard.data.result = executionResult;
-          callCard.data.error = errorMessage;
-          callCard.data.duration = callCard.data.startedAt
-            ? Date.now() - callCard.data.startedAt
-            : undefined;
-
-          // bash_run：终端卡持久化原始输出
-          if (call.name === "bash_run") {
-            accumulatedCards.push({
-              id: `term-${call.id}`,
-              type: "terminal",
-              data: {
-                title: `终端执行: ${call.name}`,
-                lines: [
-                  { text: `$ [状态: ${isError ? "error" : "done"}]`, kind: "cmd" },
-                  {
-                    text:
-                      typeof executionResult === "string"
-                        ? executionResult
-                        : JSON.stringify(executionResult || errorMessage || ""),
-                    kind: isError ? "err" : "stdout",
-                  },
-                ],
-                contentOffset: accumulatedContent.length,
-              },
-            });
+            effectiveMode,
+            sessionPermissionAtStart: session.permission,
+            approvalTimeoutMs,
+            bashTimeoutCeilingMs,
+            getContentLength: () => accumulatedContent.length,
+            accumulatedCards,
+            messages,
+            telemetry,
           }
-
-          // ui_* 契约工具：持久化通用 {component, props} 载荷，前端 CardRenderer 动态分发
-          // （审批卡由 HITL 流负责、agent_plan 由 turn.plan 负责此处不重复落卡）
-          const renderResult =
-            !isError && executionResult && typeof executionResult === "object"
-              ? (executionResult as { rendered?: boolean; component?: string; props?: Record<string, unknown> })
-              : null;
-          if (
-            renderResult?.rendered &&
-            typeof renderResult.component === "string" &&
-            renderResult.component !== "ui_approval_card" &&
-            renderResult.component !== "ui_agent_plan"
-          ) {
-            accumulatedCards.push({
-              id: `ui-${call.id}`,
-              type: "ui",
-              data: {
-                component: renderResult.component,
-                props: renderResult.props || {},
-                contentOffset: accumulatedContent.length,
-              },
-            });
-          }
-
-          // 结果喂回上下文
-          messages.push({
-            role: "tool",
-            tool_call_id: call.id,
-            name: call.name,
-            content: isError
-              ? `Error: ${errorMessage}`
-              : typeof executionResult === "string"
-              ? executionResult
-              : JSON.stringify(executionResult),
-          });
-        }
+        );
 
         // 收敛半截工具调用：工具循环中被 abort 打断时，assistant.tool_calls 已入上下文
         // 但部分 tool 响应缺失；补占位结果保证 checkpoint 快照与下一轮恢复的历史
@@ -932,43 +538,23 @@ export class AgentLoop {
         durationMs: totalDuration,
       };
 
-      // 5. 保存本轮会话
-      const turnEntity: TurnEntity = {
-        id: turnId,
-        sessionId: session.id,
+      // 5. 保存本轮会话（终态 upsert done 段 + 成本记账）
+      await persistence.finalizeDone({
         prompt: req.prompt,
         content: accumulatedContent,
         thought: accumulatedThought,
         cards: accumulatedCards,
-        status: "done",
-        // R8：优雅中止（loop-top break）以 done 落库但仍标记中止成因
-        ...(abortedReasonForPersist ? { abortedReason: abortedReasonForPersist } : {}),
+        abortedReason: abortedReasonForPersist,
         stepCount: currentStep,
         checkpoints,
-        telemetry: {
-          durationMs: totalDuration,
-          ttftMs: telemetry.exportSummary().ttftMs,
-          totalTokens: telemetry.exportSummary().tokens.totalTokens,
-          promptTokens: telemetry.exportSummary().tokens.promptTokens,
-          completionTokens: telemetry.exportSummary().tokens.completionTokens,
-          contextTokens: lastContextTokens,
-          laneEventsCount: telemetry.getEvents().length,
-          // 轨迹事件明细落库（detail/result 截断），历史会话的 turn 内联轨迹由此恢复
-          events: telemetry.getEvents().map(clipTrajectoryEvent),
-        },
-        createdAt: startAt,
-        completedAt: Date.now(),
-      };
-
-      await this.services.sessionRepo.appendTurn(session.id, turnEntity);
-      recordCost();
+        durationMs: totalDuration,
+        contextTokens: lastContextTokens,
+        startAt,
+      });
+      persistence.recordCost(modelProfile.model);
 
       // TASK-051：轮次正常收尾（turnFinishCode 存在时代表被中止/超时后收尾）
-      this.emitOps({
-        type: "turn_finish",
-        at: Date.now(),
-        sessionId: session.id,
-        turnId,
+      ops.turnFinish({
         status: "done",
         stepCount: currentStep,
         durationMs: totalDuration,
@@ -1007,42 +593,23 @@ export class AgentLoop {
         code: finishCode,
       };
 
-      try {
-        const errorTurn: TurnEntity = {
-          id: turnId,
-          sessionId: session.id,
+      // 终态 upsert error 段 + 成本记账；落库二次失败在 helper 内显式告警
+      await persistence.finalizeError(
+        {
           prompt: req.prompt,
-          content: accumulatedContent || `⚠️ 执行过程中发生错误: ${msg}`,
+          content: accumulatedContent,
           thought: accumulatedThought,
           cards: accumulatedCards,
-          status: "error",
-          errorMessage: msg,
-          // R8：异常中止（catch 路径）同样标记中止成因
-          ...(abortedReasonForPersist ? { abortedReason: abortedReasonForPersist } : {}),
+          abortedReason: abortedReasonForPersist,
           stepCount: currentStep,
           checkpoints,
-          createdAt: startAt,
-          completedAt: Date.now(),
-        };
-        await this.services.sessionRepo.appendTurn(session.id, errorTurn);
-        recordCost();
-      } catch (persistErr: unknown) {
-        // TASK-051：落库二次失败显式告警（不再完全静默）
-        this.emitOps({
-          type: "error",
-          at: Date.now(),
-          sessionId: session.id,
-          turnId,
-          code: "TURN_PERSIST_FAILED",
-          detail: persistErr instanceof Error ? persistErr.message : String(persistErr),
-        });
-      }
+          startAt,
+          errorMessage: msg,
+        },
+        modelProfile.model
+      );
 
-      this.emitOps({
-        type: "turn_finish",
-        at: Date.now(),
-        sessionId: session.id,
-        turnId,
+      ops.turnFinish({
         status: "error",
         stepCount: currentStep,
         durationMs: Date.now() - startAt,
