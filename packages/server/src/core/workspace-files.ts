@@ -5,6 +5,7 @@
  * - 有界：深度与节点总数双重上限，忽略依赖/构建产物目录，防止大仓库拖垮响应。
  */
 import fs from "node:fs/promises";
+import type { Dirent } from "node:fs";
 import path from "node:path";
 
 /** 目录名忽略清单（依赖/构建产物/系统文件） */
@@ -70,7 +71,11 @@ export async function buildFileTree(
       if (nodeCount >= maxNodes) truncated = true;
       return [];
     }
-    let entries: Awaited<ReturnType<typeof fs.readdir>>;
+    // 不能用 Awaited<ReturnType<typeof fs.readdir>> 标注：readdir 重载族里
+    // ReturnType 只解析到无 options 的重载，Dirent 泛型落到 NonSharedBuffer
+    // （Buffer 版），与下方 withFileTypes:true 实际返回的 Dirent<string>[] 冲突。
+    // 显式声明为 withFileTypes 形态，类型随 @types/node 演进保持正确。
+    let entries: Array<Dirent<string>>;
     try {
       entries = await fs.readdir(dir, { withFileTypes: true });
     } catch {
