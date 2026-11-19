@@ -207,6 +207,8 @@
 .va-stree__session-main:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; }
 
 .va-stree__session-title {
+  flex: 1 1 0;
+  min-width: 0; /* flex 子项省略号生效前提；同时让 space-between 布局下标题紧随指示器左对齐，而非被均分到行中 */
   font-size: 13px;
   color: var(--va-ink-2, #43413c);
   overflow: hidden;
