@@ -31,6 +31,7 @@ import { BashRunTool } from "./tools/system/bash-tool.js";
 import { GlobTool, GrepTool } from "./tools/system/search-tools.js";
 import { createWebFetchTool } from "./tools/web/web-tools.js";
 import { AllBuiltinTools } from "./tools/ui/protocol-tools.js";
+import { recoverInterruptedTurns } from "./core/recovery.js";
 
 export interface ServerOptions {
   storageDriver?: IStorageDriver;
@@ -104,6 +105,21 @@ export function createHarnessServer(options: ServerOptions = {}) {
   });
 
   const executionHub = new SessionExecutionHub(agentLoop);
+
+  // TASK-049 进程重启恢复：扫描遗留 running 轮次，诚实标记 error/process_restart。
+  // fire-and-forget：createHarnessServer 保持同步签名；恢复完成前极端情况下
+  // 新请求读到的仍是 running 行，属可接受的启动竞态窗。
+  void recoverInterruptedTurns(sessionRepo)
+    .then((recovered) => {
+      if (recovered.length > 0) {
+        console.warn(
+          `[harness] 恢复扫描：${recovered.length} 个中断轮次已标记 process_restart（${recovered.map((r) => `${r.sessionId}/${r.turnId}@${r.checkpointCount}cp`).join(", ")}）`
+        );
+      }
+    })
+    .catch(() => {
+      // 恢复扫描失败不阻断服务启动
+    });
 
   // 3. 注册路由
 

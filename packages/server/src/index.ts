@@ -10,6 +10,7 @@ export * from "./core/context-compactor.js";
 export * from "./core/config-schema.js";
 export * from "./core/config-resolver.js";
 export * from "./core/agent-loop.js";
+export * from "./core/recovery.js";
 export * from "./adapters/model-driver.js";
 export * from "./adapters/openai-driver.js";
 export * from "./adapters/resilience.js";

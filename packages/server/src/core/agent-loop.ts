@@ -238,6 +238,49 @@ export class AgentLoop {
     let lastContextTokens = 0;
     const accumulatedCards: Array<{ id: string; type: string; data: any }> = [];
 
+    // TASK-049 即时落库：轮次开始即落 running 行（中途崩溃留痕），
+    // 每 step 增量更新，终态 appendTurn upsert 兜底（幂等替换，不产生重复行）
+    try {
+      await this.services.sessionRepo.appendTurn(session.id, {
+        id: turnId,
+        sessionId: session.id,
+        prompt: req.prompt,
+        status: "running",
+        stepCount: 0,
+        checkpoints: [],
+        cards: [],
+        createdAt: startAt,
+      });
+    } catch {
+      // 初始落库失败不阻断执行；终态 appendTurn 仍会兜底落库
+    }
+
+    /** 每 step 结束后的增量进度落盘（best-effort，失败不影响主链路） */
+    const persistProgress = async (): Promise<void> => {
+      try {
+        await this.services.sessionRepo.updateTurn(session.id, turnId, {
+          status: "running",
+          content: accumulatedContent,
+          thought: accumulatedThought,
+          cards: accumulatedCards,
+          stepCount: currentStep,
+          checkpoints,
+          telemetry: {
+            durationMs: Date.now() - startAt,
+            ttftMs: telemetry.exportSummary().ttftMs,
+            totalTokens: telemetry.exportSummary().tokens.totalTokens,
+            promptTokens: telemetry.exportSummary().tokens.promptTokens,
+            completionTokens: telemetry.exportSummary().tokens.completionTokens,
+            contextTokens: lastContextTokens,
+            laneEventsCount: telemetry.getEvents().length,
+            events: telemetry.getEvents().map(clipTrajectoryEvent),
+          },
+        });
+      } catch {
+        // 增量落盘失败静默：终态收尾仍会兜底
+      }
+    };
+
     // TASK-048 整轮看门狗：独立 controller + 定时器，与客户端 abort 信号合并。
     // 超时/用户停止共用同一收尾路径（中止 → 抽干 → 落库），消息按 watchdogFired 区分成因。
     const watchdogController = new AbortController();
@@ -419,6 +462,7 @@ export class AgentLoop {
             messagesSnapshot: JSON.parse(JSON.stringify(messages)),
             snapshotAt: Date.now(),
           });
+          await persistProgress();
           break;
         }
 
@@ -752,6 +796,8 @@ export class AgentLoop {
           snapshotAt: Date.now(),
         };
         checkpoints.push(cp);
+        // TASK-049：每 step 即时落库（含本步 checkpoint），崩溃时已完成步骤留痕
+        await persistProgress();
       }
 
       const totalDuration = Date.now() - startAt;
@@ -809,6 +855,7 @@ export class AgentLoop {
           thought: accumulatedThought,
           cards: accumulatedCards,
           status: "error",
+          errorMessage: msg,
           stepCount: currentStep,
           checkpoints,
           createdAt: startAt,

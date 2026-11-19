@@ -66,6 +66,8 @@ export interface TurnEntity {
     }>;
   };
   status: "running" | "suspended" | "done" | "error";
+  /** 终态成因说明：执行错误消息 / process_restart（进程重启恢复标记，TASK-049）等 */
+  errorMessage?: string;
   stepCount: number;
   checkpoints: CheckpointEntity[];
   telemetry?: {

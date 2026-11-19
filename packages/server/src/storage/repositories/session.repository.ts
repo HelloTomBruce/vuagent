@@ -75,6 +75,25 @@ export class SessionRepository {
     await this.driver.set(COLLECTION, id, session);
   }
 
+  /**
+   * 增量更新指定轮次（TASK-049 即时落库）：patch 合并语义，保留未提及字段。
+   * 会话 doc 模型下读→定位→合并→写回，本地单机 O(session) 可接受。
+   * 轮次不存在时静默 no-op（best-effort；终态 appendTurn upsert 兜底保证最终落库）。
+   */
+  async updateTurn(
+    id: string,
+    turnId: string,
+    patch: Partial<Omit<TurnEntity, "id" | "sessionId">>
+  ): Promise<void> {
+    const session = await this.get(id);
+    if (!session) return;
+    const turn = session.turns.find((t) => t.id === turnId);
+    if (!turn) return;
+    Object.assign(turn, patch);
+    session.updatedAt = Date.now();
+    await this.driver.set(COLLECTION, id, session);
+  }
+
   async recordCheckpoint(sessionId: string, turnId: string, checkpoint: CheckpointEntity): Promise<void> {
     const session = await this.get(sessionId);
     if (!session) return;
