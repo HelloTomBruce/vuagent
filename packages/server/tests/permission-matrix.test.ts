@@ -219,7 +219,7 @@ describe("权限矩阵（auto/review/read-only × fs_read/fs_write/bash_run/ui_m
       mockDriver,
       ws,
       session,
-      { id: "call-u-1", name: "ui_metric_chart", arguments: { title: "t", metrics: [] } },
+      { id: "call-u-1", name: "ui_metric_chart", arguments: { title: "t", chartType: "bar", series: [] } },
       "read-only"
     );
 
@@ -376,7 +376,7 @@ describe("权限矩阵（auto/review/read-only × fs_read/fs_write/bash_run/ui_m
       mockDriver,
       ws,
       session,
-      { id: "call-u-2", name: "ui_metric_chart", arguments: { title: "m", metrics: [] } },
+      { id: "call-u-2", name: "ui_metric_chart", arguments: { title: "m", chartType: "line", series: [] } },
       "review"
     );
 

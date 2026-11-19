@@ -1,5 +1,5 @@
-import { Type } from "@sinclair/typebox";
 import type { HarnessTool } from "../../core/types.js";
+import { WebFetchParamsSchema } from "@vuagent/protocol";
 
 /** 抓取内容字符上限（对齐 DSH web_fetch 的截断契约） */
 export const WEB_FETCH_MAX_CHARS = 50_000;
@@ -82,9 +82,7 @@ export function createWebFetchTool(
       "- 非 2xx 响应不抛异常，返回真实 status 与响应体（错误页也是信息）；网络不可达/超时（默认跟随重定向，连接层超时约 30s）返回错误信息。",
       "- 需要实时信息请配合 web_search（如已配置）；本工具只抓取给定 URL，不做内容抽取或摘要。",
     ].join("\n"),
-    parameters: Type.Object({
-      url: Type.String({ description: "要抓取的完整 http(s) URL（含协议）" }),
-    }),
+    parameters: WebFetchParamsSchema, // TASK-055：契约收口至 @vuagent/protocol
     riskLevel: "medium",
     requiresApproval: false,
     writesWorkspace: false,

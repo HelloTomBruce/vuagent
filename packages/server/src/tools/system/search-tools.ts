@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { Type } from "@sinclair/typebox";
 import type { HarnessTool } from "../../core/types.js";
+import { GlobParamsSchema, GrepParamsSchema } from "@vuagent/protocol";
 
 /** 目录遍历统一忽略项（依赖/构建产物/VCS/运行数据） */
 const IGNORE_DIRS = new Set(["node_modules", ".git", "dist", "coverage", ".vuagent"]);
@@ -76,9 +76,7 @@ export const GlobTool: HarnessTool = {
     "- 自动跳过 node_modules / .git / dist 等目录；返回按文件修改时间降序（最新改动的最前），上限 100 条。",
     "- 返回 { pattern, count, truncated, files: [{ path, modifiedAt }] }；无匹配时 files 为空数组（不是错误）。",
   ].join("\n"),
-  parameters: Type.Object({
-    pattern: Type.String({ description: "glob 模式，相对工作区根，如 src/**/*.ts" }),
-  }),
+  parameters: GlobParamsSchema, // TASK-055：契约收口至 @vuagent/protocol
   riskLevel: "low",
   requiresApproval: false,
   writesWorkspace: false,
@@ -121,11 +119,7 @@ export const GrepTool: HarnessTool = {
     "- 命中按文件分组输出 `相对路径:行号: 行内容`，上限 250 条（truncated=true 表示还有更多，建议收窄 pattern 或 include）。",
     "- 返回 { pattern, matchCount, truncated, filesMatched, matches }；无命中返回空数组（不是错误）。",
   ].join("\n"),
-  parameters: Type.Object({
-    pattern: Type.String({ description: "正则表达式源（不带分隔符），如 function\\s+\\w+" }),
-    flags: Type.Optional(Type.String({ description: "正则 flags，如 'i' 忽略大小写；g 自动附加" })),
-    include: Type.Optional(Type.String({ description: "文件名 glob 过滤，如 *.ts" })),
-  }),
+  parameters: GrepParamsSchema, // TASK-055：契约收口至 @vuagent/protocol
   riskLevel: "low",
   requiresApproval: false,
   writesWorkspace: false,

@@ -9,6 +9,7 @@
  */
 
 import type { HarnessStreamEvent } from "./stream-schema.js";
+import type { VuagentToolName } from "./tools.js";
 
 // 类型从 schema 模块透出（同一声明，index 双路径导出无歧义）
 export type {
@@ -27,13 +28,13 @@ export {
 /**
  * UI 工具（protocol-tools.ts）执行结果的统一载荷：
  * 模型调用 ui_* 工具后，server 通过 tool_call_result.data 传出，
- * 前端据 component 名分发到对应 Va* 卡片渲染
- * （component 的联合类型收口见 TASK-055 工具契约任务）
+ * 前端据 component 名分发到对应 Va* 卡片渲染。
+ * TASK-055：component 收口为 VuagentToolName 联合类型（ui 子集，
+ * 系统工具名不在此列——它们不产 UI 卡片）。
  */
 export interface UiComponentRenderResult {
   rendered?: boolean;
-  /** VuagentToolName：ui_approval_card / ui_code_diff / ui_metric_chart / ui_agent_plan / ui_file_tree / ui_trajectory */
-  component?: string;
+  component?: VuagentToolName;
   props?: Record<string, unknown>;
 }
 

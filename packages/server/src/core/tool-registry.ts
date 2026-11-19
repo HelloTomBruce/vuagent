@@ -1,3 +1,6 @@
+import { Value } from "@sinclair/typebox/value";
+import { Kind } from "@sinclair/typebox";
+import type { TSchema } from "@sinclair/typebox";
 import type { HarnessTool, ToolExecutionContext } from "./types.js";
 
 export interface ToolExecutionResult {
@@ -89,6 +92,25 @@ export class ToolRegistry {
     }
 
     try {
+      // TASK-055 参数校验硬闸门：模型幻觉出的非法入参在进入工具执行前拦截。
+      // 仅对 TypeBox schema（带 Kind 符号）校验；schema 缺失/非 TypeBox 保持放行（向后兼容）。
+      const schema = tool.parameters as TSchema;
+      if (schema && typeof schema === "object" && typeof schema[Kind] === "string") {
+        const errors = [...Value.Errors(schema, ctx.args ?? {})].slice(0, 3);
+        if (errors.length > 0) {
+          const detail = errors
+            .map((e) => `${e.path || "/"} ${e.message}`)
+            .join("; ");
+          return {
+            toolCallId: ctx.toolCallId,
+            toolName,
+            isError: true,
+            error: `参数校验失败: ${detail}。请修正入参后重试（勿编造工具不支持的参数）。`,
+            durationMs: Date.now() - start,
+          };
+        }
+      }
+
       // 超时控制器
       const timeoutPromise = new Promise<never>((_, reject) => {
         const timer = setTimeout(() => {

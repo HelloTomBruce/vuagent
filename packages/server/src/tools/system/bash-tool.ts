@@ -1,7 +1,7 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import { Type } from "@sinclair/typebox";
 import type { HarnessTool } from "../../core/types.js";
+import { BashRunParamsSchema } from "@vuagent/protocol";
 
 const execAsync = promisify(exec);
 
@@ -46,10 +46,7 @@ export const BashRunTool: HarnessTool = {
     "- 无法响应交互式输入：优先非交互式用法（-y/--yes、重定向、管道喂输入），交互式命令会挂起直至超时。",
     "- 命令在工作区根目录启动；读取/写入工作区外路径可能被沙箱策略拒绝。",
   ].join("\n"),
-  parameters: Type.Object({
-    command: Type.String({ description: "要执行的 Shell 命令（可用 &&、;、管道组合）" }),
-    timeoutMs: Type.Optional(Type.Number({ description: "执行超时毫秒数，默认 30000；超时进程被杀死" })),
-  }),
+  parameters: BashRunParamsSchema, // TASK-055：契约收口至 @vuagent/protocol
   riskLevel: "high",
   requiresApproval: true, // 核心 HITL 演示：触发人机审批拦截
   writesWorkspace: true, // 执行任意 Shell 命令具备写副作用（TASK-012：read-only 模式据此拦截）

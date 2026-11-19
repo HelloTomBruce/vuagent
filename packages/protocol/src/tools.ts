@@ -5,6 +5,7 @@
  */
 
 import { Type, type Static } from "@sinclair/typebox";
+import { VuagentSystemToolSchemas, type VuagentSystemToolName } from "./system-tools.js";
 
 // ==========================================
 // 1. 审批卡片工具 (ApprovalCard)
@@ -221,3 +222,15 @@ export const VuagentToolSchemas = {
 } as const;
 
 export type VuagentToolName = keyof typeof VuagentToolSchemas;
+
+/**
+ * 全量工具聚合（TASK-055 工具契约收口）：ui_* + 系统工具。
+ * VuagentToolName 保持 ui 组件名子集语义（UiComponentRenderResult.component 消费）；
+ * 需要覆盖全部工具名时使用 VuagentAllToolName。
+ */
+export const AllToolSchemas = {
+  ...VuagentToolSchemas,
+  ...VuagentSystemToolSchemas,
+} as const;
+
+export type VuagentAllToolName = VuagentToolName | VuagentSystemToolName;

@@ -1,7 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { Type } from "@sinclair/typebox";
 import type { HarnessTool } from "../../core/types.js";
+import {
+  FsReadParamsSchema,
+  FsWriteParamsSchema,
+  FsEditParamsSchema,
+} from "@vuagent/protocol";
 
 /**
  * 路径沙箱校验（fs_read / fs_write / fs_edit 共用）：
@@ -27,15 +31,7 @@ export const FsReadTool: HarnessTool = {
     "- 路径按工作区根目录解析；越出工作区的路径（如 ../、绝对路径指向外部）会被拒绝并返回 Security Violation 错误。",
     "- 文件不存在或非 UTF-8 可读时返回错误信息，不会静默返回空内容。",
   ].join("\n"),
-  parameters: Type.Object({
-    filePath: Type.String({ description: "工作区相对路径或文件名" }),
-    offset: Type.Optional(
-      Type.Number({ description: "1-based 起始行号；缺省从第 1 行读全量" })
-    ),
-    limit: Type.Optional(
-      Type.Number({ description: "最多读取行数（仅 offset 给出时生效，缺省 2000）" })
-    ),
-  }),
+  parameters: FsReadParamsSchema, // TASK-055：契约收口至 @vuagent/protocol
   riskLevel: "low",
   requiresApproval: false,
   writesWorkspace: false,
@@ -83,10 +79,7 @@ export const FsWriteTool: HarnessTool = {
     "- 父目录不存在时自动递归创建；返回 { filePath, success, writtenBytes }。",
     "- 路径按工作区根目录解析；越出工作区的路径会被拒绝并返回 Security Violation 错误。",
   ].join("\n"),
-  parameters: Type.Object({
-    filePath: Type.String({ description: "工作区相对路径或文件名" }),
-    content: Type.String({ description: "要写入的文件完整文本内容" }),
-  }),
+  parameters: FsWriteParamsSchema, // TASK-055：契约收口至 @vuagent/protocol
   riskLevel: "medium",
   requiresApproval: false,
   writesWorkspace: true,
@@ -116,14 +109,7 @@ export const FsEditTool: HarnessTool = {
     "- 返回 { filePath, success, replaced, sizeBytes }；replaced 为实际替换次数。",
     "- 路径按工作区根目录解析；越出工作区的路径会被拒绝并返回 Security Violation 错误。",
   ].join("\n"),
-  parameters: Type.Object({
-    filePath: Type.String({ description: "工作区相对路径（文件必须已存在）" }),
-    oldString: Type.String({ description: "要替换的精确原文（字面文本，含缩进换行）" }),
-    newString: Type.String({ description: "替换后的文本" }),
-    replaceAll: Type.Optional(
-      Type.Boolean({ description: "oldString 多次出现时是否全部替换；默认 false（仅唯一匹配可替换）" })
-    ),
-  }),
+  parameters: FsEditParamsSchema, // TASK-055：契约收口至 @vuagent/protocol
   riskLevel: "medium",
   requiresApproval: false,
   writesWorkspace: true,
