@@ -1,0 +1,56 @@
+/* VaTooltip — 轻量文字提示（token 驱动；inverse 变体随 [data-theme="dark"] 自动反转） */
+
+.va-tip__trigger {
+  display: inline-block;
+}
+
+.va-tip__trigger[data-disabled] {
+  cursor: not-allowed;
+}
+
+/* tooltip 复用 VaPopover 的浮层容器做定位，但剥掉卡片外观（描边/底/阴影/滚动），
+   只保留定位与入场动画；指针穿透保证 mouseleave 后立即命中下层元素、提示不驻留 */
+.va-pop:has(> .va-tip) {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  max-height: none;
+  pointer-events: none;
+}
+
+.va-tip {
+  pointer-events: none;
+  /* max-width 由内联样式（maxWidth prop，默认 280）给出，这里兜底 */
+  max-width: 280px;
+  padding: 5px 10px;
+  border-radius: var(--va-radius-s);
+  font-family: var(--va-font);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+
+/* inverse（默认）：深底白字；暗色主题下随 token 自动反转为浅底深字 */
+.va-tip[data-variant="inverse"] {
+  background: var(--va-ink);
+  color: var(--va-bg);
+  box-shadow: var(--va-shadow-2);
+}
+
+/* default：卡片底 + 描边，与 popover 面板观感一致 */
+.va-tip[data-variant="default"] {
+  border: 1px solid var(--va-edge-strong);
+  background: var(--va-card);
+  color: var(--va-ink);
+  box-shadow: var(--va-shadow-2);
+}
+
+/* 入场淡入由 .va-pop 容器承担（va-pop-in）；此处按组件冗余声明关闭，
+   保证 tooltip 样式单独分发时同样尊重 prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .va-pop:has(> .va-tip) {
+    animation: none;
+  }
+}

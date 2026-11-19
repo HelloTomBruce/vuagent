@@ -226,6 +226,42 @@
       "type": "registry:ui"
     },
     {
+      "name": "select",
+      "title": "Select",
+      "description": "纯选择型下拉（区别于 combobox 的可输入创建）：单选/多选（勾选框 + string[]）/可搜索/可清除，分组渲染（role=group + 组标题），完整键盘导航（↑↓ 跳过 disabled、Home/End、字母首字符跳转、Esc 还原焦点），基于 VaPopover（matchAnchorWidth + bottom-start）。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "dropdown",
+      "title": "Dropdown",
+      "description": "动作下拉菜单（三点菜单，区别于 command-menu 命令面板 / filter-menu 多组过滤）：divider 分隔线、group 组标题、shortcut 提示、danger 项红字、checked 项对勾、一层子菜单（→ 展开 / ← 收起，独立浮层不被父菜单裁切）；完整键盘导航（↑↓/Home/End/Enter/Space/Esc 还原焦点/Tab 关闭），click / contextmenu（右键虚拟锚点）/ manual 三种触发。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "popover",
+      "title": "Popover",
+      "description": "浮层原语（Select / Dropdown / Tooltip 共用基座）：useFloating 定位引擎（flip 主方向翻转 + shift 8px 视口边距 + matchAnchorWidth）+ Teleport 到 body + 点击外部/Esc 关闭（栈顶响应）。零依赖，trigger 插槽或外部 anchor 双模式。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "tooltip",
+      "title": "Tooltip",
+      "description": "轻量文字提示（基于 VaPopover，无交互仅 hover/focus 展示）：delay 延迟打开 + hideDelay 延迟关闭 + Esc 立即关；触发元素自动回填 aria-describedby 指向浮层 id（触发器自带 aria-label 时跳过，避免覆盖）；role=tooltip 且 pointer-events:none 不拦截指针；inverse 默认深底白字随主题自动反转。与既有 title 属性共存时优先用 VaTooltip（title 不可样式化、各浏览器延迟与读屏播报不一致）。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "dialog",
+      "title": "Dialog",
+      "description": "模态弹窗原语：useFocusTrap 焦点陷阱（Tab 循环 + 焦点恢复）+ 模块级堆叠栈（Esc/遮罩仅栈顶响应）+ body 滚动锁计数器（叠开不提前解锁、补偿滚动条宽度防抖动）+ 进出场动画（opacity/scale，尊重 prefers-reduced-motion）+ 完整 ARIA（role=dialog / aria-modal / labelledby·describedby 自动关联）。destroyOnClose=false 时退出动画后仅 visibility 隐藏不卸载。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "confirm",
+      "title": "Confirm",
+      "description": "命令式确认框：await vaConfirm() 返回 Promise<boolean>，宿主 VaConfirmHost 渲染（基于 VaDialog，role=alertdialog）；tone=danger/warning 时确认按钮危险配色且初始聚焦取消（安全默认），requireText 需逐字输入才可确认，checkboxLabel 勾选态经 vaConfirm.details 返回；并发调用按队列串行，closeAll() 一键拒绝；无宿主时开发期警告并 fail-closed 返回 false。",
+      "type": "registry:ui"
+    },
+    {
       "name": "filter-menu",
       "title": "Filter Menu",
       "description": "过滤条件下拉：checkbox 多选组 + radio 单选组，触发按钮带激活计数徽章，一键清除全部。",

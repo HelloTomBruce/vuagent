@@ -1,0 +1,141 @@
+/* VaConfirm — 命令式确认框宿主（内容样式；弹窗外壳来自 VaDialog） */
+
+/* 标题行：图标 + 文案 */
+.va-confirm__heading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--va-s3, 8px);
+  min-width: 0;
+}
+
+.va-confirm__icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--va-muted, #6f6d66);
+}
+
+.va-confirm__icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.va-confirm__heading[data-tone="danger"] .va-confirm__icon {
+  color: var(--va-danger, #d5453c);
+}
+
+.va-confirm__heading[data-tone="warning"] .va-confirm__icon {
+  color: var(--va-warning, #b45309);
+}
+
+.va-confirm__title {
+  min-width: 0;
+}
+
+/* 主体：手输确认 + 勾选项 */
+.va-confirm__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s4, 12px);
+  font-family: var(--va-font, system-ui, sans-serif);
+}
+
+.va-confirm__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s2, 4px);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--va-muted, #6f6d66);
+}
+
+.va-confirm__need {
+  padding: 1px 5px;
+  border-radius: var(--va-radius-s, 8px);
+  background: var(--va-bg-subtle, #efede7);
+  color: var(--va-ink, #1a1917);
+  font-family: var(--va-font-mono, ui-monospace, monospace);
+  font-size: 12px;
+}
+
+.va-confirm__input {
+  width: 100%;
+  padding: 5px 10px;
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-s, 8px);
+  background: var(--va-card, #fff);
+  color: var(--va-ink, #1a1917);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  transition:
+    border-color var(--va-dur-1, 120ms) var(--va-ease, ease),
+    box-shadow var(--va-dur-1, 120ms) var(--va-ease, ease);
+}
+
+.va-confirm__input::placeholder {
+  color: var(--va-muted, #6f6d66);
+  opacity: 0.7;
+}
+
+.va-confirm__input:focus {
+  outline: none;
+  border-color: var(--va-accent, #c2410c);
+  box-shadow: 0 0 0 3px var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+}
+
+.va-confirm__check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--va-s2, 4px);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--va-ink-2, #43413c);
+  cursor: pointer;
+  user-select: none;
+}
+
+.va-confirm__check input {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--va-accent, #c2410c);
+  cursor: pointer;
+}
+
+/* 按钮：基类 va-act 负责形状/焦点环，这里只补语气配色 */
+.va-confirm__btn--danger {
+  border-color: var(--va-danger, #d5453c);
+  background: var(--va-danger, #d5453c);
+  color: #fff;
+  font-weight: 600;
+}
+
+.va-confirm__btn--danger:hover:not(:disabled) {
+  border-color: var(--va-danger, #d5453c);
+  background: var(--va-danger, #d5453c);
+  opacity: 0.88;
+}
+
+.va-confirm__btn--warning {
+  border-color: var(--va-warning, #b45309);
+  background: var(--va-warning, #b45309);
+  color: #fff;
+  font-weight: 600;
+}
+
+.va-confirm__btn--warning:hover:not(:disabled) {
+  border-color: var(--va-warning, #b45309);
+  background: var(--va-warning, #b45309);
+  opacity: 0.88;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-confirm__input {
+    transition: none;
+  }
+}

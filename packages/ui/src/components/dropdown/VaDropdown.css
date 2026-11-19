@@ -1,0 +1,182 @@
+/* VaDropdown — 动作下拉菜单（token 驱动，暗色经 [data-theme="dark"] 自动生效） */
+
+/* ---------- 触发器 ---------- */
+.va-dd {
+  display: inline-flex;
+}
+
+.va-dd__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--va-s2);
+  border: 1px solid transparent;
+  border-radius: var(--va-radius-s);
+  background: transparent;
+  color: var(--va-ink-2);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  padding: 5px 7px;
+  cursor: pointer;
+  transition:
+    background var(--va-dur-1) var(--va-ease),
+    border-color var(--va-dur-1) var(--va-ease);
+}
+
+.va-dd__trigger:hover:not(:disabled) {
+  background: var(--va-bg-subtle);
+}
+
+.va-dd__trigger:focus-visible {
+  outline: 2px solid var(--va-accent);
+  outline-offset: 1px;
+}
+
+.va-dd__trigger[aria-expanded="true"] {
+  background: var(--va-bg-subtle);
+  border-color: var(--va-edge);
+}
+
+.va-dd__trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.va-dd__icon {
+  font-size: 14px;
+  line-height: 1;
+  color: var(--va-muted);
+}
+
+.va-dd__trigger:hover .va-dd__icon,
+.va-dd__trigger[aria-expanded="true"] .va-dd__icon {
+  color: var(--va-ink);
+}
+
+.va-dd__label {
+  font-size: 13px;
+  color: inherit;
+}
+
+.va-dd__chev {
+  font-size: 9px;
+  color: var(--va-muted);
+  user-select: none;
+}
+
+/* ---------- 菜单 ---------- */
+.va-dd__menu {
+  min-width: 160px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: var(--va-s2);
+  overscroll-behavior: contain;
+}
+
+.va-dd__group {
+  padding: 5px var(--va-s3) 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--va-muted);
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+.va-dd__divider {
+  height: 1px;
+  margin: var(--va-s2) var(--va-s1);
+  background: var(--va-edge);
+}
+
+.va-dd__item {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s2);
+  width: 100%;
+  border: 0;
+  border-radius: var(--va-radius-s);
+  background: transparent;
+  color: var(--va-ink-2);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  padding: 6px var(--va-s3);
+  cursor: pointer;
+  user-select: none;
+}
+
+.va-dd__item[data-active] {
+  background: var(--va-accent-soft);
+  color: var(--va-ink);
+}
+
+.va-dd__item:focus-visible {
+  outline: none;
+  background: var(--va-accent-soft);
+  color: var(--va-ink);
+}
+
+.va-dd__item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.va-dd__item[data-danger] {
+  color: var(--va-danger);
+}
+
+.va-dd__item[data-danger][data-active],
+.va-dd__item[data-danger]:focus-visible {
+  background: color-mix(in srgb, var(--va-danger) 12%, transparent);
+  color: var(--va-danger);
+}
+
+/* 对勾位：固定宽度占位，非 checked 项与 checked 项左对齐 */
+.va-dd__check {
+  flex: none;
+  width: 14px;
+  font-size: 12px;
+  color: var(--va-accent);
+  text-align: center;
+}
+
+.va-dd__item-icon {
+  flex: none;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.va-dd__item-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.va-dd__shortcut {
+  flex: none;
+  margin-left: var(--va-s5);
+  font-family: var(--va-font-mono);
+  font-size: 11px;
+  color: var(--va-muted);
+}
+
+.va-dd__sub-arrow {
+  flex: none;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--va-muted);
+}
+
+/* shortcut 与子菜单箭头互斥时箭头顶格 */
+.va-dd__shortcut + .va-dd__sub-arrow {
+  margin-left: var(--va-s2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-dd__trigger {
+    transition: none;
+  }
+}

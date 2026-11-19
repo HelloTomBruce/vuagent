@@ -1,0 +1,50 @@
+/* VaPopover — 浮层原语（token 驱动，暗色经 [data-theme="dark"] 自动生效） */
+
+.va-pop__trigger {
+  display: inline-block;
+}
+
+.va-pop__trigger[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* 定位与显隐走内联样式（useFloating 计算 top/left/min-width/visibility） */
+.va-pop {
+  z-index: 70;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  border: 1px solid var(--va-edge-strong);
+  border-radius: var(--va-radius-m);
+  background: var(--va-card);
+  color: var(--va-ink);
+  box-shadow: var(--va-shadow-2);
+  font-family: var(--va-font);
+  font-size: 13px;
+  animation: va-pop-in var(--va-dur-1) var(--va-ease);
+}
+
+/* 弹窗内打开的浮层置顶：VaPopover 与 VaDialog 遮罩（z=80）同为 Teleport 到 body 的直属兄弟，
+   DOM 顺序 = 挂载顺序 —— ~ 选择器只命中「遮罩之后挂载」的浮层（即弹窗打开后才打开的 select/
+   dropdown/tooltip 弹层），提升到遮罩之上；先于弹窗打开的浮层仍被遮罩压住（对话框盖杂浮层符合预期） */
+body > .va-dlg__overlay ~ .va-pop {
+  z-index: 90;
+}
+
+@keyframes va-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-pop {
+    animation: none;
+  }
+}

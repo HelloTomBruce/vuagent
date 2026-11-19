@@ -165,6 +165,66 @@ export type {
 export { VaCombobox } from "./components/combobox";
 export type { ComboboxEvents, ComboboxOption, ComboboxProps } from "./components/combobox";
 
+// 纯选择型下拉（基于 VaPopover，单选/多选/可搜索/可清除）
+export { VaSelect, useSelect } from "./components/select";
+export type {
+  SelectEvents,
+  SelectOption,
+  SelectProps,
+  SelectSlots,
+  SelectValue,
+} from "./components/select";
+
+// 动作下拉菜单（三点菜单）：键盘导航 + 一层子菜单 + danger/checked 项（基于 VaPopover，bottom-end）
+export { VaDropdown, useDropdown } from "./components/dropdown";
+export type {
+  DropdownEntry,
+  DropdownEvents,
+  DropdownItem,
+  DropdownPlacement,
+  DropdownProps,
+  DropdownSlots,
+  DropdownTrigger,
+} from "./components/dropdown";
+
+// Overlay 原语（Select / Dropdown / Tooltip 共用基座）
+export { VaPopover, useFloating } from "./components/popover";
+export type {
+  ComputeFloatingOptions,
+  FloatingResult,
+  PopoverAnchor,
+  PopoverEvents,
+  PopoverPlacement,
+  PopoverProps,
+  PopoverSlots,
+  VirtualAnchor,
+} from "./components/popover";
+
+// 轻量文字提示（基于 VaPopover；hover/focus 延迟显示 + Esc 关闭 + aria-describedby 回填）
+export { VaTooltip } from "./components/tooltip";
+export type {
+  TooltipEvents,
+  TooltipPlacement,
+  TooltipProps,
+  TooltipSlots,
+  TooltipVariant,
+} from "./components/tooltip";
+
+// 模态弹窗原语（焦点陷阱 + 焦点恢复 + 堆叠栈 + 滚动锁）
+export { VaDialog, useFocusTrap } from "./components/dialog";
+export type { DialogEvents, DialogProps, DialogSize, DialogSlots } from "./components/dialog";
+
+// 命令式确认框（Promise 化；基于 VaDialog，队列串行；tone / requireText / checkbox）
+export { VaConfirmHost, useConfirm, vaConfirm } from "./components/confirm";
+export type {
+  ConfirmItem,
+  ConfirmOptions,
+  ConfirmResult,
+  ConfirmState,
+  ConfirmTone,
+  VaConfirm,
+} from "./components/confirm";
+
 export { VaFilterMenu } from "./components/filter-menu";
 export type {
   FilterGroup,

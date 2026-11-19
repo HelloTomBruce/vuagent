@@ -1,0 +1,252 @@
+/* VaSelect — 纯选择型下拉（token 驱动，暗色经 [data-theme="dark"] 自动生效） */
+
+.va-sel {
+  position: relative;
+  display: inline-block;
+  min-width: 200px;
+}
+
+/* ---------- 触发器 ---------- */
+.va-sel__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--va-s2);
+  width: 100%;
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-card);
+  color: var(--va-ink);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--va-dur-1) var(--va-ease), box-shadow var(--va-dur-1) var(--va-ease);
+}
+
+.va-sel--sm .va-sel__trigger { padding: 4px 24px 4px 8px; font-size: 12.5px; }
+.va-sel--md .va-sel__trigger { padding: 7px 28px 7px 10px; font-size: 13.5px; }
+.va-sel--lg .va-sel__trigger { padding: 9px 32px 9px 12px; font-size: 14.5px; }
+
+.va-sel__trigger:hover:not(:disabled) { border-color: var(--va-edge-strong); }
+
+.va-sel__trigger:focus-visible {
+  outline: none;
+  border-color: var(--va-accent);
+  box-shadow: 0 0 0 3px var(--va-accent-soft);
+}
+
+.va-sel--open .va-sel__trigger { border-color: var(--va-accent); }
+
+.va-sel--invalid .va-sel__trigger { border-color: var(--va-danger); }
+.va-sel--invalid .va-sel__trigger:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--va-danger) 18%, transparent);
+}
+
+.va-sel__trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.va-sel__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.va-sel__value[data-placeholder] { color: var(--va-muted); }
+
+.va-sel__indicators {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.va-sel__chev {
+  color: var(--va-muted);
+  font-size: 10px;
+  user-select: none;
+}
+
+.va-sel__spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--va-accent-soft);
+  border-top-color: var(--va-accent);
+  border-radius: 50%;
+  animation: va-sel-spin 0.7s linear infinite;
+}
+
+@keyframes va-sel-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- 清除按钮（hover 显示，点击阻止冒泡） ---------- */
+.va-sel__clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--va-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.va-sel:hover .va-sel__clear,
+.va-sel:focus-within .va-sel__clear,
+.va-sel__clear:focus-visible { display: inline-flex; }
+
+.va-sel__clear:hover { background: var(--va-accent-soft); color: var(--va-ink); }
+
+/* 有清除按钮时 hover 隐藏 chevron，避免重叠（data-clearable 见模板 showClear） */
+.va-sel[data-clearable]:hover .va-sel__indicators,
+.va-sel[data-clearable]:focus-within .va-sel__indicators { display: none; }
+
+/* ---------- 弹层 ---------- */
+.va-sel__panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 100%;
+}
+
+.va-sel__search {
+  padding: var(--va-s2);
+  border-bottom: 1px solid var(--va-edge);
+}
+
+.va-sel__search-input {
+  width: 100%;
+  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-s);
+  background: var(--va-card);
+  color: var(--va-ink);
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+}
+
+.va-sel__search-input:focus {
+  outline: none;
+  border-color: var(--va-accent);
+  box-shadow: 0 0 0 3px var(--va-accent-soft);
+}
+
+.va-sel__list {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: var(--va-s2);
+}
+
+.va-sel__group-title {
+  padding: 5px var(--va-s3) 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--va-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.va-sel__opt {
+  display: flex;
+  align-items: center;
+  gap: var(--va-s2);
+  padding: 7px var(--va-s3);
+  border-radius: var(--va-radius-s);
+  font-size: 13.5px;
+  color: var(--va-ink-2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.va-sel--sm .va-sel__opt { padding: 5px var(--va-s2); font-size: 12.5px; }
+.va-sel--lg .va-sel__opt { padding: 9px var(--va-s3); font-size: 14.5px; }
+
+.va-sel__opt[data-active] { background: var(--va-accent-soft); color: var(--va-ink); }
+.va-sel__opt[aria-disabled="true"] { opacity: 0.4; cursor: default; }
+
+.va-sel__opt-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.va-sel__opt-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.va-sel__opt[aria-selected="true"] .va-sel__opt-label { font-weight: 600; }
+
+.va-sel__opt-desc {
+  font-size: 11.5px;
+  color: var(--va-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.va-sel__opt-tick {
+  flex: none;
+  color: var(--va-accent);
+  font-size: 12px;
+}
+
+/* 多选勾选框 */
+.va-sel__check {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--va-edge-strong);
+  border-radius: 3px;
+  background: var(--va-card);
+  position: relative;
+  transition: background var(--va-dur-1) var(--va-ease), border-color var(--va-dur-1) var(--va-ease);
+}
+
+.va-sel__check[data-checked] {
+  background: var(--va-accent);
+  border-color: var(--va-accent);
+}
+
+.va-sel__check[data-checked]::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+.va-sel__empty {
+  padding: var(--va-s4);
+  font-size: 12.5px;
+  color: var(--va-muted);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-sel__trigger,
+  .va-sel__check { transition: none; }
+  .va-sel__spinner { animation: none; }
+}
