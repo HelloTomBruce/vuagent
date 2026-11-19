@@ -149,7 +149,9 @@ export class AgentLoop {
     );
 
     // 3. 构建历史消息上下文
-    const turnId = `turn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    // TASK-058：turnId 单一事实来源——hub spawnRun 生成后经 req.turnId 传入，
+    // 直接调用方（无 hub）缺省时回落自生成，全链路（事件/落库/ops 台账）一致
+    const turnId = req.turnId ?? `turn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const turnNumber = session.turns.length + 1;
     const telemetry = new TelemetryLedger(turnId, turnNumber);
 

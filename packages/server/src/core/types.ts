@@ -57,4 +57,10 @@ export interface AgentTurnRequest {
   modelOverride?: Partial<ModelProfileEntity>;
   maxSteps?: number;
   timeoutMs?: number;
+  /**
+   * TASK-058：轮次 ID 单一事实来源。经 hub 开轮时由 spawnRun 生成后传入，
+   * 使 hub aborted/ops 事件、loop turn_start/落库 turnId、ops 台账全链路一致；
+   * 缺省（直接调用 runTurn）时 agent-loop 回落自生成，兼容旧调用方。
+   */
+  turnId?: string;
 }

@@ -168,7 +168,13 @@ export class SessionExecutionHub {
     // 启动非阻塞后台任务循环
     (async () => {
       try {
-        const eventStream = this.agentLoop.runTurn(req, run.abortController.signal);
+        // TASK-058：turnId 单一事实来源——hub 生成的 turnId 随请求传入，
+        // agent-loop 优先消费 req.turnId，turn_start/落库/ops 台账与
+        // hub 的 aborted/abort 事件不再各说各话
+        const eventStream = this.agentLoop.runTurn(
+          { ...req, turnId },
+          run.abortController.signal
+        );
         // 注意：这里不能因 abortSignal 而 break——必须持续抽干事件流，
         // 让 AgentLoop 的中止分支走完 turn_end 并 appendTurn 落库
         for await (const event of eventStream) {
