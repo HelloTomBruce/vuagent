@@ -7,6 +7,8 @@ export * from "./core/tool-registry.js";
 export * from "./core/stream-orchestrator.js";
 export * from "./core/telemetry.js";
 export * from "./core/context-compactor.js";
+export * from "./core/config-schema.js";
+export * from "./core/config-resolver.js";
 export * from "./core/agent-loop.js";
 export * from "./adapters/model-driver.js";
 export * from "./adapters/openai-driver.js";
@@ -18,6 +20,8 @@ export * from "./storage/drivers/sqlite.driver.js";
 export * from "./storage/repositories/workspace.repository.js";
 export * from "./storage/repositories/session.repository.js";
 export * from "./storage/repositories/settings.repository.js";
+export * from "./storage/repositories/tool-config.repository.js";
+export * from "./storage/repositories/harness-config.repository.js";
 export * from "./security.js";
 export * from "./server.js";
 

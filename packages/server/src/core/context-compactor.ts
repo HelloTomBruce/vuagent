@@ -83,6 +83,18 @@ export class ContextCompactor {
   }
 
   /**
+   * 运行时更新配置（TASK-025）：配置中心每轮生效，无需重建实例。
+   * 仅更新显式传入的项；本实例为全局单例（agent-loop 与手动压缩路由共用），
+   * 值来源同为全局配置，并发写等价（last-write-wins 收敛到同一全局值）。
+   */
+  configure(options: CompactorOptions): void {
+    if (options.maxContextTokens !== undefined) this.maxTokens = options.maxContextTokens;
+    if (options.maxToolResultChars !== undefined) this.maxToolChars = options.maxToolResultChars;
+    if (options.keepTokens !== undefined) this.keepTokens = options.keepTokens;
+    if (options.preserveRecentTurns !== undefined) this.preserveRecent = options.preserveRecentTurns;
+  }
+
+  /**
    * 精确统计消息序列的 Token 数量（gpt-tokenizer / o200k_base BPE 分词）。
    * 计数范围与 OpenAI Chat Completions 计费口径对齐：每条消息含约 4 token 的
    * 消息级包裹开销（role 标记、定界符），tool_calls 的函数名与 JSON 参数逐字计数，

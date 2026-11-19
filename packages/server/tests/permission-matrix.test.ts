@@ -9,6 +9,7 @@ import { SettingsRepository } from "../src/storage/repositories/settings.reposit
 import { ToolRegistry } from "../src/core/tool-registry.js";
 import { ActionHub } from "../src/core/action-hub.js";
 import { AgentLoop } from "../src/core/agent-loop.js";
+import { ToolConfigRepository } from "../src/storage/repositories/tool-config.repository.js";
 import { resolveLivePermissionMode } from "../src/core/permissions.js";
 import { MockDriver } from "../src/adapters/mock-driver.js";
 import { FsReadTool, FsWriteTool } from "../src/tools/system/fs-tools.js";
@@ -89,6 +90,7 @@ describe("权限矩阵（auto/review/read-only × fs_read/fs_write/bash_run/ui_m
       workspaceRepo,
       sessionRepo,
       settingsRepo,
+      toolConfigRepo: new ToolConfigRepository(driver),
       toolRegistry,
       actionHub,
       modelDriver: mockDriver,

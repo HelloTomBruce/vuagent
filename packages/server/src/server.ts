@@ -12,6 +12,10 @@ import { MemoryStorageDriver } from "./storage/drivers/memory.driver.js";
 import { WorkspaceRepository } from "./storage/repositories/workspace.repository.js";
 import { SessionRepository } from "./storage/repositories/session.repository.js";
 import { SettingsRepository } from "./storage/repositories/settings.repository.js";
+import { ToolConfigRepository } from "./storage/repositories/tool-config.repository.js";
+import { HarnessConfigRepository } from "./storage/repositories/harness-config.repository.js";
+import { CONFIG_SCHEMA, getNamespaceSchema } from "./core/config-schema.js";
+import { ConfigResolver, isEnvLocked, resolveNamespaceValues, validateNamespacePatch } from "./core/config-resolver.js";
 import { ToolRegistry } from "./core/tool-registry.js";
 import { ActionHub } from "./core/action-hub.js";
 import { AgentLoop } from "./core/agent-loop.js";
@@ -21,8 +25,10 @@ import { SessionExecutionHub } from "./core/session-execution-hub.js";
 import type { CheckpointEntity, TurnEntity } from "./storage/interfaces.js";
 import type { IModelDriver } from "./adapters/model-driver.js";
 import { OpenAICompatibleDriver } from "./adapters/openai-driver.js";
-import { FsReadTool, FsWriteTool } from "./tools/system/fs-tools.js";
+import { FsEditTool, FsReadTool, FsWriteTool } from "./tools/system/fs-tools.js";
 import { BashRunTool } from "./tools/system/bash-tool.js";
+import { GlobTool, GrepTool } from "./tools/system/search-tools.js";
+import { createWebFetchTool } from "./tools/web/web-tools.js";
 import { AllBuiltinTools } from "./tools/ui/protocol-tools.js";
 
 export interface ServerOptions {
@@ -49,12 +55,27 @@ export function createHarnessServer(options: ServerOptions = {}) {
   const workspaceRepo = new WorkspaceRepository(driver);
   const sessionRepo = new SessionRepository(driver);
   const settingsRepo = new SettingsRepository(driver);
+  const toolConfigRepo = new ToolConfigRepository(driver);
+  // 配置中心（TASK-024）：分层配置的存储与解析门面（无缓存，PATCH 即生效）
+  const harnessConfigRepo = new HarnessConfigRepository(driver);
+  const configResolver = new ConfigResolver(harnessConfigRepo);
 
   // 2. 初始化核心组件
   const toolRegistry = new ToolRegistry();
   toolRegistry.register(FsReadTool);
   toolRegistry.register(FsWriteTool);
+  toolRegistry.register(FsEditTool);
   toolRegistry.register(BashRunTool);
+  toolRegistry.register(GlobTool);
+  toolRegistry.register(GrepTool);
+  // TASK-026：私网放行改走配置中心 security.allowPrivateFetch（env 显式设置时
+  // 由 resolver 的 envLock 锁定为 env 值），运行中改档逐次执行即时生效
+  toolRegistry.register(
+    createWebFetchTool(async () => {
+      const sec = await configResolver.resolve("security");
+      return sec?.allowPrivateFetch === true;
+    })
+  );
   for (const t of AllBuiltinTools) {
     toolRegistry.register(t);
   }
@@ -73,10 +94,12 @@ export function createHarnessServer(options: ServerOptions = {}) {
     workspaceRepo,
     sessionRepo,
     settingsRepo,
+    toolConfigRepo,
     toolRegistry,
     actionHub,
     modelDriver,
     compactor,
+    configResolver,
   });
 
   const executionHub = new SessionExecutionHub(agentLoop);
@@ -93,9 +116,123 @@ export function createHarnessServer(options: ServerOptions = {}) {
     });
   });
 
-  // 核心对话流式接口 (SSE，委托 SessionExecutionHub 独立生命周期)
-  app.post("/api/chat", async (c) => {
+  // 工具配置（TASK-019 启停；TASK-026 per-tool timeoutMs/requiresApproval 覆盖）：
+  // registry 元数据 ∪ 全局配置。缺配置记录 = 启用且无覆盖；PATCH 即时生效
+  // （agent-loop 逐工具调用实时读）。requiresApproval 返回的是生效值——
+  // 覆盖 deny-wins（只能升不能降），存储的 override=false 不放宽推导结果。
+  app.get("/api/tools", async (c) => {
+    const configs = await toolConfigRepo.list();
+    const cfgByName = new Map(configs.map((cfg) => [cfg.name, cfg]));
+    const tools = toolRegistry
+      .list()
+      .map((t) => {
+        const cfg = cfgByName.get(t.name);
+        const derivedApproval = t.requiresApproval === true || t.riskLevel === "high";
+        return {
+          name: t.name,
+          description: t.description,
+          riskLevel: t.riskLevel ?? "medium",
+          writesWorkspace: t.writesWorkspace === true,
+          requiresApproval: derivedApproval || cfg?.requiresApproval === true,
+          enabled: cfg?.enabled !== false,
+          timeoutMs: cfg?.timeoutMs ?? null,
+          source: "builtin",
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return c.json(tools);
+  });
+
+  app.patch("/api/tools/:name", async (c) => {
+    const name = c.req.param("name");
+    if (!toolRegistry.get(name)) {
+      return c.json({ error: `Unknown tool [${name}]` }, 404);
+    }
     const body = await c.req.json().catch(() => ({}));
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return c.json({ error: "body 必须是 { enabled?, timeoutMs?, requiresApproval? } 对象" }, 400);
+    }
+    const ALLOWED_KEYS = ["enabled", "timeoutMs", "requiresApproval"] as const;
+    const patch: { enabled?: boolean; timeoutMs?: number; requiresApproval?: boolean } = {};
+    for (const [key, raw] of Object.entries(body as Record<string, unknown>)) {
+      if (!(ALLOWED_KEYS as readonly string[]).includes(key)) {
+        return c.json({ error: `未知字段 [${key}]（支持 ${ALLOWED_KEYS.join("/")}）` }, 400);
+      }
+      if (key === "enabled" || key === "requiresApproval") {
+        if (typeof raw !== "boolean") return c.json({ error: `body.${key} 需要 boolean` }, 400);
+        patch[key] = raw;
+      } else {
+        // API 下限 1000ms 是 UI 防呆（避免面板误填 50ms 之类自杀值）；
+        // 引擎层（agent-loop 对 repo 直写的覆盖）接受 ≥1ms，属有意的分层宽容
+        if (typeof raw !== "number" || !Number.isFinite(raw) || raw < 1_000) {
+          return c.json({ error: "body.timeoutMs 需要 ≥1000 的有限数值（毫秒）" }, 400);
+        }
+        patch.timeoutMs = raw;
+      }
+    }
+    if (Object.keys(patch).length === 0) {
+      return c.json({ error: "body 至少包含 enabled/timeoutMs/requiresApproval 之一" }, 400);
+    }
+    const config = await toolConfigRepo.update(name, patch);
+    return c.json(config);
+  });
+
+  // 配置中心（TASK-024）：CONFIG_SCHEMA 驱动的分层配置。
+  // GET 返回 schema + 各命名空间生效值 + isDefault 标记（前端表驱动渲染）；
+  // PATCH 严格校验（未知 key/类型不符/env 锁定 → 400，number 钳制、text 截断）；
+  // reset 删除记录恢复全默认（缺记录=全默认）。
+  app.get("/api/config", async (c) => {
+    const namespaces = await Promise.all(
+      CONFIG_SCHEMA.map(async (ns) => {
+        const stored = await harnessConfigRepo.getNamespace(ns.id);
+        return {
+          id: ns.id,
+          title: ns.title,
+          description: ns.description,
+          // locked：env 显式设置的部署级强制锁（UI 据此只读展示锁标记，TASK-028）
+          fields: ns.fields.map((f) => ({ ...f, locked: isEnvLocked(f) })),
+          values: resolveNamespaceValues(ns, stored?.values),
+          isDefault: !stored || Object.keys(stored.values).length === 0,
+        };
+      })
+    );
+    return c.json({ namespaces });
+  });
+
+  app.patch("/api/config/:namespace", async (c) => {
+    const ns = getNamespaceSchema(c.req.param("namespace"));
+    if (!ns) {
+      return c.json({ error: `Unknown config namespace [${c.req.param("namespace")}]` }, 404);
+    }
+    const body = await c.req.json().catch(() => ({}));
+    const validation = validateNamespacePatch(ns, body);
+    if (!validation.ok) {
+      return c.json({ error: validation.error }, 400);
+    }
+    const entity = await harnessConfigRepo.patchNamespace(ns.id, validation.values);
+    // 返回生效值（含 envLock 覆盖与钳制结果），调用方以此为准
+    return c.json({
+      namespace: ns.id,
+      values: resolveNamespaceValues(ns, entity.values),
+      updatedAt: entity.updatedAt,
+    });
+  });
+
+  app.post("/api/config/:namespace/reset", async (c) => {
+    const ns = getNamespaceSchema(c.req.param("namespace"));
+    if (!ns) {
+      return c.json({ error: `Unknown config namespace [${c.req.param("namespace")}]` }, 404);
+    }
+    await harnessConfigRepo.resetNamespace(ns.id);
+    return c.json({
+      namespace: ns.id,
+      values: resolveNamespaceValues(ns, null),
+      isDefault: true,
+    });
+  });
+
+  // 核心对话流式接口 (SSE，委托 SessionExecutionHub 独立生命周期)
+  app.post("/api/chat", async (c) => {    const body = await c.req.json().catch(() => ({}));
     const prompt = String(body.prompt || "").trim();
 
     if (!prompt) {
@@ -105,13 +242,24 @@ export function createHarnessServer(options: ServerOptions = {}) {
     // providerConfig / modelOverride 信任边界（TASK-011）：
     // 默认拒绝前端自备 baseUrl/apiKey（SSRF 面）；BYO 开关显式放行；
     // modelOverride 仅允许切换服务端已登记 profile
+    // TASK-026：BYO 开关与默认权限模式接入配置中心 security 命名空间
+    // （请求时解析，运行中改档即生效；env 显式设置时由 envLock 锁定为 env 值）。
+    // options.security.allowByoProvider 显式注入（测试）优先级最高。
+    const securityNs = (await configResolver.resolve("security")) ?? {};
+    const allowByoProvider =
+      options.security?.allowByoProvider ?? securityNs.allowByoProvider === true;
+    const defaultPermissionMode =
+      typeof securityNs.defaultPermissionMode === "string"
+        ? securityNs.defaultPermissionMode
+        : "review";
+
     let modelProfileId: string | undefined = body.modelProfileId;
     let modelOverride: Partial<ModelProfileEntity> | undefined;
     const hasProviderConfig = body.providerConfig !== undefined && body.providerConfig !== null;
     const hasModelOverride = body.modelOverride !== undefined && body.modelOverride !== null;
 
     if (hasProviderConfig || hasModelOverride) {
-      if (security.allowByoProvider) {
+      if (allowByoProvider) {
         // 自备供应商模式：显式开启后透传（行为与历史版本一致）
         modelOverride = body.modelOverride || body.providerConfig;
       } else if (hasProviderConfig) {
@@ -173,7 +321,7 @@ export function createHarnessServer(options: ServerOptions = {}) {
               sessionId,
               workspaceId,
               prompt,
-              permission: body.permission || "review",
+              permission: body.permission || defaultPermissionMode,
               modelProfileId,
               modelOverride,
               maxSteps: body.maxSteps,

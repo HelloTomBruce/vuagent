@@ -2,6 +2,8 @@ import type { HarnessStreamEvent, AgentTurnRequest, ToolExecutionContext } from 
 import type { WorkspaceRepository } from "../storage/repositories/workspace.repository.js";
 import type { SessionRepository } from "../storage/repositories/session.repository.js";
 import type { SettingsRepository } from "../storage/repositories/settings.repository.js";
+import type { ToolConfigRepository } from "../storage/repositories/tool-config.repository.js";
+import type { ConfigResolver } from "./config-resolver.js";
 import type { ToolRegistry } from "./tool-registry.js";
 import type { ActionHub } from "./action-hub.js";
 import type { IModelDriver } from "../adapters/model-driver.js";
@@ -13,12 +15,22 @@ import { TelemetryLedger, clipTrajectoryEvent } from "./telemetry.js";
 import { runSandboxDemoTurn } from "./sandbox-demo.js";
 import { buildSystemPrompt } from "./system-prompt.js";
 import { resolveEffectivePermissionMode, resolveLivePermissionMode } from "./permissions.js";
+import { defaultNamespaceValues, getNamespaceSchema } from "./config-schema.js";
 import type { CheckpointEntity, TurnEntity } from "../storage/interfaces.js";
+
+/** execution / tools 命名空间 schema（模块级常量：CONFIG_SCHEMA 静态不可变） */
+const EXECUTION_NS = getNamespaceSchema("execution")!;
+const TOOLS_NS = getNamespaceSchema("tools")!;
+const PROMPT_NS = getNamespaceSchema("prompt")!;
 
 export interface AgentLoopServices {
   workspaceRepo: WorkspaceRepository;
   sessionRepo: SessionRepository;
   settingsRepo: SettingsRepository;
+  /** 工具启停配置（全局层，缺记录=启用；逐工具调用实时读，运行中改档立即生效） */
+  toolConfigRepo: ToolConfigRepository;
+  /** 配置中心解析器（TASK-024 基座注入备用；下游任务逐层消费执行/安全/提示词命名空间） */
+  configResolver?: ConfigResolver;
   toolRegistry: ToolRegistry;
   actionHub: ActionHub;
   modelDriver: IModelDriver;
@@ -44,7 +56,32 @@ export class AgentLoop {
     abortSignal?: AbortSignal
   ): AsyncIterable<HarnessStreamEvent> {
     const startAt = Date.now();
-    const maxSteps = req.maxSteps ?? 15;
+
+    // TASK-025：执行层配置每轮解析一次（运行中改配置下一轮生效，与工具启停同口径）；
+    // 未注入 resolver 时回落 schema 默认（与硬编码时代行为严格等价）。
+    // req.maxSteps 请求级覆盖优先级最高（解析链：请求 > 全局配置 > 内置默认）。
+    const execCfg =
+      (await this.services.configResolver?.resolve("execution")) ??
+      defaultNamespaceValues(EXECUTION_NS);
+    const maxSteps = req.maxSteps ?? (execCfg.maxSteps as number);
+    const approvalTimeoutMs = execCfg.approvalTimeoutMs as number;
+    const contextBudgetRatio = execCfg.contextBudgetRatio as number;
+    this.compactor.configure({
+      preserveRecentTurns: execCfg.preserveRecentTurns as number,
+      maxToolResultChars: execCfg.maxToolResultChars as number,
+    });
+
+    // TASK-026：工具策略命名空间（bash 超时全局封顶）同样每轮解析一次
+    const toolsCfg =
+      (await this.services.configResolver?.resolve("tools")) ??
+      defaultNamespaceValues(TOOLS_NS);
+    const bashTimeoutCeilingMs = toolsCfg.bashTimeoutCeilingMs as number;
+
+    // TASK-027：提示词组装命名空间（全局自定义指令 + 环境块/权限块开关），
+    // 每轮解析一次，运行中改配置下一轮生效（与执行/工具层同口径）
+    const promptCfg =
+      (await this.services.configResolver?.resolve("prompt")) ??
+      defaultNamespaceValues(PROMPT_NS);
 
     // 1. 获取工作区与会话
     const workspace = await this.services.workspaceRepo.get(req.workspaceId);
@@ -84,6 +121,11 @@ export class AgentLoop {
         workspace,
         effectiveMode,
         sessionSystemContext: session.systemContext,
+        promptConfig: {
+          customInstructions: promptCfg.customInstructions as string,
+          includeEnvironmentBlock: promptCfg.includeEnvironmentBlock as boolean,
+          includePermissionBlock: promptCfg.includePermissionBlock as boolean,
+        },
       }),
     });
 
@@ -184,12 +226,18 @@ export class AgentLoop {
         }
 
         currentStep++;
-        // 裁剪阈值跟随模型真实窗口（约 85%）：固定 16k 阈值会在长会话中过早清掉历史，
+        // 裁剪阈值跟随模型真实窗口（TASK-025：比例接入配置中心 execution.contextBudgetRatio，
+        // 默认 0.85）：固定 16k 阈值会在长会话中过早清掉历史，
         // 造成每轮占用跳水（前端仪表呈"清零重算"观感）。工具结果截断与 sanitize 不受影响。
         const compactedMessages = this.compactor.compact(messages, {
-          maxTokens: Math.floor((modelProfile.contextWindow || 128_000) * 0.85),
+          maxTokens: Math.floor((modelProfile.contextWindow || 128_000) * contextBudgetRatio),
         });
-        const toolsDefinition = this.services.toolRegistry.toModelToolDefinitions();
+        // TASK-019：按全局启用配置过滤模型可见的 function definitions
+        //（每步重读——运行中禁用工具，下一步模型即不可见）
+        const disabledToolNames = await this.services.toolConfigRepo.disabledNames();
+        const toolsDefinition = this.services.toolRegistry.toModelToolDefinitions({
+          disabledNames: disabledToolNames,
+        });
 
         let stepContent = "";
         const pendingToolCalls: Map<
@@ -403,6 +451,16 @@ export class AgentLoop {
           let isError = false;
           let errorMessage: string | undefined;
 
+          // 工具启停仲裁（TASK-019）+ per-tool 覆盖（TASK-026）：逐调用实时重读该工具
+          // 配置记录——模型上下文可能残留轮次开始时的旧 definitions（禁用前已下发），
+          // 此兜底保证禁用语义不被绕过；禁用即最终裁决，不再进入权限链与执行
+          const toolCfg = await this.services.toolConfigRepo.get(call.name);
+          if (toolCfg && toolCfg.enabled === false) {
+            isError = true;
+            errorMessage = `工具 [${call.name}] 已被禁用（设置 → 工具 页可重新启用）`;
+            executionResult = { disabled: true, reason: errorMessage };
+          }
+
           // TASK-012 权限仲裁（评审 P0-2 修复）：
           // ① 请求级 req.permission 与会话级 session.permission 取交集，更严者生效。
           //    严重度：read-only(3) > review(2) > auto(1)
@@ -431,8 +489,9 @@ export class AgentLoop {
           // 权限模式与审批判断
           let requiresApproval = false;
 
-          // ③ 工作区级硬闸门：read-only 工作区在任何模式（含 auto）下都拦截写工作区工具
-          if (writesWorkspace && workspace.permission === "read-only") {
+          // ③ 工作区级硬闸门：read-only 工作区在任何模式（含 auto）下都拦截写工具
+          //    （!isError 守卫：工具已被禁用裁决时，权限链不得覆写禁用错误）
+          if (!isError && writesWorkspace && workspace.permission === "read-only") {
             isError = true;
             errorMessage = `[工作区权限限制] 当前工作区权限为只读 (read-only)，已拦截写操作工具 [${call.name}]`;
             executionResult = { approved: false, reason: errorMessage };
@@ -442,8 +501,14 @@ export class AgentLoop {
             errorMessage = `[只读模式限制] 当前权限模式为只读 (read-only)，已拦截写操作工具 [${call.name}]`;
             executionResult = { approved: false, reason: errorMessage };
           } else if (mode === "review") {
-            // ⑤ 审批模式 (review)：高风险或需审批的工具进入 HITL 挂起
-            requiresApproval = toolDef?.requiresApproval === true || toolDef?.riskLevel === "high";
+            // ⑤ 审批模式 (review)：高风险或需审批的工具进入 HITL 挂起。
+            // TASK-026 per-tool requiresApproval 覆盖（deny-wins）：
+            // override=true 可追加审批（低风险工具提升为需审批）；override=false
+            // 不放宽既有推导——安全项只能升不能降，存储的 false 视为无效。
+            requiresApproval =
+              toolDef?.requiresApproval === true ||
+              toolDef?.riskLevel === "high" ||
+              toolCfg?.requiresApproval === true;
           }
           // ⑥ auto 模式：Agent 自主执行无需审批介入；工作区级硬闸门（③）仍然生效
 
@@ -470,9 +535,11 @@ export class AgentLoop {
             accumulatedCards.push(approvalCard);
 
             // 提前挂起并进入等待表，确保外部可以立刻查询到该挂起项
+            //（TASK-025：挂起超时接入配置中心 execution.approvalTimeoutMs，默认 180s）
             const actionPromise = this.services.actionHub.waitForAction(call.id, {
               toolName: call.name,
               args: parsedArgs,
+              timeoutMs: approvalTimeoutMs,
               sessionId: req.sessionId,
             });
 
@@ -481,7 +548,7 @@ export class AgentLoop {
               actionId: call.id,
               toolName: call.name,
               args: parsedArgs,
-              timeoutMs: 180_000,
+              timeoutMs: approvalTimeoutMs,
             };
 
             const userAction = await actionPromise;
@@ -506,6 +573,29 @@ export class AgentLoop {
 
           // 若未被驳回，在沙箱中执行工具
           if (!isError) {
+            // TASK-026 per-tool 超时覆盖：
+            // - bash_run：生效命令超时 = per-tool timeoutMs 覆盖 > 模型请求 timeoutMs > 默认 30s，
+            //   再按 tools.bashTimeoutCeilingMs 全局封顶；执行器竞速超时放宽 10s 让内层
+            //   exec 先触发（保留 timedOut:true 结构化契约，而非笼统的 "timed out" 错误）
+            // - 其他工具：per-tool timeoutMs 覆盖执行器 60s 超时上限
+            let executorTimeoutMs: number | undefined;
+            if (call.name === "bash_run") {
+              const argTimeout =
+                typeof parsedArgs.timeoutMs === "number" && Number.isFinite(parsedArgs.timeoutMs)
+                  ? parsedArgs.timeoutMs
+                  : undefined;
+              const requested = toolCfg?.timeoutMs ?? argTimeout ?? 30_000;
+              const effective = Math.min(Math.max(1, requested), bashTimeoutCeilingMs);
+              parsedArgs = { ...parsedArgs, timeoutMs: effective };
+              executorTimeoutMs = effective + 10_000;
+            } else if (
+              typeof toolCfg?.timeoutMs === "number" &&
+              Number.isFinite(toolCfg.timeoutMs) &&
+              toolCfg.timeoutMs > 0
+            ) {
+              executorTimeoutMs = toolCfg.timeoutMs;
+            }
+
             const ctx: ToolExecutionContext = {
               toolCallId: call.id,
               args: parsedArgs,
@@ -514,7 +604,11 @@ export class AgentLoop {
               abortSignal: abortSignal || new AbortController().signal,
             };
 
-            const execRes = await this.services.toolRegistry.execute(call.name, ctx);
+            const execRes = await this.services.toolRegistry.execute(
+              call.name,
+              ctx,
+              executorTimeoutMs
+            );
             isError = execRes.isError;
             executionResult = execRes.result;
             errorMessage = execRes.error;

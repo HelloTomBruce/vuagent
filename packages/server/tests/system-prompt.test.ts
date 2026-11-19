@@ -18,6 +18,9 @@ import { SettingsRepository } from "../src/storage/repositories/settings.reposit
 import { ToolRegistry } from "../src/core/tool-registry.js";
 import { ActionHub } from "../src/core/action-hub.js";
 import { AgentLoop } from "../src/core/agent-loop.js";
+import { ToolConfigRepository } from "../src/storage/repositories/tool-config.repository.js";
+import { HarnessConfigRepository } from "../src/storage/repositories/harness-config.repository.js";
+import { ConfigResolver } from "../src/core/config-resolver.js";
 import { MockDriver } from "../src/adapters/mock-driver.js";
 import type { ModelDriverRequest } from "../src/adapters/model-driver.js";
 import type { WorkspaceEntity } from "../src/storage/interfaces.js";
@@ -247,6 +250,7 @@ describe("AgentLoop 端到端：系统提示词注入与模式声明同源", () 
       workspaceRepo,
       sessionRepo,
       settingsRepo,
+      toolConfigRepo: new ToolConfigRepository(driver),
       toolRegistry,
       actionHub,
       modelDriver: mockDriver,
@@ -286,5 +290,172 @@ describe("AgentLoop 端到端：系统提示词注入与模式声明同源", () 
     const { systemMsg } = await runAndCaptureSystemPrompt("read-only");
     const content = String(systemMsg?.content ?? "");
     expect(content).toContain("本轮生效模式: read-only");
+  });
+});
+
+describe("提示词层可配置（TASK-027：prompt 命名空间接线）", () => {
+  it("customInstructions 作为「用户自定义指令」块追加在所有内置块之后", () => {
+    const prompt = buildSystemPrompt({
+      workspace: fakeWorkspace({ systemInstruction: "优先使用 pnpm" }),
+      effectiveMode: "review",
+      sessionSystemContext: "当前在做 TASK-027",
+      env: fakeEnv(),
+      promptConfig: { customInstructions: "始终用中文回答，先给结论" },
+    });
+
+    expect(prompt).toContain("## 用户自定义指令\n始终用中文回答，先给结论");
+    // 位置：在内置块与工作区/会话指令之后（只能追加，不能覆盖内置块）
+    expect(prompt.indexOf("## 用户自定义指令")).toBeGreaterThan(
+      prompt.indexOf("## 操作纪律")
+    );
+    expect(prompt.indexOf("## 用户自定义指令")).toBeGreaterThan(
+      prompt.indexOf("## 会话上下文")
+    );
+  });
+
+  it("customInstructions 为空/纯空白 → 不追加该块", () => {
+    const prompt = buildSystemPrompt({
+      workspace: fakeWorkspace(),
+      effectiveMode: "auto",
+      env: fakeEnv(),
+      promptConfig: { customInstructions: "   " },
+    });
+    expect(prompt).not.toContain("## 用户自定义指令");
+  });
+
+  it("块开关关闭后对应块不出现（环境块/权限块），操作纪律块保留", () => {
+    const prompt = buildSystemPrompt({
+      workspace: fakeWorkspace(),
+      effectiveMode: "review",
+      env: fakeEnv(),
+      promptConfig: { includeEnvironmentBlock: false, includePermissionBlock: false },
+    });
+    expect(prompt).not.toContain("## 运行环境");
+    expect(prompt).not.toContain("## 权限与审批模式");
+    expect(prompt).toContain("## 操作纪律");
+    expect(prompt).toContain("高级智能体助手");
+  });
+
+  it("默认配置与历史硬编码行为严格等价（不传 promptConfig === 全默认 promptConfig）", () => {
+    const base = {
+      workspace: fakeWorkspace({ systemInstruction: "优先使用 pnpm" }),
+      effectiveMode: "review" as const,
+      sessionSystemContext: "ctx",
+      env: fakeEnv(),
+    };
+    const legacy = buildSystemPrompt(base);
+    const withDefaults = buildSystemPrompt({
+      ...base,
+      promptConfig: {
+        customInstructions: "",
+        includeEnvironmentBlock: true,
+        includePermissionBlock: true,
+      },
+    });
+    expect(withDefaults).toBe(legacy);
+  });
+
+  it("超长自定义指令经配置中心写路径截断到 4000 字符", async () => {
+    const { createHarnessServer } = await import("../src/server.js");
+    const { app } = createHarnessServer({ dbPath: ":memory:" });
+    const res = await app.request("/api/config/prompt", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customInstructions: "x".repeat(5_000) }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.values.customInstructions).toHaveLength(4_000);
+  });
+
+  describe("AgentLoop 端到端：prompt 命名空间经 resolver 生效", () => {
+    class RecordingMockDriver2 extends MockDriver {
+      lastRequest?: ModelDriverRequest;
+      override async *generateStream(req: ModelDriverRequest) {
+        this.lastRequest = req;
+        yield* super.generateStream(req);
+      }
+    }
+
+    async function runWithPromptConfig(promptPatch?: Record<string, unknown>) {
+      const driver = new MemoryStorageDriver();
+      const workspaceRepo = new WorkspaceRepository(driver);
+      const sessionRepo = new SessionRepository(driver);
+      const settingsRepo = new SettingsRepository(driver);
+      const harnessConfigRepo = new HarnessConfigRepository(driver);
+      const configResolver = new ConfigResolver(harnessConfigRepo);
+      const toolRegistry = new ToolRegistry();
+      const actionHub = new ActionHub();
+      const mockDriver = new RecordingMockDriver2();
+
+      const ws = await workspaceRepo.create({
+        name: "Prompt Cfg Workspace",
+        rootPath: "/tmp",
+        permission: "read-write",
+      });
+      const session = await sessionRepo.create({
+        workspaceId: ws.id,
+        title: "t",
+      });
+      await settingsRepo.createProfile({
+        id: "test-model",
+        name: "Test Model",
+        provider: "openai",
+        model: "test-mock-model",
+        isDefault: true,
+      });
+      if (promptPatch) await harnessConfigRepo.patchNamespace("prompt", promptPatch);
+
+      mockDriver.setScript({ steps: [[{ type: "text", text: "收到" }]] });
+
+      const loop = new AgentLoop({
+        workspaceRepo,
+        sessionRepo,
+        settingsRepo,
+        toolConfigRepo: new ToolConfigRepository(driver),
+        configResolver,
+        toolRegistry,
+        actionHub,
+        modelDriver: mockDriver,
+      });
+
+      for await (const _evt of loop.runTurn({
+        workspaceId: ws.id,
+        sessionId: session.id,
+        prompt: "hi",
+        permission: "auto",
+      })) {
+        // 排空事件流
+      }
+      return String(mockDriver.lastRequest?.messages?.[0]?.content ?? "");
+    }
+
+    it("resolver 在场但无配置记录 → 三段齐备（默认等价）", async () => {
+      const content = await runWithPromptConfig();
+      expect(content).toContain("## 运行环境");
+      expect(content).toContain("## 权限与审批模式");
+      expect(content).toContain("## 操作纪律");
+      expect(content).not.toContain("## 用户自定义指令");
+    });
+
+    it("配置 customInstructions → system 消息末尾出现该块", async () => {
+      const content = await runWithPromptConfig({
+        customInstructions: "全局规则：所有回复先列行动清单",
+      });
+      expect(content).toContain("## 用户自定义指令\n全局规则：所有回复先列行动清单");
+      expect(content.indexOf("## 用户自定义指令")).toBeGreaterThan(
+        content.indexOf("## 操作纪律")
+      );
+    });
+
+    it("配置关闭环境块/权限块 → system 消息不含对应块", async () => {
+      const content = await runWithPromptConfig({
+        includeEnvironmentBlock: false,
+        includePermissionBlock: false,
+      });
+      expect(content).not.toContain("## 运行环境");
+      expect(content).not.toContain("## 权限与审批模式");
+      expect(content).toContain("## 操作纪律");
+    });
   });
 });

@@ -40,8 +40,12 @@ export class ToolRegistry {
 
   /**
    * 转换为大模型标准 Function Calling 工具列表
+   * @param disabledNames 被禁用的工具名集合（缺省全部暴露）；
+   *      禁用语义 = 不进入模型可见的 definitions（调用侧由 agent-loop 仲裁兜底报错）
    */
-  toModelToolDefinitions(): Array<{
+  toModelToolDefinitions(options?: {
+    disabledNames?: Set<string>;
+  }): Array<{
     type: "function";
     function: {
       name: string;
@@ -49,14 +53,17 @@ export class ToolRegistry {
       parameters: Record<string, unknown>;
     };
   }> {
-    return this.list().map((t) => ({
-      type: "function",
-      function: {
-        name: t.name,
-        description: t.description,
-        parameters: t.parameters as Record<string, unknown>,
-      },
-    }));
+    const disabled = options?.disabledNames;
+    return this.list()
+      .filter((t) => !disabled || !disabled.has(t.name))
+      .map((t) => ({
+        type: "function",
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters as Record<string, unknown>,
+        },
+      }));
   }
 
   /**

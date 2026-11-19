@@ -7,6 +7,7 @@ import { SettingsRepository } from "../src/storage/repositories/settings.reposit
 import { ToolRegistry } from "../src/core/tool-registry.js";
 import { ActionHub } from "../src/core/action-hub.js";
 import { AgentLoop } from "../src/core/agent-loop.js";
+import { ToolConfigRepository } from "../src/storage/repositories/tool-config.repository.js";
 import { MockDriver } from "../src/adapters/mock-driver.js";
 import type { HarnessStreamEvent } from "../src/core/types.js";
 
@@ -43,6 +44,7 @@ describe("AgentLoop (Loop & Lifecycle + HITL)", () => {
       workspaceRepo,
       sessionRepo,
       settingsRepo,
+      toolConfigRepo: new ToolConfigRepository(driver),
       toolRegistry,
       actionHub,
       modelDriver: mockDriver,

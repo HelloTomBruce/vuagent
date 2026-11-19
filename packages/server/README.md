@@ -31,7 +31,8 @@ PORT=3001 DB_PATH=.vuagent/harness.db pnpm start
 | 变量 | 作用 | 风险提示 |
 | --- | --- | --- |
 | `VUAGENT_TOKEN` | 启用 Bearer 鉴权；设置后 CORS 放开为任意 Origin，访问由令牌把守 | 令牌即本机执行权，请勿提交到仓库或日志 |
-| `VUAGENT_ALLOW_BYO_PROVIDER` | 设为 `1`（或 `true`）开启「自备供应商」模式：放行前端携带 `providerConfig`/完整 `modelOverride` 的对话请求 | 服务端将向**前端指定的任意 baseUrl** 发起请求并转发 apiKey，存在 SSRF 与凭据外带风险，仅在完全信任前端来源时开启 |
+| `VUAGENT_ALLOW_BYO_PROVIDER` | 设为 `1`（或 `true`）开启「自备供应商」模式：放行前端携带 `providerConfig`/完整 `modelOverride` 的对话请求。**显式设置即锁定**对应的 `security.allowByoProvider` 配置项（`/api/config` 只读、PATCH 400） | 服务端将向**前端指定的任意 baseUrl** 发起请求并转发 apiKey，存在 SSRF 与凭据外带风险，仅在完全信任前端来源时开启 |
+| `VUAGENT_ALLOW_PRIVATE_FETCH` | 设为 `1` 放行 `web_fetch` 访问私网/本机地址（默认拒绝，SSRF 防护）。**显式设置即锁定**对应的 `security.allowPrivateFetch` 配置项 | 开启后 web_fetch 可打内网服务，SSRF 面扩大；仅内网联调时开启 |
 | `VUAGENT_CORS_ORIGINS` | 逗号分隔的白名单外追加 Origin（无需启用鉴权） | 只添加你完全控制的 Origin |
 | `OPENAI_API_KEY` / `OPENAI_BASE_URL` / `DEFAULT_MODEL` | 服务端兜底模型凭据（未登记任何 profile 时使用） | — |
 
@@ -55,6 +56,44 @@ VUAGENT_CORS_ORIGINS=https://my-frontend.internal pnpm --filter @vuagent/server 
 - `GET /api/settings/models` 返回明文 `apiKey` → 改为 `maskedApiKey`
 - `/api/chat` 接受任意 `providerConfig`/`modelOverride` → 默认 403，除非 BYO 开关或仅切换已登记 profile
 - `PATCH /api/settings/models/:id` 传空 apiKey 会清空密钥 → 改为保留原密钥（如需轮换请传新明文）
+- `PATCH /api/tools/:name` 接受任意 body 且只认 `enabled` → 现支持 `enabled`/`timeoutMs`/`requiresApproval`，**未知字段一律 400**（拼错的字段不再被静默忽略）
+
+## 配置中心（TASK-024）
+
+分层配置的唯一来源是 `core/config-schema.ts` 的 `CONFIG_SCHEMA`：服务端持有 schema（字段类型/默认值/min/max/options/风险等级/env 锁），前端设置页表驱动渲染，**新增配置项只需加 schema 条目，零组件改动**。
+
+| 端点 | 说明 |
+| --- | --- |
+| `GET /api/config` | 返回 `{ namespaces: [{ id, title, description, fields, values, isDefault }] }`；`values` 是**生效值**（默认 ∪ 存储覆盖，含钳制/截断结果）；`fields[].locked` 表示该项当前被环境变量锁定（UI 据此只读） |
+| `PATCH /api/config/:namespace` | 部分更新（少传的 key 不动）。严格校验：未知 key / 类型不符 / select 非法 / env 锁定 → **400**；number 越界钳制、text 超长截断后落库。返回落库后的生效值 |
+| `POST /api/config/:namespace/reset` | 删除该命名空间的覆盖记录，恢复全默认 |
+
+命名空间：
+
+| id | 配置项 |
+| --- | --- |
+| `execution` | `maxSteps`、`approvalTimeoutMs`、`contextBudgetRatio`、`preserveRecentTurns`、`maxToolResultChars` |
+| `security` | `defaultPermissionMode`（新建会话缺省档）、`allowPrivateFetch`、`allowByoProvider`（后两项可被 env 锁定） |
+| `tools` | `bashTimeoutCeilingMs`（bash 命令超时的全局封顶） |
+| `prompt` | `customInstructions`、`includeEnvironmentBlock`、`includePermissionBlock` |
+
+**env 是部署级强制锁**：`envLock` 指向的环境变量一旦显式设置（无论值可否解析），该字段生效值由 env 决定、PATCH 一律 400；不可解析时 **fail-closed 回落字段默认**（管理员的拼写错误不会静默放行存储层配置）。清除环境变量后恢复「配置中心」口径。
+
+配置无缓存、逐次读库——PATCH 后立刻生效：执行层下一轮、工具策略下一次调用、提示词下一轮组装即读取新值。
+
+## 工具配置（TASK-019 / TASK-026）
+
+| 端点 | 说明 |
+| --- | --- |
+| `GET /api/tools` | registry 元数据 ∪ 全局配置：`name/description/riskLevel/writesWorkspace/requiresApproval/enabled/timeoutMs/source`。`requiresApproval` 返回**生效值**（推导 ∪ 覆盖） |
+| `PATCH /api/tools/:name` | body 支持 `{ enabled?, timeoutMs?, requiresApproval? }`，字段可组合；未知工具 404、未知字段/类型不符/`timeoutMs < 1000` → 400 |
+
+语义要点：
+
+- **缺记录 = 启用**，禁用即从模型可见的 function definitions 中移除；调用侧另有逐调用实时兜底（上下文里残留旧定义时返回结构化「已被禁用」错误）
+- **`timeoutMs` 覆盖**：`bash_run` 生效命令超时 = `per-tool > 模型请求 > 默认 30s`，再按 `tools.bashTimeoutCeilingMs`（默认 60s）封顶；其他工具覆盖执行器 60s 超时上限
+- **`requiresApproval` 覆盖是 deny-wins**：`true` 可为低风险工具追加审批；`false` **不会**放宽 `requiresApproval`/`riskLevel === "high"` 的既有推导——安全项只能升不能降
+- API 的 `timeoutMs ≥ 1000` 下限是 UI 防呆；引擎层对仓库直写的覆盖接受 ≥1ms（有意分层）
 
 ## 架构导览
 
@@ -67,11 +106,17 @@ src/
 │   ├── agent-loop.ts        # ReAct 主循环（卡片/遥测/检查点）
 │   ├── session-execution-hub.ts  # 会话后台执行 + SSE 重放订阅（与 HTTP 连接解耦）
 │   ├── action-hub.ts        # HITL 挂起动作与审批恢复
-│   ├── tool-registry.ts     # 工具注册中心
+│   ├── tool-registry.ts     # 工具注册中心（definitions 过滤 + 执行超时竞速）
+│   ├── config-schema.ts     # CONFIG_SCHEMA：配置项唯一来源（前端表驱动渲染）
+│   ├── config-resolver.ts   # 配置解析：读路径容错 / 写路径严格 / env 强制锁
+│   ├── system-prompt.ts     # 系统提示组装（环境/权限/纪律块 + 自定义指令）
+│   ├── permissions.ts       # 权限模式交集解析
+│   ├── context-compactor.ts # 上下文裁剪与 token 统计
 │   └── stream-orchestrator.ts    # SSE 事件格式化
 ├── adapters/                # 模型驱动（OpenAI 兼容 / Mock）
 ├── storage/                 # 领域实体 + 仓库（SQLite / Memory 驱动）
-└── tools/                   # 内置系统工具（fs / bash）与 UI 协议工具
+│   └── repositories/        # workspace/session/settings/tool-config/harness-config
+└── tools/                   # 内置系统工具（fs 读写编辑 / bash / glob / grep）与 web 工具
 ```
 
 ## 测试

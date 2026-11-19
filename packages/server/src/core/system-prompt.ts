@@ -115,6 +115,24 @@ export function buildDisciplineBlock(): string {
   ].join("\n");
 }
 
+/**
+ * 提示词组装配置（TASK-027，来自配置中心 prompt 命名空间）。
+ * 缺省与历史硬编码行为严格等价（两块开、无全局自定义指令）。
+ */
+export interface PromptAssemblyConfig {
+  /**
+   * 全局自定义指令：纯文本追加到系统提示末尾（所有内置块之后）。
+   * 安全边界：只能追加，不能覆盖/删除内置的身份、安全与工具契约块；
+   * 该文本会进入每轮模型上下文，属于 prompt 注入面——配置它的用户即
+   * 本机唯一操作者（威胁模型见 security.ts），不引入新的信任边界。
+   */
+  customInstructions?: string;
+  /** 环境块开关（默认 true） */
+  includeEnvironmentBlock?: boolean;
+  /** 权限声明块开关（默认 true） */
+  includePermissionBlock?: boolean;
+}
+
 export interface BuildSystemPromptOptions {
   workspace: WorkspaceEntity;
   /** 生效权限模式（由 permissions.ts resolveEffectivePermissionMode 解析，与仲裁同源） */
@@ -123,18 +141,27 @@ export interface BuildSystemPromptOptions {
   sessionSystemContext?: string;
   /** 可注入的环境信息替身；缺省按工作区实时采集 */
   env?: RuntimeEnvInfo;
+  /** 提示词组装配置（TASK-027）；缺省 = 两块开 + 无全局自定义指令 */
+  promptConfig?: PromptAssemblyConfig;
 }
 
-/** 组装完整系统提示词：身份 + 环境披露 + 权限声明 + 操作纪律 + 工作区/会话自定义指令 */
+/** 组装完整系统提示词：身份 + 环境披露 + 权限声明 + 操作纪律 + 工作区/会话/全局自定义指令 */
 export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
-  const env = opts.env ?? collectRuntimeEnv(opts.workspace.rootPath);
+  const includeEnv = opts.promptConfig?.includeEnvironmentBlock ?? true;
+  const includePermission = opts.promptConfig?.includePermissionBlock ?? true;
 
   const parts: string[] = [
     "你是一个基于标准 Harness 运行的高级智能体助手，在工作区沙箱内协助用户完成工程任务。",
-    buildEnvironmentBlock(opts.workspace, env),
-    buildPermissionBlock(opts.workspace, opts.effectiveMode),
-    buildDisciplineBlock(),
   ];
+  // 环境采集有文件系统探测（.git），块关闭时跳过
+  if (includeEnv) {
+    const env = opts.env ?? collectRuntimeEnv(opts.workspace.rootPath);
+    parts.push(buildEnvironmentBlock(opts.workspace, env));
+  }
+  if (includePermission) {
+    parts.push(buildPermissionBlock(opts.workspace, opts.effectiveMode));
+  }
+  parts.push(buildDisciplineBlock());
 
   // 工作区级与会话级自定义指令置后（用户显式配置优先级最高）
   if (opts.workspace.systemInstruction?.trim()) {
@@ -142,6 +169,13 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
   }
   if (opts.sessionSystemContext?.trim()) {
     parts.push(`## 会话上下文\n${opts.sessionSystemContext.trim()}`);
+  }
+
+  // 全局自定义指令（TASK-027）：固定追加在所有内置块之后——只能追加，
+  // 不能覆盖/删除内置安全与契约块（注入面见 PromptAssemblyConfig 注释）
+  const custom = opts.promptConfig?.customInstructions?.trim();
+  if (custom) {
+    parts.push(`## 用户自定义指令\n${custom}`);
   }
 
   return parts.join("\n\n");
