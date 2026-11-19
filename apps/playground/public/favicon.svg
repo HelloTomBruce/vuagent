@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-label="Vuagent">
+  <!-- Vuagent favicon: 简化 V 轨迹,去掉虚线纹理保证 16px 可读 -->
+  <g fill="none" stroke-linecap="round" stroke-width="2.4">
+    <path d="M9 7 L14.4 25.4" stroke="#1A1917"/>
+    <path d="M17.6 22.6 L23 7" stroke="#C2410C"/>
+    <circle cx="16" cy="24" r="3.1" stroke="#C2410C" stroke-width="2.1"/>
+    <circle cx="23" cy="7" r="1.9" fill="#C2410C" stroke="none"/>
+  </g>
+</svg>

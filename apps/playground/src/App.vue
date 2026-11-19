@@ -22,7 +22,15 @@ router.afterEach((to) => {
 <template>
   <div class="pg">
     <header class="pg__bar">
-      <span class="pg__brand"><span class="pg__dot" />Vuagent <small>playground</small></span>
+      <span class="pg__brand"
+        ><svg class="pg__mark" viewBox="0 0 32 32" fill="none" stroke-linecap="round" aria-hidden="true">
+          <path d="M9 7 L14.4 25.4" stroke="currentColor" stroke-width="2.4" />
+          <path d="M17.6 22.6 L23 7" stroke="var(--va-accent, #c2410c)" stroke-width="2.4" />
+          <circle cx="16" cy="24" r="3.1" stroke="var(--va-accent, #c2410c)" stroke-width="2.1" />
+          <circle cx="23" cy="7" r="1.9" fill="var(--va-accent, #c2410c)" stroke="none" />
+        </svg>
+        Vuagent <small>playground</small></span
+      >
       <nav class="pg__nav" aria-label="demo 页面">
         <RouterLink
           v-for="r in router.getRoutes().filter((x) => x.name)"
@@ -98,11 +106,10 @@ router.afterEach((to) => {
 
 .pg__brand small { font-weight: 500; color: var(--va-muted, #6f6d66); font-size: 11.5px; }
 
-.pg__dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--va-accent, #c2410c);
+.pg__mark {
+  width: 18px;
+  height: 18px;
+  color: var(--va-ink, #1a1917); /* 计划笔画随亮暗主题换色,橙色部件绑定 --va-accent */
 }
 
 .pg__nav {
