@@ -231,6 +231,95 @@ export async function testModelConnectionApi(body: {
 }
 
 /* ==========================================================================
+   配置中心（TASK-024 服务端 /api/config；TASK-028 面板消费）
+   ========================================================================== */
+
+/** 配置字段描述（服务端 CONFIG_SCHEMA 下发；locked = env 部署级强制锁命中） */
+export interface ConfigField {
+  key: string;
+  title: string;
+  description: string;
+  type: "boolean" | "number" | "string" | "text" | "select";
+  default: unknown;
+  min?: number;
+  max?: number;
+  maxLength?: number;
+  options?: Array<{ value: string; label: string }>;
+  risk?: "high" | "medium" | "low";
+  envLock?: string;
+  /** env 显式设置时由服务端标记 true：UI 只读 + 锁标记，PATCH 会被 400 拒绝 */
+  locked?: boolean;
+}
+
+/** 配置命名空间（schema 表驱动；values 为生效值，含 env 锁定覆盖） */
+export interface ConfigNamespace {
+  id: string;
+  title: string;
+  description: string;
+  fields: ConfigField[];
+  values: Record<string, unknown>;
+  isDefault: boolean;
+}
+
+/** GET /api/config：schema + 各命名空间生效值 */
+export function getConfig(): Promise<{ namespaces: ConfigNamespace[] } | null> {
+  return httpGet<{ namespaces: ConfigNamespace[] }>("/api/config");
+}
+
+/** PATCH /api/config/:namespace：部分更新，返回落库后的生效值（含钳制/截断结果） */
+export function patchConfig(
+  namespace: string,
+  values: Record<string, unknown>
+): Promise<{ namespace: string; values: Record<string, unknown>; updatedAt: number } | null> {
+  return httpSend(`/api/config/${encodeURIComponent(namespace)}`, "PATCH", values);
+}
+
+/** POST /api/config/:namespace/reset：恢复该命名空间全默认 */
+export function resetConfig(
+  namespace: string
+): Promise<{ namespace: string; values: Record<string, unknown>; isDefault: boolean } | null> {
+  return httpSend(`/api/config/${encodeURIComponent(namespace)}/reset`, "POST");
+}
+
+/* ==========================================================================
+   工具启停（TASK-020；服务端 TASK-019 /api/tools）
+   ========================================================================== */
+
+/** GET /api/tools 单条工具描述（registry 元数据 ∪ 全局启用状态） */
+export interface ToolItem {
+  name: string;
+  description: string;
+  /** 服务端风险等级；缺省时服务端已兜底 "medium" */
+  riskLevel: "high" | "medium" | "low";
+  /** 是否具备写工作区副作用（写文件 / 执行命令） */
+  writesWorkspace: boolean;
+  /** 调用前是否强制 HITL 审批 */
+  requiresApproval: boolean;
+  /** 全局启用状态；缺配置记录 = 启用 */
+  enabled: boolean;
+  /** per-tool 超时覆盖（TASK-026）；null 表示未覆盖 */
+  timeoutMs?: number | null;
+  source: "builtin";
+}
+
+/** 拉取内置工具清单（含启停状态），非 2xx 返回 null */
+export function listTools(): Promise<ToolItem[] | null> {
+  return httpGet<ToolItem[]>("/api/tools");
+}
+
+/** PATCH /api/tools/:name：提交启停，返回服务端落库后的最新状态（实体含 timeoutMs/requiresApproval 覆盖字段） */
+export function patchToolEnabled(
+  name: string,
+  enabled: boolean
+): Promise<{ name: string; enabled: boolean; updatedAt: number } | null> {
+  return httpSend<{ name: string; enabled: boolean; updatedAt: number }>(
+    `/api/tools/${encodeURIComponent(name)}`,
+    "PATCH",
+    { enabled }
+  );
+}
+
+/* ==========================================================================
    HITL 审批 / 中止
    ========================================================================== */
 

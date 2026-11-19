@@ -10,19 +10,31 @@
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
 import { ArrowDown, ChevronDown, History, MessageSquare, PanelRight, Route } from "lucide-vue-next";
-import { formatTokens, VaComposer, VaContextWindow, VaEmptyHero, VaToaster, VaTrajectory, vaToaster } from "@vuagent/ui";
+import { formatTokens, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaPopover, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
 import type { ContextPart } from "@vuagent/ui";
 import type { Decision } from "@vuagent/ui";
 import ConsoleSidebar from "./console/components/ConsoleSidebar.vue";
-import SeatDropdown from "./console/components/SeatDropdown.vue";
 import ConsoleRightSidebar from "./console/components/ConsoleRightSidebar.vue";
 import DockedPlanBar from "./console/components/DockedPlanBar.vue";
+import TextPromptHost from "./console/components/TextPromptHost.vue";
 import SettingsModal from "./console/components/settings/SettingsModal.vue";
 import ModelProfilesPanel from "./console/components/settings/ModelProfilesPanel.vue";
 import InteractionPanel from "./console/components/settings/InteractionPanel.vue";
+import ToolsPanel from "./console/components/settings/ToolsPanel.vue";
+import ConfigPanel from "./console/components/settings/ConfigPanel.vue";
 import type { SettingsTab } from "./console/components/settings/types";
 import TurnList from "./console/components/TurnList.vue";
-import { listSuspendedActions, compactSession, patchSession } from "./console/api/client";
+import {
+  listSuspendedActions,
+  compactSession,
+  patchSession,
+  listTools,
+  patchToolEnabled,
+  getConfig,
+  patchConfig,
+  resetConfig,
+} from "./console/api/client";
+import type { ConfigNamespace, ToolItem } from "./console/api/client";
 import { useApprovals } from "./console/composables/useApprovals";
 import { useChatStream } from "./console/composables/useChatStream";
 import { useModelProfiles } from "./console/composables/useModelProfiles";
@@ -41,7 +53,12 @@ const isNewChat = ref<boolean>(true);
 const mainViewTab = ref<"chat" | "traj">("chat");
 const isRightSidebarCollapsed = ref<boolean>(false);
 const composerText = ref<string>("");
-const activePermission = ref<string>("review");
+/**
+ * 新建会话的缺省权限模式（TASK-026）：初值与「新对话」重置取自配置中心
+ * security.defaultPermissionMode（服务端默认 review）；拉取失败回落 review。
+ */
+const defaultPermission = ref<string>("review");
+const activePermission = ref<string>(defaultPermission.value);
 const permissionModes = PERMISSION_MODES;
 
 
@@ -127,7 +144,6 @@ const {
   workspaces,
   activeWorkspaceId,
   expandedWorkspaces,
-  confirmDeleteWorkspaceId,
   activateWorkspace,
   fetchWorkspaces,
   pickAndCreateWorkspace,
@@ -170,6 +186,161 @@ function openSettings(tab: SettingsTab = "models") {
   openModelSettings();
 }
 
+/* ==========================================================================
+   内置工具启停（TASK-020）：/api/tools 拉取 + PATCH 提交
+   乐观更新：先翻转本地开关即时反馈，PATCH 失败回滚并 toast 提示
+   ========================================================================== */
+const tools = ref<ToolItem[]>([]);
+const toolsLoading = ref(false);
+const toolsError = ref("");
+
+async function fetchTools() {
+  toolsLoading.value = true;
+  toolsError.value = "";
+  try {
+    const list = await listTools();
+    if (list === null) {
+      toolsError.value = "工具清单加载失败，请检查服务端连接后重试";
+      return;
+    }
+    tools.value = list;
+  } catch (e) {
+    console.error("拉取工具清单失败:", e);
+    toolsError.value = "工具清单加载失败，请检查服务端连接后重试";
+  } finally {
+    toolsLoading.value = false;
+  }
+}
+
+/** 行内启停：乐观翻转 → PATCH 确认；失败按原值回滚并 toast（服务端为真值来源） */
+async function onToggleTool(tool: ToolItem) {
+  const next = !tool.enabled;
+  const prev = tool.enabled;
+  tool.enabled = next;
+  try {
+    const confirmed = await patchToolEnabled(tool.name, next);
+    if (!confirmed) {
+      tool.enabled = prev;
+      vaToaster.add({
+        title: "工具启停保存失败",
+        description: `${tool.name} 的状态未能持久化，已恢复原状态`,
+        kind: "danger",
+      });
+      return;
+    }
+    // 以服务端落库结果为准（防并发写覆盖）
+    tool.enabled = confirmed.enabled;
+    vaToaster.add({
+      title: confirmed.enabled ? `已启用 ${tool.name}` : `已停用 ${tool.name}`,
+      kind: "success",
+    });
+  } catch (e) {
+    tool.enabled = prev;
+    console.error("工具启停提交失败:", e);
+    vaToaster.add({
+      title: "工具启停保存失败",
+      description: e instanceof Error ? e.message : String(e),
+      kind: "danger",
+    });
+  }
+}
+
+/* ==========================================================================
+   配置中心（TASK-028）：/api/config 拉取 + 乐观更新 + reset
+   面板为 schema 驱动通用组件（ConfigPanel），此处只做数据编排；
+   security.defaultPermissionMode 改动同步到新建会话缺省档。
+   ========================================================================== */
+const configNamespaces = ref<ConfigNamespace[]>([]);
+const configLoading = ref(false);
+const configError = ref("");
+
+function configNs(id: string): ConfigNamespace | null {
+  return configNamespaces.value.find((n) => n.id === id) ?? null;
+}
+
+async function fetchConfig() {
+  configLoading.value = true;
+  configError.value = "";
+  try {
+    const cfg = await getConfig();
+    if (cfg === null) {
+      configError.value = "配置加载失败，请检查服务端连接后重试";
+      return;
+    }
+    configNamespaces.value = cfg.namespaces;
+    // 新建会话缺省权限模式 ← security.defaultPermissionMode（TASK-026）
+    const configuredMode = configNs("security")?.values?.defaultPermissionMode;
+    if (typeof configuredMode === "string" && configuredMode) {
+      defaultPermission.value = configuredMode;
+      if (isNewChat.value) activePermission.value = configuredMode;
+    }
+  } catch (e) {
+    console.error("拉取配置中心失败:", e);
+    configError.value = "配置加载失败，请检查服务端连接后重试";
+  } finally {
+    configLoading.value = false;
+  }
+}
+
+/** 字段修改：乐观写入 → PATCH 确认（以服务端生效值为准，含钳制/截断）；失败按原值回滚并 toast */
+async function onConfigPatch(nsId: string, key: string, value: unknown) {
+  const ns = configNs(nsId);
+  if (!ns) return;
+  const prev = ns.values[key];
+  ns.values[key] = value;
+  try {
+    const res = await patchConfig(nsId, { [key]: value });
+    if (!res) {
+      ns.values[key] = prev;
+      vaToaster.add({
+        title: "配置保存失败",
+        description: "服务端拒绝了本次修改（字段可能被 env 锁定），已恢复原值",
+        kind: "danger",
+      });
+      return;
+    }
+    ns.values = res.values;
+    ns.isDefault = false;
+    if (nsId === "security" && typeof res.values.defaultPermissionMode === "string") {
+      defaultPermission.value = res.values.defaultPermissionMode;
+    }
+  } catch (e) {
+    ns.values[key] = prev;
+    console.error("配置提交失败:", e);
+    vaToaster.add({
+      title: "配置保存失败",
+      description: e instanceof Error ? e.message : String(e),
+      kind: "danger",
+    });
+  }
+}
+
+/** 恢复默认：整命名空间 reset，生效值以服务端返回为准 */
+async function onConfigReset(nsId: string) {
+  const ns = configNs(nsId);
+  if (!ns) return;
+  try {
+    const res = await resetConfig(nsId);
+    if (!res) {
+      vaToaster.add({ title: "恢复默认失败", description: "请检查服务端连接后重试", kind: "danger" });
+      return;
+    }
+    ns.values = res.values;
+    ns.isDefault = true;
+    if (nsId === "security" && typeof res.values.defaultPermissionMode === "string") {
+      defaultPermission.value = res.values.defaultPermissionMode;
+    }
+    vaToaster.add({ title: `已恢复「${ns.title}」默认配置`, kind: "success" });
+  } catch (e) {
+    console.error("配置 reset 失败:", e);
+    vaToaster.add({
+      title: "恢复默认失败",
+      description: e instanceof Error ? e.message : String(e),
+      kind: "danger",
+    });
+  }
+}
+
 const {
   sessions,
   activeSessionId,
@@ -177,7 +348,6 @@ const {
   archivedSessions,
   editingSessionId,
   renameDraft,
-  confirmDeleteSessionId,
   fetchSessions,
   createSessionForPrompt,
   selectSession,
@@ -299,9 +469,13 @@ onMounted(async () => {
   // 跨会话挂起审批轮询（suspended 事件只在对应会话的流里，收件箱需主动拉取）
   pendingPollTimer = setInterval(() => void refreshPendingActions(), 10_000);
 
+  // 配置中心（TASK-028 面板数据；TASK-026 新建会话缺省权限模式，失败保持 review 兜底）
+  await fetchConfig();
+
   await fetchWorkspaces();
   await fetchSessions();
   await fetchModelProfiles();
+  void fetchTools();
   // 默认展开所有工作区
   workspaces.value.forEach((w) => expandedWorkspaces.value.add(w.id));
 
@@ -359,8 +533,9 @@ function startNewChat(targetWorkspaceId?: string) {
   activeSessionId.value = "";
   isNewChat.value = true;
   mainViewTab.value = "chat";
-  // 新会话回到默认权限模式与默认模型档（各会话的绑定由 session 字段恢复）
-  activePermission.value = "review";
+  // 新会话回到默认权限模式（配置中心 security.defaultPermissionMode）与默认模型档
+  //（各会话的绑定由 session 字段恢复）
+  activePermission.value = defaultPermission.value;
   resetModelToDefault();
   resetTurns();
   composerText.value = "";
@@ -464,8 +639,6 @@ function quickFillPrompt(text: string) {
       :session-running-map="sessionRunningMap"
       :editing-session-id="editingSessionId"
       :rename-draft="renameDraft"
-      :confirm-delete-workspace-id="confirmDeleteWorkspaceId"
-      :confirm-delete-session-id="confirmDeleteSessionId"
       @start-new-chat="startNewChat"
       @select-session="onSelectSession"
       @toggle-expand="toggleWorkspaceExpand"
@@ -510,12 +683,14 @@ function quickFillPrompt(text: string) {
               @update:permission="onSelectPermission"
             >
               <template #actions>
-                <!-- 上下文窗口仪表（VaContextWindow，点击展开分段面板） -->
-                <SeatDropdown>
+                <!-- 上下文窗口仪表（VaContextWindow，点击展开分段面板；VaPopover 托管定位/外部点击/Esc） -->
+                <VaPopover placement="top-start" :offset="8">
                   <template #trigger>
-                    <History :size="12" />
-                    <span class="va-console__seat-text">Context: {{ formatTokens(contextUsed) }} / {{ formatTokens(contextLimit) }}</span>
-                    <ChevronDown :size="11" />
+                    <button class="va-console__seat-btn" type="button">
+                      <History :size="12" />
+                      <span class="va-console__seat-text">Context: {{ formatTokens(contextUsed) }} / {{ formatTokens(contextLimit) }}</span>
+                      <ChevronDown :size="11" />
+                    </button>
                   </template>
                   <div class="va-console__ctx-panel">
                     <VaContextWindow
@@ -526,7 +701,7 @@ function quickFillPrompt(text: string) {
                       @compact="onCompactSession"
                     />
                   </div>
-                </SeatDropdown>
+                </VaPopover>
               </template>
             </VaComposer>
 
@@ -605,7 +780,6 @@ function quickFillPrompt(text: string) {
             v-if="!isChatPinned"
             class="va-console__scroll-bottom"
             type="button"
-            title="回到底部"
             @click="scrollToBottom({ force: true })"
           >
             <ArrowDown :size="13" />
@@ -656,12 +830,14 @@ function quickFillPrompt(text: string) {
             @update:permission="onSelectPermission"
           >
             <template #actions>
-              <!-- 上下文窗口仪表（VaContextWindow，点击展开分段面板） -->
-              <SeatDropdown>
+              <!-- 上下文窗口仪表（VaContextWindow，点击展开分段面板；VaPopover 托管定位/外部点击/Esc） -->
+              <VaPopover placement="top-start" :offset="8">
                 <template #trigger>
-                  <History :size="12" />
-                  <span class="va-console__seat-text">Context: {{ formatTokens(contextUsed) }} / {{ formatTokens(contextLimit) }}</span>
-                  <ChevronDown :size="11" />
+                  <button class="va-console__seat-btn" type="button">
+                    <History :size="12" />
+                    <span class="va-console__seat-text">Context: {{ formatTokens(contextUsed) }} / {{ formatTokens(contextLimit) }}</span>
+                    <ChevronDown :size="11" />
+                  </button>
                 </template>
                 <div class="va-console__ctx-panel">
                   <VaContextWindow
@@ -672,7 +848,7 @@ function quickFillPrompt(text: string) {
                     @compact="onCompactSession"
                   />
                 </div>
-              </SeatDropdown>
+              </VaPopover>
             </template>
           </VaComposer>
         </div>
@@ -685,21 +861,22 @@ function quickFillPrompt(text: string) {
         @decide="onDecide"
         @collapse="isRightSidebarCollapsed = true"
       />
-      <button
-        v-else
-        class="va-console__rsb-reopen"
-        type="button"
-        title="展开侧栏"
-        @click="isRightSidebarCollapsed = false"
-      >
-        <PanelRight :size="15" />
-      </button>
+      <VaTooltip v-else content="展开侧栏" placement="left">
+        <button
+          class="va-console__rsb-reopen"
+          type="button"
+          aria-label="展开侧栏"
+          @click="isRightSidebarCollapsed = false"
+        >
+          <PanelRight :size="15" />
+        </button>
+      </VaTooltip>
       </div>
     </main>
 
-    <!-- 统一设置弹窗（TASK-017）：外壳 + 左导航，面板按 tab 插槽分发 -->
+    <!-- 统一设置弹窗（TASK-017/039）：VaDialog 外壳 + 左导航，面板按 tab 插槽分发；open 受控 -->
     <SettingsModal
-      v-if="isModelSettingsOpen"
+      :open="isModelSettingsOpen"
       v-model:active-tab="settingsTab"
       @close="closeModelSettings"
     >
@@ -726,10 +903,49 @@ function quickFillPrompt(text: string) {
       <template #interaction>
         <InteractionPanel />
       </template>
+      <template #tools>
+        <ToolsPanel
+          :tools="tools"
+          :loading="toolsLoading"
+          :load-error="toolsError"
+          @toggle="onToggleTool"
+        />
+      </template>
+      <template #execution>
+        <ConfigPanel
+          :namespace="configNs('execution')"
+          :loading="configLoading"
+          :load-error="configError"
+          @patch="(key, value) => onConfigPatch('execution', key, value)"
+          @reset="onConfigReset('execution')"
+        />
+      </template>
+      <template #security>
+        <ConfigPanel
+          :namespace="configNs('security')"
+          :loading="configLoading"
+          :load-error="configError"
+          @patch="(key, value) => onConfigPatch('security', key, value)"
+          @reset="onConfigReset('security')"
+        />
+      </template>
+      <template #prompt>
+        <ConfigPanel
+          :namespace="configNs('prompt')"
+          :loading="configLoading"
+          :load-error="configError"
+          @patch="(key, value) => onConfigPatch('prompt', key, value)"
+          @reset="onConfigReset('prompt')"
+        />
+      </template>
     </SettingsModal>
 
     <!-- 全局通知宿主（反馈/系统提示） -->
     <VaToaster />
+    <!-- vaConfirm 渲染宿主：删除工作区/会话等危险操作的模态确认（alertdialog） -->
+    <VaConfirmHost />
+    <!-- askText 渲染宿主：系统选目录不可用时的手动路径输入（替代原生 prompt） -->
+    <TextPromptHost />
   </div>
 </template>
 

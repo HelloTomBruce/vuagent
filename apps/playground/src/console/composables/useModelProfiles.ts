@@ -11,6 +11,7 @@ import {
   updateModelProfileApi,
 } from "../api/client";
 import type { ModelProfilePayload } from "../api/client";
+import { vaConfirm, vaToaster } from "@vuagent/ui";
 import { AVAILABLE_MODELS, DEFAULT_MODEL_FORM, PROVIDER_PRESETS } from "../types";
 import type { ModelOption, ModelProfileItem } from "../types";
 
@@ -153,7 +154,7 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
   async function saveModelProfile() {
     const form = modelForm.value;
     if (!form.name.trim() || !form.model.trim()) {
-      alert("请填写模型名称与模型 ID");
+      vaToaster.add({ title: "请填写模型名称与模型 ID", kind: "warning" });
       return;
     }
 
@@ -179,10 +180,18 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
 
   async function deleteModelProfile(id: string) {
     if (modelProfiles.value.length <= 1) {
-      alert("至少保留一个模型配置！");
+      vaToaster.add({ title: "至少保留一个模型配置！", kind: "danger" });
       return;
     }
-    if (!confirm("确认删除该模型配置吗？")) return;
+    const target = modelProfiles.value.find((p) => p.id === id);
+    const ok = await vaConfirm({
+      title: "删除这个模型配置？",
+      description: `「${target?.name || "未命名配置"}」将被移除，此操作不可撤销。`,
+      confirmText: "删除",
+      tone: "danger",
+      icon: true,
+    });
+    if (!ok) return;
     try {
       const res = await deleteModelProfileById(id);
       if (res) {

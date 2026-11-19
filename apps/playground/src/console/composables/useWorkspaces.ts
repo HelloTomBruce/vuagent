@@ -9,7 +9,8 @@ import {
   listWorkspaces,
   pickDirectory,
 } from "../api/client";
-import { useDoubleConfirm } from "./useDoubleConfirm";
+import { vaConfirm, vaToaster } from "@vuagent/ui";
+import { askText } from "./useTextPrompt";
 import type { WorkspaceItem } from "../types";
 
 export interface WorkspacesOptions {
@@ -27,8 +28,6 @@ export function useWorkspaces(options: WorkspacesOptions = {}) {
   const workspaces = ref<WorkspaceItem[]>([]);
   const activeWorkspaceId = ref("");
   const expandedWorkspaces = ref<Set<string>>(new Set());
-  const { confirmId: confirmDeleteWorkspaceId, ask: askConfirm } =
-    useDoubleConfirm();
 
   const currentWorkspace = computed(() => {
     return (
@@ -71,9 +70,13 @@ export function useWorkspaces(options: WorkspacesOptions = {}) {
       if (data.id) activateWorkspace(data.id);
     } catch (err) {
       console.warn("系统文件夹选择降级:", err);
-      const manualPath = prompt(
-        "请输入本地项目文件夹路径 (如 /Users/username/project):"
-      );
+      // 原生 prompt 替换：askText 模态输入（Esc/取消 → null，跳过创建）
+      const manualPath = await askText({
+        title: "手动输入工作区路径",
+        description: "系统文件夹选择框不可用，请输入本地项目文件夹的绝对路径。",
+        placeholder: "/Users/username/project",
+        confirmText: "创建",
+      });
       if (manualPath && manualPath.trim()) {
         try {
           const newWs = await createWorkspace({
@@ -86,7 +89,11 @@ export function useWorkspaces(options: WorkspacesOptions = {}) {
             activateWorkspace(newWs.id);
           }
         } catch (e) {
-          alert("创建工作区失败: " + e);
+          vaToaster.add({
+            title: "创建工作区失败",
+            description: String(e),
+            kind: "danger",
+          });
         }
       }
     }
@@ -106,9 +113,18 @@ export function useWorkspaces(options: WorkspacesOptions = {}) {
     options.closeWorkspaceMenu?.();
   }
 
-  function askDeleteWorkspace(wsId: string, event: Event) {
+  /** 删除工作区：vaConfirm 模态确认（danger tone），确认后才发删除请求（工作区内全部会话随之删除） */
+  async function askDeleteWorkspace(wsId: string, event: Event) {
     event.stopPropagation();
-    askConfirm(wsId, () => deleteWorkspace(wsId));
+    const target = workspaces.value.find((w) => w.id === wsId);
+    const ok = await vaConfirm({
+      title: "删除这个工作区？",
+      description: `「${target?.name || "未命名工作区"}」及其下的全部会话将被删除，此操作不可撤销。`,
+      confirmText: "删除",
+      tone: "danger",
+      icon: true,
+    });
+    if (ok) await deleteWorkspace(wsId);
   }
 
   async function deleteWorkspace(wsId: string) {
@@ -144,7 +160,6 @@ export function useWorkspaces(options: WorkspacesOptions = {}) {
     activeWorkspaceId,
     expandedWorkspaces,
     currentWorkspace,
-    confirmDeleteWorkspaceId,
     fetchWorkspaces,
     pickAndCreateWorkspace,
     toggleWorkspaceExpand,

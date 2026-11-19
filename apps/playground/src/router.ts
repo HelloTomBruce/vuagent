@@ -12,6 +12,7 @@ export const router = createRouter({
     { path: "/m5", name: "m5", component: () => import("./M5Demo.vue"), meta: { title: "M5 刚需批" } },
     { path: "/m6", name: "m6", component: () => import("./M6Demo.vue"), meta: { title: "M6 表单批" } },
     { path: "/m7", name: "m7", component: () => import("./M7Demo.vue"), meta: { title: "M7 收官批" } },
+    { path: "/overlay", name: "overlay", component: () => import("./OverlayDemo.vue"), meta: { title: "Overlay 浮层" } },
     { path: "/gallery", name: "gallery", component: () => import("./Gallery.vue"), meta: { title: "画廊" } },
   ],
 });

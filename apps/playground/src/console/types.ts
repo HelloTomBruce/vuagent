@@ -158,7 +158,27 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
     baseUrl: "http://localhost:8000/v1",
     contextWindow: 32000,
   },
+  qwen: {
+    name: "Qwen 通义千问",
+    model: "qwen-max",
+    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    contextWindow: 128000,
+  },
 };
+
+/**
+ * 供应商下拉选项（PROVIDER_OPTIONS 的 value 必须都是 PROVIDER_PRESETS 的键——
+ * 新建模型选 provider 时会按 preset 预填，缺键会 TypeError）。
+ * label 为 UI 显示名，与 preset.name（模型预填名）是两个概念，刻意分开维护。
+ */
+export const PROVIDER_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "deepseek", label: "DeepSeek (官方 API)" },
+  { value: "qwen", label: "Qwen / 阿里云通义千问" },
+  { value: "anthropic", label: "Anthropic (Claude)" },
+  { value: "openai", label: "OpenAI (GPT-4o/o3)" },
+  { value: "ollama", label: "Ollama (本地运行)" },
+  { value: "custom", label: "Custom (OpenAI 兼容接口)" },
+];
 
 export const DEFAULT_MODEL_FORM: ModelProfileItem = {
   id: "",

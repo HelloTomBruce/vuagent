@@ -4,6 +4,7 @@
  * 归档抽屉展开态为纯视图状态，组件内自管理
  */
 import { ref } from "vue";
+import { VaTooltip } from "@vuagent/ui";
 import {
   Archive,
   ArchiveRestore,
@@ -32,8 +33,6 @@ defineProps<{
   sessionRunningMap: Map<string, boolean>;
   editingSessionId: string | null;
   renameDraft: string;
-  confirmDeleteWorkspaceId: string | null;
-  confirmDeleteSessionId: string | null;
 }>();
 
 defineEmits<{
@@ -68,14 +67,16 @@ const archivedExpanded = ref(false);
     <div class="va-console__tree-scroll">
       <div class="va-console__section-title">
         <span>工作区 (WORKSPACES)</span>
-        <button
-          class="va-console__icon-btn"
-          type="button"
-          title="添加本地工作区 (调起系统选择框)"
-          @click="$emit('pick-workspace')"
-        >
-          <FolderPlus :size="15" aria-hidden="true" />
-        </button>
+        <VaTooltip content="添加本地工作区（调起系统选择框）" placement="bottom">
+          <button
+            class="va-console__icon-btn"
+            type="button"
+            aria-label="添加本地工作区"
+            @click="$emit('pick-workspace')"
+          >
+            <FolderPlus :size="15" aria-hidden="true" />
+          </button>
+        </VaTooltip>
       </div>
 
       <!-- 工作区列表 -->
@@ -98,24 +99,26 @@ const archivedExpanded = ref(false);
 
           <!-- 工作区快捷操作 -->
           <div class="va-console__ws-ops" @click.stop>
-            <button
-              class="va-console__icon-btn-xs"
-              type="button"
-              title="在此工作区新建会话"
-              @click="$emit('start-new-chat', ws.id)"
-            >
-              <Plus :size="13" />
-            </button>
-            <button
-              class="va-console__icon-btn-xs"
-              :class="{ 'va-console__icon-btn-xs--danger': confirmDeleteWorkspaceId === ws.id }"
-              type="button"
-              :title="confirmDeleteWorkspaceId === ws.id ? '再次点击确认删除工作区' : '删除工作区'"
-              @click="$emit('ask-delete-workspace', ws.id, $event)"
-            >
-              <span v-if="confirmDeleteWorkspaceId === ws.id" class="va-console__confirm-text">确定?</span>
-              <Trash2 v-else :size="13" />
-            </button>
+            <VaTooltip content="在此工作区新建会话" placement="right">
+              <button
+                class="va-console__icon-btn-xs"
+                type="button"
+                aria-label="在此工作区新建会话"
+                @click="$emit('start-new-chat', ws.id)"
+              >
+                <Plus :size="13" />
+              </button>
+            </VaTooltip>
+            <VaTooltip content="删除工作区" placement="right">
+              <button
+                class="va-console__icon-btn-xs"
+                type="button"
+                aria-label="删除工作区"
+                @click="$emit('ask-delete-workspace', ws.id, $event)"
+              >
+                <Trash2 :size="13" />
+              </button>
+            </VaTooltip>
           </div>
         </div>
 
@@ -149,42 +152,44 @@ const archivedExpanded = ref(false);
 
             <!-- 正常展示 -->
             <template v-else>
-              <span
-                v-if="sessionRunningMap.get(s.id) || s.isRunning"
-                class="va-console__running-pulse-dot"
-                title="任务正在后台持续执行"
-              />
+              <VaTooltip v-if="sessionRunningMap.get(s.id) || s.isRunning" content="任务正在后台持续执行" placement="right">
+                <span class="va-console__running-pulse-dot" />
+              </VaTooltip>
               <MessageSquare v-else :size="13" class="va-console__session-icon" />
               <span class="va-console__session-title" :title="s.title">{{ s.title || "未命名任务" }}</span>
 
               <!-- 会话右侧操作栏 -->
               <div class="va-console__session-ops" @click.stop>
-                <button
-                  class="va-console__icon-btn-xs"
-                  type="button"
-                  title="重命名"
-                  @click="$emit('start-rename', s, $event)"
-                >
-                  <Pen :size="12" />
-                </button>
-                <button
-                  class="va-console__icon-btn-xs"
-                  type="button"
-                  title="归档"
-                  @click="$emit('toggle-archive', s, $event)"
-                >
-                  <Archive :size="12" />
-                </button>
-                <button
-                  class="va-console__icon-btn-xs"
-                  :class="{ 'va-console__icon-btn-xs--danger': confirmDeleteSessionId === s.id }"
-                  type="button"
-                  :title="confirmDeleteSessionId === s.id ? '再次点击确认删除' : '删除会话'"
-                  @click="$emit('ask-delete-session', s.id, $event)"
-                >
-                  <span v-if="confirmDeleteSessionId === s.id" class="va-console__confirm-text">确定?</span>
-                  <Trash2 v-else :size="12" />
-                </button>
+                <VaTooltip content="重命名" placement="right">
+                  <button
+                    class="va-console__icon-btn-xs"
+                    type="button"
+                    aria-label="重命名会话"
+                    @click="$emit('start-rename', s, $event)"
+                  >
+                    <Pen :size="12" />
+                  </button>
+                </VaTooltip>
+                <VaTooltip content="归档" placement="right">
+                  <button
+                    class="va-console__icon-btn-xs"
+                    type="button"
+                    aria-label="归档会话"
+                    @click="$emit('toggle-archive', s, $event)"
+                  >
+                    <Archive :size="12" />
+                  </button>
+                </VaTooltip>
+                <VaTooltip content="删除会话" placement="right">
+                  <button
+                    class="va-console__icon-btn-xs"
+                    type="button"
+                    aria-label="删除会话"
+                    @click="$emit('ask-delete-session', s.id, $event)"
+                  >
+                    <Trash2 :size="12" />
+                  </button>
+                </VaTooltip>
               </div>
             </template>
           </div>
@@ -220,22 +225,26 @@ const archivedExpanded = ref(false);
             <MessageSquare :size="13" class="va-console__session-icon" />
             <span class="va-console__session-title">{{ s.title }}</span>
             <div class="va-console__session-ops">
-              <button
-                class="va-console__icon-btn-xs"
-                type="button"
-                title="恢复会话"
-                @click="$emit('toggle-archive', s, $event)"
-              >
-                <ArchiveRestore :size="12" />
-              </button>
-              <button
-                class="va-console__icon-btn-xs"
-                type="button"
-                title="删除"
-                @click="$emit('ask-delete-session', s.id, $event)"
-              >
-                <Trash2 :size="12" />
-              </button>
+              <VaTooltip content="恢复会话" placement="right">
+                <button
+                  class="va-console__icon-btn-xs"
+                  type="button"
+                  aria-label="恢复会话"
+                  @click="$emit('toggle-archive', s, $event)"
+                >
+                  <ArchiveRestore :size="12" />
+                </button>
+              </VaTooltip>
+              <VaTooltip content="删除" placement="right">
+                <button
+                  class="va-console__icon-btn-xs"
+                  type="button"
+                  aria-label="删除已归档会话"
+                  @click="$emit('ask-delete-session', s.id, $event)"
+                >
+                  <Trash2 :size="12" />
+                </button>
+              </VaTooltip>
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@
  * （轨迹视图已迁入消息区顶部「对话 / 轨迹」tab——侧栏宽度不适合宽幅台账，见 Console.vue）
  */
 import { PanelRight } from "lucide-vue-next";
-import { VaDecisionInbox } from "@vuagent/ui";
+import { VaDecisionInbox, VaTooltip } from "@vuagent/ui";
 import type { Decision } from "@vuagent/ui";
 
 defineProps<{
@@ -29,14 +29,16 @@ const emit = defineEmits<{
           class="va-console__rtab-badge"
         >{{ decisions.length }}</span>
       </button>
-      <button
-        class="va-console__rtab-collapse"
-        type="button"
-        title="收起侧栏"
-        @click="emit('collapse')"
-      >
-        <PanelRight :size="14" />
-      </button>
+      <VaTooltip content="收起侧栏" placement="bottom">
+        <button
+          class="va-console__rtab-collapse"
+          type="button"
+          aria-label="收起侧栏"
+          @click="emit('collapse')"
+        >
+          <PanelRight :size="14" />
+        </button>
+      </VaTooltip>
     </div>
 
     <!-- 待审批收件箱 -->

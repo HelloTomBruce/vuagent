@@ -11,8 +11,8 @@ import {
   listSessions,
   patchSession,
 } from "../api/client";
-import { useDoubleConfirm } from "./useDoubleConfirm";
 import { rebuildBlocksFromHistory } from "../stream/blocks";
+import { vaConfirm } from "@vuagent/ui";
 import type { ChatStreamApi } from "./useChatStream";
 import type { ScrollToBottomOptions } from "./useStickToBottom";
 import type { MessageTurn, SessionItem } from "../types";
@@ -40,9 +40,6 @@ export function useSessions(options: SessionsOptions) {
   // 行内重命名状态
   const editingSessionId = ref<string | null>(null);
   const renameDraft = ref("");
-
-  const { confirmId: confirmDeleteSessionId, ask: askConfirm } =
-    useDoubleConfirm();
 
   const activeSessions = computed(() => {
     return sessions.value.filter((s) => !s.archived && s.status !== "archived");
@@ -313,9 +310,18 @@ export function useSessions(options: SessionsOptions) {
     }
   }
 
-  function askDeleteSession(sessionId: string, event: Event) {
+  /** 删除会话：vaConfirm 模态确认（danger tone，初始聚焦取消——安全默认），确认后才发删除请求 */
+  async function askDeleteSession(sessionId: string, event: Event) {
     event.stopPropagation();
-    askConfirm(sessionId, () => deleteSession(sessionId));
+    const target = sessions.value.find((s) => s.id === sessionId);
+    const ok = await vaConfirm({
+      title: "删除这个会话？",
+      description: `「${target?.title || "未命名会话"}」的全部消息与工具调用记录将被清除，此操作不可撤销。`,
+      confirmText: "删除",
+      tone: "danger",
+      icon: true,
+    });
+    if (ok) await deleteSession(sessionId);
   }
 
   async function deleteSession(sessionId: string) {
@@ -337,7 +343,6 @@ export function useSessions(options: SessionsOptions) {
     archivedSessions,
     editingSessionId,
     renameDraft,
-    confirmDeleteSessionId,
     fetchSessions,
     createSessionForPrompt,
     selectSession,

@@ -19,7 +19,9 @@ import {
   Trash2,
   Zap,
 } from "lucide-vue-next";
+import { VaSelect } from "@vuagent/ui";
 import type { ModelProfileItem } from "../../types";
+import { PROVIDER_OPTIONS } from "../../types";
 
 defineProps<{
   modelProfiles: ModelProfileItem[];
@@ -114,18 +116,12 @@ defineEmits<{
         <div class="va-console__form-row">
           <div class="va-console__form-group flex-1">
             <label class="va-console__label">供应商 (Provider)</label>
-            <select
-              class="va-console__select"
-              :value="modelForm.provider"
-              @change="$emit('provider-change', ($event.target as HTMLSelectElement).value)"
-            >
-              <option value="deepseek">DeepSeek (官方 API)</option>
-              <option value="qwen">Qwen / 阿里云通义千问</option>
-              <option value="anthropic">Anthropic (Claude)</option>
-              <option value="openai">OpenAI (GPT-4o/o3)</option>
-              <option value="ollama">Ollama (本地运行)</option>
-              <option value="custom">Custom (OpenAI 兼容接口)</option>
-            </select>
+            <VaSelect
+              :model-value="modelForm.provider"
+              :options="PROVIDER_OPTIONS"
+              label="供应商 Provider"
+              @update:model-value="(v: unknown) => $emit('provider-change', Array.isArray(v) ? String(v[0] ?? '') : String(v))"
+            />
           </div>
 
           <div class="va-console__form-group flex-1">
