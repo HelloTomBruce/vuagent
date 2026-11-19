@@ -5,5 +5,6 @@
 
 export * from "./events.js";
 export * from "./stream.js";
+export * from "./stream-schema.js";
 export * from "./lifecycle.js";
 export * from "./tools.js";
