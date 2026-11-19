@@ -20,9 +20,9 @@ function onToggle(key: keyof InteractionSettings) {
   <div class="va-settings__panel va-settings__panel--interaction">
     <div class="va-settings__section">
       <div>
-        <div class="va-settings__section-title">会话交互</div>
+        <div class="va-settings__section-title">会话交互与侧栏内容</div>
         <p class="va-console__modal-sub" style="margin-top: 2px">
-          调整对话界面的自动折叠行为，修改即时生效并本地记忆
+          对话折叠行为与右侧边栏的内容显隐，修改即时生效并本地记忆
         </p>
       </div>
 

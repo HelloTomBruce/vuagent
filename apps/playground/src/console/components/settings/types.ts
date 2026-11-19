@@ -52,6 +52,16 @@ export const INTERACTION_SETTING_ITEMS: InteractionSettingItem[] = [
     title: "自动折叠工具执行卡片",
     description: "本轮输出结束后折叠工具调用；与上一项同时开启时收进「已完成」摘要条，只留文本结果；失败卡片始终展开",
   },
+  {
+    key: "showApprovals",
+    title: "右侧边栏显示审批收件箱",
+    description: "跨会话的人机协同 (HITL) 待审批决策；关闭后右侧边栏不再展示该分区",
+  },
+  {
+    key: "showFileTree",
+    title: "右侧边栏显示工作区文件树",
+    description: "当前工作区的目录结构（只读预览，深度 4 层）；关闭后右侧边栏不再展示该分区",
+  },
 ];
 
 /* ==========================================================================

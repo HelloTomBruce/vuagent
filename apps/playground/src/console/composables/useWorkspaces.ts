@@ -27,7 +27,6 @@ export interface WorkspacesOptions {
 export function useWorkspaces(options: WorkspacesOptions = {}) {
   const workspaces = ref<WorkspaceItem[]>([]);
   const activeWorkspaceId = ref("");
-  const expandedWorkspaces = ref<Set<string>>(new Set());
 
   const currentWorkspace = computed(() => {
     return (
@@ -53,7 +52,6 @@ export function useWorkspaces(options: WorkspacesOptions = {}) {
 
   function activateWorkspace(wsId: string) {
     activeWorkspaceId.value = wsId;
-    expandedWorkspaces.value.add(wsId);
     options.onWorkspaceActivated?.();
   }
 
@@ -99,23 +97,13 @@ export function useWorkspaces(options: WorkspacesOptions = {}) {
     }
   }
 
-  function toggleWorkspaceExpand(wsId: string) {
-    if (expandedWorkspaces.value.has(wsId)) {
-      expandedWorkspaces.value.delete(wsId);
-    } else {
-      expandedWorkspaces.value.add(wsId);
-    }
-  }
-
   function selectWorkspace(wsId: string) {
     activeWorkspaceId.value = wsId;
-    expandedWorkspaces.value.add(wsId);
     options.closeWorkspaceMenu?.();
   }
 
   /** 删除工作区：vaConfirm 模态确认（danger tone），确认后才发删除请求（工作区内全部会话随之删除） */
-  async function askDeleteWorkspace(wsId: string, event: Event) {
-    event.stopPropagation();
+  async function askDeleteWorkspace(wsId: string) {
     const target = workspaces.value.find((w) => w.id === wsId);
     const ok = await vaConfirm({
       title: "删除这个工作区？",
@@ -158,11 +146,9 @@ export function useWorkspaces(options: WorkspacesOptions = {}) {
   return {
     workspaces,
     activeWorkspaceId,
-    expandedWorkspaces,
     currentWorkspace,
     fetchWorkspaces,
     pickAndCreateWorkspace,
-    toggleWorkspaceExpand,
     /** 激活工作区并触发新会话（空态引导卡/侧栏共用） */
     activateWorkspace,
     selectWorkspace,

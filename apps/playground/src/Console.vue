@@ -9,8 +9,8 @@
  * 本文件只保留：组合式装配、欢迎页 hero 文案与用户动作编排。
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
-import { ArrowDown, ChevronDown, History, MessageSquare, PanelRight, Route } from "lucide-vue-next";
-import { formatTokens, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaPopover, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
+import { ArrowDown, ChevronDown, History, PanelRight, Route } from "lucide-vue-next";
+import { formatTokens, useStickToBottom, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaPopover, VaSegmentedControl, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
 import type { ContextPart } from "@vuagent/ui";
 import type { Decision } from "@vuagent/ui";
 import ConsoleSidebar from "./console/components/ConsoleSidebar.vue";
@@ -28,19 +28,13 @@ import {
   listSuspendedActions,
   compactSession,
   patchSession,
-  listTools,
-  patchToolEnabled,
-  getConfig,
-  patchConfig,
-  resetConfig,
 } from "./console/api/client";
-import type { ConfigNamespace, ToolItem } from "./console/api/client";
 import { useApprovals } from "./console/composables/useApprovals";
+import { useConsoleToolsConfig } from "./console/composables/useConsoleToolsConfig";
 import { useChatStream } from "./console/composables/useChatStream";
 import { useModelProfiles } from "./console/composables/useModelProfiles";
 import { useSessions } from "./console/composables/useSessions";
 import type { SessionsApi } from "./console/composables/useSessions";
-import { useStickToBottom } from "./console/composables/useStickToBottom";
 import { useWorkspaces } from "./console/composables/useWorkspaces";
 import { PERMISSION_MODES } from "./console/types";
 import type { SessionItem } from "./console/types";
@@ -60,6 +54,21 @@ const composerText = ref<string>("");
 const defaultPermission = ref<string>("review");
 const activePermission = ref<string>(defaultPermission.value);
 const permissionModes = PERMISSION_MODES;
+
+// 工具清单与配置中心数据域（TASK-043 收敛：security.defaultPermissionMode 同步进权限档）
+const {
+  tools,
+  toolsLoading,
+  toolsError,
+  fetchTools,
+  onToggleTool,
+  configLoading,
+  configError,
+  configNs,
+  fetchConfig,
+  onConfigPatch,
+  onConfigReset,
+} = useConsoleToolsConfig({ defaultPermission, activePermission, isNewChat });
 
 
 const chatScrollRef = useTemplateRef<HTMLElement>("chatScrollRef");
@@ -143,11 +152,9 @@ const { submitApproval } = useApprovals({
 const {
   workspaces,
   activeWorkspaceId,
-  expandedWorkspaces,
   activateWorkspace,
   fetchWorkspaces,
   pickAndCreateWorkspace,
-  toggleWorkspaceExpand,
   askDeleteWorkspace,
   ensureActiveWorkspace,
 } = ws;
@@ -186,174 +193,13 @@ function openSettings(tab: SettingsTab = "models") {
   openModelSettings();
 }
 
-/* ==========================================================================
-   内置工具启停（TASK-020）：/api/tools 拉取 + PATCH 提交
-   乐观更新：先翻转本地开关即时反馈，PATCH 失败回滚并 toast 提示
-   ========================================================================== */
-const tools = ref<ToolItem[]>([]);
-const toolsLoading = ref(false);
-const toolsError = ref("");
-
-async function fetchTools() {
-  toolsLoading.value = true;
-  toolsError.value = "";
-  try {
-    const list = await listTools();
-    if (list === null) {
-      toolsError.value = "工具清单加载失败，请检查服务端连接后重试";
-      return;
-    }
-    tools.value = list;
-  } catch (e) {
-    console.error("拉取工具清单失败:", e);
-    toolsError.value = "工具清单加载失败，请检查服务端连接后重试";
-  } finally {
-    toolsLoading.value = false;
-  }
-}
-
-/** 行内启停：乐观翻转 → PATCH 确认；失败按原值回滚并 toast（服务端为真值来源） */
-async function onToggleTool(tool: ToolItem) {
-  const next = !tool.enabled;
-  const prev = tool.enabled;
-  tool.enabled = next;
-  try {
-    const confirmed = await patchToolEnabled(tool.name, next);
-    if (!confirmed) {
-      tool.enabled = prev;
-      vaToaster.add({
-        title: "工具启停保存失败",
-        description: `${tool.name} 的状态未能持久化，已恢复原状态`,
-        kind: "danger",
-      });
-      return;
-    }
-    // 以服务端落库结果为准（防并发写覆盖）
-    tool.enabled = confirmed.enabled;
-    vaToaster.add({
-      title: confirmed.enabled ? `已启用 ${tool.name}` : `已停用 ${tool.name}`,
-      kind: "success",
-    });
-  } catch (e) {
-    tool.enabled = prev;
-    console.error("工具启停提交失败:", e);
-    vaToaster.add({
-      title: "工具启停保存失败",
-      description: e instanceof Error ? e.message : String(e),
-      kind: "danger",
-    });
-  }
-}
-
-/* ==========================================================================
-   配置中心（TASK-028）：/api/config 拉取 + 乐观更新 + reset
-   面板为 schema 驱动通用组件（ConfigPanel），此处只做数据编排；
-   security.defaultPermissionMode 改动同步到新建会话缺省档。
-   ========================================================================== */
-const configNamespaces = ref<ConfigNamespace[]>([]);
-const configLoading = ref(false);
-const configError = ref("");
-
-function configNs(id: string): ConfigNamespace | null {
-  return configNamespaces.value.find((n) => n.id === id) ?? null;
-}
-
-async function fetchConfig() {
-  configLoading.value = true;
-  configError.value = "";
-  try {
-    const cfg = await getConfig();
-    if (cfg === null) {
-      configError.value = "配置加载失败，请检查服务端连接后重试";
-      return;
-    }
-    configNamespaces.value = cfg.namespaces;
-    // 新建会话缺省权限模式 ← security.defaultPermissionMode（TASK-026）
-    const configuredMode = configNs("security")?.values?.defaultPermissionMode;
-    if (typeof configuredMode === "string" && configuredMode) {
-      defaultPermission.value = configuredMode;
-      if (isNewChat.value) activePermission.value = configuredMode;
-    }
-  } catch (e) {
-    console.error("拉取配置中心失败:", e);
-    configError.value = "配置加载失败，请检查服务端连接后重试";
-  } finally {
-    configLoading.value = false;
-  }
-}
-
-/** 字段修改：乐观写入 → PATCH 确认（以服务端生效值为准，含钳制/截断）；失败按原值回滚并 toast */
-async function onConfigPatch(nsId: string, key: string, value: unknown) {
-  const ns = configNs(nsId);
-  if (!ns) return;
-  const prev = ns.values[key];
-  ns.values[key] = value;
-  try {
-    const res = await patchConfig(nsId, { [key]: value });
-    if (!res) {
-      ns.values[key] = prev;
-      vaToaster.add({
-        title: "配置保存失败",
-        description: "服务端拒绝了本次修改（字段可能被 env 锁定），已恢复原值",
-        kind: "danger",
-      });
-      return;
-    }
-    ns.values = res.values;
-    ns.isDefault = false;
-    if (nsId === "security" && typeof res.values.defaultPermissionMode === "string") {
-      defaultPermission.value = res.values.defaultPermissionMode;
-    }
-  } catch (e) {
-    ns.values[key] = prev;
-    console.error("配置提交失败:", e);
-    vaToaster.add({
-      title: "配置保存失败",
-      description: e instanceof Error ? e.message : String(e),
-      kind: "danger",
-    });
-  }
-}
-
-/** 恢复默认：整命名空间 reset，生效值以服务端返回为准 */
-async function onConfigReset(nsId: string) {
-  const ns = configNs(nsId);
-  if (!ns) return;
-  try {
-    const res = await resetConfig(nsId);
-    if (!res) {
-      vaToaster.add({ title: "恢复默认失败", description: "请检查服务端连接后重试", kind: "danger" });
-      return;
-    }
-    ns.values = res.values;
-    ns.isDefault = true;
-    if (nsId === "security" && typeof res.values.defaultPermissionMode === "string") {
-      defaultPermission.value = res.values.defaultPermissionMode;
-    }
-    vaToaster.add({ title: `已恢复「${ns.title}」默认配置`, kind: "success" });
-  } catch (e) {
-    console.error("配置 reset 失败:", e);
-    vaToaster.add({
-      title: "恢复默认失败",
-      description: e instanceof Error ? e.message : String(e),
-      kind: "danger",
-    });
-  }
-}
-
 const {
   sessions,
   activeSessionId,
-  activeSessions,
-  archivedSessions,
-  editingSessionId,
-  renameDraft,
   fetchSessions,
   createSessionForPrompt,
   selectSession,
-  startRenameSession,
-  saveRenameSession,
-  cancelRenameSession,
+  renameSession,
   toggleArchiveSession,
   askDeleteSession,
 } = sessionsApi;
@@ -476,8 +322,6 @@ onMounted(async () => {
   await fetchSessions();
   await fetchModelProfiles();
   void fetchTools();
-  // 默认展开所有工作区
-  workspaces.value.forEach((w) => expandedWorkspaces.value.add(w.id));
 
   // 页面刷新后自动检测是否有正在执行中的会话，若有直接进入并重新连入输出流
   const runningSession = sessions.value.find((s) => s.isRunning);
@@ -627,30 +471,22 @@ function quickFillPrompt(text: string) {
 
 <template>
   <div class="va-console">
-    <!-- 左侧边栏：工作区树 / 会话列表 / 归档抽屉 / 设置入口 -->
+    <!-- 左侧边栏（TASK-045 dogfooding）：VaSessionTree 承载树交互，footer 挂设置入口 -->
     <ConsoleSidebar
       :workspaces="workspaces"
+      :sessions="sessions"
       :active-workspace-id="activeWorkspaceId"
-      :expanded-workspaces="expandedWorkspaces"
-      :active-sessions="activeSessions"
-      :archived-sessions="archivedSessions"
       :active-session-id="activeSessionId"
       :is-new-chat="isNewChat"
       :session-running-map="sessionRunningMap"
-      :editing-session-id="editingSessionId"
-      :rename-draft="renameDraft"
       @start-new-chat="startNewChat"
       @select-session="onSelectSession"
-      @toggle-expand="toggleWorkspaceExpand"
       @pick-workspace="pickAndCreateWorkspace"
-      @ask-delete-workspace="askDeleteWorkspace"
-      @start-rename="startRenameSession"
-      @save-rename="saveRenameSession"
-      @cancel-rename="cancelRenameSession"
+      @delete-workspace="askDeleteWorkspace"
+      @rename-session="renameSession"
       @toggle-archive="toggleArchiveSession"
-      @ask-delete-session="askDeleteSession"
+      @delete-session="askDeleteSession"
       @open-settings="openSettings"
-      @update:rename-draft="renameDraft = $event"
     />
 
     <!-- 中间交互区域 -->
@@ -737,27 +573,12 @@ function quickFillPrompt(text: string) {
       <!-- 场景 B：聊天与执行流视图（聊天区 + 右侧栏） -->
       <div v-else class="va-console__chat-layout">
       <section class="va-console__chat-view">
-        <!-- 主区视图 tab：对话 / 轨迹（轨迹自右侧栏迁入，宽幅展示） -->
-        <div class="va-console__mtabs">
-          <button
-            class="va-console__mtab"
-            :class="{ 'va-console__mtab--active': mainViewTab === 'chat' }"
-            type="button"
-            @click="mainViewTab = 'chat'"
-          >
-            <MessageSquare :size="14" />
-            <span>对话</span>
-          </button>
-          <button
-            class="va-console__mtab"
-            :class="{ 'va-console__mtab--active': mainViewTab === 'traj' }"
-            type="button"
-            @click="mainViewTab = 'traj'"
-          >
-            <Route :size="14" />
-            <span>轨迹</span>
-          </button>
-        </div>
+        <!-- 主区视图 tab：对话 / 轨迹（TASK-046 dogfooding：VaSegmentedControl 承载切换） -->
+        <VaSegmentedControl
+          v-model="mainViewTab"
+          :options="[{ value: 'chat', label: '对话' }, { value: 'traj', label: '轨迹' }]"
+          aria-label="主区视图"
+        />
 
         <!-- 对话视图：消息瀑布流（滚动区域；wrap 提供「回到底部」按钮的定位锚点） -->
         <div v-show="mainViewTab === 'chat'" class="va-console__stream-wrap">
@@ -858,6 +679,7 @@ function quickFillPrompt(text: string) {
       <ConsoleRightSidebar
         v-if="!isRightSidebarCollapsed"
         :decisions="pendingDecisions"
+        :workspace-id="activeWorkspaceId"
         @decide="onDecide"
         @collapse="isRightSidebarCollapsed = true"
       />

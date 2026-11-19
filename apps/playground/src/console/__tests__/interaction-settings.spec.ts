@@ -33,10 +33,12 @@ function createMemoryStorage(initial?: Record<string, string>): StorageLike & {
 }
 
 describe("defaultInteractionSettings", () => {
-  it("v1 默认值：两个自动折叠开关均为 true", () => {
+  it("v1 默认值：自动折叠开关与侧栏分区显隐均为 true", () => {
     expect(defaultInteractionSettings()).toEqual({
       autoCollapseThought: true,
       autoCollapseToolCards: true,
+      showApprovals: true,
+      showFileTree: true,
     });
   });
 });
@@ -73,6 +75,8 @@ describe("loadInteractionSettings", () => {
     expect(loadInteractionSettings(storage)).toEqual({
       autoCollapseThought: false,
       autoCollapseToolCards: true, // 缺字段回退默认
+      showApprovals: true,
+      showFileTree: true,
     });
   });
 
@@ -85,6 +89,8 @@ describe("loadInteractionSettings", () => {
     expect(merged).toEqual({
       autoCollapseThought: true,
       autoCollapseToolCards: false,
+      showApprovals: true,
+      showFileTree: true,
     });
     expect("unknownFutureFlag" in merged).toBe(false);
   });
@@ -98,7 +104,7 @@ describe("saveInteractionSettings", () => {
   it("持久化 JSON 含 version 字段", () => {
     const storage = createMemoryStorage();
     saveInteractionSettings(
-      { autoCollapseThought: false, autoCollapseToolCards: true },
+      { autoCollapseThought: false, autoCollapseToolCards: true, showApprovals: false, showFileTree: true },
       storage
     );
     const raw = storage.data.get(INTERACTION_SETTINGS_STORAGE_KEY);
@@ -108,12 +114,14 @@ describe("saveInteractionSettings", () => {
     expect(parsed.settings).toEqual({
       autoCollapseThought: false,
       autoCollapseToolCards: true,
+      showApprovals: false,
+      showFileTree: true,
     });
   });
 
   it("持久化往返：save 后 load 得到相同设置", () => {
     const storage = createMemoryStorage();
-    const value = { autoCollapseThought: false, autoCollapseToolCards: false };
+    const value = { autoCollapseThought: false, autoCollapseToolCards: false, showApprovals: true, showFileTree: false };
     saveInteractionSettings(value, storage);
     expect(loadInteractionSettings(storage)).toEqual(value);
   });
@@ -139,6 +147,8 @@ describe("createInteractionSettingsStore", () => {
     expect(loadInteractionSettings(storage)).toEqual({
       autoCollapseThought: true,
       autoCollapseToolCards: false,
+      showApprovals: true,
+      showFileTree: true,
     });
   });
 

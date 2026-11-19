@@ -8,7 +8,7 @@ import { abortSession, openChatStream, openSessionStream } from "../api/client";
 import type { ChatRequestBody } from "../api/client";
 import { extractSSEEvents } from "../stream/sse";
 import { applyStreamEvent } from "../stream/reducer";
-import type { ScrollToBottomOptions } from "./useStickToBottom";
+import type { ScrollToBottomOptions } from "@vuagent/ui";
 import type { ContextPart } from "@vuagent/ui";
 import type { HarnessStreamEvent } from "@vuagent/protocol";
 import type { MessageTurn, PlanStep } from "../types";

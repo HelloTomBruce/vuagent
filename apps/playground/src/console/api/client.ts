@@ -100,6 +100,20 @@ export function createWorkspace(body: {
   return httpSend<WorkspaceItem>("/api/workspaces", "POST", body);
 }
 
+/** 工作区文件树节点（结构与 @vuagent/ui 的 FileNode 对齐，path 为相对 rootPath 的 POSIX 路径） */
+export interface WorkspaceFileNode {
+  path: string;
+  type: "file" | "dir";
+  children?: WorkspaceFileNode[];
+}
+
+/** 工作区文件树（只读、有界：深度 4 / 节点 2000；truncated=true 表示超限截断） */
+export function fetchWorkspaceFiles(id: string): Promise<{ tree: WorkspaceFileNode[]; truncated: boolean } | null> {
+  return httpGet<{ root: string; tree: WorkspaceFileNode[]; truncated: boolean }>(
+    `/api/workspaces/${id}/files`,
+  );
+}
+
 export function deleteWorkspaceById(id: string): Promise<{ success: boolean } | null> {
   return httpSend<{ success: boolean }>(`/api/workspaces/${id}`, "DELETE");
 }

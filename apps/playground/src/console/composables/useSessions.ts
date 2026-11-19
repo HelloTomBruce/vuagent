@@ -14,7 +14,7 @@ import {
 import { rebuildBlocksFromHistory } from "../stream/blocks";
 import { vaConfirm } from "@vuagent/ui";
 import type { ChatStreamApi } from "./useChatStream";
-import type { ScrollToBottomOptions } from "./useStickToBottom";
+import type { ScrollToBottomOptions } from "@vuagent/ui";
 import type { MessageTurn, SessionItem } from "../types";
 
 export interface SessionsOptions {
@@ -36,10 +36,6 @@ export function useSessions(options: SessionsOptions) {
 
   const sessions = ref<SessionItem[]>([]);
   const activeSessionId = ref("");
-
-  // 行内重命名状态
-  const editingSessionId = ref<string | null>(null);
-  const renameDraft = ref("");
 
   const activeSessions = computed(() => {
     return sessions.value.filter((s) => !s.archived && s.status !== "archived");
@@ -95,7 +91,6 @@ export function useSessions(options: SessionsOptions) {
     options.isNewChat.value = false;
     // 权限模式随会话恢复，避免跨会话互相影响
     options.activePermission.value = session.permission || "review";
-    editingSessionId.value = null;
     chat.planSteps.value = [];
     // 先归零上下文仪表，随后由历史 telemetry 水合（或运行时 usage 事件覆盖），
     // 避免残留上一个会话的数值
@@ -266,53 +261,39 @@ export function useSessions(options: SessionsOptions) {
     options.scrollToBottom({ force: true });
   }
 
-  function startRenameSession(s: SessionItem, event: Event) {
-    event.stopPropagation();
-    editingSessionId.value = s.id;
-    renameDraft.value = s.title;
-  }
-
-  async function saveRenameSession() {
-    if (!editingSessionId.value) return;
-    const newTitle = renameDraft.value.trim();
-    if (newTitle) {
-      try {
-        const updated = await patchSession(editingSessionId.value, {
-          title: newTitle,
-        });
-        if (updated) {
-          const target = sessions.value.find((s) => s.id === editingSessionId.value);
-          if (target) target.title = newTitle;
-        }
-      } catch (e) {
-        console.error("重命名会话失败:", e);
-      }
-    }
-    editingSessionId.value = null;
-  }
-
-  function cancelRenameSession() {
-    editingSessionId.value = null;
-  }
-
-  async function toggleArchiveSession(s: SessionItem, event: Event) {
-    event.stopPropagation();
-    const willArchive = !s.archived;
+  async function toggleArchiveSession(id: string, archived: boolean) {
     try {
-      await patchSession(s.id, {
-        archived: willArchive,
-        status: willArchive ? "archived" : "active",
+      await patchSession(id, {
+        archived,
+        status: archived ? "archived" : "active",
       });
-      s.archived = willArchive;
-      s.status = willArchive ? "archived" : "active";
+      const s = sessions.value.find((x) => x.id === id);
+      if (s) {
+        s.archived = archived;
+        s.status = archived ? "archived" : "active";
+      }
     } catch (e) {
       console.error("归档操作失败:", e);
     }
   }
 
+  /** 重命名会话（VaSessionTree rename 事件：组件内编辑，提交即落库） */
+  async function renameSession(id: string, title: string) {
+    const newTitle = title.trim();
+    if (!newTitle) return;
+    try {
+      const updated = await patchSession(id, { title: newTitle });
+      if (updated) {
+        const target = sessions.value.find((s) => s.id === id);
+        if (target) target.title = newTitle;
+      }
+    } catch (e) {
+      console.error("重命名会话失败:", e);
+    }
+  }
+
   /** 删除会话：vaConfirm 模态确认（danger tone，初始聚焦取消——安全默认），确认后才发删除请求 */
-  async function askDeleteSession(sessionId: string, event: Event) {
-    event.stopPropagation();
+  async function askDeleteSession(sessionId: string) {
     const target = sessions.value.find((s) => s.id === sessionId);
     const ok = await vaConfirm({
       title: "删除这个会话？",
@@ -341,14 +322,10 @@ export function useSessions(options: SessionsOptions) {
     activeSessionId,
     activeSessions,
     archivedSessions,
-    editingSessionId,
-    renameDraft,
     fetchSessions,
     createSessionForPrompt,
     selectSession,
-    startRenameSession,
-    saveRenameSession,
-    cancelRenameSession,
+    renameSession,
     toggleArchiveSession,
     askDeleteSession,
     deleteSession,

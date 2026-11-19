@@ -18,10 +18,14 @@ export const INTERACTION_SETTINGS_VERSION = 1;
  * - autoCollapseToolCards：工具执行卡跟随本轮输出状态——输出期间保持展开，
  *   流结束后与思考过程一并折叠收起，只展示最终结果
  *   （执行失败的卡片始终展开，不受此开关影响）
+ * - showApprovals：右侧边栏显示审批收件箱
+ * - showFileTree：右侧边栏显示当前工作区文件目录树
  */
 export interface InteractionSettings {
   autoCollapseThought: boolean;
   autoCollapseToolCards: boolean;
+  showApprovals: boolean;
+  showFileTree: boolean;
 }
 
 /** 持久化 JSON 的顶层结构 */
@@ -42,6 +46,8 @@ export function defaultInteractionSettings(): InteractionSettings {
   return {
     autoCollapseThought: true,
     autoCollapseToolCards: true,
+    showApprovals: true,
+    showFileTree: true,
   };
 }
 
