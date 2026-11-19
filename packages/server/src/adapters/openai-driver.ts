@@ -1,14 +1,50 @@
 import type { IModelDriver, ModelDriverRequest, ModelStreamChunk } from "./model-driver.js";
+import {
+  ClassifiedModelError,
+  classifyModelError,
+  createResilientFetch,
+  resolveResiliencePolicy,
+  type ResiliencePolicy,
+  type ResilientFetchHooks,
+} from "./resilience.js";
+
+/** driver 级韧性选项：缺省启用默认策略；`resilience: false` 整体关闭（测试直连用） */
+export interface OpenAIDriverOptions {
+  resilience?: ResiliencePolicy | false;
+  /** fetch 注入点（测试 mock SSE 流用）；缺省全局 fetch */
+  fetchImpl?: typeof fetch;
+  /** 重试遥测接缝（上层埋点用） */
+  onRetry?: ResilientFetchHooks["onRetry"];
+}
 
 /**
  * OpenAI 规范兼容模型驱动 (OpenAICompatibleDriver)
  * 支持 OpenAI、DeepSeek、Qwen、Moonshot、Ollama 及各类兼容网关
+ *
+ * 韧性（TASK-048）：HTTP 请求经 createResilientFetch 包装——指数退避重试 +
+ * Retry-After 尊重 + 响应头前超时；失败上抛 ClassifiedModelError（errorClass 供
+ * 上层程序化区分）。流已开始吐字后的错误不透明重跑，仅升级为分类错误。
  */
 export class OpenAICompatibleDriver implements IModelDriver {
+  private readonly fetchImpl: typeof fetch;
+
   constructor(
     private apiKey?: string,
-    private baseUrl: string = "https://api.openai.com/v1"
-  ) {}
+    private baseUrl: string = "https://api.openai.com/v1",
+    options: OpenAIDriverOptions = {}
+  ) {
+    const baseFetch = options.fetchImpl ?? fetch;
+    if (options.resilience === false) {
+      this.fetchImpl = baseFetch;
+    } else {
+      const policy = resolveResiliencePolicy(options.resilience ?? undefined);
+      this.fetchImpl = createResilientFetch(
+        baseFetch,
+        policy,
+        options.onRetry ? { onRetry: options.onRetry } : {}
+      );
+    }
+  }
 
   async *generateStream(req: ModelDriverRequest): AsyncIterable<ModelStreamChunk> {
     const url = `${this.baseUrl.replace(/\/+$/, "")}/chat/completions`;
@@ -34,24 +70,35 @@ export class OpenAICompatibleDriver implements IModelDriver {
 
     let res: Response;
     try {
-      res = await fetch(url, {
+      res = await this.fetchImpl(url, {
         method: "POST",
         headers,
         body: JSON.stringify(payload),
         signal: req.abortSignal,
       });
     } catch (err: unknown) {
+      // 调用方主动中止：原样上抛，保留既有中止语义
+      if (req.abortSignal?.aborted) throw err;
+      const errorClass = classifyModelError(err);
       const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(`连接模型 API [${url}] 失败: ${msg}。请检查 API 基础地址 Base URL 或网络连通性。`);
+      throw new ClassifiedModelError(
+        `连接模型 API [${url}] 失败: ${msg}。请检查 API 基础地址 Base URL 或网络连通性。`,
+        errorClass
+      );
     }
 
     if (!res.ok) {
+      const errorClass = classifyModelError(res);
       const errText = await res.text().catch(() => "");
-      throw new Error(`模型 API 返回错误 (${res.status} ${res.statusText}): ${errText}`);
+      throw new ClassifiedModelError(
+        `模型 API 返回错误 (${res.status} ${res.statusText}): ${errText}`,
+        errorClass,
+        res.status
+      );
     }
 
     if (!res.body) {
-      throw new Error("No response body received from model API");
+      throw new ClassifiedModelError("No response body received from model API", "network", res.status);
     }
 
     const reader = res.body.getReader();
@@ -61,7 +108,17 @@ export class OpenAICompatibleDriver implements IModelDriver {
 
     try {
       while (true) {
-        const { done, value } = await reader.read();
+        let readResult: ReadableStreamReadResult<Uint8Array>;
+        try {
+          readResult = await reader.read();
+        } catch (err: unknown) {
+          // 诚实重试边界：流已开始吐字后不做透明重跑，仅升级为分类错误上抛
+          if (req.abortSignal?.aborted) throw err;
+          const errorClass = classifyModelError(err);
+          const msg = err instanceof Error ? err.message : String(err);
+          throw new ClassifiedModelError(`模型流读取中断: ${msg}`, errorClass, res.status);
+        }
+        const { done, value } = readResult;
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });

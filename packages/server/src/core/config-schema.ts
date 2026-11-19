@@ -11,7 +11,8 @@
  * contextBudgetRatio=0.85（agent-loop.ts）、preserveRecentTurns=4 /
  * maxToolResultChars=2000（context-compactor.ts）、
  * bashTimeoutCeilingMs=60_000（tool-registry.ts 执行器超时上限，bash_run 命令超时的全局封顶）。
- * （注意：agent-loop 目前不存在「整轮执行超时」旋钮，180s 是审批挂起超时，勿混淆语义）
+ * turnTimeoutMs=600_000 是 TASK-048 新增能力（整轮看门狗，修复 SSE 停滞永久挂起），
+ * 非既有硬编码行为的搬移；与 approvalTimeoutMs（审批挂起等待人工）语义正交，勿混淆。
  */
 
 /** 字段控件类型：boolean→开关、number→数字输入、string→单行文本、text→多行文本、select→下拉 */
@@ -103,6 +104,17 @@ export const CONFIG_SCHEMA: ConfigNamespaceSchema[] = [
         default: 2_000,
         min: 200,
         max: 30_000,
+      },
+      {
+        key: "turnTimeoutMs",
+        title: "单轮执行超时（毫秒）",
+        description:
+          "整轮执行的看门狗上限：超时自动中止并保留已完成进度（TASK-048 新增能力，" +
+          "此前轮次可因模型流停滞永久挂起）。请求级 timeoutMs 可逐请求覆盖（同样受钳制）",
+        type: "number",
+        default: 600_000,
+        min: 30_000,
+        max: 3_600_000,
       },
     ],
   },

@@ -16,7 +16,13 @@ import { runSandboxDemoTurn } from "./sandbox-demo.js";
 import { buildSystemPrompt } from "./system-prompt.js";
 import { resolveEffectivePermissionMode, resolveLivePermissionMode } from "./permissions.js";
 import { defaultNamespaceValues, getNamespaceSchema } from "./config-schema.js";
+import { combineAbortSignals } from "../adapters/resilience.js";
 import type { CheckpointEntity, TurnEntity } from "../storage/interfaces.js";
+
+/** 整轮看门狗超时钳制边界（TASK-048）：请求级覆盖同样受钳 */
+const TURN_TIMEOUT_MIN_MS = 30_000;
+const TURN_TIMEOUT_MAX_MS = 3_600_000;
+const TURN_TIMEOUT_DEFAULT_MS = 600_000;
 
 /** execution / tools 命名空间 schema（模块级常量：CONFIG_SCHEMA 静态不可变） */
 const EXECUTION_NS = getNamespaceSchema("execution")!;
@@ -66,6 +72,21 @@ export class AgentLoop {
     const maxSteps = req.maxSteps ?? (execCfg.maxSteps as number);
     const approvalTimeoutMs = execCfg.approvalTimeoutMs as number;
     const contextBudgetRatio = execCfg.contextBudgetRatio as number;
+    // TASK-048 整轮看门狗：解析链 请求级 req.timeoutMs > 配置中心 execution.turnTimeoutMs > 内置默认；
+    // 请求级覆盖同样受 30s–1h 钳制。此前该参数被接收但从未消费（SSE 停滞可致轮次永久挂起）。
+    const configuredTimeout = Number(execCfg.turnTimeoutMs);
+    const requestedTimeout = Number(req.timeoutMs);
+    const rawTurnTimeout =
+      Number.isFinite(requestedTimeout) && requestedTimeout > 0
+        ? requestedTimeout
+        : Number.isFinite(configuredTimeout) && configuredTimeout > 0
+        ? configuredTimeout
+        : TURN_TIMEOUT_DEFAULT_MS;
+    const turnTimeoutMs = Math.min(
+      Math.max(Math.round(rawTurnTimeout), TURN_TIMEOUT_MIN_MS),
+      TURN_TIMEOUT_MAX_MS
+    );
+    const turnTimeoutSeconds = Math.round(turnTimeoutMs / 1000);
     this.compactor.configure({
       preserveRecentTurns: execCfg.preserveRecentTurns as number,
       maxToolResultChars: execCfg.maxToolResultChars as number,
@@ -217,11 +238,27 @@ export class AgentLoop {
     let lastContextTokens = 0;
     const accumulatedCards: Array<{ id: string; type: string; data: any }> = [];
 
+    // TASK-048 整轮看门狗：独立 controller + 定时器，与客户端 abort 信号合并。
+    // 超时/用户停止共用同一收尾路径（中止 → 抽干 → 落库），消息按 watchdogFired 区分成因。
+    const watchdogController = new AbortController();
+    let watchdogFired = false;
+    const watchdogTimer = setTimeout(() => {
+      watchdogFired = true;
+      watchdogController.abort();
+    }, turnTimeoutMs);
+    const runSignal = abortSignal
+      ? combineAbortSignals(abortSignal, watchdogController.signal)
+      : watchdogController.signal;
+    const abortMessage = () =>
+      watchdogFired
+        ? `本轮执行已超时（看门狗上限 ${turnTimeoutSeconds}s），已自动中止并保留已完成进度`
+        : "Agent execution was aborted by client";
+
     try {
       // 4. 进入 ReAct 核心回环
       while (currentStep < maxSteps) {
-        if (abortSignal?.aborted) {
-          yield { type: "error", message: "Agent execution was aborted by client" };
+        if (runSignal.aborted) {
+          yield { type: "error", message: abortMessage() };
           break;
         }
 
@@ -258,11 +295,11 @@ export class AgentLoop {
           messages: compactedMessages,
           tools: toolsDefinition,
           parameters: modelProfile.parameters,
-          abortSignal,
+          abortSignal: runSignal,
         });
 
         for await (const chunk of stream) {
-          if (abortSignal?.aborted) break;
+          if (runSignal.aborted) break;
 
           if (chunk.type === "usage" && chunk.usage) {
             telemetry.addTokens(chunk.usage.promptTokens, chunk.usage.completionTokens);
@@ -401,7 +438,7 @@ export class AgentLoop {
 
         // 逐个执行工具调用
         for (const call of callsArray) {
-          if (abortSignal?.aborted) break;
+          if (runSignal.aborted) break;
 
           let parsedArgs: Record<string, unknown> = {};
           try {
@@ -601,7 +638,7 @@ export class AgentLoop {
               args: parsedArgs,
               workspace,
               actionHub: this.services.actionHub,
-              abortSignal: abortSignal || new AbortController().signal,
+              abortSignal: runSignal,
             };
 
             const execRes = await this.services.toolRegistry.execute(
@@ -752,7 +789,12 @@ export class AgentLoop {
 
       await this.services.sessionRepo.appendTurn(session.id, turnEntity);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const rawMsg = err instanceof Error ? err.message : String(err);
+      // TASK-048：看门狗触发的异常统一改为超时口径（卡在模型流/工具执行内部时
+      // 异常从深处冒出，loop-top 检查来不及拦），成因区分不丢
+      const msg = watchdogFired
+        ? `本轮执行已超时（看门狗上限 ${turnTimeoutSeconds}s）：${rawMsg}`
+        : rawMsg;
       yield {
         type: "error",
         message: msg,
@@ -776,6 +818,9 @@ export class AgentLoop {
       } catch {
         // 忽略存储写入二次异常
       }
+    } finally {
+      // 看门狗定时器在轮次终态（done/error）后必须清除，避免悬挂计时器
+      clearTimeout(watchdogTimer);
     }
   }
 }

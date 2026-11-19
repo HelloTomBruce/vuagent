@@ -737,7 +737,9 @@ export function createHarnessServer(options: ServerOptions = {}) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
     try {
-      const probeDriver = new OpenAICompatibleDriver(apiKey, endpoint);
+      // 连通性探测关闭韧性（TASK-048）：探测要如实反映首响应时延与故障，
+      // 重试会掩盖失败并扭曲 latencyMs 语义
+      const probeDriver = new OpenAICompatibleDriver(apiKey, endpoint, { resilience: false });
       const stream = probeDriver.generateStream({
         model,
         messages: [{ role: "user", content: "ping" }],

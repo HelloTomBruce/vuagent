@@ -12,6 +12,7 @@ export * from "./core/config-resolver.js";
 export * from "./core/agent-loop.js";
 export * from "./adapters/model-driver.js";
 export * from "./adapters/openai-driver.js";
+export * from "./adapters/resilience.js";
 export * from "./adapters/mock-driver.js";
 export * from "./storage/interfaces.js";
 export * from "./storage/drivers/base.driver.js";
