@@ -1,5 +1,6 @@
 import type { HarnessStreamEvent, AgentTurnRequest } from "./types.js";
 import type { AgentLoop } from "./agent-loop.js";
+import { createNoopSink, type HarnessEventSink } from "./event-sink.js";
 
 export interface ActiveExecution {
   sessionId: string;
@@ -33,8 +34,21 @@ export type ClaimTurnResult =
  */
 export class SessionExecutionHub {
   private activeRuns = new Map<string, ActiveExecution>();
+  /** 运维事件出口（TASK-051）：preempt/abort 等生命周期事件 */
+  private sink: HarnessEventSink;
 
-  constructor(private agentLoop: AgentLoop) {}
+  constructor(private agentLoop: AgentLoop, sink?: HarnessEventSink) {
+    this.sink = sink ?? createNoopSink();
+  }
+
+  /** sink 故障不阻断主链路 */
+  private emit(event: Parameters<HarnessEventSink["emit"]>[0]): void {
+    try {
+      this.sink.emit(event);
+    } catch {
+      // 静默
+    }
+  }
 
   /**
    * 检查指定会话是否正在运行（已中止的会话在抽干落库前视为不在运行）
@@ -258,6 +272,15 @@ export class SessionExecutionHub {
     if (!run || run.isDone || run.aborted) return false;
     run.abortController.abort();
     run.aborted = true;
+    // TASK-051：中止运维事件（new_task=顶替 / user=手动停止）
+    this.emit({
+      type: "abort",
+      at: Date.now(),
+      sessionId: run.sessionId,
+      turnId: run.turnId,
+      reason,
+      code: reason === "new_task" ? "TURN_PREEMPTED" : "TURN_ABORTED",
+    });
     const note =
       reason === "new_task" ? "*(任务已被新请求顶替中止)*" : "*(任务已被手动中止)*";
     for (const sub of run.subscribers) {

@@ -32,6 +32,11 @@ import { GlobTool, GrepTool } from "./tools/system/search-tools.js";
 import { createWebFetchTool } from "./tools/web/web-tools.js";
 import { AllBuiltinTools } from "./tools/ui/protocol-tools.js";
 import { recoverInterruptedTurns } from "./core/recovery.js";
+import {
+  createConsoleNdjsonSink,
+  type HarnessEventSink,
+  type HarnessOpsCode,
+} from "./core/event-sink.js";
 
 export interface ServerOptions {
   storageDriver?: IStorageDriver;
@@ -39,10 +44,14 @@ export interface ServerOptions {
   dbPath?: string;
   /** 安全基线覆盖项（测试注入用）；缺省走 VUAGENT_* 环境变量 */
   security?: { authToken?: string; allowByoProvider?: boolean; extraOrigins?: string[] };
+  /** 运维事件出口（TASK-051）：缺省 console NDJSON；测试注入内存 sink 断言事件流 */
+  eventSink?: HarnessEventSink;
 }
 
 export function createHarnessServer(options: ServerOptions = {}) {
   const app = new Hono();
+  // TASK-051 运维事件出口：缺省 console NDJSON（error 级走 stderr）
+  const eventSink: HarnessEventSink = options.eventSink ?? createConsoleNdjsonSink();
   // 安全基线（TASK-011）：CORS/Origin 白名单 + 可选 Bearer 鉴权，替代原先 cors() 全开
   const security = resolveSecurityConfig(options.security);
   applySecurityBaseline(app, security);
@@ -102,9 +111,10 @@ export function createHarnessServer(options: ServerOptions = {}) {
     modelDriver,
     compactor,
     configResolver,
+    eventSink,
   });
 
-  const executionHub = new SessionExecutionHub(agentLoop);
+  const executionHub = new SessionExecutionHub(agentLoop, eventSink);
 
   // TASK-049 进程重启恢复：扫描遗留 running 轮次，诚实标记 error/process_restart。
   // fire-and-forget：createHarnessServer 保持同步签名；恢复完成前极端情况下
@@ -112,6 +122,13 @@ export function createHarnessServer(options: ServerOptions = {}) {
   void recoverInterruptedTurns(sessionRepo)
     .then((recovered) => {
       if (recovered.length > 0) {
+        // TASK-051：恢复告警走事件出口（可 grep 的 RECOVERED_TURNS）
+        eventSink.emit({
+          type: "warn",
+          at: Date.now(),
+          code: "RECOVERED_TURNS",
+          detail: `${recovered.length} 个中断轮次已标记 process_restart：${recovered.map((r) => `${r.sessionId}/${r.turnId}@${r.checkpointCount}cp`).join(", ")}`,
+        });
         console.warn(
           `[harness] 恢复扫描：${recovered.length} 个中断轮次已标记 process_restart（${recovered.map((r) => `${r.sessionId}/${r.turnId}@${r.checkpointCount}cp`).join(", ")}）`
         );
@@ -352,7 +369,16 @@ export function createHarnessServer(options: ServerOptions = {}) {
       return c.json({ error: msg }, 500);
     }
     if (!claim.ok) {
-      const code = claim.reason === "running" ? "SESSION_RUNNING" : "PREEMPT_TIMEOUT";
+      const code: HarnessOpsCode =
+        claim.reason === "running" ? "SESSION_RUNNING_REJECTED" : "PREEMPT_TIMEOUT";
+      // TASK-051：准入拒绝运维事件
+      eventSink.emit({
+        type: "warn",
+        at: Date.now(),
+        code,
+        sessionId,
+        detail: claim.reason === "running" ? `prompt: ${prompt.slice(0, 80)}` : "preempt 抽干等待超时",
+      });
       const message =
         claim.reason === "running"
           ? "会话正在执行中，请等待当前轮次完成或停止后再发送（也可携带 preempt:true 顶替当前轮次）"

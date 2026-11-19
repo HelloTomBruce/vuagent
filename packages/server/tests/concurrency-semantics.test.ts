@@ -171,7 +171,7 @@ describe("POST /api/chat 同会话并发（路由级，TASK-050）", () => {
     });
     expect(second.status).toBe(409);
     const body = await second.json();
-    expect(body.code).toBe("SESSION_RUNNING");
+    expect(body.code).toBe("SESSION_RUNNING_REJECTED");
 
     // 中止第一条并等待抽干落库
     await app.request("/api/chat/abort", {

@@ -16,7 +16,14 @@ import { runSandboxDemoTurn } from "./sandbox-demo.js";
 import { buildSystemPrompt } from "./system-prompt.js";
 import { resolveEffectivePermissionMode, resolveLivePermissionMode } from "./permissions.js";
 import { defaultNamespaceValues, getNamespaceSchema } from "./config-schema.js";
-import { combineAbortSignals } from "../adapters/resilience.js";
+import { combineAbortSignals, ClassifiedModelError } from "../adapters/resilience.js";
+import {
+  opsCodeForErrorClass,
+  createNoopSink,
+  type HarnessEventSink,
+  type HarnessOpsCode,
+  type HarnessOpsEvent,
+} from "./event-sink.js";
 import type { CheckpointEntity, TurnEntity } from "../storage/interfaces.js";
 
 /** 整轮看门狗超时钳制边界（TASK-048）：请求级覆盖同样受钳 */
@@ -41,6 +48,8 @@ export interface AgentLoopServices {
   actionHub: ActionHub;
   modelDriver: IModelDriver;
   compactor?: ContextCompactor;
+  /** 运维事件出口（TASK-051）；缺省 no-op，server 注入 console NDJSON */
+  eventSink?: HarnessEventSink;
 }
 
 /**
@@ -49,9 +58,20 @@ export interface AgentLoopServices {
  */
 export class AgentLoop {
   private compactor: ContextCompactor;
+  private ops: HarnessEventSink;
 
   constructor(private services: AgentLoopServices) {
     this.compactor = services.compactor ?? new ContextCompactor();
+    this.ops = services.eventSink ?? createNoopSink();
+  }
+
+  /** 运维事件发射（sink 故障不阻断主链路） */
+  private emitOps(event: HarnessOpsEvent): void {
+    try {
+      this.ops.emit(event);
+    } catch {
+      // sink 故障静默
+    }
   }
 
   /**
@@ -127,6 +147,17 @@ export class AgentLoop {
     const turnId = `turn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const turnNumber = session.turns.length + 1;
     const telemetry = new TelemetryLedger(turnId, turnNumber);
+
+    // TASK-051 运维事件：轮次开始（effectiveMode 在下方 TASK-014 段才声明，
+    // 此处用请求级与会话级原始值即可，运维画像不需要交集解析结果）
+    this.emitOps({
+      type: "turn_start",
+      at: startAt,
+      sessionId: session.id,
+      turnId,
+      model: modelProfile.model,
+      permission: req.permission ?? session.permission,
+    });
 
     const messages: ChatMessage[] = [];
 
@@ -237,6 +268,8 @@ export class AgentLoop {
     let accumulatedThought = "";
     let lastContextTokens = 0;
     const accumulatedCards: Array<{ id: string; type: string; data: any }> = [];
+    /** 非正常收尾的分类码（中止/超时），正常 done 为 undefined */
+    let turnFinishCode: HarnessOpsCode | undefined;
 
     // TASK-049 即时落库：轮次开始即落 running 行（中途崩溃留痕），
     // 每 step 增量更新，终态 appendTurn upsert 兜底（幂等替换，不产生重复行）
@@ -257,6 +290,15 @@ export class AgentLoop {
 
     /** 每 step 结束后的增量进度落盘（best-effort，失败不影响主链路） */
     const persistProgress = async (): Promise<void> => {
+      // TASK-051：step 级运维事件
+      this.emitOps({
+        type: "step_finish",
+        at: Date.now(),
+        sessionId: session.id,
+        turnId,
+        step: currentStep,
+        durationMs: Date.now() - startAt,
+      });
       try {
         await this.services.sessionRepo.updateTurn(session.id, turnId, {
           status: "running",
@@ -301,7 +343,18 @@ export class AgentLoop {
       // 4. 进入 ReAct 核心回环
       while (currentStep < maxSteps) {
         if (runSignal.aborted) {
-          yield { type: "error", message: abortMessage() };
+          // TASK-051：中止成因事件 + SSE error 附带分类码（前端可选消费）
+          const abortOpsCode: HarnessOpsCode = watchdogFired ? "WATCHDOG_TIMEOUT" : "TURN_ABORTED";
+          this.emitOps({
+            type: "abort",
+            at: Date.now(),
+            sessionId: session.id,
+            turnId,
+            reason: watchdogFired ? "watchdog" : "user",
+            code: abortOpsCode,
+          });
+          yield { type: "error", message: abortMessage(), code: abortOpsCode };
+          turnFinishCode = abortOpsCode;
           break;
         }
 
@@ -329,7 +382,22 @@ export class AgentLoop {
           ? this.services.modelDriver
           : new OpenAICompatibleDriver(
               modelProfile.apiKey || process.env.OPENAI_API_KEY,
-              modelProfile.baseUrl || (modelProfile.provider === "ollama" ? "http://localhost:11434/v1" : "https://api.openai.com/v1")
+              modelProfile.baseUrl || (modelProfile.provider === "ollama" ? "http://localhost:11434/v1" : "https://api.openai.com/v1"),
+              {
+                // TASK-051：TASK-048 韧性层的重试遥测接缝 → model_retry 运维事件
+                onRetry: (info) => {
+                  this.emitOps({
+                    type: "model_retry",
+                    at: Date.now(),
+                    sessionId: session.id,
+                    turnId,
+                    attempt: info.attempt,
+                    errorClass: info.errorClass,
+                    delayMs: info.delayMs,
+                    reason: info.reason,
+                  });
+                },
+              }
             );
 
         // 调用模型流式输出
@@ -653,6 +721,7 @@ export class AgentLoop {
           }
 
           // 若未被驳回，在沙箱中执行工具
+          let toolDurationMs = 0;
           if (!isError) {
             // TASK-026 per-tool 超时覆盖：
             // - bash_run：生效命令超时 = per-tool timeoutMs 覆盖 > 模型请求 timeoutMs > 默认 30s，
@@ -693,6 +762,7 @@ export class AgentLoop {
             isError = execRes.isError;
             executionResult = execRes.result;
             errorMessage = execRes.error;
+            toolDurationMs = execRes.durationMs;
           }
 
           {
@@ -706,6 +776,19 @@ export class AgentLoop {
             });
             yield { type: "traj", event: clipTrajectoryEvent(ev) };
           }
+
+          // TASK-051：工具结果运维事件（含禁用/驳回/执行失败三类非 ok 路径）
+          this.emitOps({
+            type: "tool_result",
+            at: Date.now(),
+            sessionId: session.id,
+            turnId,
+            tool: call.name,
+            ok: !isError,
+            durationMs: toolDurationMs,
+            code: isError ? "TOOL_EXECUTION_FAILED" : undefined,
+            error: isError ? errorMessage : undefined,
+          });
 
           yield {
             type: "tool_call_result",
@@ -834,6 +917,19 @@ export class AgentLoop {
       };
 
       await this.services.sessionRepo.appendTurn(session.id, turnEntity);
+
+      // TASK-051：轮次正常收尾（turnFinishCode 存在时代表被中止/超时后收尾）
+      this.emitOps({
+        type: "turn_finish",
+        at: Date.now(),
+        sessionId: session.id,
+        turnId,
+        status: "done",
+        stepCount: currentStep,
+        durationMs: totalDuration,
+        totalTokens: telemetry.exportSummary().tokens.totalTokens,
+        code: turnFinishCode,
+      });
     } catch (err: unknown) {
       const rawMsg = err instanceof Error ? err.message : String(err);
       // TASK-048：看门狗触发的异常统一改为超时口径（卡在模型流/工具执行内部时
@@ -841,9 +937,16 @@ export class AgentLoop {
       const msg = watchdogFired
         ? `本轮执行已超时（看门狗上限 ${turnTimeoutSeconds}s）：${rawMsg}`
         : rawMsg;
+      // TASK-051：终态分类码——看门狗超时 / 已分类模型错误 / 其余执行失败
+      const finishCode: HarnessOpsCode = watchdogFired
+        ? "WATCHDOG_TIMEOUT"
+        : err instanceof ClassifiedModelError
+        ? opsCodeForErrorClass(err.errorClass)
+        : "TURN_EXECUTION_FAILED";
       yield {
         type: "error",
         message: msg,
+        code: finishCode,
       };
 
       try {
@@ -862,9 +965,30 @@ export class AgentLoop {
           completedAt: Date.now(),
         };
         await this.services.sessionRepo.appendTurn(session.id, errorTurn);
-      } catch {
-        // 忽略存储写入二次异常
+      } catch (persistErr: unknown) {
+        // TASK-051：落库二次失败显式告警（不再完全静默）
+        this.emitOps({
+          type: "error",
+          at: Date.now(),
+          sessionId: session.id,
+          turnId,
+          code: "TURN_PERSIST_FAILED",
+          detail: persistErr instanceof Error ? persistErr.message : String(persistErr),
+        });
       }
+
+      this.emitOps({
+        type: "turn_finish",
+        at: Date.now(),
+        sessionId: session.id,
+        turnId,
+        status: "error",
+        stepCount: currentStep,
+        durationMs: Date.now() - startAt,
+        totalTokens: telemetry.exportSummary().tokens.totalTokens,
+        code: finishCode,
+        message: msg,
+      });
     } finally {
       // 看门狗定时器在轮次终态（done/error）后必须清除，避免悬挂计时器
       clearTimeout(watchdogTimer);
