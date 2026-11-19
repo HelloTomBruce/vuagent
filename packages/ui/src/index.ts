@@ -374,6 +374,8 @@ export type { DiffPiece, DiffToken, DiffTokenType } from "./utils/wordDiff";
 export { useNow } from "./composables/useNow";
 export { useCountdown } from "./composables/useCountdown";
 export { useCopyable } from "./composables/useCopyable";
+export { useStickToBottom, BOTTOM_THRESHOLD_PX } from "./composables/useStickToBottom";
+export type { ScrollToBottomOptions, UseStickToBottomOptions } from "./composables/useStickToBottom";
 
 // Agentic Runtime 运行时核心
 // 显式按需导出（不用 export *）：

@@ -1,12 +1,13 @@
 /**
  * useStickToBottom 行为测试（node 环境：stub rAF + 伪造滚动元素）
+ * （自 apps/playground console 版平移进库，TASK-044）
  *
  * 回归目标：流式输出期间用户上翻时，自动滚动不得再把视口拽回底部
  * （此前每个 SSE 数据块都无条件 scrollTop = scrollHeight，与用户滚轮打架导致卡顿）。
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { ref } from "vue";
-import { useStickToBottom, BOTTOM_THRESHOLD_PX } from "../composables/useStickToBottom";
+import { useStickToBottom, BOTTOM_THRESHOLD_PX } from "../src/composables/useStickToBottom";
 
 /** 伪造滚动容器（jsdom 之外的 node 环境下直接以对象字面量模拟几何量） */
 function fakeScrollEl() {

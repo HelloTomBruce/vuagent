@@ -108,7 +108,7 @@
     {
       "name": "session-tree",
       "title": "Session List",
-      "description": "会话侧栏：工作区为平铺分组标题（无树形折叠）、会话一列排开，支持行内重命名/归档恢复/删除二次确认。",
+      "description": "会话侧栏：工作区为平铺分组标题（无树形折叠）、会话一列排开，支持行内重命名/归档恢复/删除二次确认（confirmMode 可交由宿主模态确认）；footer 插槽承载底部操作区。",
       "type": "registry:ui"
     },
     {

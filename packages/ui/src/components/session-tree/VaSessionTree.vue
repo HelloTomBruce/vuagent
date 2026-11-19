@@ -9,6 +9,7 @@ const props = withDefaults(defineProps<SessionTreeProps>(), {
   newSession: false,
   searchable: false,
   collapsible: false,
+  confirmMode: "inline",
   hoverOps: false,
 });
 
@@ -82,10 +83,15 @@ function cancelRename() {
   editingId.value = null;
 }
 
-/* 删除二次确认（3s 内再次点击才生效）：会话与工作区分开记，避免 id 撞车 */
+/* 删除二次确认（3s 内再次点击才生效）：会话与工作区分开记，避免 id 撞车。
+   confirmMode="none"（宿主自行路由到 vaConfirm 等模态确认）时跳过行内确认直接发事件 */
 const confirmId = ref<string | null>(null);
 let confirmTimer: number | undefined;
 function armConfirm(current: string | null, set: (v: string | null) => void, id: string, fire: () => void) {
+  if (props.confirmMode === "none") {
+    fire();
+    return;
+  }
   if (current === id) {
     fire();
     set(null);
@@ -343,6 +349,11 @@ function onCreate(wId: string) {
         </div>
       </div>
     </div>
+
+    <!-- 树底部操作区（宿主注入，如设置入口）；flex:1 吃掉剩余高度使 footer 恒沉底 -->
+    <footer v-if="$slots.footer" class="va-stree__footer">
+      <slot name="footer" />
+    </footer>
   </div>
 </template>
 

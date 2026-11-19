@@ -30,6 +30,7 @@
   cursor: pointer;
   color: var(--va-ink-2);
   user-select: none;
+  transition: background var(--va-dur-1) var(--va-ease);
 }
 
 .va-ftree__row:hover { background: var(--va-bg-subtle); }
@@ -43,11 +44,16 @@
 
 .va-ftree__caret {
   width: 12px;
-  color: var(--va-muted);
-  font-size: 10px;
-  text-align: center;
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--va-muted);
+  /* 收起态旋转 -90°（指向右），展开态归位（指向下）；随行 hover 提亮 */
+  transition: transform var(--va-dur-1) var(--va-ease), color var(--va-dur-1) var(--va-ease);
 }
+.va-ftree__caret:not([data-open]) { transform: rotate(-90deg); }
+.va-ftree__row:hover .va-ftree__caret { color: var(--va-ink-2); }
 
 .va-ftree__dot {
   width: 12px;

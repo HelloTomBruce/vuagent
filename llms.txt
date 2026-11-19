@@ -38,7 +38,7 @@
 - [Composer](https://hellotombruce.github.io/vuagent/components/composer): 任务输入框：自动增高、Enter 发送（Shift+Enter 换行、中文输入法安全）、可插入模型选择等前缀。（VaComposer）
 - [Model Picker](https://hellotombruce.github.io/vuagent/components/model-picker): 模型选择菜单：触发按钮 + 键盘可导航的下拉列表。（VaModelPicker）
 - [Session Manager](https://hellotombruce.github.io/vuagent/components/session-manager): 会话管理下拉：活跃/归档分组、新建、行内重命名、归档恢复与二次确认删除。（VaSessionManager）
-- [Session List](https://hellotombruce.github.io/vuagent/components/session-tree): 会话侧栏：工作区为平铺分组标题（无树形折叠）、会话一列排开，支持行内重命名/归档恢复/删除二次确认。（VaSessionTree）
+- [Session List](https://hellotombruce.github.io/vuagent/components/session-tree): 会话侧栏：工作区为平铺分组标题（无树形折叠）、会话一列排开，支持行内重命名/归档恢复/删除二次确认（confirmMode 可交由宿主模态确认）；footer 插槽承载底部操作区。（VaSessionTree）
 - [Stream Answer](https://hellotombruce.github.io/vuagent/components/stream-answer): 流式回答：按节奏逐字吐出 source，带流式光标，完成后 emit complete，支持重放。（VaStreamAnswer）
 - [Message Actions / Text](https://hellotombruce.github.io/vuagent/components/message-actions): AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输入）、版本切换；MessageText 提供版本交叉淡入。（VaMessageActions / VaMessageText）
 - [Comment Thread](https://hellotombruce.github.io/vuagent/components/comment-thread): 评论线程：agent 起草待审条目（采纳/重写/丢弃操作条）、人发评论、首字母头像、⌘/Ctrl+Enter 发布。（VaCommentThread）

@@ -99,26 +99,18 @@
 
 .va-stree__search-empty { padding: 10px 8px; text-align: center; }
 
-/* 工作区分组：白卡容器（侧栏灰底上的白色卡片），层级 = 卡片 ⊃ 标题行 ⊃ 会话行 */
+/* 工作区分组：平铺分组标题（非卡片）—— 标题行 + 会话行直接排在侧栏底色上，
+   当前工作区仅以文字强调（图标/名称/计数变 accent 色），不画容器 */
 .va-stree__group {
-  margin-top: 8px;
-  background: var(--va-card, #fff);
-  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
-  border-radius: 10px;
-  padding: 3px 3px 4px;
-  box-shadow: var(--va-shadow-1, 0 1px 2px rgba(26, 25, 23, 0.05));
+  margin-top: 10px;
 }
-.va-stree__group[data-current="true"] {
-  border-color: color-mix(in srgb, var(--va-accent, #c2410c) 38%, transparent);
-}
+.va-stree__group:first-child { margin-top: 2px; }
 
 .va-stree__head {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 2px 2px 0;
-  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
-  margin-bottom: 3px;
+  padding: 2px 2px 1px;
 }
 
 .va-stree__ws {
@@ -177,6 +169,13 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
+}
+
+/* 分组内的会话列表缩进一级，建立「工作区 ⊃ 会话」层次；
+   归档分区（.va-stree__archived 下的 list）不缩进 */
+.va-stree__group .va-stree__list,
+.va-stree__group .va-stree__empty {
+  padding-left: 16px;
 }
 
 .va-stree__session {
@@ -308,3 +307,18 @@
 .va-stree[data-hover-ops="true"] .va-stree__session:hover .va-stree__op,
 .va-stree[data-hover-ops="true"] .va-stree__session:focus-within .va-stree__op,
 .va-stree[data-hover-ops="true"] .va-stree__op[data-danger] { display: inline-flex; }
+
+/* 树底部操作区（footer 插槽，如设置入口）：margin-top:auto 沉底；
+   宿主把 .va-stree 设为滚动容器时 sticky 保证长列表下 footer 恒可见 */
+.va-stree__footer {
+  margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  background: var(--va-card, #ffffff);
+}

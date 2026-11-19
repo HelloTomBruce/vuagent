@@ -45,6 +45,12 @@ export interface SessionTreeProps {
   collapsible?: boolean;
   /** 行操作按钮 hover/focus 时才显示（确认态除外）；默认 false 常驻 */
   hoverOps?: boolean;
+  /**
+   * 删除确认模式（会话/工作区删除）：
+   * - "inline"（默认）：行内二次确认（3s 内再次点击，「确认?」文案）
+   * - "none"：直接发 remove / removeWorkspace 事件，由宿主路由到 vaConfirm 等模态确认
+   */
+  confirmMode?: "inline" | "none";
 }
 
 export interface SessionTreeEvents {

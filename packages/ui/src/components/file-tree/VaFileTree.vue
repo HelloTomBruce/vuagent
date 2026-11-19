@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, ref } from "vue";
+import { ChevronDown } from "lucide-vue-next";
 import type { FileNode, FileTreeEvents, FileTreeProps } from "./types";
 import { FILE_STATUS_LABEL } from "./types";
 import { countStatus } from "./tree";
@@ -125,7 +126,9 @@ function moveFocusTo(path: string) {
         @click="activate(row)"
         @keydown="onKeydown($event, row)"
       >
-        <span v-if="row.isDir" class="va-ftree__caret" aria-hidden="true">{{ row.expanded ? "▾" : "▸" }}</span>
+        <span v-if="row.isDir" class="va-ftree__caret" aria-hidden="true" :data-open="row.expanded || undefined">
+          <ChevronDown :size="12" />
+        </span>
         <span v-else class="va-ftree__dot" aria-hidden="true" />
         <span class="va-ftree__name">{{ row.node.path.split("/").pop() }}</span>
         <span class="va-ftree__spacer" />

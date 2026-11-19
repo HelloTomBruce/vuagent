@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch, useTemplateRef } from "vue";
+import { nextTick, onMounted, watch, useTemplateRef } from "vue";
+import { useStickToBottom } from "../../composables/useStickToBottom";
 import type { AgentChatEvents, AgentChatProps } from "./types";
 
 const props = defineProps<AgentChatProps>();
@@ -8,28 +9,22 @@ const emit = defineEmits<AgentChatEvents>();
 
 const scrollEl = useTemplateRef<HTMLElement>("scroll");
 
-const stick = ref(true);
-function onScroll() {
-  const el = scrollEl.value;
-  if (!el) return;
-  stick.value = el.scrollTop + el.clientHeight >= el.scrollHeight - 40;
-}
+/** 贴底跟随（库共享 composable）：上翻超阈值解除跟随，流式不再拽底 */
+const { isPinned: stick, onScroll, scrollToBottom } = useStickToBottom(scrollEl, { threshold: 40 });
 
 watch(
   () => [props.messages.length, props.thinking],
   () => {
     if (!stick.value) return;
     nextTick(() => {
-      const el = scrollEl.value;
-      if (el) el.scrollTop = el.scrollHeight;
+      scrollToBottom();
       emit("scrollToBottom");
     });
   },
 );
 
 onMounted(() => {
-  const el = scrollEl.value;
-  if (el) el.scrollTop = el.scrollHeight;
+  scrollToBottom({ force: true });
 });
 
 const initials = (m: { role: string }) => (m.role === "user" ? "你" : "A");

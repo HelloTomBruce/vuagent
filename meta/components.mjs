@@ -180,12 +180,14 @@ export const components = [
   },
   {
     dir: "session-tree", slug: "session-tree", title: "Session List", category: "Chat", components: ["VaSessionTree"],
-    desc: "会话侧栏：工作区为平铺分组标题（无树形折叠）、会话一列排开，支持行内重命名/归档恢复/删除二次确认。",
+    desc: "会话侧栏：工作区为平铺分组标题（无树形折叠）、会话一列排开，支持行内重命名/归档恢复/删除二次确认（confirmMode 可交由宿主模态确认）；footer 插槽承载底部操作区。",
     props: [
       { name: "workspaces", type: "TreeWorkspace[]", default: "-", desc: "工作区分组标题（平铺）" },
       { name: "sessions", type: "TreeSession[]", default: "-", desc: "非归档会话（按 workspaceId 归组）" },
       { name: "archived", type: "TreeSession[]", default: "-", desc: "归档会话（底部折叠分区）" },
       { name: "newSession / searchable", type: "boolean", default: "false", desc: "常驻新建会话钮（目标=当前工作区）/ 会话搜索框" },
+      { name: "confirmMode", type: `"inline" | "none"`, default: `"inline"`, desc: "删除确认：行内二次确认 / 直接发 remove·removeWorkspace 事件由宿主路由到 vaConfirm 等模态确认" },
+      { name: "#footer", type: "-", default: "-", desc: "树底部操作区插槽（margin-top:auto 沉底，如设置入口）" },
       { name: "running / waitingApproval / pinned", type: "TreeSession 字段", default: "-", desc: "行内状态点（脉冲/红点+徽标）与置顶图钉" },
       { name: "@selectSession/@createSession/@togglePin/@removeWorkspace/@rename/@archive/@remove", type: "-", default: "-", desc: "操作回调" },
     ],
