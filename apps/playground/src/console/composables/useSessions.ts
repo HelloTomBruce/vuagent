@@ -277,6 +277,19 @@ export function useSessions(options: SessionsOptions) {
     }
   }
 
+  /** 置顶/取消置顶（VaSessionTree togglePin 事件）：落库 + 本地同步，列表排序由侧栏负责 */
+  async function togglePinSession(id: string) {
+    const current = sessions.value.find((s) => s.id === id);
+    if (!current) return;
+    const pinned = !current.pinned;
+    try {
+      await patchSession(id, { pinned });
+      current.pinned = pinned;
+    } catch (e) {
+      console.error("置顶操作失败:", e);
+    }
+  }
+
   /** 重命名会话（VaSessionTree rename 事件：组件内编辑，提交即落库） */
   async function renameSession(id: string, title: string) {
     const newTitle = title.trim();
@@ -327,6 +340,7 @@ export function useSessions(options: SessionsOptions) {
     selectSession,
     renameSession,
     toggleArchiveSession,
+    togglePinSession,
     askDeleteSession,
     deleteSession,
   };

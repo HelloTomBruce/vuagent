@@ -201,6 +201,7 @@ const {
   selectSession,
   renameSession,
   toggleArchiveSession,
+  togglePinSession,
   askDeleteSession,
 } = sessionsApi;
 
@@ -485,6 +486,7 @@ function quickFillPrompt(text: string) {
       @delete-workspace="askDeleteWorkspace"
       @rename-session="renameSession"
       @toggle-archive="toggleArchiveSession"
+      @toggle-pin="togglePinSession"
       @delete-session="askDeleteSession"
       @open-settings="openSettings"
     />

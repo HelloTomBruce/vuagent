@@ -123,6 +123,8 @@ export interface SessionEntity {
   activeModelProfileId?: string;
   /** 本会话生效的权限模式（review | auto | readonly），随会话持久化 */
   permission?: string;
+  /** 已置顶（前端会话列表排序用，随会话持久化） */
+  pinned?: boolean;
   systemContext?: string;
   turns: TurnEntity[];
   /** 最近一次手动压缩记录（TASK-008），历史重建时据此折叠轮次并注入摘要 */

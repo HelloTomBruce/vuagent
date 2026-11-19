@@ -26,13 +26,16 @@ const emit = defineEmits<{
   (e: "delete-workspace", id: string): void;
   (e: "rename-session", id: string, title: string): void;
   (e: "toggle-archive", id: string, archived: boolean): void;
+  (e: "toggle-pin", id: string): void;
   (e: "delete-session", id: string): void;
   (e: "open-settings"): void;
 }>();
 
-const activeSessions = computed(() =>
-  props.sessions.filter((s) => !s.archived && s.status !== "archived"),
-);
+const activeSessions = computed(() => {
+  const list = props.sessions.filter((s) => !s.archived && s.status !== "archived");
+  // 置顶会话浮到最前；稳定排序保证未置顶会话保持原有相对顺序（组件内分组不重排）
+  return [...list].sort((a, b) => Number(b.pinned ?? false) - Number(a.pinned ?? false));
+});
 const archivedSessions = computed(() =>
   props.sessions.filter((s) => s.archived || s.status === "archived"),
 );
@@ -47,6 +50,7 @@ const treeSessions = computed(() =>
     archived: false,
     workspaceId: s.workspaceId,
     running: props.sessionRunningMap.get(s.id) || s.isRunning,
+    pinned: s.pinned,
   })),
 );
 const treeArchived = computed(() =>
@@ -57,6 +61,7 @@ const treeArchived = computed(() =>
     updatedAt: s.updatedAt,
     archived: true,
     workspaceId: s.workspaceId,
+    pinned: s.pinned,
   })),
 );
 /** rootPath 作为分组描述（树的 title 悬停可见） */
@@ -90,6 +95,7 @@ function sessionById(id: string) {
       @remove-workspace="(id: string) => emit('delete-workspace', id)"
       @rename="(id: string, title: string) => emit('rename-session', id, title)"
       @archive="(id: string, archived: boolean) => emit('toggle-archive', id, archived)"
+      @toggle-pin="(id: string) => emit('toggle-pin', id)"
       @remove="(id: string) => emit('delete-session', id)"
     >
       <template #footer>

@@ -27,6 +27,8 @@ export interface SessionItem {
   activeModelProfileId?: string;
   /** 本会话绑定的权限模式（review | auto | readonly），随会话持久化 */
   permission?: string;
+  /** 已置顶（列表排序由前端负责：置顶会话浮到分组最前） */
+  pinned?: boolean;
   isRunning?: boolean;
   turns?: any[];
 }
