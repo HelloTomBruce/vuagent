@@ -55,18 +55,21 @@ const TrajStreamEventSchema = Type.Object({
 
 export const ThoughtDeltaEventSchema = Type.Object({
   type: Type.Literal("thought_delta"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
   messageId: Type.Optional(Type.String()),
   delta: Type.String(),
 });
 
 export const TextDeltaEventSchema = Type.Object({
   type: Type.Literal("text_delta"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
   messageId: Type.String(),
   delta: Type.String(),
 });
 
 export const UiAgentPlanEventSchema = Type.Object({
   type: Type.Literal("ui_agent_plan"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
   title: Type.String(),
   steps: Type.Array(
     Type.Object({
@@ -81,6 +84,7 @@ export const UiAgentPlanEventSchema = Type.Object({
 
 export const UiCodeDiffEventSchema = Type.Object({
   type: Type.Literal("ui_code_diff"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
   file: Type.String(),
   oldCode: Type.String(),
   newCode: Type.String(),
@@ -90,6 +94,7 @@ export const UiCodeDiffEventSchema = Type.Object({
 
 export const UiTerminalLogEventSchema = Type.Object({
   type: Type.Literal("ui_terminal_log"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
   title: Type.Optional(Type.String()),
   lines: Type.Array(
     Type.Object({
@@ -109,6 +114,7 @@ export const UiTerminalLogEventSchema = Type.Object({
 
 export const UiMetricChartEventSchema = Type.Object({
   type: Type.Literal("ui_metric_chart"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
   title: Type.Optional(Type.String()),
   points: Type.Array(
     Type.Object({
@@ -120,6 +126,7 @@ export const UiMetricChartEventSchema = Type.Object({
 
 export const ToolCallStartEventSchema = Type.Object({
   type: Type.Literal("tool_call_start"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
   messageId: Type.String(),
   toolCallId: Type.String(),
   toolName: Type.String(),
@@ -127,12 +134,14 @@ export const ToolCallStartEventSchema = Type.Object({
 
 export const ToolCallArgsDeltaEventSchema = Type.Object({
   type: Type.Literal("tool_call_args_delta"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
   toolCallId: Type.String(),
   partialArgs: Type.Record(Type.String(), Type.Unknown()),
 });
 
 export const ToolCallExecutingEventSchema = Type.Object({
   type: Type.Literal("tool_call_executing"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
   toolCallId: Type.String(),
   toolName: Type.String(),
   args: Type.Record(Type.String(), Type.Unknown()),
@@ -140,6 +149,7 @@ export const ToolCallExecutingEventSchema = Type.Object({
 
 export const ToolCallResultEventSchema = Type.Object({
   type: Type.Literal("tool_call_result"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
   toolCallId: Type.String(),
   toolName: Type.String(),
   status: Type.Union([Type.Literal("done"), Type.Literal("error")]),
@@ -149,6 +159,7 @@ export const ToolCallResultEventSchema = Type.Object({
 
 export const UsageEventSchema = Type.Object({
   type: Type.Literal("usage"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
   /** 本步发送的全部上下文（含重发历史）——窗口占用口径，非跨步累加的计费口径 */
   promptTokens: Type.Number(),
   /** 本步模型输出 token */
@@ -163,6 +174,7 @@ export const UsageEventSchema = Type.Object({
 
 export const SuspendedEventSchema = Type.Object({
   type: Type.Literal("suspended"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
   actionId: Type.String(),
   toolName: Type.String(),
   args: Type.Record(Type.String(), Type.Unknown()),
@@ -171,24 +183,49 @@ export const SuspendedEventSchema = Type.Object({
 
 export const TrajStreamEnvelopeSchema = Type.Object({
   type: Type.Literal("traj"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
   /** 单条轨迹事件（对齐 dsh 三泳道台账），实时追加到当前 assistant turn */
   event: TrajStreamEventSchema,
 });
 
 export const ResumedEventSchema = Type.Object({
   type: Type.Literal("resumed"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
   actionId: Type.String(),
   payload: Type.Unknown(),
 });
 
 export const TurnEndEventSchema = Type.Object({
   type: Type.Literal("turn_end"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
   stepCount: Type.Number(),
   durationMs: Type.Number(),
 });
 
+/** TASK-054：轮次开始控制事件（先于首个数据事件，前端据此进入 loading 态） */
+export const TurnStartEventSchema = Type.Object({
+  type: Type.Literal("turn_start"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
+  turnId: Type.String(),
+  startedAt: Type.Number(),
+});
+
+/** TASK-054：中止控制事件（取代假 text_delta 斜体文案；reason 对齐看门狗/顶替/恢复标记） */
+export const AbortedEventSchema = Type.Object({
+  type: Type.Literal("aborted"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
+  turnId: Type.Optional(Type.String()),
+  reason: Type.Union([
+    Type.Literal("user"),
+    Type.Literal("timeout"),
+    Type.Literal("preempt"),
+    Type.Literal("process_restart"),
+  ]),
+});
+
 export const ErrorEventSchema = Type.Object({
   type: Type.Literal("error"),
+  seq: Type.Optional(Type.Number({ description: "hub 广播序号（1 起），增量重连去重用（TASK-054）" })),
   message: Type.String(),
   code: Type.Optional(Type.String()),
 });
@@ -214,6 +251,8 @@ export const HarnessStreamEventSchemas = {
   traj: TrajStreamEnvelopeSchema,
   resumed: ResumedEventSchema,
   turn_end: TurnEndEventSchema,
+  turn_start: TurnStartEventSchema,
+  aborted: AbortedEventSchema,
   error: ErrorEventSchema,
 } as const;
 
@@ -235,6 +274,8 @@ export const HarnessStreamEventSchema = Type.Union([
   TrajStreamEnvelopeSchema,
   ResumedEventSchema,
   TurnEndEventSchema,
+  TurnStartEventSchema,
+  AbortedEventSchema,
   ErrorEventSchema,
 ]);
 

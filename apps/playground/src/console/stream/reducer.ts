@@ -143,7 +143,23 @@ export function applyStreamEvent(
   ctx: StreamEventContext,
   sink: ReducerSink
 ): void {
+  // TASK-054：seq 广播序号记录（增量重连去重备用）
+  if ("seq" in event && typeof (event as { seq?: unknown }).seq === "number") {
+    turn.lastSeq = (event as { seq: number }).seq;
+  }
+
   switch (event.type) {
+    case "turn_start":
+      // 控制事件：轮次开始（turn 已由调用方创建且 isStreaming=true，此处仅作时序锚点）
+      turn.isStreaming = true;
+      break;
+
+    case "aborted":
+      // 控制事件：中止徽标呈现（取代旧版假 text_delta 斜体正文注入）
+      turn.abortedReason = event.reason;
+      turn.isStreaming = false;
+      break;
+
     case "text_delta":
       turn.content += event.delta || "";
       appendTextBlock(turn, event.delta || "");

@@ -48,6 +48,8 @@ const HAPPY_SAMPLES: Record<string, HarnessStreamEvent> = {
   },
   resumed: { type: "resumed", actionId: "a1", payload: { approved: true } },
   turn_end: { type: "turn_end", stepCount: 2, durationMs: 1500 },
+  turn_start: { type: "turn_start", turnId: "turn-1", startedAt: 1 },
+  aborted: { type: "aborted", turnId: "turn-1", reason: "user" },
   error: { type: "error", message: "boom", code: "MODEL_RATE_LIMIT" },
 };
 
@@ -68,6 +70,8 @@ const EXPECTED_EVENT_TYPES = [
   "traj",
   "resumed",
   "turn_end",
+  "turn_start",
+  "aborted",
   "error",
 ] as const;
 
@@ -99,6 +103,8 @@ describe("HarnessStreamEventSchema（TASK-053 契约运行时化）", () => {
       { type: "error" }, // message 缺失
       { type: "traj", event: { id: "e", at: 1, lane: "oops", role: "tool", title: "t", turn: 1 } }, // lane 越界
       { type: "resumed" }, // actionId/payload 缺失
+      { type: "turn_start" }, // turnId/startedAt 缺失
+      { type: "aborted", reason: "mystery" }, // reason 越界
     ];
     for (const bad of invalids) {
       expect(validateHarnessStreamEvent(bad)).toBe(false);

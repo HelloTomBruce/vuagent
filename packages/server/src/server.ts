@@ -494,6 +494,8 @@ export function createHarnessServer(options: ServerOptions = {}) {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
+        // TASK-054：协议版本头（增量重连/跨端协商的锚点）
+        "x-vuagent-protocol-version": "1",
       },
     });
   });
@@ -549,6 +551,7 @@ export function createHarnessServer(options: ServerOptions = {}) {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
+        "x-vuagent-protocol-version": "1",
       },
     });
   });

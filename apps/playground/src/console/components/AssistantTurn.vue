@@ -21,6 +21,22 @@ import type { ActionCard, MessageTurn, TurnBlock } from "../types";
 
 const props = defineProps<{ turn: MessageTurn }>();
 
+/** TASK-054：中止成因的可读标签 */
+const abortReasonLabel = computed(() => {
+  switch (props.turn.abortedReason) {
+    case "user":
+      return "手动停止";
+    case "timeout":
+      return "看门狗超时";
+    case "preempt":
+      return "被新请求顶替";
+    case "process_restart":
+      return "服务重启中断";
+    default:
+      return "";
+  }
+});
+
 /** 块级渲染缓存：流式期间只有尾块在增长，稳定块零重解析、零 DOM 写入 */
 const renderBlockHtml = createCachedBlockRenderer();
 
@@ -171,6 +187,14 @@ const displayBlocks = computed<TurnBlock[]>(() => {
       <div v-if="turn.isStreaming" class="va-console__streaming-indicator">
         <span class="va-console__cursor-dot" />
         <span>Agent 正在分析中…</span>
+      </div>
+      <!-- TASK-054：中止控制事件徽标（aborted 事件驱动，不再注入假正文） -->
+      <div
+        v-if="turn.abortedReason"
+        class="va-console__abort-badge"
+        :title="`中止成因：${abortReasonLabel}`"
+      >
+        ⏹ 任务已中止<template v-if="abortReasonLabel">（{{ abortReasonLabel }}）</template>
       </div>
     </div>
   </div>

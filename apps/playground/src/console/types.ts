@@ -84,6 +84,10 @@ export interface MessageTurn {
   /** 输出时序块（live 由 reducer 增量构建；历史按 contentOffset 重建）。缺省时视图回退 content+cards 两段式 */
   blocks?: TurnBlock[];
   checkpointId?: string;
+  /** TASK-054：中止控制事件（aborted）到达时记录成因，视图渲染中止徽标而非假正文 */
+  abortedReason?: string;
+  /** TASK-054：最近一次事件的广播序号（seq 寻址，增量重连去重备用） */
+  lastSeq?: number;
   /** 三泳道轨迹事件（对齐 dsh：运行中实时追加，历史由 turn.telemetry.events 恢复） */
   trajEvents?: TrajEvent[];
   timestamp: number;

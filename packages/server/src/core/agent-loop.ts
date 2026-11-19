@@ -367,6 +367,10 @@ export class AgentLoop {
         : "Agent execution was aborted by client";
 
     try {
+      // TASK-050/049：轮次开始即落 running 行（中途崩溃留痕）已在上方完成；
+      // TASK-054：控制事件 turn_start 先于首个数据事件（前端据此进入 loading 态）
+      yield { type: "turn_start", turnId, startedAt: startAt };
+
       // 4. 进入 ReAct 核心回环
       while (currentStep < maxSteps) {
         if (runSignal.aborted) {
@@ -380,6 +384,12 @@ export class AgentLoop {
             reason: watchdogFired ? "watchdog" : "user",
             code: abortOpsCode,
           });
+          // TASK-054：aborted 控制事件取代旧假 text_delta 文案
+          yield {
+            type: "aborted",
+            turnId,
+            reason: watchdogFired ? "timeout" : "user",
+          };
           yield { type: "error", message: abortMessage(), code: abortOpsCode };
           turnFinishCode = abortOpsCode;
           break;
@@ -959,6 +969,14 @@ export class AgentLoop {
         code: turnFinishCode,
       });
     } catch (err: unknown) {
+      // TASK-054：信号中止在流内部以异常冒出时，先补 aborted 控制事件（区分成因）
+      if (runSignal.aborted) {
+        yield {
+          type: "aborted",
+          turnId,
+          reason: watchdogFired ? "timeout" : "user",
+        };
+      }
       const rawMsg = err instanceof Error ? err.message : String(err);
       // TASK-048：看门狗触发的异常统一改为超时口径（卡在模型流/工具执行内部时
       // 异常从深处冒出，loop-top 检查来不及拦），成因区分不丢

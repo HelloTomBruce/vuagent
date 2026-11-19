@@ -88,7 +88,7 @@ describe("流事件契约回归（server emit → protocol schema）", () => {
 
     // 覆盖面自检：本轮应至少产出 text/traj/tool_call_*/suspended/resumed/turn_end
     const types = new Set(events.map((e) => e.type));
-    for (const expected of ["text_delta", "traj", "tool_call_start", "tool_call_executing", "tool_call_result", "suspended", "resumed", "turn_end"]) {
+    for (const expected of ["turn_start", "text_delta", "traj", "tool_call_start", "tool_call_executing", "tool_call_result", "suspended", "resumed", "turn_end"]) {
       expect(types.has(expected as never), `缺少事件类型 ${expected}`).toBe(true);
     }
 

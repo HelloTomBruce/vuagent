@@ -17,6 +17,8 @@ export interface ActiveExecution {
   drainPromise?: Promise<void>;
   /** drainPromise 的 resolve 句柄（spawnRun 内部注入，抽干完成时调用） */
   drainResolve?: () => void;
+  /** TASK-054：广播序号计数器（seq 从 1 递增，增量重连去重寻址） */
+  seqCounter: number;
 }
 
 /** 中止成因：user=用户显式停止 / new_task=同会话新请求顶替（TASK-050） */
@@ -153,6 +155,7 @@ export class SessionExecutionHub {
       isDone: false,
       drainResolve,
       drainPromise,
+      seqCounter: 0,
     };
     this.activeRuns.set(req.sessionId, run);
 
@@ -163,10 +166,12 @@ export class SessionExecutionHub {
         // 注意：这里不能因 abortSignal 而 break——必须持续抽干事件流，
         // 让 AgentLoop 的中止分支走完 turn_end 并 appendTurn 落库
         for await (const event of eventStream) {
-          run.events.push(event);
+          // TASK-054：广播时注入递增 seq（事件寻址，增量重连去重用）
+          const sequenced = Object.assign({}, event, { seq: ++run.seqCounter });
+          run.events.push(sequenced);
           for (const sub of run.subscribers) {
             try {
-              sub(event);
+              sub(sequenced);
             } catch {
               // 忽略单个断开的订阅者
             }
@@ -174,10 +179,10 @@ export class SessionExecutionHub {
         }
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : String(err);
-        const errEvent: HarnessStreamEvent = {
-          type: "error",
-          message: errorMsg,
-        };
+        const errEvent: HarnessStreamEvent & { seq?: number } = Object.assign(
+          { type: "error" as const, message: errorMsg },
+          { seq: ++run.seqCounter }
+        );
         run.events.push(errEvent);
         for (const sub of run.subscribers) {
           try {
@@ -283,15 +288,19 @@ export class SessionExecutionHub {
       reason,
       code: reason === "new_task" ? "TURN_PREEMPTED" : "TURN_ABORTED",
     });
-    const note =
-      reason === "new_task" ? "*(任务已被新请求顶替中止)*" : "*(任务已被手动中止)*";
+    // TASK-054：aborted 控制事件广播（取代旧假 text_delta 斜体文案，
+    // 控制语义与数据语义分离；前端 reducer 渲染中止徽标）。
+    // AbortKind(new_task) 映射为协议 reason 枚举的 preempt
+    const abortedEvent: HarnessStreamEvent & { seq?: number } = {
+      type: "aborted",
+      turnId: run.turnId,
+      reason: reason === "new_task" ? "preempt" : "user",
+    };
+    const seq = ++run.seqCounter;
+    run.events.push(Object.assign(abortedEvent, { seq }));
     for (const sub of run.subscribers) {
       try {
-        sub({
-          type: "text_delta",
-          messageId: `msg-${run.turnId}`,
-          delta: `\n\n${note}`,
-        });
+        sub(abortedEvent);
         sub("[DONE]");
       } catch {}
     }

@@ -21,6 +21,44 @@ describe("applyStreamEvent", () => {
     expect(turn.content).toBe("你好");
   });
 
+  // TASK-054 控制消息规范化
+  it("turn_start 控制事件置 isStreaming（loading 锚点）", () => {
+    const turn = makeTurn();
+    turn.isStreaming = false;
+    applyStreamEvent(turn, { type: "turn_start", turnId: "turn-1", startedAt: 1 }, { isActiveSession: true }, makeSink().sink);
+    expect(turn.isStreaming).toBe(true);
+    expect(turn.content).toBe(""); // 控制事件不产正文
+  });
+
+  it("aborted 控制事件记录成因并结束流（不再注入斜体假正文）", () => {
+    const turn = makeTurn();
+    turn.isStreaming = true;
+    turn.content = "部分输出";
+    applyStreamEvent(turn, { type: "aborted", turnId: "turn-1", reason: "user" }, { isActiveSession: true }, makeSink().sink);
+    expect(turn.abortedReason).toBe("user");
+    expect(turn.isStreaming).toBe(false);
+    expect(turn.content).toBe("部分输出"); // 正文未被污染
+  });
+
+  it("aborted 全成因可被记录（timeout/preempt/process_restart）", () => {
+    for (const reason of ["timeout", "preempt", "process_restart"] as const) {
+      const turn = makeTurn();
+      applyStreamEvent(turn, { type: "aborted", reason }, { isActiveSession: true }, makeSink().sink);
+      expect(turn.abortedReason).toBe(reason);
+    }
+  });
+
+  it("seq 广播序号记录到 turn.lastSeq（增量重连寻址备用）", () => {
+    const turn = makeTurn();
+    applyStreamEvent(
+      turn,
+      { type: "text_delta", delta: "a", messageId: "m1", seq: 3 } as never,
+      { isActiveSession: true },
+      makeSink().sink
+    );
+    expect(turn.lastSeq).toBe(3);
+  });
+
   it("thought_delta 追加思考流", () => {
     const turn = makeTurn();
     applyStreamEvent(turn, { type: "thought_delta", delta: "拆解" }, { isActiveSession: true }, makeSink().sink);
