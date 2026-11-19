@@ -10,6 +10,7 @@ import { ActionHub } from "../src/core/action-hub.js";
 import { AgentLoop } from "../src/core/agent-loop.js";
 import { recoverInterruptedTurns } from "../src/core/recovery.js";
 import { MockDriver } from "../src/adapters/mock-driver.js";
+import type { ModelDriverRequest, ModelStreamChunk } from "../src/adapters/model-driver.js";
 import type { HarnessTool } from "../src/core/types.js";
 
 /**
@@ -21,8 +22,7 @@ import type { HarnessTool } from "../src/core/types.js";
 describe("即时落库与崩溃恢复（TASK-049）", () => {
   /** 慢速桩 driver：每步之间让出事件循环，使「运行中读库」窗口可观测 */
   class SlowTwoStepDriver extends MockDriver {
-    override async *generateStream(req: never): AsyncGenerator<{ type: string; text?: string }> {
-      void req;
+    override async *generateStream(_req: ModelDriverRequest): AsyncGenerator<ModelStreamChunk> {
       yield { type: "text_delta", text: "step-one" };
       await new Promise((r) => setTimeout(r, 50));
       yield { type: "text_delta", text: "-done" };

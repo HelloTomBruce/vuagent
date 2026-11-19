@@ -137,23 +137,21 @@ describe("POST /api/chat 同会话并发（路由级，TASK-050）", () => {
       storageDriver: driver,
       modelDriver: new HangingDriver(),
     });
-    const ws = await app.request("/api/workspaces", {
+    const ws = await (await app.request("/api/workspaces", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "ws", rootPath: "/tmp", permission: "read-write" }),
-    }).then((r) => r.json());
+    })).json();
     return { app, workspaceId: ws.id as string };
   }
 
   it("会话运行中第二条 POST → 409 SESSION_RUNNING，不产生新 turn", async () => {
     const { app, workspaceId } = await setupServer();
-    const sess = await app
-      .request("/api/sessions", {
+    const sess = await (await app.request("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workspaceId, title: "s" }),
-      })
-      .then((r) => r.json());
+      })).json();
 
     // 第一条：后台启动（挂起）
     const first = app.request("/api/chat", {
@@ -182,20 +180,18 @@ describe("POST /api/chat 同会话并发（路由级，TASK-050）", () => {
     await sleep(100);
     void first; // 挂起的 SSE 连接由测试进程回收
 
-    const after = await app.request(`/api/sessions/${sess.id}`).then((r) => r.json());
+    const after = await (await app.request(`/api/sessions/${sess.id}`)).json();
     expect(after.turns.length).toBe(1); // 第二条未产生 turn
     expect(after.turns[0].status).toBe("error"); // 第一条被中止落库
   });
 
   it("preempt:true 顶替 → 旧轮中止落库，新轮正常执行", async () => {
     const { app, workspaceId } = await setupServer();
-    const sess = await app
-      .request("/api/sessions", {
+    const sess = await (await app.request("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workspaceId, title: "s" }),
-      })
-      .then((r) => r.json());
+      })).json();
 
     void app.request("/api/chat", {
       method: "POST",
@@ -220,7 +216,7 @@ describe("POST /api/chat 同会话并发（路由级，TASK-050）", () => {
     await second.text(); // [DONE] 到达后流完成
     await sleep(100);
 
-    const after = await app.request(`/api/sessions/${sess.id}`).then((r) => r.json());
+    const after = await (await app.request(`/api/sessions/${sess.id}`)).json();
     expect(after.turns.length).toBe(2);
     expect(after.turns[0].status).toBe("error"); // 旧轮被顶替中止
     expect(after.turns[0].prompt).toBe("旧轮");

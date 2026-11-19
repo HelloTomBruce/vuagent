@@ -12,6 +12,8 @@ export * from "./core/config-resolver.js";
 export * from "./core/agent-loop.js";
 export * from "./core/recovery.js";
 export * from "./core/event-sink.js";
+export * from "./core/pricing-table.js";
+export * from "./storage/repositories/cost-record.repository.js";
 export * from "./adapters/model-driver.js";
 export * from "./adapters/openai-driver.js";
 export * from "./adapters/resilience.js";

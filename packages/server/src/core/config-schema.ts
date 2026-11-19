@@ -116,6 +116,18 @@ export const CONFIG_SCHEMA: ConfigNamespaceSchema[] = [
         min: 30_000,
         max: 3_600_000,
       },
+      {
+        key: "maxConcurrentTurns",
+        title: "全局并发轮次上限",
+        description:
+          "同时处于 running 状态的轮次数上限（TASK-052 并发准入）：0 = 不限；" +
+          "超限时新请求 429 拒绝（运行中改档即时生效）",
+        type: "number",
+        default: 0,
+        min: 0,
+        max: 64,
+        risk: "high",
+      },
     ],
   },
   {
@@ -198,6 +210,42 @@ export const CONFIG_SCHEMA: ConfigNamespaceSchema[] = [
         description: "系统提示中向模型说明当前权限模式的行为边界",
         type: "boolean",
         default: true,
+      },
+    ],
+  },
+  {
+    id: "finops",
+    title: "成本配额",
+    description: "滚动窗口 Token/费用配额准入（TASK-052）；0 = 不限，缺省全关保持向后兼容",
+    fields: [
+      {
+        key: "windowTokenLimit",
+        title: "窗口 Token 上限",
+        description:
+          "滚动窗口内全租户（本地单用户即全局）累计 token 上限，达到后新请求 429 拒绝；0 = 不限",
+        type: "number",
+        default: 0,
+        min: 0,
+        max: 1_000_000_000,
+      },
+      {
+        key: "windowUsdLimit",
+        title: "窗口费用上限（USD）",
+        description:
+          "滚动窗口内累计费用上限（计价表 config/model-pricing.json 命中才记钱）；0 = 不限",
+        type: "number",
+        default: 0,
+        min: 0,
+        max: 100_000,
+      },
+      {
+        key: "windowMs",
+        title: "配额滚动窗口（毫秒）",
+        description: "配额累计的滚动窗口宽度，缺省 24 小时",
+        type: "number",
+        default: 86_400_000,
+        min: 60_000,
+        max: 2_592_000_000,
       },
     ],
   },

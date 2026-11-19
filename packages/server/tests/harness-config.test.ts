@@ -39,8 +39,14 @@ afterEach(() => {
 });
 
 describe("CONFIG_SCHEMA 描述表", () => {
-  it("包含 execution/security/tools/prompt 四个命名空间，字段 key 在命名空间内唯一", () => {
-    expect(CONFIG_SCHEMA.map((ns) => ns.id)).toEqual(["execution", "security", "tools", "prompt"]);
+  it("包含 execution/security/tools/prompt/finops 五个命名空间，字段 key 在命名空间内唯一", () => {
+    expect(CONFIG_SCHEMA.map((ns) => ns.id)).toEqual([
+      "execution",
+      "security",
+      "tools",
+      "prompt",
+      "finops",
+    ]);
     for (const ns of CONFIG_SCHEMA) {
       const keys = ns.fields.map((f) => f.key);
       expect(new Set(keys).size).toBe(keys.length);
@@ -192,7 +198,13 @@ describe("配置中心 HTTP 路由", () => {
         isDefault: boolean;
       }>;
     };
-    expect(body.namespaces.map((ns) => ns.id)).toEqual(["execution", "security", "tools", "prompt"]);
+    expect(body.namespaces.map((ns) => ns.id)).toEqual([
+      "execution",
+      "security",
+      "tools",
+      "prompt",
+      "finops",
+    ]);
 
     const exec = body.namespaces.find((ns) => ns.id === "execution")!;
     expect(exec.values.maxSteps).toBe(15);

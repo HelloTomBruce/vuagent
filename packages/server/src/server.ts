@@ -37,6 +37,8 @@ import {
   type HarnessEventSink,
   type HarnessOpsCode,
 } from "./core/event-sink.js";
+import { ModelPricingTable, computeCostUsd, type ModelPricing } from "./core/pricing-table.js";
+import { CostRecordRepository } from "./storage/repositories/cost-record.repository.js";
 
 export interface ServerOptions {
   storageDriver?: IStorageDriver;
@@ -46,6 +48,9 @@ export interface ServerOptions {
   security?: { authToken?: string; allowByoProvider?: boolean; extraOrigins?: string[] };
   /** 运维事件出口（TASK-051）：缺省 console NDJSON；测试注入内存 sink 断言事件流 */
   eventSink?: HarnessEventSink;
+  /** 计价表来源（TASK-052）：JSON 文件路径或内存表；缺省 `${cwd}/config/model-pricing.json`（缺失=只记量不记钱） */
+  pricingPath?: string;
+  pricingTable?: Record<string, ModelPricing>;
 }
 
 export function createHarnessServer(options: ServerOptions = {}) {
@@ -70,6 +75,10 @@ export function createHarnessServer(options: ServerOptions = {}) {
   // 配置中心（TASK-024）：分层配置的存储与解析门面（无缓存，PATCH 即生效）
   const harnessConfigRepo = new HarnessConfigRepository(driver);
   const configResolver = new ConfigResolver(harnessConfigRepo);
+
+  // TASK-052 成本台账：计价表（缺省 config/model-pricing.json，缺失=只记量不记钱）+ 台账仓储
+  const costRepo = new CostRecordRepository(driver);
+  const pricingTable = new ModelPricingTable(options.pricingTable ?? options.pricingPath);
 
   // 2. 初始化核心组件
   const toolRegistry = new ToolRegistry();
@@ -112,6 +121,14 @@ export function createHarnessServer(options: ServerOptions = {}) {
     compactor,
     configResolver,
     eventSink,
+    // TASK-052 成本记账：turn 收尾按计价表折算 USD 后落账（fail-open）
+    costRecorder: async (entry) => {
+      const pricing = pricingTable.priceFor(entry.model);
+      const costUsd = pricing
+        ? computeCostUsd(pricing, entry.promptTokens, entry.completionTokens)
+        : undefined;
+      await costRepo.record({ ...entry, costUsd });
+    },
   });
 
   const executionHub = new SessionExecutionHub(agentLoop, eventSink);
@@ -344,6 +361,48 @@ export function createHarnessServer(options: ServerOptions = {}) {
       sessionId = newSess.id;
     }
 
+    // TASK-052 并发准入：runningCount 实时计数，超限 429（0=不限；运行中改档即时生效）
+    const execAdmission = await configResolver.resolve("execution");
+    const maxConcurrentTurns = Number(execAdmission?.maxConcurrentTurns) || 0;
+    if (maxConcurrentTurns > 0 && executionHub.runningCount() >= maxConcurrentTurns) {
+      eventSink.emit({
+        type: "warn",
+        at: Date.now(),
+        code: "CONCURRENCY_REJECTED",
+        sessionId,
+        detail: `running=${executionHub.runningCount()} >= max=${maxConcurrentTurns}`,
+      });
+      return c.json(
+        { error: "全局并发轮次已达上限，请等待现有任务完成或调整并发上限设置", code: "CONCURRENCY_REJECTED" },
+        429
+      );
+    }
+
+    // TASK-052 配额准入：滚动窗口 token/费用累计，超限 429（0=不限）
+    const finopsAdmission = await configResolver.resolve("finops");
+    const windowTokenLimit = Number(finopsAdmission?.windowTokenLimit) || 0;
+    const windowUsdLimit = Number(finopsAdmission?.windowUsdLimit) || 0;
+    if (windowTokenLimit > 0 || windowUsdLimit > 0) {
+      const quotaWindowMs = Number(finopsAdmission?.windowMs) || 86_400_000;
+      const usage = await costRepo.sumWindow(quotaWindowMs);
+      if (
+        (windowTokenLimit > 0 && usage.tokens >= windowTokenLimit) ||
+        (windowUsdLimit > 0 && usage.costUsd >= windowUsdLimit)
+      ) {
+        eventSink.emit({
+          type: "warn",
+          at: Date.now(),
+          code: "QUOTA_EXCEEDED",
+          sessionId,
+          detail: `windowMs=${quotaWindowMs} tokens=${usage.tokens}/${windowTokenLimit} costUsd=${usage.costUsd}/${windowUsdLimit}`,
+        });
+        return c.json(
+          { error: "配额已用尽（滚动窗口内累计达到上限），请稍后重试或调整成本配额设置", code: "QUOTA_EXCEEDED" },
+          429
+        );
+      }
+    }
+
     // TASK-050 并发语义：先做原子开轮声明——会话运行中默认 409 拒绝
     // （错误文案引导停止后重发）；body.preempt:true 顶替语义 = 中止旧轮
     // （new_task 成因）→ 等待抽干落库（上限 10s）→ 开新轮；超时仍 409。
@@ -542,6 +601,17 @@ export function createHarnessServer(options: ServerOptions = {}) {
   // 查询当前挂起的动作列表
   app.get("/api/action/suspended", (c) => {
     return c.json(actionHub.listSuspended());
+  });
+
+  // TASK-052 成本台账查询出口：滚动窗口累计与按模型聚合（前端仪表可选接入）
+  app.get("/api/finops/summary", async (c) => {
+    const raw = Number(c.req.query("windowMs"));
+    const windowMs = Number.isFinite(raw) && raw > 0 ? raw : 86_400_000;
+    const [usage, byModel] = await Promise.all([
+      costRepo.sumWindow(windowMs),
+      costRepo.sumWindowByModel(windowMs),
+    ]);
+    return c.json({ windowMs, ...usage, byModel });
   });
 
   // 工作区接口

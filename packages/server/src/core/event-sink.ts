@@ -30,6 +30,9 @@ export type HarnessOpsCode =
   | "TURN_PERSIST_FAILED"
   // 准入与恢复
   | "SESSION_RUNNING_REJECTED"
+  | "CONCURRENCY_REJECTED"
+  | "QUOTA_EXCEEDED"
+  | "COST_RECORD_FAILED"
   | "RECOVERED_TURNS";
 
 /** ProviderErrorClass → MODEL_* 分类码映射 */

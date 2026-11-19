@@ -10,13 +10,13 @@ import { ToolRegistry } from "../src/core/tool-registry.js";
 import { ActionHub } from "../src/core/action-hub.js";
 import { AgentLoop } from "../src/core/agent-loop.js";
 import { OpenAICompatibleDriver } from "../src/adapters/openai-driver.js";
-import { recoverInterruptedTurns } from "../src/core/recovery.js";
 import {
   compositeSink,
   type HarnessEventSink,
   type HarnessOpsEvent,
 } from "../src/core/event-sink.js";
 import { MockDriver } from "../src/adapters/mock-driver.js";
+import type { ModelDriverRequest, ModelStreamChunk } from "../src/adapters/model-driver.js";
 import type { HarnessTool } from "../src/core/types.js";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -235,7 +235,7 @@ describe("OpenAICompatibleDriver onRetry → model_retry 事件（fake fetch 驱
 describe("路由级事件（TASK-051）", () => {
   /** 挂起至 abort 的 MockDriver */
   class HangingDriver extends MockDriver {
-    override async *generateStream(req: { abortSignal?: AbortSignal }): AsyncGenerator<{ type: string; text?: string }> {
+    override async *generateStream(req: ModelDriverRequest): AsyncGenerator<ModelStreamChunk> {
       yield { type: "text_delta", text: "hanging" };
       await new Promise<void>((resolve) => {
         const timer = setTimeout(resolve, 120_000);
@@ -252,12 +252,6 @@ describe("路由级事件（TASK-051）", () => {
   it("409 拒绝产生 SESSION_RUNNING_REJECTED warn 事件；恢复扫描产生 RECOVERED_TURNS", async () => {
     const sink = memorySink();
     const storage = new MemoryStorageDriver();
-    const { app } = createHarnessServer({
-      storageDriver: storage,
-      modelDriver: new HangingDriver(),
-      eventSink: sink,
-    });
-
     // 预置一个遗留 running 轮次 → 启动恢复扫描应产生 RECOVERED_TURNS
     const wsRepo = new WorkspaceRepository(storage);
     const sessionRepo = new SessionRepository(storage);
@@ -273,7 +267,7 @@ describe("路由级事件（TASK-051）", () => {
       createdAt: 1,
     });
 
-    // 新 server 实例的恢复扫描针对同一 storage——重建以触发扫描
+    // 恢复扫描随 createHarnessServer 触发：预置 running 行后创建实例即扫描
     const { app: app2 } = createHarnessServer({
       storageDriver: storage,
       modelDriver: new HangingDriver(),
@@ -286,13 +280,13 @@ describe("路由级事件（TASK-051）", () => {
     expect(recovered).toBeDefined();
 
     // 409 路径
-    const sess = await app2
-      .request("/api/sessions", {
+    const sess = await (
+      await app2.request("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workspaceId: ws.id, title: "s" }),
       })
-      .then((r) => r.json());
+    ).json();
     void app2.request("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

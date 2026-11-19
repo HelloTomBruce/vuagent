@@ -24,6 +24,7 @@ import {
   type HarnessOpsCode,
   type HarnessOpsEvent,
 } from "./event-sink.js";
+import type { CostRecorder } from "./pricing-table.js";
 import type { CheckpointEntity, TurnEntity } from "../storage/interfaces.js";
 
 /** 整轮看门狗超时钳制边界（TASK-048）：请求级覆盖同样受钳 */
@@ -50,6 +51,8 @@ export interface AgentLoopServices {
   compactor?: ContextCompactor;
   /** 运维事件出口（TASK-051）；缺省 no-op，server 注入 console NDJSON */
   eventSink?: HarnessEventSink;
+  /** 成本记账器（TASK-052）：turn 收尾记账，fail-open；缺省不记账 */
+  costRecorder?: CostRecorder;
 }
 
 /**
@@ -288,9 +291,33 @@ export class AgentLoop {
       // 初始落库失败不阻断执行；终态 appendTurn 仍会兜底落库
     }
 
+    /** TASK-052 成本记账（fire-and-forget fail-open）：done/error/abort 收尾均记，口径=telemetry 累计 */
+    const recordCost = (): void => {
+      const rec = this.services.costRecorder;
+      if (!rec) return;
+      const summary = telemetry.exportSummary();
+      if (summary.tokens.totalTokens <= 0) return;
+      rec({
+        turnId,
+        sessionId: session.id,
+        model: modelProfile.model,
+        promptTokens: summary.tokens.promptTokens,
+        completionTokens: summary.tokens.completionTokens,
+        finishedAt: Date.now(),
+      }).catch(() => {
+        this.emitOps({
+          type: "warn",
+          at: Date.now(),
+          sessionId: session.id,
+          turnId,
+          code: "COST_RECORD_FAILED",
+          detail: "成本记账失败（fail-open，不影响主链路）",
+        });
+      });
+    };
+
     /** 每 step 结束后的增量进度落盘（best-effort，失败不影响主链路） */
-    const persistProgress = async (): Promise<void> => {
-      // TASK-051：step 级运维事件
+    const persistProgress = async (): Promise<void> => {      // TASK-051：step 级运维事件
       this.emitOps({
         type: "step_finish",
         at: Date.now(),
@@ -917,6 +944,7 @@ export class AgentLoop {
       };
 
       await this.services.sessionRepo.appendTurn(session.id, turnEntity);
+      recordCost();
 
       // TASK-051：轮次正常收尾（turnFinishCode 存在时代表被中止/超时后收尾）
       this.emitOps({
@@ -965,6 +993,7 @@ export class AgentLoop {
           completedAt: Date.now(),
         };
         await this.services.sessionRepo.appendTurn(session.id, errorTurn);
+        recordCost();
       } catch (persistErr: unknown) {
         // TASK-051：落库二次失败显式告警（不再完全静默）
         this.emitOps({

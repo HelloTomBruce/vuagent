@@ -15,6 +15,8 @@ export interface ActiveExecution {
   aborted?: boolean;
   /** 抽干完成 promise（TASK-050 preempt 顶替等待旧轮落库） */
   drainPromise?: Promise<void>;
+  /** drainPromise 的 resolve 句柄（spawnRun 内部注入，抽干完成时调用） */
+  drainResolve?: () => void;
 }
 
 /** 中止成因：user=用户显式停止 / new_task=同会话新请求顶替（TASK-050） */
