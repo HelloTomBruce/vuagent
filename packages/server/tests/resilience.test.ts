@@ -6,6 +6,7 @@ import {
   resolveResiliencePolicy,
   createResilientFetch,
   backoffDelay,
+  combineAbortSignals,
   ClassifiedModelError,
   type ResolvedResiliencePolicy,
 } from "../src/adapters/resilience.js";
@@ -505,4 +506,29 @@ describe("AgentLoop 整轮看门狗（TASK-048）", () => {
     await consumption;
     expect(events.some((e) => e.type === "error")).toBe(true);
   }, 15_000);
+});
+
+// ==========================================================================
+// TASK-060 O2：combineAbortSignals 已 @deprecated（实现委托原生 AbortSignal.any，
+// 消除手写监听器累积隐患）——保留行为回归：任一触发即触发 + reason 透传
+// ==========================================================================
+describe("combineAbortSignals（deprecated，委托 AbortSignal.any）", () => {
+  it("任一输入触发即触发，reason 透传", () => {
+    const a = new AbortController();
+    const b = new AbortController();
+    const combined = combineAbortSignals(a.signal, b.signal);
+    expect(combined.aborted).toBe(false);
+    const reason = new Error("timeout fired");
+    b.abort(reason);
+    expect(combined.aborted).toBe(true);
+    expect(combined.reason).toBe(reason);
+  });
+
+  it("预先已中止的输入立即使组合 signal 中止", () => {
+    const a = new AbortController();
+    a.abort(new Error("already aborted"));
+    const b = new AbortController();
+    const combined = combineAbortSignals(a.signal, b.signal);
+    expect(combined.aborted).toBe(true);
+  });
 });

@@ -85,14 +85,20 @@ export class ToolRegistry {
     }
     const schema = tool.parameters as TSchema;
     if (schema && typeof schema === "object" && typeof schema[Kind] === "string") {
-      const errors = [...Value.Errors(schema, args ?? {})].slice(0, 3);
-      if (errors.length > 0) {
+      const candidate = args ?? {};
+      // TASK-060 O2：Value.Check 快速通过——合法路径零迭代开销（此前每次全量
+      // 迭代 Errors 收集后再判空）；失败时输出全部错误（去 slice(0,3) 截断）
+      // 并追加「共 N 处」，引导模型一次性修完而非逐轮试探。
+      if (!Value.Check(schema, candidate)) {
+        const errors = [...Value.Errors(schema, candidate)];
         const detail = errors
           .map((e) => `${e.path || "/"} ${e.message}`)
           .join("; ");
+        const countSuffix =
+          errors.length > 1 ? `（共 ${errors.length} 处，请一次性全部修正）` : "";
         return {
           ok: false,
-          error: `参数校验失败: ${detail}。请修正入参后重试（勿编造工具不支持的参数）。`,
+          error: `参数校验失败: ${detail}${countSuffix}。请修正入参后重试（勿编造工具不支持的参数）。`,
         };
       }
     }

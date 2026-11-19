@@ -318,4 +318,53 @@ describe("路由级事件（TASK-051）", () => {
     expect(a.events.length).toBe(1);
     expect(b.events.length).toBe(1);
   });
+
+  it("沙箱演示分支：turn_start 与 turn_finish 配对（TASK-060：此前直接 return 绕过收尾）", async () => {
+    const sink = memorySink();
+    const driver = new MemoryStorageDriver();
+    const workspaceRepo = new WorkspaceRepository(driver);
+    const sessionRepo = new SessionRepository(driver);
+    const settingsRepo = new SettingsRepository(driver);
+    const ws = await workspaceRepo.create({ name: "ws", rootPath: "/tmp", permission: "read-write" });
+    const session = await sessionRepo.create({ workspaceId: ws.id, title: "demo" });
+    // 无 apiKey 的档案（分支条件之一：hasApiKey=false）
+    await settingsRepo.createProfile({
+      id: "p1",
+      name: "P",
+      provider: "openai",
+      model: "m",
+      isDefault: true,
+    });
+    // 非 MockDriver 实例 + 无 API Key → 进入沙箱演示分支
+    const loop = new AgentLoop({
+      workspaceRepo,
+      sessionRepo,
+      settingsRepo,
+      toolConfigRepo: new ToolConfigRepository(driver),
+      toolRegistry: new ToolRegistry(),
+      actionHub: new ActionHub(),
+      modelDriver: { generateStream: async function* () {} } as never,
+      eventSink: sink,
+    });
+
+    const prevEnv = process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    try {
+      for await (const _ of loop.runTurn({ sessionId: session.id, workspaceId: ws.id, prompt: "演示" })) {
+        // drain
+      }
+    } finally {
+      if (prevEnv !== undefined) process.env.OPENAI_API_KEY = prevEnv;
+    }
+
+    const types = sink.events.map((e) => e.type);
+    expect(types[0]).toBe("turn_start");
+    expect(types[types.length - 1]).toBe("turn_finish");
+    const finish = sink.events[sink.events.length - 1] as Extract<
+      HarnessOpsEvent,
+      { type: "turn_finish" }
+    >;
+    expect(finish.status).toBe("done");
+    expect(finish.stepCount).toBe(1);
+  });
 });

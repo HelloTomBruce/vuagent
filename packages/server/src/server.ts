@@ -139,16 +139,14 @@ export function createHarnessServer(options: ServerOptions = {}) {
   void recoverInterruptedTurns(sessionRepo)
     .then((recovered) => {
       if (recovered.length > 0) {
-        // TASK-051：恢复告警走事件出口（可 grep 的 RECOVERED_TURNS）
+        // TASK-051：恢复告警走事件出口（可 grep 的 RECOVERED_TURNS）；
+        // TASK-060：去除 console.warn 双发——事件出口是运维日志唯一通道，避免双份噪音
         eventSink.emit({
           type: "warn",
           at: Date.now(),
           code: "RECOVERED_TURNS",
           detail: `${recovered.length} 个中断轮次已标记 process_restart：${recovered.map((r) => `${r.sessionId}/${r.turnId}@${r.checkpointCount}cp`).join(", ")}`,
         });
-        console.warn(
-          `[harness] 恢复扫描：${recovered.length} 个中断轮次已标记 process_restart（${recovered.map((r) => `${r.sessionId}/${r.turnId}@${r.checkpointCount}cp`).join(", ")}）`
-        );
       }
     })
     .catch(() => {

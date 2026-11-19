@@ -16,7 +16,7 @@ import { runSandboxDemoTurn } from "./sandbox-demo.js";
 import { buildSystemPrompt } from "./system-prompt.js";
 import { resolveEffectivePermissionMode } from "./permissions.js";
 import { defaultNamespaceValues, getNamespaceSchema } from "./config-schema.js";
-import { combineAbortSignals, ClassifiedModelError } from "../adapters/resilience.js";
+import { ClassifiedModelError } from "../adapters/resilience.js";
 import {
   opsCodeForErrorClass,
   createNoopSink,
@@ -241,6 +241,16 @@ export class AgentLoop {
         },
         (turnEntity) => this.services.sessionRepo.appendTurn(session.id, turnEntity)
       );
+
+      // TASK-060：演示分支补 ops turn_finish 配对——ops.turnStart 对全部轮次发出，
+      // 此分支此前 yield* 后直接 return 绕过主流程收尾，运维台账出现孤立 turn_start。
+      // stepCount/totalTokens 与 sandbox-demo 落库 TurnEntity 的演示脚本固定口径一致。
+      ops.turnFinish({
+        status: "done",
+        stepCount: 1,
+        durationMs: Date.now() - startAt,
+        totalTokens: 256,
+      });
       return;
     }
 
@@ -279,8 +289,9 @@ export class AgentLoop {
       watchdogFired = true;
       watchdogController.abort();
     }, turnTimeoutMs);
+    // TASK-060：AbortSignal.any 原生组合（替代已废弃的 combineAbortSignals）
     const runSignal = abortSignal
-      ? combineAbortSignals(abortSignal, watchdogController.signal)
+      ? AbortSignal.any([abortSignal, watchdogController.signal])
       : watchdogController.signal;
     const abortMessage = () =>
       watchdogFired

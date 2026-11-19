@@ -82,7 +82,7 @@ describe("ToolRegistry 参数校验硬闸门（TASK-055）", () => {
     expect(executed).toBe(true);
   });
 
-  it("额外未知字段被拦截（防幻觉参数混入）", async () => {
+  it("缺失必填字段被拦截（防幻觉参数混入）", async () => {
     const tool: HarnessTool = {
       name: "strict_probe",
       description: "严格 schema 假工具",
@@ -98,5 +98,25 @@ describe("ToolRegistry 参数校验硬闸门（TASK-055）", () => {
     ctx.args = {} as never;
     const res = await registry.execute("strict_probe", ctx);
     expect(res.isError).toBe(true);
+  });
+
+  it("多字段非法：输出全部错误并标注共 N 处（去 slice 截断，TASK-060 O2）", async () => {
+    const tool: HarnessTool = {
+      name: "multi_probe",
+      description: "双必填假工具",
+      parameters: Type.Object({ a: Type.Number(), b: Type.String() }),
+      execute: async () => "ok",
+    };
+    const registry = new ToolRegistry();
+    registry.register(tool);
+
+    const ctx = await makeCtx();
+    ctx.args = { a: "bad", b: 123 } as never;
+    const res = await registry.execute("multi_probe", ctx);
+    expect(res.isError).toBe(true);
+    expect(res.error).toContain("a");
+    expect(res.error).toContain("b");
+    expect(res.error).toContain("共 2 处，请一次性全部修正");
+    expect(res.error).not.toContain("...");
   });
 });

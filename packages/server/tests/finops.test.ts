@@ -76,6 +76,30 @@ describe("computeCostUsd", () => {
     const usd = computeCostUsd({ input: 1, output: 1 }, 100, 100, { cachedPromptTokens: 999 });
     expect(usd).toBeCloseTo((100 / 1e6) * 0.5 + (100 / 1e6) * 1, 8);
   });
+
+  it("非法可选费率（非数字/NaN/负数）按字段缺省推导而非产出 NaN（TASK-060 O4）", () => {
+    const baseline = computeCostUsd({ input: 2, output: 8 }, 1_000_000, 1_000_000, {
+      cachedPromptTokens: 400_000,
+      reasoningTokens: 300_000,
+    });
+    // 混入字符串与 NaN 费率（`??` 仅拦 null/undefined，旧行为直接产出 NaN 账本）
+    const dirty = computeCostUsd(
+      { input: 2, output: 8, cacheRead: "0.4" as unknown as number, reasoning: Number.NaN },
+      1_000_000,
+      1_000_000,
+      { cachedPromptTokens: 400_000, reasoningTokens: 300_000 }
+    );
+    expect(Number.isNaN(dirty)).toBe(false);
+    expect(dirty).toBe(baseline);
+    // 负数费率同样回落缺省推导
+    const negative = computeCostUsd(
+      { input: 2, output: 8, cacheRead: -1, reasoning: -1 },
+      1_000_000,
+      1_000_000,
+      { cachedPromptTokens: 400_000, reasoningTokens: 300_000 }
+    );
+    expect(negative).toBe(baseline);
+  });
 });
 
 describe("CostRecordRepository（台账记录与窗口聚合）", () => {

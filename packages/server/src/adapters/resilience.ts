@@ -185,14 +185,15 @@ export interface ResilientFetchHooks {
   sleep?: (ms: number) => Promise<void>;
 }
 
-/** 组合调用方 signal 与超时 signal（任一触发即触发） */
+/**
+ * 组合调用方 signal 与超时 signal（任一触发即触发）。
+ * @deprecated TASK-060：Node ≥20 原生 AbortSignal.any 取代手写实现——
+ * 旧实现向调用方 signal 挂 {once:true} 监听器且从不摘除，长生命周期 signal
+ * （如跨多次请求的客户端 abort 信号）会累积监听器；内部调用点已全部改用
+ * AbortSignal.any，本函数仅为外部兼容保留，实现改委托原生。
+ */
 export function combineAbortSignals(a: AbortSignal, b: AbortSignal): AbortSignal {
-  if (a.aborted) return a;
-  if (b.aborted) return b;
-  const combined = new AbortController();
-  a.addEventListener("abort", () => combined.abort(a.reason), { once: true });
-  b.addEventListener("abort", () => combined.abort(b.reason), { once: true });
-  return combined.signal;
+  return AbortSignal.any([a, b]);
 }
 
 /** 指数退避：base * 2^n + jitter(0–500ms) */
@@ -262,8 +263,9 @@ export function createResilientFetch(
           timeoutController.abort();
         }, policy.requestTimeoutMs);
       }
+      // TASK-060：AbortSignal.any 原生组合，消除手写实现的监听器累积隐患
       const signal = callerSignal
-        ? combineAbortSignals(callerSignal, timeoutController.signal)
+        ? AbortSignal.any([callerSignal, timeoutController.signal])
         : timeoutController.signal;
       try {
         const response = await baseFetch(input, { ...init, signal });

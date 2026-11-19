@@ -114,11 +114,19 @@ export function computeCostUsd(
 ): number {
   const cachedTokens = Math.min(promptTokens, Math.max(0, options?.cachedPromptTokens ?? 0));
   const regularPromptTokens = Math.max(0, promptTokens - cachedTokens);
-  const cacheRate = pricing.cacheRead ?? pricing.input * 0.5;
+  // TASK-060 O4：可选费率字段（cacheRead/reasoning）不做非数字即 NaN——
+  // loader 只校验 input/output 为 number，可选费率混入字符串/NaN 时
+  // `??` 不触发（仅拦 null/undefined），算术产出 NaN 账本。此处按字段缺省
+  // 推导语义兜底：非法值回落缺省费率（cacheRead→input*0.5，reasoning→output）。
+  const defaultCacheRate = pricing.input * 0.5;
+  const defaultReasoningRate = pricing.output;
+  const asFiniteRate = (v: number | undefined, fallback: number): number =>
+    typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : fallback;
+  const cacheRate = asFiniteRate(pricing.cacheRead, defaultCacheRate);
+  const reasoningRate = asFiniteRate(pricing.reasoning, defaultReasoningRate);
 
   const reasoningTokens = Math.min(completionTokens, Math.max(0, options?.reasoningTokens ?? 0));
   const regularOutputTokens = Math.max(0, completionTokens - reasoningTokens);
-  const reasoningRate = pricing.reasoning ?? pricing.output;
 
   const usd =
     (regularPromptTokens / 1e6) * pricing.input +
