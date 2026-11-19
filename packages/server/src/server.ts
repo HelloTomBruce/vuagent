@@ -327,49 +327,80 @@ export function createHarnessServer(options: ServerOptions = {}) {
       sessionId = newSess.id;
     }
 
-    // 设置 SSE 流式响应，由 SessionExecutionHub 独立托管后台运行
-    const stream = new ReadableStream({
-      async start(controller) {
-        const encoder = new TextEncoder();
-        let unsub: (() => void) | null = null;
-        try {
-          const res = await executionHub.startOrAttachTurn(
-            {
-              sessionId,
-              workspaceId,
-              prompt,
-              permission: body.permission || defaultPermissionMode,
-              modelProfileId,
-              modelOverride,
-              maxSteps: body.maxSteps,
-              timeoutMs: body.timeoutMs,
-            },
-            (event) => {
-              if (event === "[DONE]") {
-                controller.enqueue(encoder.encode(StreamOrchestrator.formatDone()));
-                try {
-                  controller.close();
-                } catch {}
-              } else {
-                controller.enqueue(encoder.encode(StreamOrchestrator.formatSSE(event)));
-              }
-            }
-          );
-          unsub = res.unsubscribe;
+    // TASK-050 并发语义：先做原子开轮声明——会话运行中默认 409 拒绝
+    // （错误文案引导停止后重发）；body.preempt:true 顶替语义 = 中止旧轮
+    // （new_task 成因）→ 等待抽干落库（上限 10s）→ 开新轮；超时仍 409。
+    // claim 在 SSE Response 创建之前完成，使拒绝以正确 HTTP 状态呈现。
+    const preempt = body.preempt === true;
+    let claim: Awaited<ReturnType<typeof executionHub.claimTurn>>;
+    try {
+      claim = await executionHub.claimTurn(
+        {
+          sessionId,
+          workspaceId,
+          prompt,
+          permission: body.permission || defaultPermissionMode,
+          modelProfileId,
+          modelOverride,
+          maxSteps: body.maxSteps,
+          timeoutMs: body.timeoutMs,
+        },
+        { preempt }
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return c.json({ error: msg }, 500);
+    }
+    if (!claim.ok) {
+      const code = claim.reason === "running" ? "SESSION_RUNNING" : "PREEMPT_TIMEOUT";
+      const message =
+        claim.reason === "running"
+          ? "会话正在执行中，请等待当前轮次完成或停止后再发送（也可携带 preempt:true 顶替当前轮次）"
+          : "顶替超时：上一轮次未能在限时内完成收尾，请稍后重试";
+      return c.json({ error: message, code }, 409);
+    }
 
-          // 当单次 HTTP 请求断开（如前端切换会话），仅退订事件流，后台 Agent 执行绝不中断
-          c.req.raw.signal.addEventListener("abort", () => {
-            unsub?.();
-          });
-        } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : String(err);
+    // 设置 SSE 流式响应：claim 成功后仅订阅事件流（claim 与订阅之间的
+    // 事件缓冲在 run.events 中，subscribe 从头重放保证顺序完整）
+    const stream = new ReadableStream({
+      start(controller) {
+        const encoder = new TextEncoder();
+        const sub = executionHub.subscribe(
+          sessionId,
+          (event) => {
+            if (event === "[DONE]") {
+              controller.enqueue(encoder.encode(StreamOrchestrator.formatDone()));
+              try {
+                controller.close();
+              } catch {}
+            } else {
+              controller.enqueue(encoder.encode(StreamOrchestrator.formatSSE(event)));
+            }
+          },
+          0
+        );
+
+        if (!sub) {
+          // 极端竞态：claim 后 run 被（另一 preempt 请求）顶替——回退错误事件收尾
           controller.enqueue(
-            encoder.encode(StreamOrchestrator.formatSSE({ type: "error", message: msg }))
+            encoder.encode(
+              StreamOrchestrator.formatSSE({
+                type: "error",
+                message: "会话执行已被新请求顶替，本次连接不承载事件流",
+                code: "TURN_PREEMPTED",
+              })
+            )
           );
           try {
             controller.close();
           } catch {}
+          return;
         }
+
+        // 当单次 HTTP 请求断开（如前端切换会话），仅退订事件流，后台 Agent 执行绝不中断
+        c.req.raw.signal.addEventListener("abort", () => {
+          sub();
+        });
       },
     });
 
