@@ -6,6 +6,7 @@
     "build": "pnpm --filter @vuagent/ui build && pnpm --filter @vuagent/playground build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm --filter @vuagent/protocol test && pnpm --filter @vuagent/ui test && pnpm --filter @vuagent/server test && pnpm --filter @vuagent/playground test",
+    "protocol:sync-check": "node scripts/check-protocol-sync.mjs",
     "server:dev": "pnpm --filter @vuagent/server dev",
     "registry": "node scripts/build-registry.mjs",
     "registry:check": "node scripts/check-registry.mjs",

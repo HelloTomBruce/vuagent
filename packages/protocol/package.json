@@ -8,6 +8,22 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./stream": {
+      "types": "./src/stream.ts",
+      "default": "./src/stream.ts"
+    },
+    "./tools": {
+      "types": "./src/tools.ts",
+      "default": "./src/tools.ts"
+    },
+    "./system-tools": {
+      "types": "./src/system-tools.ts",
+      "default": "./src/system-tools.ts"
+    },
+    "./lifecycle": {
+      "types": "./src/lifecycle.ts",
+      "default": "./src/lifecycle.ts"
     }
   },
   "main": "./src/index.ts",

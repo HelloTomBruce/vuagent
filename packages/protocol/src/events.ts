@@ -1,6 +1,18 @@
 /**
  * @vuagent/protocol
  * 前端 UI 消费的归一化流式事件协议 (UIStreamEvent)
+ *
+ * ══════════════════════════════════════════════════════════════════
+ * ★ 已冻结（FROZEN，TASK-056 退役计划）★
+ *
+ * 本词表已被 HarnessStreamEvent（stream.ts，18 事件 + TypeBox 运行时校验）取代。
+ * 仅因 @vuagent/ui runtime（useAgentChat）仍消费而兼容保留。
+ *
+ * 退役条件（满足其一即可启动迁移删除）：
+ * 1. @vuagent/ui runtime useAgentChat 迁移到 HarnessStreamEvent 词表；
+ * 2. @vuagent/ui 改为构建期直接引用 @vuagent/protocol 源类型（发布形态变更）。
+ * 冻结期内：禁止新增事件成员；类型漂移由 scripts/check-protocol-sync.mjs CI 卡口拦截。
+ * ══════════════════════════════════════════════════════════════════
  */
 
 export type UIStreamEvent =

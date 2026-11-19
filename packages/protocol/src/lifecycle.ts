@@ -1,6 +1,13 @@
 /**
  * @vuagent/protocol
  * Agent 组件生命周期与消息块状态模型
+ *
+ * 归属裁决（TASK-056）：本文件是 @vuagent/ui runtime 的契约事实来源——
+ * ui 以 npm 包分发必须自包含，类型经 vendored 副本
+ * （packages/ui/src/runtime/protocol-types.ts）随包分发，同步由
+ * scripts/check-protocol-sync.mjs CI 卡口机械把关（人工不再改 ui 侧副本）。
+ * 注意：playground/console 不直接消费本文件（其 turn/block 模型为
+ * reducer 内部实现类型），勿在此追加仅服务 ui runtime 的形状。
  */
 
 /**

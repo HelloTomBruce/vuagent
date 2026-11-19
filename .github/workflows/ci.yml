@@ -28,6 +28,9 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Protocol sync check（契约副本卡口）
+        run: pnpm protocol:sync-check
+
       - name: Build
         run: pnpm build
 
