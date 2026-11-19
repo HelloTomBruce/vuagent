@@ -4,6 +4,7 @@ import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import type { IStorageDriver } from "./storage/drivers/base.driver.js";
 import { applySecurityBaseline, BYO_FORBIDDEN_MESSAGE, isProfileSelectionOnly, resolveSecurityConfig, sanitizeModelProfile } from "./security.js";
+import { buildFileTree } from "./core/workspace-files.js";
 import type { ModelProfileEntity } from "./storage/interfaces.js";
 
 const execAsync = promisify(exec);
@@ -486,6 +487,19 @@ export function createHarnessServer(options: ServerOptions = {}) {
     const id = c.req.param("id");
     const ok = await workspaceRepo.delete(id);
     return c.json({ success: ok }, ok ? 200 : 404);
+  });
+
+  // 工作区文件树（只读、有界：深度 4 / 节点 2000，忽略 node_modules/.git 等目录），
+  // 供控制台右栏 VaFileTree 展示当前工作区目录结构
+  app.get("/api/workspaces/:id/files", async (c) => {
+    const ws = await workspaceRepo.get(c.req.param("id"));
+    if (!ws) return c.json({ error: "workspace not found" }, 404);
+    try {
+      const result = await buildFileTree(ws.rootPath);
+      return c.json({ root: ws.rootPath, ...result });
+    } catch (e) {
+      return c.json({ error: `读取目录失败: ${e instanceof Error ? e.message : String(e)}` }, 500);
+    }
   });
 
   // 调起操作系统原生文件夹选择器，直接获取绝对路径并创建工作区
