@@ -137,17 +137,21 @@ export function applyUiComponentResult(
   }
 }
 
+/** TASK-054：seq 广播序号记录（R7 修复后由 handleStreamEvent 入口统一调用，
+ *  usage/traj 拦截分支不再绕过；增量重连去重寻址备用） */
+export function recordSeq(turn: MessageTurn, event: HarnessStreamEvent): void {
+  const seq = (event as { seq?: unknown }).seq;
+  if (typeof seq === "number") {
+    turn.lastSeq = seq;
+  }
+}
+
 export function applyStreamEvent(
   turn: MessageTurn,
   event: HarnessStreamEvent,
   ctx: StreamEventContext,
   sink: ReducerSink
 ): void {
-  // TASK-054：seq 广播序号记录（增量重连去重备用）
-  if ("seq" in event && typeof (event as { seq?: unknown }).seq === "number") {
-    turn.lastSeq = (event as { seq: number }).seq;
-  }
-
   switch (event.type) {
     case "turn_start":
       // 控制事件：轮次开始（turn 已由调用方创建且 isStreaming=true，此处仅作时序锚点）

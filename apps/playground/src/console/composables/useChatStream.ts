@@ -7,7 +7,7 @@ import { computed, reactive, ref } from "vue";
 import { abortSession, openChatStream, openSessionStream } from "../api/client";
 import type { ChatRequestBody } from "../api/client";
 import { extractSSEEvents } from "../stream/sse";
-import { applyStreamEvent } from "../stream/reducer";
+import { applyStreamEvent, recordSeq } from "../stream/reducer";
 import type { ScrollToBottomOptions } from "@vuagent/ui";
 import type { ContextPart } from "@vuagent/ui";
 import type { HarnessStreamEvent } from "@vuagent/protocol";
@@ -67,6 +67,10 @@ export function useChatStream(options: ChatStreamOptions) {
   }
 
   function handleStreamEvent(event: HarnessStreamEvent, turn: MessageTurn, targetSessionId?: string) {
+    // R7 修复：seq 广播序号在入口统一记录——usage/traj 提前 return 的分支
+    // 不再绕过（此前 lastSeq 永远落后真实广播序号，增量重连游标会失真）
+    recordSeq(turn, event);
+
     // usage 是会话级事件（不挂在具体 turn 上），先行拦截更新上下文 Gauge。
     // 窗口占用口径（与 Codex/Claude Code 一致）：promptTokens 是本步发送的全部上下文
     // （ReAct 每步重发历史，取"最近一次调用"即真实占用），直接覆盖而非跨步累加。
@@ -166,7 +170,8 @@ export function useChatStream(options: ChatStreamOptions) {
       }
     } catch (err: any) {
       if (err?.name === "AbortError") {
-        targetTurn.content += "\n\n*(任务已被手动中止)*";
+        // R1 修复：中止徽标呈现（aborted 事件已发时幂等），不再注入斜体假正文
+        targetTurn.abortedReason ??= "user";
       } else {
         targetTurn.content += `\n\n*(调用出错: ${err?.message || String(err)})*`;
       }
@@ -231,13 +236,17 @@ export function useChatStream(options: ChatStreamOptions) {
   /** 停止当前激活会话的运行（通知后端中止执行回环） */
   async function stopExecution() {
     const currentSessionId = options.getActiveSessionId();
-    if (activeAbortController.value) {
-      activeAbortController.value.abort();
-    }
     if (currentSessionId) {
+      // R1 修复：先通知服务端中止——hub 广播的 aborted 事件经当前 SSE 流
+      // 送达 reducer（徽标呈现），本地连接保持到事件流过；
+      // 此前先掐断本地 fetch，aborted 事件永远到不了，只剩假斜体文案
       await abortSession(currentSessionId);
       sessionRunningMap.set(currentSessionId, false);
       sessionAbortControllers.delete(currentSessionId);
+    }
+    // 服务端广播后关闭本地流（事件已送达；本地 abort 只是兜底断开手段）
+    if (activeAbortController.value) {
+      activeAbortController.value.abort();
     }
     isRunning.value = false;
     activeAbortController.value = null;

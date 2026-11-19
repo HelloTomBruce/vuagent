@@ -20,6 +20,7 @@ import { combineAbortSignals, ClassifiedModelError } from "../adapters/resilienc
 import {
   opsCodeForErrorClass,
   createNoopSink,
+  mapAbortCause,
   type HarnessEventSink,
   type HarnessOpsCode,
   type HarnessOpsEvent,
@@ -273,6 +274,8 @@ export class AgentLoop {
     const accumulatedCards: Array<{ id: string; type: string; data: any }> = [];
     /** 非正常收尾的分类码（中止/超时），正常 done 为 undefined */
     let turnFinishCode: HarnessOpsCode | undefined;
+    /** R8：中止成因（协议 reason 枚举），落库持久化供历史恢复呈现徽标 */
+    let abortedReasonForPersist: "user" | "timeout" | "preempt" | undefined;
 
     // TASK-049 即时落库：轮次开始即落 running 行（中途崩溃留痕），
     // 每 step 增量更新，终态 appendTurn upsert 兜底（幂等替换，不产生重复行）
@@ -374,24 +377,26 @@ export class AgentLoop {
       // 4. 进入 ReAct 核心回环
       while (currentStep < maxSteps) {
         if (runSignal.aborted) {
-          // TASK-051：中止成因事件 + SSE error 附带分类码（前端可选消费）
-          const abortOpsCode: HarnessOpsCode = watchdogFired ? "WATCHDOG_TIMEOUT" : "TURN_ABORTED";
+          // R5 修复：成因经 mapAbortCause 集中映射（watchdog > signal.reason=new_task > user），
+          // hub abort(kind) 透传的 preempt 不再被误记为 TURN_ABORTED
+          const cause = mapAbortCause({ watchdogFired, signalReason: runSignal.reason });
           this.emitOps({
             type: "abort",
             at: Date.now(),
             sessionId: session.id,
             turnId,
-            reason: watchdogFired ? "watchdog" : "user",
-            code: abortOpsCode,
+            reason: cause.opsReason,
+            code: cause.code,
           });
           // TASK-054：aborted 控制事件取代旧假 text_delta 文案
           yield {
             type: "aborted",
             turnId,
-            reason: watchdogFired ? "timeout" : "user",
+            reason: cause.protocolReason,
           };
-          yield { type: "error", message: abortMessage(), code: abortOpsCode };
-          turnFinishCode = abortOpsCode;
+          yield { type: "error", message: abortMessage(), code: cause.code };
+          turnFinishCode = cause.code;
+          abortedReasonForPersist = cause.protocolReason;
           break;
         }
 
@@ -936,6 +941,8 @@ export class AgentLoop {
         thought: accumulatedThought,
         cards: accumulatedCards,
         status: "done",
+        // R8：优雅中止（loop-top break）以 done 落库但仍标记中止成因
+        ...(abortedReasonForPersist ? { abortedReason: abortedReasonForPersist } : {}),
         stepCount: currentStep,
         checkpoints,
         telemetry: {
@@ -969,12 +976,15 @@ export class AgentLoop {
         code: turnFinishCode,
       });
     } catch (err: unknown) {
+      // R5 修复：catch 路径同样走集中映射
+      const catchCause = mapAbortCause({ watchdogFired, signalReason: runSignal.reason });
       // TASK-054：信号中止在流内部以异常冒出时，先补 aborted 控制事件（区分成因）
       if (runSignal.aborted) {
+        abortedReasonForPersist = catchCause.protocolReason;
         yield {
           type: "aborted",
           turnId,
-          reason: watchdogFired ? "timeout" : "user",
+          reason: catchCause.protocolReason,
         };
       }
       const rawMsg = err instanceof Error ? err.message : String(err);
@@ -982,10 +992,12 @@ export class AgentLoop {
       // 异常从深处冒出，loop-top 检查来不及拦），成因区分不丢
       const msg = watchdogFired
         ? `本轮执行已超时（看门狗上限 ${turnTimeoutSeconds}s）：${rawMsg}`
+        : runSignal.aborted && err instanceof Error && /abort/i.test(rawMsg)
+        ? abortMessage()
         : rawMsg;
-      // TASK-051：终态分类码——看门狗超时 / 已分类模型错误 / 其余执行失败
-      const finishCode: HarnessOpsCode = watchdogFired
-        ? "WATCHDOG_TIMEOUT"
+      // TASK-051：终态分类码——信号中止按 catchCause / 已分类模型错误 / 其余执行失败
+      const finishCode: HarnessOpsCode = runSignal.aborted
+        ? catchCause.code
         : err instanceof ClassifiedModelError
         ? opsCodeForErrorClass(err.errorClass)
         : "TURN_EXECUTION_FAILED";
@@ -1005,6 +1017,8 @@ export class AgentLoop {
           cards: accumulatedCards,
           status: "error",
           errorMessage: msg,
+          // R8：异常中止（catch 路径）同样标记中止成因
+          ...(abortedReasonForPersist ? { abortedReason: abortedReasonForPersist } : {}),
           stepCount: currentStep,
           checkpoints,
           createdAt: startAt,

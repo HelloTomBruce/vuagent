@@ -335,6 +335,67 @@ export function createHarnessServer(options: ServerOptions = {}) {
       }
     }
 
+    const preempt = body.preempt === true;
+
+    // TASK-052 并发准入（O1 修复：前移至 workspace/session 兜底创建之前——
+    // 被拒请求不再泄漏空会话/工作区）：runningCount 实时计数，超限 429
+    // （0=不限；运行中改档即时生效）。
+    // R3 修复：preempt 中止旧轮后净并发不变（-1+1），计数扣除将释放的名额——
+    // 此前 maxConcurrentTurns=1 时 preempt 永远 429 死锁。
+    const execAdmission = await configResolver.resolve("execution");
+    const maxConcurrentTurns = Number(execAdmission?.maxConcurrentTurns) || 0;
+    const preemptReleases =
+      preempt && body.sessionId && executionHub.isRunning(body.sessionId) ? 1 : 0;
+    if (
+      maxConcurrentTurns > 0 &&
+      executionHub.runningCount() - preemptReleases >= maxConcurrentTurns
+    ) {
+      try {
+        eventSink.emit({
+          type: "warn",
+          at: Date.now(),
+          code: "CONCURRENCY_REJECTED",
+          sessionId: body.sessionId,
+          detail: `running=${executionHub.runningCount()} >= max=${maxConcurrentTurns}`,
+        });
+      } catch {
+        // sink 故障不改变准入结果
+      }
+      return c.json(
+        { error: "全局并发轮次已达上限，请等待现有任务完成或调整并发上限设置", code: "CONCURRENCY_REJECTED" },
+        429
+      );
+    }
+
+    // TASK-052 配额准入：滚动窗口 token/费用累计，超限 429（0=不限）
+    const finopsAdmission = await configResolver.resolve("finops");
+    const windowTokenLimit = Number(finopsAdmission?.windowTokenLimit) || 0;
+    const windowUsdLimit = Number(finopsAdmission?.windowUsdLimit) || 0;
+    if (windowTokenLimit > 0 || windowUsdLimit > 0) {
+      const quotaWindowMs = Number(finopsAdmission?.windowMs) || 86_400_000;
+      const usage = await costRepo.sumWindow(quotaWindowMs);
+      if (
+        (windowTokenLimit > 0 && usage.tokens >= windowTokenLimit) ||
+        (windowUsdLimit > 0 && usage.costUsd >= windowUsdLimit)
+      ) {
+        try {
+          eventSink.emit({
+            type: "warn",
+            at: Date.now(),
+            code: "QUOTA_EXCEEDED",
+            sessionId: body.sessionId,
+            detail: `windowMs=${quotaWindowMs} tokens=${usage.tokens}/${windowTokenLimit} costUsd=${usage.costUsd}/${windowUsdLimit}`,
+          });
+        } catch {
+          // sink 故障不改变准入结果
+        }
+        return c.json(
+          { error: "配额已用尽（滚动窗口内累计达到上限），请稍后重试或调整成本配额设置", code: "QUOTA_EXCEEDED" },
+          429
+        );
+      }
+    }
+
     // 默认工作区兜底
     let workspaceId = body.workspaceId;
     if (!workspaceId) {
@@ -361,53 +422,10 @@ export function createHarnessServer(options: ServerOptions = {}) {
       sessionId = newSess.id;
     }
 
-    // TASK-052 并发准入：runningCount 实时计数，超限 429（0=不限；运行中改档即时生效）
-    const execAdmission = await configResolver.resolve("execution");
-    const maxConcurrentTurns = Number(execAdmission?.maxConcurrentTurns) || 0;
-    if (maxConcurrentTurns > 0 && executionHub.runningCount() >= maxConcurrentTurns) {
-      eventSink.emit({
-        type: "warn",
-        at: Date.now(),
-        code: "CONCURRENCY_REJECTED",
-        sessionId,
-        detail: `running=${executionHub.runningCount()} >= max=${maxConcurrentTurns}`,
-      });
-      return c.json(
-        { error: "全局并发轮次已达上限，请等待现有任务完成或调整并发上限设置", code: "CONCURRENCY_REJECTED" },
-        429
-      );
-    }
-
-    // TASK-052 配额准入：滚动窗口 token/费用累计，超限 429（0=不限）
-    const finopsAdmission = await configResolver.resolve("finops");
-    const windowTokenLimit = Number(finopsAdmission?.windowTokenLimit) || 0;
-    const windowUsdLimit = Number(finopsAdmission?.windowUsdLimit) || 0;
-    if (windowTokenLimit > 0 || windowUsdLimit > 0) {
-      const quotaWindowMs = Number(finopsAdmission?.windowMs) || 86_400_000;
-      const usage = await costRepo.sumWindow(quotaWindowMs);
-      if (
-        (windowTokenLimit > 0 && usage.tokens >= windowTokenLimit) ||
-        (windowUsdLimit > 0 && usage.costUsd >= windowUsdLimit)
-      ) {
-        eventSink.emit({
-          type: "warn",
-          at: Date.now(),
-          code: "QUOTA_EXCEEDED",
-          sessionId,
-          detail: `windowMs=${quotaWindowMs} tokens=${usage.tokens}/${windowTokenLimit} costUsd=${usage.costUsd}/${windowUsdLimit}`,
-        });
-        return c.json(
-          { error: "配额已用尽（滚动窗口内累计达到上限），请稍后重试或调整成本配额设置", code: "QUOTA_EXCEEDED" },
-          429
-        );
-      }
-    }
-
     // TASK-050 并发语义：先做原子开轮声明——会话运行中默认 409 拒绝
     // （错误文案引导停止后重发）；body.preempt:true 顶替语义 = 中止旧轮
     // （new_task 成因）→ 等待抽干落库（上限 10s）→ 开新轮；超时仍 409。
     // claim 在 SSE Response 创建之前完成，使拒绝以正确 HTTP 状态呈现。
-    const preempt = body.preempt === true;
     let claim: Awaited<ReturnType<typeof executionHub.claimTurn>>;
     try {
       claim = await executionHub.claimTurn(

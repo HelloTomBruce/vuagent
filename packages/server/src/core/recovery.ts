@@ -27,6 +27,8 @@ export async function recoverInterruptedTurns(
       if (turn.status === "running") {
         turn.status = "error";
         turn.errorMessage = "process_restart";
+        // R8：协议枚举落成活路径——历史恢复呈现「服务重启中断」徽标
+        turn.abortedReason = "process_restart";
         if (turn.completedAt === undefined) {
           turn.completedAt = Date.now();
         }

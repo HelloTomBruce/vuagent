@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyStreamEvent, applyUiComponentResult, type ReducerSink } from "../stream/reducer";
+import { applyStreamEvent, applyUiComponentResult, recordSeq, type ReducerSink } from "../stream/reducer";
 import type { MessageTurn, PlanStep } from "../types";
 
 function makeTurn(): MessageTurn {
@@ -48,15 +48,19 @@ describe("applyStreamEvent", () => {
     }
   });
 
-  it("seq 广播序号记录到 turn.lastSeq（增量重连寻址备用）", () => {
+  it("seq 广播序号记录到 turn.lastSeq（R7：入口统一记录，usage/traj 不绕过）", () => {
     const turn = makeTurn();
-    applyStreamEvent(
-      turn,
-      { type: "text_delta", delta: "a", messageId: "m1", seq: 3 } as never,
-      { isActiveSession: true },
-      makeSink().sink
-    );
+    recordSeq(turn, { type: "text_delta", delta: "a", messageId: "m1", seq: 3 } as never);
     expect(turn.lastSeq).toBe(3);
+    // usage/traj 拦截分支同口径
+    recordSeq(turn, { type: "usage", promptTokens: 1, completionTokens: 1, totalTokens: 2, seq: 7 } as never);
+    expect(turn.lastSeq).toBe(7);
+    recordSeq(turn, {
+      type: "traj",
+      event: { id: "e", at: 1, lane: "tool", role: "tool", title: "t", turn: 1 },
+      seq: 9,
+    } as never);
+    expect(turn.lastSeq).toBe(9);
   });
 
   it("thought_delta 追加思考流", () => {

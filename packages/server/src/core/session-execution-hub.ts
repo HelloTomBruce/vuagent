@@ -1,6 +1,6 @@
 import type { HarnessStreamEvent, AgentTurnRequest } from "./types.js";
 import type { AgentLoop } from "./agent-loop.js";
-import { createNoopSink, type HarnessEventSink } from "./event-sink.js";
+import { createNoopSink, mapAbortCause, type HarnessEventSink } from "./event-sink.js";
 
 export interface ActiveExecution {
   sessionId: string;
@@ -109,26 +109,32 @@ export class SessionExecutionHub {
    * 声明式开轮（TASK-050 纯开始语义）：会话运行中默认拒绝（reason:"running"，
    * 路由映射 409）；opts.preempt 顶替语义 = 中止旧轮（new_task 成因）→ 等待抽干
    * 落库（上限 preemptTimeoutMs，缺省 10s）→ 开新轮；超时未抽干拒绝
-   * （reason:"preempt_timeout"）。非 preempt 路径检查+登记同步完成，原子 wrt 事件循环。
+   * （reason:"preempt_timeout"）。
+   * R2 修复：任何 !isDone 的旧轮（含「已 abort 仍在抽干」）都视为占用——
+   * 手动停止后立刻发新 prompt 不再直接 spawn（此前与旧轮收尾 appendTurn
+   * 形成跨 generator 的 session doc 读-改-写竞态，最坏丢失整轮历史）。
    */
   async claimTurn(
     req: AgentTurnRequest,
     opts: { preempt?: boolean; preemptTimeoutMs?: number } = {}
   ): Promise<ClaimTurnResult> {
     const existing = this.activeRuns.get(req.sessionId);
-    if (existing && !existing.isDone && !existing.aborted) {
-      if (!opts.preempt) {
-        return { ok: false, reason: "running" };
+    if (existing && !existing.isDone) {
+      if (!existing.aborted) {
+        if (!opts.preempt) {
+          return { ok: false, reason: "running" };
+        }
+        // 顶替：中止旧轮并等待其抽干落库（避免新旧轮次对同一 session doc 的写竞态）
+        this.abort(req.sessionId, "new_task");
       }
-      // 顶替：中止旧轮并等待其抽干落库（避免新旧轮次对同一 session doc 的写竞态）
-      this.abort(req.sessionId, "new_task");
+      // running 被 preempt 中止后 / 本已 aborted 抽干中：统一等待旧轮收尾落库
       const drained = await this.waitForDrain(req.sessionId, opts.preemptTimeoutMs ?? 10_000);
       if (!drained) {
         return { ok: false, reason: "preempt_timeout" };
       }
       // 抽干等待窗内另一请求可能已开新轮：防覆盖
       const after = this.activeRuns.get(req.sessionId);
-      if (after && !after.isDone && !after.aborted && after !== existing) {
+      if (after && !after.isDone && after !== existing) {
         return { ok: false, reason: "running" };
       }
     }
@@ -277,24 +283,26 @@ export class SessionExecutionHub {
   abort(sessionId: string, reason: AbortKind = "user"): boolean {
     const run = this.activeRuns.get(sessionId);
     if (!run || run.isDone || run.aborted) return false;
-    run.abortController.abort();
+    // R5 修复：成因经 signal.reason 传递给 agent-loop（ops 台账归因一致），
+    // 映射逻辑集中在 mapAbortCause（hub 与 agent-loop 共用同一事实来源）
+    run.abortController.abort(reason);
     run.aborted = true;
+    const cause = mapAbortCause({ watchdogFired: false, signalReason: reason });
     // TASK-051：中止运维事件（new_task=顶替 / user=手动停止）
     this.emit({
       type: "abort",
       at: Date.now(),
       sessionId: run.sessionId,
       turnId: run.turnId,
-      reason,
-      code: reason === "new_task" ? "TURN_PREEMPTED" : "TURN_ABORTED",
+      reason: cause.opsReason,
+      code: cause.code,
     });
     // TASK-054：aborted 控制事件广播（取代旧假 text_delta 斜体文案，
     // 控制语义与数据语义分离；前端 reducer 渲染中止徽标）。
-    // AbortKind(new_task) 映射为协议 reason 枚举的 preempt
     const abortedEvent: HarnessStreamEvent & { seq?: number } = {
       type: "aborted",
       turnId: run.turnId,
-      reason: reason === "new_task" ? "preempt" : "user",
+      reason: cause.protocolReason,
     };
     const seq = ++run.seqCounter;
     run.events.push(Object.assign(abortedEvent, { seq }));

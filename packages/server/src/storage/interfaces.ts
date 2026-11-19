@@ -68,6 +68,9 @@ export interface TurnEntity {
   status: "running" | "suspended" | "done" | "error";
   /** 终态成因说明：执行错误消息 / process_restart（进程重启恢复标记，TASK-049）等 */
   errorMessage?: string;
+  /** R8：中止成因（user/timeout/preempt/process_restart），历史恢复呈现中止徽标；
+   *  与 status 正交——优雅中止以 done 落库、异常中止以 error 落库，均有此标记 */
+  abortedReason?: "user" | "timeout" | "preempt" | "process_restart";
   stepCount: number;
   checkpoints: CheckpointEntity[];
   telemetry?: {

@@ -55,6 +55,35 @@ export function opsCodeForErrorClass(errorClass: ProviderErrorClass): HarnessOps
   }
 }
 
+/**
+ * 中止成因集中映射（R5 修复）：hub 发起中止时的 AbortKind 经
+ * AbortController.abort(reason) 传递给 agent-loop，loop 与 hub 共用本函数
+ * 保证 ops 台账与 SSE 协议事件对同一次中止的归因一致——
+ * 此前 preempt 会被 hub 记 TURN_PREEMPTED、被 loop 误记 TURN_ABORTED。
+ */
+export interface AbortCauseMapping {
+  /** SSE aborted 事件的协议 reason 枚举 */
+  protocolReason: "user" | "timeout" | "preempt";
+  /** ops abort 事件的 reason 字段 */
+  opsReason: "user" | "new_task" | "watchdog";
+  /** ops 分类码 */
+  code: HarnessOpsCode;
+}
+
+export function mapAbortCause(input: {
+  watchdogFired: boolean;
+  /** runSignal.reason（hub abort(kind) 透传；用户手动停止为 undefined） */
+  signalReason?: unknown;
+}): AbortCauseMapping {
+  if (input.watchdogFired) {
+    return { protocolReason: "timeout", opsReason: "watchdog", code: "WATCHDOG_TIMEOUT" };
+  }
+  if (input.signalReason === "new_task") {
+    return { protocolReason: "preempt", opsReason: "new_task", code: "TURN_PREEMPTED" };
+  }
+  return { protocolReason: "user", opsReason: "user", code: "TURN_ABORTED" };
+}
+
 export type HarnessOpsEvent =
   | {
       type: "turn_start";

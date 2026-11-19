@@ -190,6 +190,12 @@ export function useSessions(options: SessionsOptions) {
                 cards: restoredCards,
                 // 按 contentOffset 重建输出时序块（审批卡回到发生位置）
                 blocks: rebuildBlocksFromHistory(asstContent, restoredCards),
+                // R8：中止徽标历史恢复（server 落库的 abortedReason；旧数据兼容 errorMessage 推导）
+                abortedReason:
+                  (t as { abortedReason?: string }).abortedReason ??
+                  ((t as { errorMessage?: string }).errorMessage === "process_restart"
+                    ? "process_restart"
+                    : undefined),
                 // 恢复三泳道轨迹（落库时 detail/result 已截断）
                 trajEvents: (t.telemetry?.events as MessageTurn["trajEvents"]) || [],
                 timestamp: t.completedAt || t.createdAt || Date.now(),

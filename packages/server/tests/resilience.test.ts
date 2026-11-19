@@ -264,7 +264,8 @@ describe("createResilientFetch", () => {
       hooks
     );
     await expect(f("http://x", { signal: controller.signal })).rejects.toThrow("aborted");
-    expect(calls).toBe(1);
+    // R4 循环顶部 abort 检查：预中止信号不再发起任何请求（此前会发一次必失败请求）
+    expect(calls).toBe(0);
   });
 
   it("响应头前超时 → 按 network 重试，用尽后上抛", async () => {

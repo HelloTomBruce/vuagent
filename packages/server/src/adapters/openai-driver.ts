@@ -1,6 +1,7 @@
 import type { IModelDriver, ModelDriverRequest, ModelStreamChunk } from "./model-driver.js";
 import {
   ClassifiedModelError,
+  classifyHttpError,
   classifyModelError,
   createResilientFetch,
   resolveResiliencePolicy,
@@ -88,8 +89,10 @@ export class OpenAICompatibleDriver implements IModelDriver {
     }
 
     if (!res.ok) {
-      const errorClass = classifyModelError(res);
+      // R6 修复：先读 errText 再分类——400 "maximum context length…" 依赖
+      // message 检测，此前分类在读取正文前执行，context_overflow 永远不可达
       const errText = await res.text().catch(() => "");
+      const errorClass = classifyHttpError(res.status, errText);
       throw new ClassifiedModelError(
         `模型 API 返回错误 (${res.status} ${res.statusText}): ${errText}`,
         errorClass,

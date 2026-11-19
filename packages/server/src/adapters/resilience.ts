@@ -84,6 +84,14 @@ function classifyStatus(status: number, message: string): ProviderErrorClass {
 }
 
 /**
+ * 带响应正文的 HTTP 错误分类（R6 修复）：context_overflow 需要 message 检测，
+ * 调用方（driver）应先读取 errText 再分类——Response 分支拿不到 body 文本。
+ */
+export function classifyHttpError(status: number, message: string): ProviderErrorClass {
+  return classifyStatus(status, message);
+}
+
+/**
  * 错误分类器：接受 Response、 ClassifiedModelError（原样取 class）、带 status 属性的
  * 异常、fetch reject 的 TypeError、undici 错误码（含 cause 链）与旧版包装错误消息
  * （"模型 API 返回错误 (429 ...)" 形态，兼容历史抛出路径）。
@@ -208,13 +216,43 @@ export function createResilientFetch(
   policy: ResolvedResiliencePolicy,
   hooks: ResilientFetchHooks = {}
 ): typeof fetch {
-  const sleep = hooks.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const baseSleep = hooks.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   return (async (
     input: Parameters<typeof fetch>[0],
     init?: RequestInit
   ): Promise<Response> => {
     const callerSignal = init?.signal ?? undefined;
+    // R4 修复：退避等待与调用方 signal 竞速——429+Retry-After（钳 60s）期间
+    // 用户停止/看门狗/preempt 立即可达（此前最长延迟 60s，且会误报 preempt_timeout）。
+    // resolve（非 reject）后由下一轮循环的 abort 检查统一收尾；
+    // sleep 先完成时 removeEventListener 避免在整轮信号上累积监听器。
+    const sleep = (ms: number): Promise<void> => {
+      if (!callerSignal) return baseSleep(ms);
+      if (callerSignal.aborted) return Promise.resolve();
+      return new Promise<void>((resolve) => {
+        let settled = false;
+        const onAbort = (): void => {
+          if (!settled) {
+            settled = true;
+            resolve();
+          }
+        };
+        callerSignal.addEventListener("abort", onAbort, { once: true });
+        void baseSleep(ms).then(() => {
+          if (!settled) {
+            settled = true;
+            callerSignal.removeEventListener("abort", onAbort);
+            resolve();
+          }
+        });
+      });
+    };
     for (let attempt = 0; ; attempt++) {
+      // R4 修复：退避被 signal 打断后在循环顶部统一收尾——
+      // 不依赖 baseFetch 响应 signal（自定义 fetch 可能不检查）
+      if (callerSignal?.aborted) {
+        throw new Error("This operation was aborted");
+      }
       const timeoutController = new AbortController();
       let timedOut = false;
       let timer: ReturnType<typeof setTimeout> | undefined;
