@@ -18,6 +18,7 @@ export default defineConfig({
         items: [
           { text: "快速开始", link: "/guide/getting-started" },
           { text: "主题化", link: "/guide/theming" },
+          { text: "Overlay 浮层组件", link: "/guide/overlays" },
         ],
       },
       { text: "组件", items: [{ text: "组件总览", link: "/components/" }] },
