@@ -29,7 +29,6 @@ describe("Agent Registry - setupDefaultAgentRegistry", () => {
     expect(getAgentComponent("ui_file_tree")).toBeTruthy();
     // TASK-077 协议卡片扩展批
     expect(getAgentComponent("ui_task_board")).toBeTruthy();
-    expect(getAgentComponent("ui_email_draft")).toBeTruthy();
     expect(getAgentComponent("ui_change_summary")).toBeTruthy();
     expect(getAgentComponent("ui_comment_thread")).toBeTruthy();
     expect(getAgentComponent("ui_ai_answer")).toBeTruthy();
@@ -105,60 +104,6 @@ describe("Agent Registry - propAdapter 容错", () => {
     });
     props.onDeny({ weird: true });
     expect(payloads).toEqual([{ approved: false, reason: "manual" }]);
-  });
-
-  it("email_draft: onSend 在 executing 态回传批准决策（HITL 链路）", () => {
-    const payloads: unknown[] = [];
-    const entry = getAgentComponent("ui_email_draft")!;
-    const props = entry.propAdapter!(
-      { to: "a@x.com", subject: "周报", body: "正文" },
-      {
-        ...ctx,
-        onSubmitAction: (p: unknown) => {
-          payloads.push(p);
-        },
-      },
-    );
-    props.onSend({ to: "a@x.com", subject: "周报", body: "正文" });
-    expect(payloads).toHaveLength(1);
-    expect(payloads[0]).toMatchObject({ approved: true, reason: "manual" });
-  });
-
-  it("email_draft: 非 executing 态不回传（streaming 阶段不可决策）", () => {
-    const payloads: unknown[] = [];
-    const entry = getAgentComponent("ui_email_draft")!;
-    const props = entry.propAdapter!({ to: "a@x.com" }, {
-      ...ctx,
-      status: "streaming" as const,
-      onSubmitAction: (p: unknown) => {
-        payloads.push(p);
-      },
-    });
-    props.onSend({ to: "a@x.com" });
-    props.onRegenerate();
-    expect(payloads).toHaveLength(0);
-  });
-
-  it("email_draft: onRegenerate 回传拒绝 + 重新起草备注", () => {
-    const payloads: unknown[] = [];
-    const entry = getAgentComponent("ui_email_draft")!;
-    const props = entry.propAdapter!({ to: "a@x.com" }, {
-      ...ctx,
-      onSubmitAction: (p: unknown) => {
-        payloads.push(p);
-      },
-    });
-    props.onRegenerate();
-    expect(payloads).toEqual([
-      { approved: false, reason: "manual", note: "用户要求重新起草" },
-    ]);
-  });
-
-  it("email_draft: args 脏值兜底，tones 非数组不透出", () => {
-    const entry = getAgentComponent("ui_email_draft")!;
-    const props = entry.propAdapter!({ to: 42, tones: "nope" }, ctx);
-    expect(props.to).toBeUndefined();
-    expect(props.tones).toBeUndefined();
   });
 
   it("task_board: columns/tasks 非数组兜底为空数组", () => {

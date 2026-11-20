@@ -6,7 +6,6 @@ import {
   AgentPlanToolSchema,
   FileTreeToolSchema,
   TaskBoardToolSchema,
-  EmailDraftToolSchema,
   ChangeSummaryToolSchema,
   CommentThreadToolSchema,
   AiAnswerToolSchema,
@@ -129,30 +128,6 @@ export const UITaskBoardTool: HarnessTool = {
   },
 };
 
-/**
- * 邮件草稿（HITL）：邮件发出属外部副作用，requiresApproval 常开
- * （deny-wins 语义：任何权限档位都触发审批挂起，auto 档也不放行）。
- * rendered: false —— 草稿展示与「发送/重新起草」决策由审批卡承载
- * （前端对 ui_email_draft 审批卡渲染富草稿 UI），执行完成后不再重复落 ui 卡。
- */
-export const UIEmailDraftTool: HarnessTool = {
-  name: "ui_email_draft",
-  description:
-    "起草邮件并挂起等待人工确认发送（HITL）：用户批准即发送、可要求重新起草或拒绝；邮件属外部副作用，任何权限档位都需要人工确认",
-  parameters: EmailDraftToolSchema,
-  riskLevel: "medium",
-  requiresApproval: true,
-  writesWorkspace: false,
-  execute: async (ctx) => {
-    return {
-      rendered: false,
-      confirmed: true,
-      component: "ui_email_draft",
-      props: ctx.args,
-    };
-  },
-};
-
 export const UIChangeSummaryTool: HarnessTool = {
   name: "ui_change_summary",
   description: "一轮工作收尾时展示变更摘要卡：文件清单、增删行数、耗时与工具调用次数",
@@ -209,7 +184,6 @@ export const AllBuiltinTools: HarnessTool[] = [
   UIFileTreeTool,
   UITrajectoryTool,
   UITaskBoardTool,
-  UIEmailDraftTool,
   UIChangeSummaryTool,
   UICommentThreadTool,
   UIAiAnswerTool,

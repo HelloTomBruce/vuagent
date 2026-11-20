@@ -15,7 +15,6 @@ import { VaAgentPlan } from "../components/agent-plan/index.js";
 import { VaMetricChart } from "../components/metric-chart/index.js";
 import { VaFileTree } from "../components/file-tree/index.js";
 import { VaTaskBoard } from "../components/task-board/index.js";
-import { VaEmailDraft } from "../components/email-draft/index.js";
 import { VaChangeSummary } from "../components/change-summary/index.js";
 import { VaCommentThread } from "../components/comment-thread/index.js";
 import { VaAiAnswer } from "../components/ai-answer/index.js";
@@ -204,41 +203,7 @@ export function setupDefaultAgentRegistry(): void {
     },
   });
 
-  // 8. 邮件草稿（HITL：发送=批准、重新起草=拒绝，复用审批回传通道）
-  registerAgentComponent("ui_email_draft", {
-    component: VaEmailDraft,
-    skeleton: CardSkeleton,
-    progressive: false, // 三字段齐备才有展示意义
-    propAdapter: (rawArgs, ctx) => {
-      const args = asRecord(rawArgs);
-      const tones = asArray(args.tones);
-      return {
-        to: asString(args.to),
-        subject: asString(args.subject),
-        body: asString(args.body),
-        tone: asString(args.tone),
-        tones: tones.length > 0 ? tones : undefined,
-        // 状态闸门对齐审批卡：仅 executing（审批通过、协程恢复后）阶段允许决策回传
-        onSend: (draft?: unknown) => {
-          if (ctx.onSubmitAction && ctx.status === "executing") {
-            const d = asRecord(draft as RawArgs);
-            ctx.onSubmitAction({
-              approved: true,
-              reason: "manual",
-              note: `确认发送邮件至 ${asString(d.to) ?? "收件人"}`,
-            });
-          }
-        },
-        onRegenerate: () => {
-          if (ctx.onSubmitAction && ctx.status === "executing") {
-            ctx.onSubmitAction({ approved: false, reason: "manual", note: "用户要求重新起草" });
-          }
-        },
-      };
-    },
-  });
-
-  // 9. 变更摘要（一轮工作收尾的 N 文件 +adds −dels 台账）
+  // 8. 变更摘要（一轮工作收尾的 N 文件 +adds −dels 台账）
   registerAgentComponent("ui_change_summary", {
     component: VaChangeSummary,
     skeleton: CardSkeleton,
@@ -255,7 +220,7 @@ export function setupDefaultAgentRegistry(): void {
     },
   });
 
-  // 10. 评论线程（契约卡为持久化记录：关闭输入框，不做无后端的"发布"假交互）
+  // 9. 评论线程（契约卡为持久化记录：关闭输入框，不做无后端的"发布"假交互）
   registerAgentComponent("ui_comment_thread", {
     component: VaCommentThread,
     skeleton: CardSkeleton,
@@ -270,7 +235,7 @@ export function setupDefaultAgentRegistry(): void {
     },
   });
 
-  // 11. 引用回答（正文 [n] 角标 + 来源列表；流式阶段带光标）
+  // 10. 引用回答（正文 [n] 角标 + 来源列表；流式阶段带光标）
   registerAgentComponent("ui_ai_answer", {
     component: VaAiAnswer,
     skeleton: CardSkeleton,

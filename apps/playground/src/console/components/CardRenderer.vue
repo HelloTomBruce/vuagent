@@ -14,7 +14,6 @@ import {
   VaToolCallCard,
   VaTrajectory,
   VaTaskBoard,
-  VaEmailDraft,
   VaChangeSummary,
   VaCommentThread,
   VaAiAnswer,
@@ -77,8 +76,7 @@ const approvalCountdown = computed<number | undefined>(() => {
 });
 
 // "ui" 持久化卡：可渲染的契约组件集合
-// （ui_approval_card 由 HITL 流负责、ui_agent_plan 由 planSteps/DockedPlanBar 负责，
-//  ui_email_draft 走审批流富 UI，执行后 rendered:false 不落卡，此处均不渲染）
+// （ui_approval_card 由 HITL 流负责、ui_agent_plan 由 planSteps/DockedPlanBar 负责，此处不渲染）
 const UI_RENDERABLE = new Set([
   "ui_code_diff",
   "ui_metric_chart",
@@ -93,24 +91,7 @@ const UI_RENDERABLE = new Set([
 const uiProps = computed<Record<string, any>>(() => props.card.data?.props || {});
 const uiComponent = computed(() => String(props.card.data?.component || ""));
 const uiRenderable = computed(() => UI_RENDERABLE.has(uiComponent.value));
-
-/**
- * 邮件草稿富审批面：ui_email_draft 审批挂起期间，用 VaEmailDraft 直接呈现草稿
- * （发送=批准、重新起草=拒绝），替代通用审批卡的 JSON 预览。
- * 仅 pending 且携带入参快照时启用；已决策（approved/denied）回落通用审批卡展示结果行。
- */
-const emailArgs = computed<Record<string, any> | null>(() => {
-  if (props.card.type !== "approval") return null;
-  if (props.card.data?.toolName !== "ui_email_draft") return null;
-  if (props.card.data?.status !== "pending") return null;
-  const args = props.card.data?.args;
-  return args && typeof args === "object" ? args : null;
-});
-const emailTones = computed(() => {
-  const tones = emailArgs.value?.tones;
-  return Array.isArray(tones) && tones.length > 0 ? tones : undefined;
-});
-</script>
+</script></script>
 
 <template>
   <div class="va-console__card-item">
@@ -182,21 +163,9 @@ const emailTones = computed(() => {
       :open-on-error="true"
     />
 
-    <!-- HITL 邮件草稿富审批面：发送=批准 / 重新起草=拒绝（真实审批回传链路） -->
-    <VaEmailDraft
-      v-if="emailArgs"
-      :to="emailArgs.to"
-      :subject="emailArgs.subject"
-      :body="emailArgs.body"
-      :tone="emailArgs.tone"
-      :tones="emailTones"
-      @send="$emit('approve')"
-      @regenerate="$emit('deny', '用户要求重新起草')"
-    />
-
     <!-- HITL 审批卡片 (VaApprovalCard) -->
     <VaApprovalCard
-      v-else-if="card.type === 'approval'"
+      v-if="card.type === 'approval'"
       :title="card.data.title || `申请执行: ${card.data.toolName || '工具'}`"
       :risk="card.data.risk"
       :preview="card.data.command"

@@ -196,12 +196,6 @@
       "type": "registry:ui"
     },
     {
-      "name": "email-draft",
-      "title": "Email Draft",
-      "description": "agent 起草邮件、人工确认发送：收件人/主题/正文可就地编辑、语气 chips、起草骨架、发送校验与错误回显、重新起草。",
-      "type": "registry:ui"
-    },
-    {
       "name": "usage-meter",
       "title": "Usage Meter",
       "description": "用量仪表：多段堆叠条（fast/slow tokens、credits）+ 图例 + 限额预警（默认 80%）/超限态与「管理额度」入口。",

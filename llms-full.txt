@@ -360,19 +360,6 @@ AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输�
 | `composer` | `boolean` | true | 底部输入框开关 |
 | `@submit / @adopt / @rewrite / @discard` | `-` | - | 发布与草稿处理 |
 
-### Email Draft
-
-agent 起草邮件、人工确认发送：收件人/主题/正文可就地编辑、语气 chips、起草骨架、发送校验与错误回显、重新起草。
-
-组件：VaEmailDraft
-
-| Prop / 事件 | 类型 | 默认 | 说明 |
-|---|---|---|---|
-| `to / subject / body` | `string` | - | 三字段受控（v-model:to 等） |
-| `tones / tone` | `ToneOption[] / string` | - | 语气选项与当前值 |
-| `drafting / sending` | `boolean` | false | 起草骨架 / 发送中 |
-| `@send / @regenerate` | `-` | - | 发送（携带完整草稿）/ 重新起草 |
-
 
 ## 基础
 

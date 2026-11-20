@@ -144,9 +144,6 @@ export type { Checkpoint, CheckpointListEvents, CheckpointListProps } from "./co
 export { VaCommentThread } from "./components/comment-thread";
 export type { CommentItem, CommentThreadEvents, CommentThreadProps } from "./components/comment-thread";
 
-export { VaEmailDraft } from "./components/email-draft";
-export type { EmailDraftEvents, EmailDraftProps, ToneOption } from "./components/email-draft";
-
 export { VaUsageMeter } from "./components/usage-meter";
 export type { UsageMeterEvents, UsageMeterProps, UsageSegment } from "./components/usage-meter";
 

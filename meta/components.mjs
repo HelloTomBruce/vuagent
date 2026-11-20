@@ -334,16 +334,6 @@ export const components = [
     ],
   },
   {
-    dir: "email-draft", slug: "email-draft", title: "Email Draft", category: "Chat", components: ["VaEmailDraft"],
-    desc: "agent 起草邮件、人工确认发送：收件人/主题/正文可就地编辑、语气 chips、起草骨架、发送校验与错误回显、重新起草。",
-    props: [
-      { name: "to / subject / body", type: "string", default: "-", desc: "三字段受控（v-model:to 等）" },
-      { name: "tones / tone", type: "ToneOption[] / string", default: "-", desc: "语气选项与当前值" },
-      { name: "drafting / sending", type: "boolean", default: "false", desc: "起草骨架 / 发送中" },
-      { name: "@send / @regenerate", type: "-", default: "-", desc: "发送（携带完整草稿）/ 重新起草" },
-    ],
-  },
-  {
     dir: "usage-meter", slug: "usage-meter", title: "Usage Meter", category: "基础", components: ["VaUsageMeter"],
     desc: "用量仪表：多段堆叠条（fast/slow tokens、credits）+ 图例 + 限额预警（默认 80%）/超限态与「管理额度」入口。",
     props: [

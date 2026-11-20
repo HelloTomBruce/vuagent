@@ -247,34 +247,7 @@ export const TaskBoardToolSchema = Type.Object(
 export type TaskBoardToolArgs = Static<typeof TaskBoardToolSchema>;
 
 // ==========================================
-// 8. 邮件草稿工具 (EmailDraft) — HITL
-// ==========================================
-export const EmailToneOptionSchema = Type.Object({
-  value: Type.String({ description: "语气值" }),
-  label: Type.String({ description: "语气展示文案" }),
-});
-
-export const EmailDraftToolSchema = Type.Object(
-  {
-    to: Type.String({ description: "收件人（邮箱地址或姓名）" }),
-    subject: Type.String({ description: "邮件主题" }),
-    body: Type.String({ description: "邮件正文（保留换行）" }),
-    tone: Type.Optional(Type.String({ description: "当前语气 value（配合 tones）" })),
-    tones: Type.Optional(
-      Type.Array(EmailToneOptionSchema, { description: "可选语气列表，提供后显示语气 chips" })
-    ),
-  },
-  {
-    $id: "ui_email_draft",
-    description:
-      "起草邮件并挂起等待人工确认（HITL）：用户批准即发送、可要求重新起草或拒绝；邮件属外部副作用，任何权限档位都需要人工确认",
-  }
-);
-
-export type EmailDraftToolArgs = Static<typeof EmailDraftToolSchema>;
-
-// ==========================================
-// 9. 变更摘要卡片工具 (ChangeSummary)
+// 8. 变更摘要卡片工具 (ChangeSummary)
 // ==========================================
 export const SummaryFileSchema = Type.Object({
   path: Type.String({ description: "文件相对路径" }),
@@ -300,7 +273,7 @@ export const ChangeSummaryToolSchema = Type.Object(
 export type ChangeSummaryToolArgs = Static<typeof ChangeSummaryToolSchema>;
 
 // ==========================================
-// 10. 评论线程卡片工具 (CommentThread)
+// 9. 评论线程卡片工具 (CommentThread)
 // ==========================================
 export const CommentItemSchema = Type.Object({
   id: Type.String({ description: "评论 ID" }),
@@ -329,7 +302,7 @@ export const CommentThreadToolSchema = Type.Object(
 export type CommentThreadToolArgs = Static<typeof CommentThreadToolSchema>;
 
 // ==========================================
-// 11. 引用回答卡片工具 (AiAnswer)
+// 10. 引用回答卡片工具 (AiAnswer)
 // ==========================================
 export const AnswerSourceSchema = Type.Object({
   id: Type.String({ description: "来源 ID，与正文 [n] 角标对应" }),
@@ -365,7 +338,6 @@ export const VuagentToolSchemas = {
   ui_agent_plan: AgentPlanToolSchema,
   ui_file_tree: FileTreeToolSchema,
   ui_task_board: TaskBoardToolSchema,
-  ui_email_draft: EmailDraftToolSchema,
   ui_change_summary: ChangeSummaryToolSchema,
   ui_comment_thread: CommentThreadToolSchema,
   ui_ai_answer: AiAnswerToolSchema,

@@ -42,7 +42,6 @@
 - [Stream Answer](https://hellotombruce.github.io/vuagent/components/stream-answer): 流式回答：按节奏逐字吐出 source，带流式光标，完成后 emit complete，支持重放。（VaStreamAnswer）
 - [Message Actions / Text](https://hellotombruce.github.io/vuagent/components/message-actions): AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输入）、版本切换；MessageText 提供版本交叉淡入。（VaMessageActions / VaMessageText）
 - [Comment Thread](https://hellotombruce.github.io/vuagent/components/comment-thread): 评论线程：agent 起草待审条目（采纳/重写/丢弃操作条）、人发评论、首字母头像、⌘/Ctrl+Enter 发布。（VaCommentThread）
-- [Email Draft](https://hellotombruce.github.io/vuagent/components/email-draft): agent 起草邮件、人工确认发送：收件人/主题/正文可就地编辑、语气 chips、起草骨架、发送校验与错误回显、重新起草。（VaEmailDraft）
 
 ## 基础
 

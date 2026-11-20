@@ -11,7 +11,6 @@ import {
   VaCommandMenu,
   VaCommentThread,
   VaDropzone,
-  VaEmailDraft,
   VaFileTree,
   VaTerminalLog,
   VaUsageMeter,
@@ -124,22 +123,6 @@ describe("M5 SSR 渲染", () => {
     expect(html).toContain(">A</span>"); // 首字母头像
     expect(html).toContain("va-cmt__composer"); // composer 默认开启（布尔 cast 回归锁定）
     expect(html).toContain("发布");
-  });
-
-  it("VaEmailDraft：受控字段渲染 + 语气 chips", async () => {
-    const { html } = await ssr(VaEmailDraft, {
-      to: "ops@x.com",
-      subject: "审阅",
-      body: "正文",
-      tone: "formal",
-      tones: [
-        { value: "concise", label: "简洁" },
-        { value: "formal", label: "正式" },
-      ],
-    });
-    expect(html).toContain("ops@x.com");
-    expect(html).toContain("aria-checked=\"true\""); // formal 选中
-    expect(html).toContain("发送");
   });
 
   it("VaUsageMeter：堆叠段 + 图例 + 预警态", async () => {

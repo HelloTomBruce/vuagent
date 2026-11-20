@@ -7,7 +7,6 @@ import {
   VaCommandMenu,
   VaCommentThread,
   VaDropzone,
-  VaEmailDraft,
   VaFileTree,
   VaTerminalLog,
   VaToaster,
@@ -220,30 +219,6 @@ function discard(id: string) {
   comments.value = comments.value.filter((c) => c.id !== id);
 }
 
-/* 邮件草稿 */
-const mail = ref({ to: "ops@fastech.com", subject: "用户列表页重构完成，请审阅", body: "Hi 团队，\n\n用户列表页重构完成：\n· 分页 + 取消请求（AbortController）\n· 加载骨架与错误兜底\n· 检查点已存，可随时回滚\n\n构建通过（1.42s），详见附件。\n\n—— 由 agent 起草" });
-const mailDrafting = ref(false);
-const mailSending = ref(false);
-const tones = [
-  { value: "concise", label: "简洁" },
-  { value: "formal", label: "正式" },
-  { value: "friendly", label: "友好" },
-];
-const tone = ref("concise");
-function regenerateMail() {
-  mailDrafting.value = true;
-  window.setTimeout(() => {
-    mail.value.subject = "【审阅】用户列表页重构完成";
-    mailDrafting.value = false;
-  }, 1200);
-}
-function sendMail(d: { to: string; subject: string; body: string }) {
-  mailSending.value = true;
-  window.setTimeout(() => {
-    mailSending.value = false;
-    vaToaster.add({ title: "邮件已发送", description: `${d.to} · ${d.subject}`, kind: "success" });
-  }, 1000);
-}
 
 /* 上传 */
 const uploads = ref<DropzoneFile[]>([]);
@@ -330,22 +305,7 @@ function onRemove(id: string) {
         <VaCommentThread :comments="comments" :max-height="300" @submit="submitComment" @adopt="adopt" @rewrite="rewrite" @discard="discard" />
       </section>
 
-      <section class="m5__panel">
-        <h3>Email Draft · agent 起草、人工确认</h3>
-        <VaEmailDraft
-          v-model:to="mail.to"
-          v-model:subject="mail.subject"
-          v-model:body="mail.body"
-          v-model:tone="tone"
-          :tones="tones"
-          :drafting="mailDrafting"
-          :sending="mailSending"
-          @send="sendMail"
-          @regenerate="regenerateMail"
-        />
-      </section>
-
-      <section class="m5__panel">
+<section class="m5__panel">
         <h3>Dropzone · 附件上传（拖入或点击；超 10MB 拒绝）</h3>
         <VaDropzone
           :files="uploads"

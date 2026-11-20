@@ -181,8 +181,8 @@ export async function* executeToolCallStep(
           toolName: call.name,
           title: `申请执行工具: ${call.name}`,
           command: `${call.name} ${JSON.stringify(parsedArgs, null, 2)}`,
-          // 工具入参快照：供前端对特定工具渲染富审批 UI（如 ui_email_draft 直接以
-          // VaEmailDraft 呈现草稿，发送=批准、重新起草=拒绝），缺省时回退 command 文本
+          // 工具入参快照：供前端对特定工具渲染富审批 UI（组件内决策替代 JSON 预览），
+          // 缺省时回退 command 文本
           args: parsedArgs,
           risk: toolDef?.riskLevel || "high",
           expiresInSec: 180,
