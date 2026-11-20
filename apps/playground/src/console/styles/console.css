@@ -1707,3 +1707,8 @@
   max-height: 420px;
   overflow-y: auto;
 }
+
+/* TASK-076 F2：运行中入队 dock（composer 上方） */
+.va-console__queuedock {
+  margin: 0 0 8px;
+}

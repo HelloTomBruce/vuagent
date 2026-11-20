@@ -10,11 +10,12 @@
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
 import { ArrowDown, Bell, ChevronDown, History, PanelRight, Route } from "lucide-vue-next";
-import { formatTokens, useStickToBottom, VaCommandMenu, VaCompactBreakdown, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaNotificationStack, VaPopover, VaSegmentedControl, VaThinkingLoader, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
-import type { CommandItem, NotificationItem } from "@vuagent/ui";
+import { formatTokens, useStickToBottom, VaCommandMenu, VaCompactBreakdown, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaNotificationStack, VaPopover, VaQueueDock, VaSegmentedControl, VaThinkingLoader, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
+import type { CommandItem, NotificationItem, QueueItem, ComposerAttachment } from "@vuagent/ui";
 import type { ContextPart } from "@vuagent/ui";
 import type { Decision } from "@vuagent/ui";
 import ConsoleSidebar from "./console/components/ConsoleSidebar.vue";
+import ComposerMenu from "./console/components/ComposerMenu.vue";
 import ConsoleRightSidebar from "./console/components/ConsoleRightSidebar.vue";
 import DockedPlanBar from "./console/components/DockedPlanBar.vue";
 import TextPromptHost from "./console/components/TextPromptHost.vue";
@@ -402,6 +403,97 @@ const awaitingFirstContent = computed(() => {
   );
 });
 
+/* ---------- 运行中入队（TASK-076 F2：VaQueueDock；composer busy 不拦截 send，宿主自排队） ---------- */
+const messageQueue = ref<QueueItem[]>([]);
+
+function enqueueMessage(text: string) {
+  messageQueue.value.push({ id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text });
+  vaToaster.add({ title: "已加入队列", description: "当前会话运行中，结束后自动发送", kind: "info" });
+}
+
+function onQueueRemove(index: number) {
+  messageQueue.value.splice(index, 1);
+}
+
+/** 插队：移动到队首；会话空闲则立即下发 */
+function onQueueSendNow(index: number) {
+  const [item] = messageQueue.value.splice(index, 1);
+  if (!item) return;
+  if (!isRunning.value) {
+    void handleSend(item.text);
+    return;
+  }
+  messageQueue.value.unshift(item);
+}
+
+function onQueueEdit(index: number, text: string) {
+  if (messageQueue.value[index]) messageQueue.value[index].text = text;
+}
+
+/** 运行结束沿：按队列顺序自动下发（每轮 handleSend 内部仍受 isRunning 保护） */
+watch(isRunning, (running, prev) => {
+  if (prev === true && running === false && messageQueue.value.length > 0 && !isNewChat.value) {
+    const next = messageQueue.value.shift();
+    if (next) setTimeout(() => void handleSend(next.text), 400);
+  }
+});
+
+/* ---------- 附件（TASK-076 F2：composer 内建 attachable；文本客户端读取内联，不绕审批链） ---------- */
+const attachments = ref<ComposerAttachment[]>([]);
+/** 附件文本缓存（filesSelected 时即读；发送时内联进 prompt） */
+const attachmentTexts = new Map<string, string>();
+const ATTACH_INLINE_CAP = 48 * 1024;
+
+function onFilesSelected(files: File[]) {
+  for (const f of files.slice(0, 6)) {
+    const id = `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const isImage = f.type.startsWith("image/");
+    attachments.value.push({
+      id,
+      name: f.name,
+      size: f.size,
+      kind: isImage ? "image" : "file",
+      previewUrl: isImage ? URL.createObjectURL(f) : undefined,
+    });
+    if (isImage) continue; // 图片仅登记名（无视觉通道，不假装内联）
+    const reader = new FileReader();
+    reader.onload = () => {
+      let content = String(reader.result ?? "");
+      if (content.length > ATTACH_INLINE_CAP) {
+        content = `${content.slice(0, ATTACH_INLINE_CAP)}\n…（超出 48KB 已截断）`;
+      }
+      attachmentTexts.set(id, content);
+    };
+    reader.readAsText(f);
+  }
+}
+
+function buildAttachmentPrefix(): string {
+  if (attachments.value.length === 0) return "";
+  const parts: string[] = [];
+  for (const a of attachments.value) {
+    const text = attachmentTexts.get(a.id);
+    parts.push(text ? `---\n[${a.name}]\n${text}\n---` : `[附件] ${a.name}（${a.kind === "image" ? "图片" : "文件"}）`);
+  }
+  return parts.join("\n\n") + "\n\n";
+}
+
+function clearAttachments() {
+  for (const a of attachments.value) {
+    if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
+    attachmentTexts.delete(a.id);
+  }
+  attachments.value = [];
+}
+
+function onRemoveAttachment(id: string) {
+  const a = attachments.value.find((x) => x.id === id);
+  if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl);
+  attachmentTexts.delete(id);
+  attachments.value = attachments.value.filter((x) => x.id !== id);
+}
+
+
 /** TASK-008 手动压缩：调服务端压缩接口 → 消费返回的新占用(totalTokens/parts)刷新仪表 → toast 释放量 */
 async function onCompactSession() {
   if (isCompacting.value) return;
@@ -599,8 +691,21 @@ async function onSelectModel(id: string) {
 }
 
 async function handleSend(promptOverride?: string) {
-  const prompt = (promptOverride ?? composerText.value).trim();
-  if (!prompt || isRunning.value) return;
+  // 运行中入队（TASK-076 F2）：composer busy 不拦截 send，宿主排队、结束后自动下发
+  if (isRunning.value) {
+    const queued = (promptOverride ?? composerText.value).trim();
+    if (queued) enqueueMessage(queued);
+    return;
+  }
+
+  // 附件内联（仅直接发送路径；队列 flush 走 promptOverride 直传）
+  let prompt = (promptOverride ?? composerText.value).trim();
+  if (!promptOverride && attachments.value.length > 0) {
+    const prefix = buildAttachmentPrefix();
+    prompt = prompt ? `${prefix}${prompt}` : prefix.trim();
+    clearAttachments();
+  }
+  if (!prompt) return;
 
   // 确保存在可用工作区（无则引导系统选目录/手动创建）
   if (!(await ensureActiveWorkspace())) return;
@@ -714,11 +819,21 @@ function quickFillPrompt(text: string) {
               :model="activeModel"
               :permissions="composerPermissions"
               :permission="activePermission"
+              attachable
+              :attachments="attachments"
               @send="(t) => handleSend(t)"
               @update:model="onSelectModel"
               @update:permission="onSelectPermission"
+              @files-selected="onFilesSelected"
+              @remove-attachment="onRemoveAttachment"
             >
               <template #actions>
+              <ComposerMenu
+                :workspace-id="activeWorkspaceId"
+                @clear="composerText = ''"
+                @insert="(text) => (composerText += text)"
+                @open-command-menu="cmdOpen = true"
+              />
                 <!-- 上下文窗口仪表（VaContextWindow，点击展开分段面板；VaPopover 托管定位/外部点击/Esc） -->
                 <VaPopover placement="top-start" :offset="8">
                   <template #trigger>
@@ -851,6 +966,15 @@ function quickFillPrompt(text: string) {
 
         <!-- 底部固定输入框 -->
         <div class="va-console__bottom-composer">
+          <!-- 运行中入队可视化（TASK-076 F2：VaQueueDock） -->
+          <VaQueueDock
+            v-if="messageQueue.length > 0"
+            class="va-console__queuedock"
+            :items="messageQueue"
+            @remove="onQueueRemove"
+            @send-now="onQueueSendNow"
+            @edit="onQueueEdit"
+          />
           <VaComposer
             ref="composerRef"
             v-model:text="composerText"
@@ -860,12 +984,22 @@ function quickFillPrompt(text: string) {
             :model="activeModel"
             :permissions="composerPermissions"
             :permission="activePermission"
+            attachable
+            :attachments="attachments"
             @send="(t) => handleSend(t)"
             @stop="stopExecution"
             @update:model="onSelectModel"
             @update:permission="onSelectPermission"
+            @files-selected="onFilesSelected"
+            @remove-attachment="onRemoveAttachment"
           >
             <template #actions>
+              <ComposerMenu
+                :workspace-id="activeWorkspaceId"
+                @clear="composerText = ''"
+                @insert="(text) => (composerText += text)"
+                @open-command-menu="cmdOpen = true"
+              />
               <!-- 上下文窗口仪表（VaContextWindow，点击展开分段面板；VaPopover 托管定位/外部点击/Esc） -->
               <VaPopover placement="top-start" :offset="8">
                 <template #trigger>

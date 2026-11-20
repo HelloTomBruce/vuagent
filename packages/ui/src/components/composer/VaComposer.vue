@@ -3,6 +3,7 @@ import { computed, ref, useTemplateRef } from "vue";
 import { Check, ChevronDown, FileText, Loader2, Paperclip, Shield, X, Zap } from "lucide-vue-next";
 import type { ComposerEvents, ComposerProps } from "./types";
 import { useComposer } from "./useComposer";
+import { VaModelPicker } from "../model-picker/index.js";
 
 const props = withDefaults(defineProps<ComposerProps>(), {
   text: undefined,
@@ -32,23 +33,18 @@ const { composing, onInput, submit, onKeydown } = useComposer(props, text, area,
 /* ---------- 模型 / 权限 seat（G21/G22） ---------- */
 const currentModel = computed(() => props.model || props.models[0]?.id || "");
 const currentPermission = computed(() => props.permission || props.permissions[0]?.id || "");
-const modelOpen = ref(false);
 const permOpen = ref(false);
-function toggleModel() {
-  modelOpen.value = !modelOpen.value;
-  permOpen.value = false;
-}
 function togglePerm() {
   permOpen.value = !permOpen.value;
-  modelOpen.value = false;
-}
-function pickModel(id: string) {
-  if (id !== currentModel.value) emit("update:model", id);
-  modelOpen.value = false;
 }
 function pickPermission(id: string) {
   if (id !== currentPermission.value) emit("update:permission", id);
   permOpen.value = false;
+}
+/** ComposerModelOption → ModelItem（VaModelPicker 承载模型 seat，键盘可导航） */
+const mpModels = computed(() => props.models.map((m) => ({ id: m.id, name: m.label, tag: m.meta })));
+function onModelPicked(id: string) {
+  if (id !== currentModel.value) emit("update:model", id);
 }
 const modelLabel = computed(() => props.models.find((m) => m.id === currentModel.value)?.label ?? currentModel.value);
 const permLabel = computed(() => props.permissions.find((p) => p.id === currentPermission.value)?.label ?? currentPermission.value);
@@ -132,30 +128,24 @@ defineExpose({
       <div class="va-cmp__actions">
         <slot name="actions" />
 
-        <!-- 模型 seat（G21） -->
-        <span v-if="props.models.length" class="va-cmp__seat-wrap">
-          <button class="va-cmp__seat" type="button" :aria-label="`切换模型（当前 ${modelLabel}）`" :disabled="props.disabled" @click.stop="toggleModel">
-            <Zap :size="12" aria-hidden="true" />
-            <span class="va-cmp__seat-label">{{ modelLabel }}</span>
-            <ChevronDown :size="11" aria-hidden="true" />
-          </button>
-          <div v-if="modelOpen" class="va-cmp__menu" role="menu" aria-label="切换模型">
-            <button
-              v-for="m in props.models"
-              :key="m.id"
-              class="va-cmp__menu-row"
-              type="button"
-              role="menuitem"
-              :data-active="m.id === currentModel || undefined"
-              @click.stop="pickModel(m.id)"
-            >
-              <Check v-if="m.id === currentModel" :size="13" aria-hidden="true" />
-              <span v-else class="va-cmp__menu-gap" aria-hidden="true" />
-              <span class="va-cmp__menu-name">{{ m.label }}</span>
-              <span v-if="m.meta" class="va-cmp__menu-meta">{{ m.meta }}</span>
+        <!-- 模型 seat（G21）：VaModelPicker 承载（键盘可导航；trigger 插槽保座位样式） -->
+        <VaModelPicker
+          v-if="props.models.length"
+          class="va-cmp__seat-wrap"
+          :models="mpModels"
+          :selected="currentModel"
+          align="left"
+          :aria-label="`切换模型（当前 ${modelLabel}）`"
+          @update:selected="onModelPicked"
+        >
+          <template #trigger="{ open, toggle }">
+            <button class="va-cmp__seat" type="button" :aria-expanded="open" :aria-label="`切换模型（当前 ${modelLabel}）`" :disabled="props.disabled" @click.stop="toggle">
+              <Zap :size="12" aria-hidden="true" />
+              <span class="va-cmp__seat-label">{{ modelLabel }}</span>
+              <ChevronDown :size="11" aria-hidden="true" />
             </button>
-          </div>
-        </span>
+          </template>
+        </VaModelPicker>
 
         <!-- 权限 seat（G22） -->
         <span v-if="props.permissions.length" class="va-cmp__seat-wrap">

@@ -17,18 +17,21 @@ const { models, open, activeIdx, current, onTriggerClick, pick, onKeydown } = us
 
 <template>
   <div ref="root" class="va-mpk" @keydown="onKeydown">
-    <button
-      class="va-mpk__btn"
-      type="button"
-      :aria-expanded="open"
-      :aria-label="props.ariaLabel"
-      @click="onTriggerClick"
-    >
-      {{ current?.name ?? "选择模型" }}
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-        <path d="m7 9.5 5 5 5-5" />
-      </svg>
-    </button>
+    <!-- 自定义触发器（宿主注入座位样式等）；slot props: { current, open, toggle } -->
+    <slot name="trigger" :current="current" :open="open" :toggle="onTriggerClick">
+      <button
+        class="va-mpk__btn"
+        type="button"
+        :aria-expanded="open"
+        :aria-label="props.ariaLabel"
+        @click="onTriggerClick"
+      >
+        {{ current?.name ?? "选择模型" }}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="m7 9.5 5 5 5-5" />
+        </svg>
+      </button>
+    </slot>
 
     <Transition name="va-mpk">
       <ul v-if="open" class="va-mpk__menu" :class="`va-mpk__menu--${props.align}`" role="listbox">
