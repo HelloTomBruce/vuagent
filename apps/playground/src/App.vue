@@ -103,7 +103,7 @@ router.afterEach((to) => {
 .pg__bar {
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: var(--va-z-sticky, 50);
   display: flex;
   align-items: center;
   gap: 18px;

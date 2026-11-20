@@ -14,6 +14,7 @@
  *    色彩/间距/圆角/阴影/字体与 L2 语义档位族）禁止裸 var() 引用——无 tokens.css
  *    宿主会 IACVT 整条声明失效（TASK-006 评审 C1 及后续债务清偿）。
  *    组件文件内自定义的 L3 钩子（--va-<组件>-*）不在 tokens 集合内，自含引用合法；
+ *    覆盖范围含 playground（宿主与库同标准，杜绝双轨）;
  * 3. @keyframes 同名一致性：同名 keyframes 在多文件定义时（单文件拷贝要求
  *    各文件自含）规范化 body 必须一致，防止一处改动静默影响全部 spinner；
  * 4. fail-closed 守卫：tokens.css 解析为空、或实际校验数为 0 时按失败退出，
@@ -42,9 +43,6 @@ const SCAN_DIRS = [
   path.join(ROOT, "packages/ui/src"),
   path.join(ROOT, "apps/playground/src"),
 ];
-/** L2 裸引用门禁范围：仅库分发面（playground 是宿主应用，恒有 tokens.css） */
-const BARE_GATE_DIR = path.join(ROOT, "packages/ui/src");
-
 /** 递归收集指定扩展名文件 */
 function listFiles(dir, exts) {
   const out = [];
@@ -118,14 +116,12 @@ function main() {
         }
       }
 
-      // 全局令牌裸引用门禁（仅库分发面）：凡 tokens.css 定义的令牌禁止裸引用
-      if (unit.file.startsWith(BARE_GATE_DIR)) {
-        for (const bare of findBareTokenRefs(unit.css, light)) {
-          bareProblems.push(
-            `${rel}:${bare.line}  ${bare.name} 裸 var() 引用缺字面 fallback，` +
-              `请补 tokens.css 亮色值（单文件拷贝分发要求）`
-          );
-        }
+      // 全局令牌裸引用门禁（库分发面 + playground 宿主同标准）：凡 tokens.css 定义的令牌禁止裸引用
+      for (const bare of findBareTokenRefs(unit.css, light)) {
+        bareProblems.push(
+          `${rel}:${bare.line}  ${bare.name} 裸 var() 引用缺字面 fallback，` +
+            `请补 tokens.css 亮色值（单文件拷贝分发要求）`
+        );
       }
 
       for (const [name, body] of Object.entries(extractKeyframes(unit.css))) {

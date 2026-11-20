@@ -412,7 +412,7 @@
   max-width: 860px;
   margin: 0 auto;
   padding: 0 24px;
-  z-index: 10;
+  z-index: var(--va-z-raised, 10);
 }
 
 .va-console__plan-bar {
@@ -685,7 +685,7 @@
   transition: all var(--va-dur-1, 120ms) ease;
 }
 .va-console__profile-card:hover {
-  border-color: color-mix(in srgb, var(--va-accent) 45%, var(--va-edge));
+  border-color: color-mix(in srgb, var(--va-accent, #c2410c) 45%, var(--va-edge, rgba(26, 25, 23, 0.12)));
 }
 /* 激活态带 :hover 提升特异性对齐 hover 规则（同特异性下后来者胜），替代 !important */
 .va-console__profile-card--active,
@@ -1226,7 +1226,7 @@
   transition: border-color var(--va-dur-1, 120ms) ease, color var(--va-dur-1, 120ms) ease;
 }
 .va-console__process-summary:hover {
-  border-color: color-mix(in srgb, var(--va-accent, #c2410c) 45%, var(--va-edge));
+  border-color: color-mix(in srgb, var(--va-accent, #c2410c) 45%, var(--va-edge, rgba(26, 25, 23, 0.12)));
 }
 .va-console__process-summary-chevron {
   color: var(--va-muted, #6f6d66);

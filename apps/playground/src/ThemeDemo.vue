@@ -482,7 +482,7 @@ mq.addEventListener("change", () => { if (pref === "system") apply(); });</pre>
 .td__tgroup h4 small { color: var(--va-muted, #6f6d66); font-weight: var(--va-fw-medium, 500); }
 .td__table { width: 100%; border-collapse: collapse; font-size: var(--va-fs-sm, 12px); }
 .td__table th { text-align: left; padding: 6px 10px; color: var(--va-muted, #6f6d66); font-weight: var(--va-fw-semibold, 600); border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12)); }
-.td__table td { padding: 5px 10px; border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.08)); color: var(--va-ink-2, #43413c); vertical-align: middle; }
+.td__table td { padding: 5px 10px; border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12)); color: var(--va-ink-2, #43413c); vertical-align: middle; }
 .td__table td:first-child code { background: var(--va-bg-subtle, #efede7); border-radius: 4px; padding: 1px 5px; font-size: 11px; white-space: nowrap; }
 .td__tname { width: 30%; }
 .td__tvals { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }

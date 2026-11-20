@@ -261,8 +261,8 @@ function sendChat(text: string) {
 .m7__xfade { margin-top: 14px; }
 .m7__xfade-text { margin: 0; font-size: 14px; font-weight: 700; }
 .m7__mini {
-  margin-top: 10px; border: 1px solid var(--va-edge); border-radius: 8px; background: transparent;
-  color: var(--va-muted); font-size: 12px; padding: 3px 10px; cursor: pointer;
+  margin-top: 10px; border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12)); border-radius: 8px; background: transparent;
+  color: var(--va-muted, #6f6d66); font-size: 12px; padding: 3px 10px; cursor: pointer;
 }
 .m7__deco { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; justify-content: center; padding: 8px 0; }
 .m7__chat-wrap { height: 560px; }
