@@ -8,7 +8,7 @@
  * 4. 组件级覆盖（L3 组件钩子）
  * 5. L2 语义令牌速查 + 三种方式的代码示例
  */
-import { onUnmounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { VaApprovalCard, VaButton, VaSegmentedControl } from "@vuagent/ui";
 import { useTheme, type ThemePreference } from "./console/composables/useTheme";
 
@@ -49,16 +49,180 @@ function resetPreset() {
 
 onUnmounted(resetPreset);
 
-/* —— L2 语义令牌速查（摘要自 packages/ui/src/styles/tokens.css）—— */
-const l2Rows = [
-  { token: "--va-fs-2xs ~ -2xl", value: "10 / 11 / 12 / 13 / 14 / 16 / 20px", usage: "字号七档 scale" },
-  { token: "--va-h-sm / -md / -lg", value: "30 / 36 / 44px", usage: "按钮/输入/下拉统一高度" },
-  { token: "--va-dur-in + ease-out-quart", value: "180ms", usage: "浮层入场" },
-  { token: "--va-dur-out + ease-in-quad", value: "140ms", usage: "浮层离场（更快更短）" },
-  { token: "--va-dur-loop", value: "1.8s", usage: "循环动画底速（shimmer/spinner）" },
-  { token: "--va-scrim", value: "亮 .45 / 暗 .6", usage: "弹窗/浮层遮罩压暗" },
-  { token: "--va-accent-contrast", value: "亮 #fff / 暗 深墨", usage: "accent 实底上的文字色（≈7.3:1）" },
+/* —— 全量令牌参考：分组与描述静态维护，值运行时从 CSSOM 读取（tokens.css 改动零漂移）—— */
+const TOKEN_GROUPS: Array<{ title: string; items: Array<{ name: string; desc: string }> }> = [
+  {
+    title: "色彩（L1）",
+    items: [
+      { name: "--va-bg", desc: "页面底色" },
+      { name: "--va-bg-subtle", desc: "次级底色（输入框/hover 面）" },
+      { name: "--va-card", desc: "卡片表面" },
+      { name: "--va-ink", desc: "主文字 / 墨色实底" },
+      { name: "--va-ink-2", desc: "次级文字" },
+      { name: "--va-muted", desc: "弱化文字 / 占位" },
+      { name: "--va-edge", desc: "描边" },
+      { name: "--va-edge-strong", desc: "强描边（激活/危险边）" },
+      { name: "--va-accent", desc: "强调色（主操作/链接/焦点）" },
+      { name: "--va-accent-hover", desc: "accent 悬停态" },
+      { name: "--va-accent-soft", desc: "accent 弱底（选中底/徽标底）" },
+      { name: "--va-success", desc: "成功" },
+      { name: "--va-warning", desc: "警告" },
+      { name: "--va-danger", desc: "危险" },
+      { name: "--va-info", desc: "信息" },
+    ],
+  },
+  {
+    title: "语义对照色（实底上的文字）",
+    items: [
+      { name: "--va-accent-contrast", desc: "accent 实底文字（暗色换深墨，≈7.3:1）" },
+      { name: "--va-success-contrast", desc: "success 实底文字" },
+      { name: "--va-warning-contrast", desc: "warning 实底文字" },
+      { name: "--va-danger-contrast", desc: "danger 实底文字" },
+      { name: "--va-info-contrast", desc: "info 实底文字" },
+    ],
+  },
+  {
+    title: "遮罩与骨架屏",
+    items: [
+      { name: "--va-scrim", desc: "弹窗/浮层遮罩压暗" },
+      { name: "--va-skel-bg", desc: "骨架屏底" },
+      { name: "--va-skel-hl", desc: "骨架屏高光" },
+    ],
+  },
+  {
+    title: "圆角",
+    items: [
+      { name: "--va-radius-s", desc: "小圆角（按钮/输入）" },
+      { name: "--va-radius-m", desc: "中圆角（卡片内块）" },
+      { name: "--va-radius-l", desc: "大圆角（卡片/弹窗）" },
+      { name: "--va-radius-pill", desc: "胶囊（999px）" },
+    ],
+  },
+  {
+    title: "间距（4px 栅格 + 半步）",
+    items: [
+      { name: "--va-s1", desc: "2px" },
+      { name: "--va-s2", desc: "4px" },
+      { name: "--va-s3", desc: "8px" },
+      { name: "--va-s3h", desc: "半步 6px" },
+      { name: "--va-s4", desc: "12px" },
+      { name: "--va-s4h", desc: "半步 10px" },
+      { name: "--va-s5", desc: "16px" },
+      { name: "--va-s6", desc: "24px" },
+      { name: "--va-s7", desc: "32px" },
+    ],
+  },
+  {
+    title: "排版",
+    items: [
+      { name: "--va-fs-2xs", desc: "字号 10px" },
+      { name: "--va-fs-xs", desc: "字号 11px" },
+      { name: "--va-fs-sm", desc: "字号 12px" },
+      { name: "--va-fs-md", desc: "字号 13px（正文默认）" },
+      { name: "--va-fs-lg", desc: "字号 14px" },
+      { name: "--va-fs-xl", desc: "字号 16px" },
+      { name: "--va-fs-2xl", desc: "字号 20px" },
+      { name: "--va-lh-tight", desc: "行高 1.3（紧凑）" },
+      { name: "--va-lh-normal", desc: "行高 1.5（常规）" },
+      { name: "--va-fw-medium", desc: "字重 500" },
+      { name: "--va-fw-semibold", desc: "字重 600" },
+      { name: "--va-fw-bold", desc: "字重 700" },
+      { name: "--va-tracking-wide", desc: "字距 0.04em（标签）" },
+      { name: "--va-tracking-wider", desc: "字距 0.06em（大写）" },
+    ],
+  },
+  {
+    title: "尺寸（控件 / 图标）",
+    items: [
+      { name: "--va-h-sm", desc: "控件高 30px" },
+      { name: "--va-h-md", desc: "控件高 36px" },
+      { name: "--va-h-lg", desc: "控件高 44px" },
+      { name: "--va-icon-sm", desc: "图标 14px" },
+      { name: "--va-icon-md", desc: "图标 16px" },
+      { name: "--va-icon-lg", desc: "图标 18px" },
+    ],
+  },
+  {
+    title: "层级（z-index 阶梯）",
+    items: [
+      { name: "--va-z-base", desc: "0 · 常规流" },
+      { name: "--va-z-raised", desc: "10 · 卡内浮起" },
+      { name: "--va-z-sticky", desc: "50 · 吸顶" },
+      { name: "--va-z-dropdown", desc: "70 · 下拉浮层" },
+      { name: "--va-z-overlay", desc: "80 · 弹窗遮罩" },
+      { name: "--va-z-popover-inner", desc: "90 · 遮罩内浮层" },
+      { name: "--va-z-toast", desc: "1000 · 全局通知" },
+    ],
+  },
+  {
+    title: "阴影",
+    items: [
+      { name: "--va-shadow-1", desc: "一级（卡片微浮）" },
+      { name: "--va-shadow-2", desc: "二级（下拉/抽屉）" },
+      { name: "--va-shadow-3", desc: "三级（弹窗）" },
+    ],
+  },
+  {
+    title: "动效（编排协议）",
+    items: [
+      { name: "--va-ease", desc: "标准缓动" },
+      { name: "--va-ease-out-quart", desc: "入场缓动（快出慢停）" },
+      { name: "--va-ease-in-quad", desc: "离场缓动（慢出快收）" },
+      { name: "--va-ease-spring", desc: "弹性过冲（成功反馈）" },
+      { name: "--va-dur-1", desc: "120ms（hover/按压）" },
+      { name: "--va-dur-2", desc: "200ms" },
+      { name: "--va-dur-3", desc: "300ms" },
+      { name: "--va-dur-in", desc: "浮层入场 180ms" },
+      { name: "--va-dur-out", desc: "浮层离场 140ms（更快更短）" },
+      { name: "--va-dist-s", desc: "位移 4px" },
+      { name: "--va-dist-m", desc: "位移 8px" },
+      { name: "--va-dur-loop", desc: "循环动画底速 1.8s" },
+    ],
+  },
+  {
+    title: "字体",
+    items: [
+      { name: "--va-font", desc: "无衬线主字体栈" },
+      { name: "--va-font-mono", desc: "等宽字体栈" },
+    ],
+  },
 ];
+
+/** 运行时收集 tokens.css 的亮/暗两组值（读 CSSOM 而非复制字面，改动零漂移） */
+const tokenLight = ref<Record<string, string>>({});
+const tokenDark = ref<Record<string, string>>({});
+
+function collectTokens() {
+  const lightMap: Record<string, string> = {};
+  const darkMap: Record<string, string> = {};
+  for (const sheet of document.styleSheets) {
+    let rules: CSSRuleList;
+    try {
+      rules = sheet.cssRules;
+    } catch {
+      continue; // 跨域样式表不可枚举，跳过
+    }
+    for (const rule of Array.from(rules)) {
+      if (!(rule instanceof CSSStyleRule)) continue;
+      const sel = (rule.selectorText || "").trim();
+      const target = /dark/i.test(sel) ? darkMap : sel === ":root" ? lightMap : null;
+      if (!target) continue;
+      for (let i = 0; i < rule.style.length; i++) {
+        const prop = rule.style.item(i);
+        if (prop.startsWith("--va-")) target[prop] = rule.style.getPropertyValue(prop).trim();
+      }
+    }
+  }
+  tokenLight.value = lightMap;
+  tokenDark.value = darkMap;
+}
+
+const isColorValue = (v?: string) => !!v && /^#|^rgb|^hsl|^color-mix/.test(v.trim());
+const lv = (name: string) => tokenLight.value[name];
+const dv = (name: string) => tokenDark.value[name];
+const tokenTotal = TOKEN_GROUPS.reduce((n, g) => n + g.items.length, 0);
+
+onMounted(collectTokens);
 
 /* 三态切换选项（供 SegmentedControl） */
 const themeOptions = [
@@ -175,22 +339,35 @@ function onThemeSeg(v: unknown) {
         <pre class="td__code">&lt;VaButton style="--va-btn-ink: #4338ca"&gt;…&lt;/VaButton&gt;</pre>
       </section>
 
-      <!-- L2 语义令牌速查 -->
+      <!-- 全量令牌参考 -->
       <section class="td__panel td__panel--wide">
-        <h3>⑤ L2 语义令牌速查</h3>
-        <p class="td__desc">组件不得绕过语义令牌裸写字号/字重/控件高度——换肤时调档位即可全局生效：</p>
-        <table class="td__table">
-          <thead>
-            <tr><th>令牌</th><th>值</th><th>用途</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="r in l2Rows" :key="r.token">
-              <td><code>{{ r.token }}</code></td>
-              <td>{{ r.value }}</td>
-              <td>{{ r.usage }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <h3>⑤ 全量令牌参考（L1 基础 + L2 语义，共 {{ tokenTotal }} 个）</h3>
+        <p class="td__desc">
+          值运行时读取自已加载的 <code>tokens.css</code>（令牌改动零漂移）；带色点的令牌同时展示亮/暗两套取值。
+          换肤即覆盖这些变量；<code>L3</code> 组件钩子（<code>--va-&lt;组件&gt;-*</code>）随各组件文档提供，不在此枚举。
+        </p>
+        <div v-for="g in TOKEN_GROUPS" :key="g.title" class="td__tgroup">
+          <h4>{{ g.title }}<small>{{ g.items.length }}</small></h4>
+          <table class="td__table">
+            <tbody>
+              <tr v-for="it in g.items" :key="it.name">
+                <td class="td__tname"><code>{{ it.name }}</code></td>
+                <td class="td__tvals">
+                  <template v-if="isColorValue(lv(it.name))">
+                    <span class="td__dot" :style="{ background: lv(it.name) }" aria-hidden="true" />
+                    <span class="td__tval">{{ lv(it.name) }}</span>
+                    <span v-if="dv(it.name) !== lv(it.name)" class="td__dotpair">
+                      <span class="td__dot td__dot--dark" :style="{ background: dv(it.name) }" aria-hidden="true" />
+                      <span class="td__tval td__tval--dark">{{ dv(it.name) }}</span>
+                    </span>
+                  </template>
+                  <template v-else>{{ lv(it.name) || "—" }}</template>
+                </td>
+                <td class="td__tdesc">{{ it.desc }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <!-- 代码方式 -->
@@ -298,11 +475,22 @@ mq.addEventListener("change", () => { if (pref === "system") apply(); });</pre>
 .td__codecard { margin: 0; display: grid; gap: 6px; }
 .td__codecard figcaption { font-size: var(--va-fs-xs, 11px); color: var(--va-muted, #6f6d66); }
 
-/* L2 速查表 */
+/* 全量令牌参考 */
+.td__tgroup { width: 100%; }
+.td__tgroup + .td__tgroup { margin-top: 12px; }
+.td__tgroup h4 { margin: 0 0 4px; font-size: var(--va-fs-xs, 11px); color: var(--va-ink, #1a1917); display: flex; align-items: center; gap: 6px; }
+.td__tgroup h4 small { color: var(--va-muted, #6f6d66); font-weight: var(--va-fw-medium, 500); }
 .td__table { width: 100%; border-collapse: collapse; font-size: var(--va-fs-sm, 12px); }
 .td__table th { text-align: left; padding: 6px 10px; color: var(--va-muted, #6f6d66); font-weight: var(--va-fw-semibold, 600); border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12)); }
-.td__table td { padding: 6px 10px; border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.08)); color: var(--va-ink-2, #43413c); }
-.td__table td:first-child code { background: var(--va-bg-subtle, #efede7); border-radius: 4px; padding: 1px 5px; font-size: 11px; }
+.td__table td { padding: 5px 10px; border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.08)); color: var(--va-ink-2, #43413c); vertical-align: middle; }
+.td__table td:first-child code { background: var(--va-bg-subtle, #efede7); border-radius: 4px; padding: 1px 5px; font-size: 11px; white-space: nowrap; }
+.td__tname { width: 30%; }
+.td__tvals { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.td__tval { font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); font-size: var(--va-fs-2xs, 10px); }
+.td__tval--dark { color: var(--va-muted, #6f6d66); }
+.td__dot { display: inline-block; width: 12px; height: 12px; border-radius: 4px; border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12)); flex-shrink: 0; }
+.td__dotpair { display: inline-flex; align-items: center; gap: 4px; padding-left: 8px; border-left: 1px dashed var(--va-edge, rgba(26, 25, 23, 0.12)); }
+.td__tdesc { width: 32%; color: var(--va-muted, #6f6d66); font-size: var(--va-fs-xs, 11px); }
 
 @media (prefers-reduced-motion: reduce) {
   .td__swatch { transition: none; }
