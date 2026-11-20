@@ -181,3 +181,45 @@ describe("VaPopover 交互", () => {
     expect(floatingEl()).toBeNull();
   });
 });
+
+describe("VaPopover 尺寸自适应（ResizeObserver）", () => {
+  it("打开时观察浮层尺寸，关闭/卸载时断开（内容异步增长需重测算）", async () => {
+    // happy-dom 无 ResizeObserver：注入可观测的替身
+    const observed: Element[] = [];
+    let disconnected = 0;
+    const original = (globalThis as any).ResizeObserver;
+    class FakeRO {
+      observe(el: Element) {
+        observed.push(el);
+      }
+      disconnect() {
+        disconnected++;
+      }
+    }
+    (globalThis as any).ResizeObserver = FakeRO;
+
+    try {
+      const wrapper = track(
+        mount(VaPopover, {
+          props: { open: false },
+          slots: { trigger: () => h("button", "触发器"), default: () => h("div", "内容") },
+        }),
+      );
+
+      expect(observed).toHaveLength(0); // 未开不观察
+
+      await wrapper.setProps({ open: true });
+      await nextTick();
+      await nextTick();
+      expect(observed.length).toBe(1); // 开：观察浮层本身
+      expect(observed[0]).toBe(floatingEl());
+
+      await wrapper.setProps({ open: false });
+      await nextTick();
+      expect(disconnected).toBeGreaterThan(0); // 关：断开
+    } finally {
+      if (original) (globalThis as any).ResizeObserver = original;
+      else delete (globalThis as any).ResizeObserver;
+    }
+  });
+});

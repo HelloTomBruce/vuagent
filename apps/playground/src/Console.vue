@@ -10,7 +10,7 @@
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
 import { ArrowDown, Bell, ChevronDown, History, PanelRight, Route } from "lucide-vue-next";
-import { formatTokens, useStickToBottom, VaCommandMenu, VaCompactBreakdown, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaNotificationStack, VaPopover, VaQueueDock, VaSegmentedControl, VaThinkingLoader, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
+import { formatTokens, useStickToBottom, VaCommandMenu, VaCompactBreakdown, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaNotificationStack, VaPopover, VaQueueDock, VaSegmentedControl, VaSkeleton, VaThinkingLoader, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
 import type { CommandItem, NotificationItem, QueueItem, ComposerAttachment } from "@vuagent/ui";
 import type { ContextPart } from "@vuagent/ui";
 import type { Decision } from "@vuagent/ui";
@@ -30,6 +30,7 @@ import {
   listSuspendedActions,
   compactSession,
   patchSession,
+  fetchWorkspaceFiles,
 } from "./console/api/client";
 import { useApprovals } from "./console/composables/useApprovals";
 import { useConsoleToolsConfig } from "./console/composables/useConsoleToolsConfig";
@@ -438,6 +439,119 @@ watch(isRunning, (running, prev) => {
   }
 });
 
+/* ---------- @提及 文件引用（TASK-076 重构：弹窗 → 输入框上方浮层，不打断输入） ----------
+ * 交互契约：输入框文本末尾匹配 /(?:^|\s)@([^\s@]*)$/ 时打开浮层，继续输入即过滤；
+ * ↑↓ 导航、Enter/Tab 选中、Esc 关闭（window capture 拦截，先于 composer 的 Enter=发送）；
+ * 选中后以 @<path> 内联令牌插入，发送时在 handleSend 展开为 [@引用文件] 块
+ */
+const mentionOpen = ref(false);
+const mentionQuery = ref("");
+const mentionFiles = ref<string[]>([]);
+const mentionFilesLoading = ref(false);
+const mentionActiveIdx = ref(0);
+/** 已插入的引用路径集合（发送时展开；按文本中是否仍存在自清洁） */
+const referencedFiles = new Set<string>();
+let mentionFetchedForWs = "";
+
+const mentionOptions = computed(() => {
+  const q = mentionQuery.value.toLowerCase();
+  const list = q ? mentionFiles.value.filter((f) => f.toLowerCase().includes(q)) : mentionFiles.value;
+  return list.slice(0, 50);
+});
+
+/** 可见 composer 元素作为外部锚点（hero / chat 两场景同一时刻仅一个可见） */
+/** 提及浮层锚点：打开时测量可见 composer（两场景共享一个浮层实例） */
+const mentionAnchor = computed<HTMLElement | null>(() =>
+  mentionOpen.value ? findVisibleComposerEl() : null
+);
+
+function findVisibleComposerEl(): HTMLElement | null {
+  for (const el of Array.from(document.querySelectorAll<HTMLElement>(".va-console__main .va-cmp"))) {
+    if (el.offsetParent !== null) return el;
+  }
+  return null;
+}
+
+async function loadMentionFiles(wsId: string) {
+  if (!wsId || mentionFetchedForWs === wsId) return;
+  mentionFilesLoading.value = true;
+  try {
+    const data = await fetchWorkspaceFiles(wsId);
+    const out: string[] = [];
+    const walk = (nodes: Array<{ path: string; type?: string; children?: unknown[] }>): void => {
+      for (const n of nodes ?? []) {
+        if (n.type === "dir" && Array.isArray(n.children)) walk(n.children as never);
+        else out.push(n.path);
+      }
+    };
+    walk((data?.tree ?? []) as never);
+    mentionFiles.value = out;
+    mentionFetchedForWs = wsId;
+  } finally {
+    mentionFilesLoading.value = false;
+  }
+}
+
+watch(composerText, (text) => {
+  const m = /(?:^|\s)@([^\s@]*)$/.exec(text);
+  if (m && activeWorkspaceId.value) {
+    mentionQuery.value = m[1] ?? "";
+    if (!mentionOpen.value) {
+      mentionOpen.value = true;
+      mentionActiveIdx.value = 0;
+      void loadMentionFiles(activeWorkspaceId.value);
+    }
+  } else if (mentionOpen.value) {
+    mentionOpen.value = false;
+  }
+});
+
+function onMentionPick(path: string) {
+  // 以 @<path> 内联令牌替换末尾 @query，并补尾随空格
+  composerText.value = composerText.value.replace(/(?:^|\s)@([^\s@]*)$/, (full) =>
+    full.startsWith("@") ? `@${path} ` : ` @${path} `,
+  );
+  referencedFiles.add(path);
+  mentionOpen.value = false;
+  composerRef.value?.focus();
+}
+
+/** 三点菜单「引用工作区文件…」直达浮层：清空尾随并插入 @ 触发，聚焦输入 */
+function openMentionPanel() {
+  const t = composerText.value;
+  if (!/@([^\s@]*)$/.test(t)) {
+    composerText.value = t && !t.endsWith(" ") && !t.endsWith("\n") ? `${t} @` : `${t}@`;
+  } else {
+    mentionQuery.value = "";
+    mentionOpen.value = true;
+  }
+  void loadMentionFiles(activeWorkspaceId.value);
+  void nextTick(() => composerRef.value?.focus());
+}
+
+/** 浮层打开期间的键盘拦截（capture 先于 composer 自身的 Enter=发送） */
+function onMentionKeydown(e: KeyboardEvent) {
+  if (!mentionOpen.value) return;
+  const n = mentionOptions.value.length;
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const dir = e.key === "ArrowDown" ? 1 : -1;
+    mentionActiveIdx.value = n > 0 ? (mentionActiveIdx.value + dir + n) % n : 0;
+  } else if (e.key === "Enter" || e.key === "Tab") {
+    const path = mentionOptions.value[mentionActiveIdx.value];
+    if (path) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      onMentionPick(path);
+    }
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    mentionOpen.value = false;
+  }
+}
+
 /* ---------- 附件（TASK-076 F2：composer 内建 attachable；文本客户端读取内联，不绕审批链） ---------- */
 const attachments = ref<ComposerAttachment[]>([]);
 /** 附件文本缓存（filesSelected 时即读；发送时内联进 prompt） */
@@ -567,6 +681,7 @@ watch(
 onMounted(async () => {
   // ⌘K / Ctrl+K 全局命令面板（TASK-076）
   window.addEventListener("keydown", onGlobalKeydown);
+  window.addEventListener("keydown", onMentionKeydown, true);
   await refreshPendingActions();
   // 跨会话挂起审批轮询（suspended 事件只在对应会话的流里，收件箱需主动拉取）
   pendingPollTimer = setInterval(() => void refreshPendingActions(), 10_000);
@@ -592,6 +707,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener("keydown", onGlobalKeydown);
+  window.removeEventListener("keydown", onMentionKeydown, true);
   if (pendingPollTimer !== undefined) clearInterval(pendingPollTimer);
 });
 
@@ -700,6 +816,12 @@ async function handleSend(promptOverride?: string) {
 
   // 附件内联（仅直接发送路径；队列 flush 走 promptOverride 直传）
   let prompt = (promptOverride ?? composerText.value).trim();
+  // @提及令牌展开：文本中仍存在的已插入引用 → 追加显式块（内联 @path 一并保留可读）
+  const mentionBlocks = [...referencedFiles].filter((fp) => prompt.includes(`@${fp}`));
+  if (mentionBlocks.length > 0) {
+    prompt += mentionBlocks.map((fp) => `\n\n[@引用文件] ${fp}`).join("");
+    for (const fp of mentionBlocks) referencedFiles.delete(fp);
+  }
   if (!promptOverride && attachments.value.length > 0) {
     const prefix = buildAttachmentPrefix();
     prompt = prompt ? `${prefix}${prompt}` : prefix.trim();
@@ -767,6 +889,40 @@ function quickFillPrompt(text: string) {
 
     <!-- 中间交互区域 -->
     <main class="va-console__main">
+      <!-- @提及 文件引用浮层（TASK-076 重构）：悬浮在输入框上方，不打断输入 -->
+      <VaPopover
+        v-model:open="mentionOpen"
+        :anchor="mentionAnchor"
+        placement="top-start"
+        :offset="6"
+        :close-on-outside-click="true"
+        :close-on-escape="false"
+      >
+        <div class="va-console__mention" role="listbox" aria-label="引用工作区文件">
+          <div v-if="mentionFilesLoading" class="va-console__mention-loading">
+            <VaSkeleton v-for="i in 3" :key="i" :height="22" radius="6px" :width="i === 2 ? '84%' : '100%'" />
+          </div>
+          <template v-else-if="mentionOptions.length > 0">
+            <button
+              v-for="(fp, i) in mentionOptions"
+              :key="fp"
+              class="va-console__mention-item"
+              :class="{ 'va-console__mention-item--active': i === mentionActiveIdx }"
+              type="button"
+              role="option"
+              :aria-selected="i === mentionActiveIdx"
+              @mouseenter="mentionActiveIdx = i"
+              @click="onMentionPick(fp)"
+            >
+              <span class="va-console__mention-path">{{ fp }}</span>
+            </button>
+          </template>
+          <p v-else class="va-console__mention-empty">
+            无匹配文件（输入 @路径关键词 过滤工作区文件）
+          </p>
+        </div>
+      </VaPopover>
+
       <!-- 共享操作行（TASK-076 F3）：⌘K 命令面板 + 通知铃铛（两场景常驻） -->
       <div class="va-console__viewhead">
         <VaCommandMenu
@@ -830,6 +986,7 @@ function quickFillPrompt(text: string) {
               <template #actions>
               <ComposerMenu
                 :workspace-id="activeWorkspaceId"
+                @ref-file="openMentionPanel"
                 @clear="composerText = ''"
                 @insert="(text) => (composerText += text)"
                 @open-command-menu="cmdOpen = true"
@@ -996,6 +1153,7 @@ function quickFillPrompt(text: string) {
             <template #actions>
               <ComposerMenu
                 :workspace-id="activeWorkspaceId"
+                @ref-file="openMentionPanel"
                 @clear="composerText = ''"
                 @insert="(text) => (composerText += text)"
                 @open-command-menu="cmdOpen = true"

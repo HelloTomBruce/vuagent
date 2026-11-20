@@ -208,6 +208,9 @@ export function useFloating(opts: UseFloatingOptions): UseFloatingReturn {
 
   let rafId: number | null = null;
   let listening = false;
+  /** 浮层自身尺寸变化的观察者：内容异步增长（列表加载/图片解码）时需重测算，
+   *  否则位置停在"测量瞬间的矮高度"，浮层向下生长会压住锚点 */
+  let sizeObserver: ResizeObserver | null = null;
 
   /** 立即重算（SSR / 未开 / 锚点或浮层缺失时短路） */
   function update() {
@@ -270,6 +273,13 @@ export function useFloating(opts: UseFloatingOptions): UseFloatingReturn {
     document.addEventListener("mousedown", onDocMousedown);
     document.addEventListener("keydown", onDocKeydown);
     if (!overlayStack.includes(id)) overlayStack.push(id);
+
+    // 浮层尺寸变化 → 重测算（ResizeObserver 缺失环境静默跳过）
+    const floating = opts.floating.value;
+    if (floating && typeof ResizeObserver === "function") {
+      sizeObserver = new ResizeObserver(() => scheduleUpdate());
+      sizeObserver.observe(floating);
+    }
   }
 
   function removeListeners() {
@@ -277,6 +287,8 @@ export function useFloating(opts: UseFloatingOptions): UseFloatingReturn {
     listening = false;
     window.removeEventListener("scroll", onScrollOrResize, true);
     window.removeEventListener("resize", onScrollOrResize);
+    sizeObserver?.disconnect();
+    sizeObserver = null;
     document.removeEventListener("mousedown", onDocMousedown);
     document.removeEventListener("keydown", onDocKeydown);
     const i = overlayStack.indexOf(id);
