@@ -1735,7 +1735,7 @@
   background: transparent;
   color: var(--va-ink, #1a1917);
   font-size: 12px;
-  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   text-align: left;
   white-space: nowrap;
   overflow: hidden;
