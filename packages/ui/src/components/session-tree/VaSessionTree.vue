@@ -161,7 +161,8 @@ function onCreate(wId: string) {
       @click="onNewSession"
     ><Plus :size="15" aria-hidden="true" />新建会话</button>
 
-    <div v-if="creatingWs" class="va-stree__ws-create">
+    <Transition name="va-stree-pop">
+      <div v-if="creatingWs" class="va-stree__ws-create">
       <input
         v-model="wsDraft"
         class="va-stree__input"
@@ -174,8 +175,9 @@ function onCreate(wId: string) {
       <button class="va-stree__op" type="button" aria-label="确认创建" @click="commitCreateWs"><Check :size="14" /></button>
       <button class="va-stree__op" type="button" aria-label="取消" @click="cancelCreateWs"><X :size="14" /></button>
     </div>
+    </Transition>
     <button
-      v-else
+      v-if="!creatingWs"
       class="va-stree__new"
       type="button"
       :disabled="props.disabled"
@@ -222,7 +224,9 @@ function onCreate(wId: string) {
         ><span v-if="confirmWsId === g.workspace.id" class="va-stree__confirm">确认?</span><Trash2 v-else :size="13" /></button>
       </div>
 
-      <div v-if="wsOpen(g.workspace.id)" class="va-stree__list">
+      <Transition name="va-stree-fold">
+        <div v-if="wsOpen(g.workspace.id)" class="va-stree__list">
+          <div class="va-stree__list-clip">
         <div
           v-for="s in g.sessions"
           :key="s.id"
@@ -265,7 +269,9 @@ function onCreate(wId: string) {
           </template>
         </div>
         <p v-if="g.sessions.length === 0" class="va-stree__empty">{{ searching ? "无匹配会话" : "暂无会话" }}</p>
-      </div>
+          </div>
+        </div>
+      </Transition>
     </section>
 
     <p v-if="searching && groups.every((g) => g.sessions.length === 0) && orphans.length === 0" class="va-stree__empty va-stree__search-empty">
@@ -331,7 +337,9 @@ function onCreate(wId: string) {
         <ChevronDown v-if="archivedOpen" :size="14" aria-hidden="true" />
         <ChevronRight v-else :size="14" aria-hidden="true" />
       </button>
-      <div v-if="archivedOpen" class="va-stree__list">
+      <Transition name="va-stree-fold">
+        <div v-if="archivedOpen" class="va-stree__list">
+          <div class="va-stree__list-clip">
         <div v-for="s in props.archived" :key="s.id" class="va-stree__session" data-archived="true">
           <span class="va-stree__session-main va-stree__session-main--static">
             <span class="va-stree__session-title">{{ titleOf(s) }}</span>
@@ -347,7 +355,9 @@ function onCreate(wId: string) {
             @click.stop="askRemove(s.id)"
           ><span v-if="confirmId === s.id" class="va-stree__confirm">确认?</span><Trash2 v-else :size="13" /></button>
         </div>
-      </div>
+          </div>
+        </div>
+      </Transition>
     </div>
 
     <!-- 树底部操作区（宿主注入，如设置入口）；flex:1 吃掉剩余高度使 footer 恒沉底 -->

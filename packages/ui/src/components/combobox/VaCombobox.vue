@@ -43,13 +43,14 @@ const displayValue = computed(() => selected.value?.label ?? props.modelValue ??
     >
     <span class="va-cbx__chev" aria-hidden="true" @mousedown.prevent>{{ open ? "▴" : "▾" }}</span>
 
-    <ul
-      v-if="open && items.length"
-      id="va-cbx-list"
-      class="va-cbx__list"
-      role="listbox"
-      @mousedown.prevent
-    >
+    <Transition name="va-cbx-pop">
+      <ul
+        v-if="open && items.length"
+        id="va-cbx-list"
+        class="va-cbx__list"
+        role="listbox"
+        @mousedown.prevent
+      >
       <li
         v-for="(o, i) in items"
         :id="`va-cbx-opt-${i}`"
@@ -67,9 +68,12 @@ const displayValue = computed(() => selected.value?.label ?? props.modelValue ??
         <span v-else-if="o.value === props.modelValue" class="va-cbx__hint">✓</span>
       </li>
     </ul>
-    <div v-else-if="open" class="va-cbx__empty" @mousedown.prevent>
-      {{ props.emptyLabel ?? "没有匹配项" }}
-    </div>
+    </Transition>
+    <Transition name="va-cbx-pop">
+      <div v-if="open && !items.length" class="va-cbx__empty" @mousedown.prevent>
+        {{ props.emptyLabel ?? "没有匹配项" }}
+      </div>
+    </Transition>
     <p v-if="selected && !open" class="va-cbx__sr">当前选中：{{ selected.label }}</p>
   </div>
 </template>

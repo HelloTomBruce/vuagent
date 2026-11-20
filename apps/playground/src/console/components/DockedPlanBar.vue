@@ -38,9 +38,13 @@ defineEmits<{ (e: "toggle"): void }>();
       </div>
     </div>
 
-    <!-- 计划展开抽屉 -->
-    <div v-if="expanded" class="va-console__plan-drawer">
-      <VaAgentPlan :steps="steps" />
-    </div>
+    <!-- 计划展开抽屉（grid-rows 高度过渡折叠，clip 层裁剪） -->
+    <Transition name="va-drawer-fold">
+      <div v-if="expanded" class="va-console__plan-drawer">
+        <div class="va-console__plan-drawer-clip">
+          <VaAgentPlan :steps="steps" />
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>

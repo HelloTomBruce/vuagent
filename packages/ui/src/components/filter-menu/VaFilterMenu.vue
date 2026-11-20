@@ -86,7 +86,8 @@ const checked = (groupId: string, opt: string) => {
       <span v-if="activeCount" class="va-fm__count">{{ activeCount }}</span>
     </button>
 
-    <div v-if="open" class="va-fm__panel" role="group" :aria-label="props.triggerLabel ?? '筛选'">
+    <Transition name="va-fm-pop">
+      <div v-if="open" class="va-fm__panel" role="group" :aria-label="props.triggerLabel ?? '筛选'">
       <section v-for="g in props.groups" :key="g.id" class="va-fm__group">
         <h4 class="va-fm__label">{{ g.label }}</h4>
         <div class="va-fm__opts">
@@ -106,6 +107,7 @@ const checked = (groupId: string, opt: string) => {
         <button class="va-act va-act--ghost va-act--sm va-fm__clear" type="button" :disabled="!activeCount" @click="clearAll">清除全部</button>
       </footer>
     </div>
+    </Transition>
   </div>
 </template>
 

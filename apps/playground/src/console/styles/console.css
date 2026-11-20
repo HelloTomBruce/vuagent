@@ -470,12 +470,50 @@
 }
 
 .va-console__plan-drawer {
+  display: grid;
+  grid-template-rows: 1fr;
   background: var(--va-card, #ffffff);
   border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
   border-top: none;
-  padding: 12px 14px;
   max-height: 240px;
+}
+
+/* 高度折叠的裁剪层：垂直 padding/滚动收进 clip，避免 0fr 时撑高 */
+.va-console__plan-drawer-clip {
+  min-height: 0;
   overflow-y: auto;
+  padding: 12px 14px;
+}
+
+/* 折叠过渡：入场 ease-out-quart、离场 ease-in-quad（离场更快更短） */
+.va-drawer-fold-enter-active {
+  transition:
+    grid-template-rows var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)),
+    opacity var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.va-drawer-fold-leave-active {
+  transition:
+    grid-template-rows var(--va-dur-out, 140ms) var(--va-ease-in-quad, cubic-bezier(0.55, 0, 0.55, 0.2)),
+    opacity var(--va-dur-out, 140ms) var(--va-ease-in-quad, cubic-bezier(0.55, 0, 0.55, 0.2));
+}
+
+.va-drawer-fold-enter-from,
+.va-drawer-fold-leave-to {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-drawer-fold-enter-active,
+  .va-drawer-fold-leave-active {
+    transition: opacity var(--va-dur-1, 120ms) linear;
+  }
+
+  .va-drawer-fold-enter-from,
+  .va-drawer-fold-leave-to {
+    grid-template-rows: 1fr;
+  }
 }
 
 /* ==========================================================================
@@ -1545,5 +1583,37 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* 新建模型卡等面板卡片显隐：自上方轻滑入淡入（与库内 va-pop 同构） */
+.va-console-pop-enter-active {
+  transition:
+    opacity var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.va-console-pop-leave-active {
+  transition:
+    opacity var(--va-dur-out, 140ms) var(--va-ease-in-quad, cubic-bezier(0.55, 0, 0.55, 0.2)),
+    transform var(--va-dur-out, 140ms) var(--va-ease-in-quad, cubic-bezier(0.55, 0, 0.55, 0.2));
+}
+
+.va-console-pop-enter-from,
+.va-console-pop-leave-to {
+  opacity: 0;
+  transform: translateY(calc(var(--va-dist-m, 8px) * -1));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-console-pop-enter-active,
+  .va-console-pop-leave-active {
+    transition: opacity var(--va-dur-1, 120ms) linear;
+    transform: none;
+  }
+
+  .va-console-pop-enter-from,
+  .va-console-pop-leave-to {
+    transform: none;
   }
 }

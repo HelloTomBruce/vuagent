@@ -79,10 +79,11 @@ defineEmits<{
           </div>
 
           <!-- 新建中状态卡片 -->
-          <div
-            v-if="isCreatingNewModel"
-            class="va-console__profile-card va-console__profile-card--active"
-          >
+          <Transition name="va-console-pop">
+            <div
+              v-if="isCreatingNewModel"
+              class="va-console__profile-card va-console__profile-card--active"
+            >
             <div class="va-console__profile-card-top">
               <span class="va-console__profile-name">{{ modelForm.name || "新模型配置" }}</span>
               <span class="va-console__new-chip">新建中</span>
@@ -92,6 +93,7 @@ defineEmits<{
               <span class="va-console__model-id">{{ modelForm.model }}</span>
             </div>
           </div>
+          </Transition>
         </div>
       </div>
 

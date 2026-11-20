@@ -99,3 +99,35 @@
 @media (prefers-reduced-motion: reduce) {
   .va-pm__menu { animation: none; }
 }
+
+/* 下拉面板显隐过渡：自上方轻滑入淡入（与 VaPopover bottom 放置同构），单文件自含 */
+.va-pm-pop-enter-active {
+  transition:
+    opacity var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.va-pm-pop-leave-active {
+  transition:
+    opacity var(--va-dur-out, 140ms) var(--va-ease-in-quad, cubic-bezier(0.55, 0, 0.55, 0.2)),
+    transform var(--va-dur-out, 140ms) var(--va-ease-in-quad, cubic-bezier(0.55, 0, 0.55, 0.2));
+}
+
+.va-pm-pop-enter-from,
+.va-pm-pop-leave-to {
+  opacity: 0;
+  transform: translateY(calc(var(--va-dist-m, 8px) * -1));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-pm-pop-enter-active,
+  .va-pm-pop-leave-active {
+    transition: opacity var(--va-dur-1, 120ms) linear;
+    transform: none;
+  }
+
+  .va-pm-pop-enter-from,
+  .va-pm-pop-leave-to {
+    transform: none;
+  }
+}

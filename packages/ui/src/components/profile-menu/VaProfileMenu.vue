@@ -57,11 +57,12 @@ const hue = (props.name.length % AVATAR_HUES.length);
       <span v-if="props.badge" class="va-pm__badge">{{ props.badge > 99 ? "99+" : props.badge }}</span>
     </button>
 
-    <div
-      v-if="open"
-      class="va-pm__menu"
-      role="menu"
-      :aria-label="`账户菜单：${props.name}`"
+    <Transition name="va-pm-pop">
+      <div
+        v-if="open"
+        class="va-pm__menu"
+        role="menu"
+        :aria-label="`账户菜单：${props.name}`"
     >
       <header class="va-pm__head">
         <span class="va-pm__name">{{ props.name }}</span>
@@ -80,6 +81,7 @@ const hue = (props.name.length % AVATAR_HUES.length);
         {{ item.label }}
       </button>
     </div>
+    </Transition>
   </div>
 </template>
 

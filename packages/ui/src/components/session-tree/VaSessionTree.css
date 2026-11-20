@@ -164,11 +164,79 @@
   color: var(--va-accent, #c2410c);
 }
 
-/* 会话平铺列表（与标题同层级，无缩进线） */
+/* 会话平铺列表（与标题同层级，无缩进线）
+   折叠动画容器：grid-rows 0fr↔1fr 高度过渡，内层 clip 负责裁剪（min-height:0） */
 .va-stree__list {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+
+.va-stree__list-clip {
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 1px;
+}
+
+/* 工作区分组/归档分区折叠：入场 ease-out-quart、离场 ease-in-quad（离场更快更短） */
+.va-stree-fold-enter-active {
+  transition:
+    grid-template-rows var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)),
+    opacity var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.va-stree-fold-leave-active {
+  transition:
+    grid-template-rows var(--va-dur-out, 140ms) var(--va-ease-in-quad, cubic-bezier(0.55, 0, 0.55, 0.2)),
+    opacity var(--va-dur-out, 140ms) var(--va-ease-in-quad, cubic-bezier(0.55, 0, 0.55, 0.2));
+}
+
+.va-stree-fold-enter-from,
+.va-stree-fold-leave-to {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+/* 新建工作区内联表单：自上方轻滑入淡入 */
+.va-stree-pop-enter-active {
+  transition:
+    opacity var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.va-stree-pop-leave-active {
+  transition:
+    opacity var(--va-dur-out, 140ms) var(--va-ease-in-quad, cubic-bezier(0.55, 0, 0.55, 0.2)),
+    transform var(--va-dur-out, 140ms) var(--va-ease-in-quad, cubic-bezier(0.55, 0, 0.55, 0.2));
+}
+
+.va-stree-pop-enter-from,
+.va-stree-pop-leave-to {
+  opacity: 0;
+  transform: translateY(calc(var(--va-dist-m, 8px) * -1));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 功能动画降级为纯 opacity（高度立即到位，保留状态可感知） */
+  .va-stree-fold-enter-active,
+  .va-stree-fold-leave-active,
+  .va-stree-pop-enter-active,
+  .va-stree-pop-leave-active {
+    transition: opacity var(--va-dur-1, 120ms) linear;
+    transform: none;
+  }
+
+  .va-stree-fold-enter-from,
+  .va-stree-fold-leave-to {
+    grid-template-rows: 1fr;
+    transform: none;
+  }
+
+  .va-stree-pop-enter-from,
+  .va-stree-pop-leave-to {
+    transform: none;
+  }
 }
 
 /* 分组内的会话列表缩进一级，建立「工作区 ⊃ 会话」层次；
