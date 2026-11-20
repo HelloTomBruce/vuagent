@@ -5,6 +5,11 @@ import {
   MetricChartToolSchema,
   AgentPlanToolSchema,
   FileTreeToolSchema,
+  TaskBoardToolSchema,
+  EmailDraftToolSchema,
+  ChangeSummaryToolSchema,
+  CommentThreadToolSchema,
+  AiAnswerToolSchema,
 } from "@vuagent/protocol";
 import type { HarnessTool } from "../../core/types.js";
 
@@ -108,6 +113,94 @@ export const UITrajectoryTool: HarnessTool = {
   },
 };
 
+export const UITaskBoardTool: HarnessTool = {
+  name: "ui_task_board",
+  description: "把任务拆解、分工与状态流转展示为多列看板（列 + 任务卡）",
+  parameters: TaskBoardToolSchema,
+  riskLevel: "low",
+  requiresApproval: false,
+  writesWorkspace: false, // 纯渲染契约工具，无工作区副作用
+  execute: async (ctx) => {
+    return {
+      rendered: true,
+      component: "ui_task_board",
+      props: ctx.args,
+    };
+  },
+};
+
+/**
+ * 邮件草稿（HITL）：邮件发出属外部副作用，requiresApproval 常开
+ * （deny-wins 语义：任何权限档位都触发审批挂起，auto 档也不放行）。
+ * rendered: false —— 草稿展示与「发送/重新起草」决策由审批卡承载
+ * （前端对 ui_email_draft 审批卡渲染富草稿 UI），执行完成后不再重复落 ui 卡。
+ */
+export const UIEmailDraftTool: HarnessTool = {
+  name: "ui_email_draft",
+  description:
+    "起草邮件并挂起等待人工确认发送（HITL）：用户批准即发送、可要求重新起草或拒绝；邮件属外部副作用，任何权限档位都需要人工确认",
+  parameters: EmailDraftToolSchema,
+  riskLevel: "medium",
+  requiresApproval: true,
+  writesWorkspace: false,
+  execute: async (ctx) => {
+    return {
+      rendered: false,
+      confirmed: true,
+      component: "ui_email_draft",
+      props: ctx.args,
+    };
+  },
+};
+
+export const UIChangeSummaryTool: HarnessTool = {
+  name: "ui_change_summary",
+  description: "一轮工作收尾时展示变更摘要卡：文件清单、增删行数、耗时与工具调用次数",
+  parameters: ChangeSummaryToolSchema,
+  riskLevel: "low",
+  requiresApproval: false,
+  writesWorkspace: false,
+  execute: async (ctx) => {
+    return {
+      rendered: true,
+      component: "ui_change_summary",
+      props: ctx.args,
+    };
+  },
+};
+
+export const UICommentThreadTool: HarnessTool = {
+  name: "ui_comment_thread",
+  description: "展示 agent 起草的评论/评审意见线程，待审条目与正式评论视觉区分",
+  parameters: CommentThreadToolSchema,
+  riskLevel: "low",
+  requiresApproval: false,
+  writesWorkspace: false,
+  execute: async (ctx) => {
+    return {
+      rendered: true,
+      component: "ui_comment_thread",
+      props: ctx.args,
+    };
+  },
+};
+
+export const UIAiAnswerTool: HarnessTool = {
+  name: "ui_ai_answer",
+  description: "结论性回答需要给出引用出处时使用：正文 [1][2] 角标 + 来源列表",
+  parameters: AiAnswerToolSchema,
+  riskLevel: "low",
+  requiresApproval: false,
+  writesWorkspace: false,
+  execute: async (ctx) => {
+    return {
+      rendered: true,
+      component: "ui_ai_answer",
+      props: ctx.args,
+    };
+  },
+};
+
 export const AllBuiltinTools: HarnessTool[] = [
   UIApprovalCardTool,
   UICodeDiffTool,
@@ -115,4 +208,9 @@ export const AllBuiltinTools: HarnessTool[] = [
   UIAgentPlanTool,
   UIFileTreeTool,
   UITrajectoryTool,
+  UITaskBoardTool,
+  UIEmailDraftTool,
+  UIChangeSummaryTool,
+  UICommentThreadTool,
+  UIAiAnswerTool,
 ];

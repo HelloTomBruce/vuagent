@@ -27,6 +27,12 @@ describe("Agent Registry - setupDefaultAgentRegistry", () => {
     expect(getAgentComponent("ui_metric_chart")).toBeTruthy();
     expect(getAgentComponent("ui_agent_plan")).toBeTruthy();
     expect(getAgentComponent("ui_file_tree")).toBeTruthy();
+    // TASK-077 协议卡片扩展批
+    expect(getAgentComponent("ui_task_board")).toBeTruthy();
+    expect(getAgentComponent("ui_email_draft")).toBeTruthy();
+    expect(getAgentComponent("ui_change_summary")).toBeTruthy();
+    expect(getAgentComponent("ui_comment_thread")).toBeTruthy();
+    expect(getAgentComponent("ui_ai_answer")).toBeTruthy();
 
     // 幂等：再次调用不覆盖、不报错
     setupDefaultAgentRegistry();
@@ -99,5 +105,95 @@ describe("Agent Registry - propAdapter 容错", () => {
     });
     props.onDeny({ weird: true });
     expect(payloads).toEqual([{ approved: false, reason: "manual" }]);
+  });
+
+  it("email_draft: onSend 在 executing 态回传批准决策（HITL 链路）", () => {
+    const payloads: unknown[] = [];
+    const entry = getAgentComponent("ui_email_draft")!;
+    const props = entry.propAdapter!(
+      { to: "a@x.com", subject: "周报", body: "正文" },
+      {
+        ...ctx,
+        onSubmitAction: (p: unknown) => {
+          payloads.push(p);
+        },
+      },
+    );
+    props.onSend({ to: "a@x.com", subject: "周报", body: "正文" });
+    expect(payloads).toHaveLength(1);
+    expect(payloads[0]).toMatchObject({ approved: true, reason: "manual" });
+  });
+
+  it("email_draft: 非 executing 态不回传（streaming 阶段不可决策）", () => {
+    const payloads: unknown[] = [];
+    const entry = getAgentComponent("ui_email_draft")!;
+    const props = entry.propAdapter!({ to: "a@x.com" }, {
+      ...ctx,
+      status: "streaming" as const,
+      onSubmitAction: (p: unknown) => {
+        payloads.push(p);
+      },
+    });
+    props.onSend({ to: "a@x.com" });
+    props.onRegenerate();
+    expect(payloads).toHaveLength(0);
+  });
+
+  it("email_draft: onRegenerate 回传拒绝 + 重新起草备注", () => {
+    const payloads: unknown[] = [];
+    const entry = getAgentComponent("ui_email_draft")!;
+    const props = entry.propAdapter!({ to: "a@x.com" }, {
+      ...ctx,
+      onSubmitAction: (p: unknown) => {
+        payloads.push(p);
+      },
+    });
+    props.onRegenerate();
+    expect(payloads).toEqual([
+      { approved: false, reason: "manual", note: "用户要求重新起草" },
+    ]);
+  });
+
+  it("email_draft: args 脏值兜底，tones 非数组不透出", () => {
+    const entry = getAgentComponent("ui_email_draft")!;
+    const props = entry.propAdapter!({ to: 42, tones: "nope" }, ctx);
+    expect(props.to).toBeUndefined();
+    expect(props.tones).toBeUndefined();
+  });
+
+  it("task_board: columns/tasks 非数组兜底为空数组", () => {
+    const entry = getAgentComponent("ui_task_board")!;
+    const props = entry.propAdapter!({ columns: null, tasks: "bad" }, ctx);
+    expect(props.columns).toEqual([]);
+    expect(props.tasks).toEqual([]);
+  });
+
+  it("change_summary: 数值字段类型兜底", () => {
+    const entry = getAgentComponent("ui_change_summary")!;
+    const props = entry.propAdapter!(
+      { files: [{ path: "a.ts" }], duration: "120", toolCalls: NaN, finishedAt: 123 },
+      ctx,
+    );
+    expect(props.files).toEqual([{ path: "a.ts" }]);
+    expect(props.duration).toBeUndefined();
+    expect(props.toolCalls).toBeUndefined();
+    expect(props.finishedAt).toBe(123);
+  });
+
+  it("comment_thread: 契约卡关闭输入框（记录态不做无后端发布交互）", () => {
+    const entry = getAgentComponent("ui_comment_thread")!;
+    const props = entry.propAdapter!({ comments: [{ id: "c1", author: "agent", text: "x" }] }, ctx);
+    expect(props.composer).toBe(false);
+    expect(props.comments).toHaveLength(1);
+    expect(props.maxHeight).toBe(360);
+  });
+
+  it("ai_answer: answer 缺省为空串，streaming 跟随 status", () => {
+    const entry = getAgentComponent("ui_ai_answer")!;
+    const executing = entry.propAdapter!({ sources: [] }, ctx);
+    expect(executing.answer).toBe("");
+    expect(executing.streaming).toBe(false);
+    const streaming = entry.propAdapter!({}, { ...ctx, status: "streaming" as const });
+    expect(streaming.streaming).toBe(true);
   });
 });

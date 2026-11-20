@@ -13,6 +13,11 @@ import {
   VaTerminalLog,
   VaToolCallCard,
   VaTrajectory,
+  VaTaskBoard,
+  VaEmailDraft,
+  VaChangeSummary,
+  VaCommentThread,
+  VaAiAnswer,
 } from "@vuagent/ui";
 import type { ActionCard } from "../types";
 import { toolCardDefaultOpen } from "../utils/auto-collapse";
@@ -72,17 +77,39 @@ const approvalCountdown = computed<number | undefined>(() => {
 });
 
 // "ui" 持久化卡：可渲染的契约组件集合
-// （ui_approval_card 由 HITL 流负责、ui_agent_plan 由 planSteps/DockedPlanBar 负责，此处不渲染）
+// （ui_approval_card 由 HITL 流负责、ui_agent_plan 由 planSteps/DockedPlanBar 负责，
+//  ui_email_draft 走审批流富 UI，执行后 rendered:false 不落卡，此处均不渲染）
 const UI_RENDERABLE = new Set([
   "ui_code_diff",
   "ui_metric_chart",
   "ui_file_tree",
   "ui_trajectory",
+  "ui_task_board",
+  "ui_change_summary",
+  "ui_comment_thread",
+  "ui_ai_answer",
 ]);
 
 const uiProps = computed<Record<string, any>>(() => props.card.data?.props || {});
 const uiComponent = computed(() => String(props.card.data?.component || ""));
 const uiRenderable = computed(() => UI_RENDERABLE.has(uiComponent.value));
+
+/**
+ * 邮件草稿富审批面：ui_email_draft 审批挂起期间，用 VaEmailDraft 直接呈现草稿
+ * （发送=批准、重新起草=拒绝），替代通用审批卡的 JSON 预览。
+ * 仅 pending 且携带入参快照时启用；已决策（approved/denied）回落通用审批卡展示结果行。
+ */
+const emailArgs = computed<Record<string, any> | null>(() => {
+  if (props.card.type !== "approval") return null;
+  if (props.card.data?.toolName !== "ui_email_draft") return null;
+  if (props.card.data?.status !== "pending") return null;
+  const args = props.card.data?.args;
+  return args && typeof args === "object" ? args : null;
+});
+const emailTones = computed(() => {
+  const tones = emailArgs.value?.tones;
+  return Array.isArray(tones) && tones.length > 0 ? tones : undefined;
+});
 </script>
 
 <template>
@@ -113,6 +140,31 @@ const uiRenderable = computed(() => UI_RENDERABLE.has(uiComponent.value));
         :events="uiProps.events"
         :ledger-max-height="uiProps.ledgerMaxHeight"
       />
+      <VaTaskBoard
+        v-else-if="uiRenderable && uiComponent === 'ui_task_board'"
+        :columns="uiProps.columns"
+        :tasks="uiProps.tasks"
+      />
+      <VaChangeSummary
+        v-else-if="uiRenderable && uiComponent === 'ui_change_summary'"
+        :title="uiProps.title"
+        :files="uiProps.files"
+        :duration="uiProps.duration"
+        :tool-calls="uiProps.toolCalls"
+        :finished-at="uiProps.finishedAt"
+      />
+      <VaCommentThread
+        v-else-if="uiRenderable && uiComponent === 'ui_comment_thread'"
+        :comments="uiProps.comments"
+        :max-height="uiProps.maxHeight"
+        :composer="false"
+      />
+      <VaAiAnswer
+        v-else-if="uiRenderable && uiComponent === 'ui_ai_answer'"
+        :question="uiProps.question"
+        :answer="uiProps.answer"
+        :sources="uiProps.sources"
+      />
     </template>
 
     <!-- 工具调用链卡片 (VaToolCallCard)：start → args_delta → executing → result 全生命周期 -->
@@ -128,6 +180,18 @@ const uiRenderable = computed(() => UI_RENDERABLE.has(uiComponent.value));
       :duration="card.data.duration"
       :default-open="toolCallOpen"
       :open-on-error="true"
+    />
+
+    <!-- HITL 邮件草稿富审批面：发送=批准 / 重新起草=拒绝（真实审批回传链路） -->
+    <VaEmailDraft
+      v-if="emailArgs"
+      :to="emailArgs.to"
+      :subject="emailArgs.subject"
+      :body="emailArgs.body"
+      :tone="emailArgs.tone"
+      :tones="emailTones"
+      @send="$emit('approve')"
+      @regenerate="$emit('deny', '用户要求重新起草')"
     />
 
     <!-- HITL 审批卡片 (VaApprovalCard) -->

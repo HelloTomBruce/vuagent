@@ -210,6 +210,151 @@ export const FileTreeToolSchema = Type.Object(
 export type FileTreeToolArgs = Static<typeof FileTreeToolSchema>;
 
 // ==========================================
+// 7. 任务看板卡片工具 (TaskBoard)
+// ==========================================
+export const BoardColumnSchema = Type.Object({
+  id: Type.String({ description: "列 ID" }),
+  title: Type.String({ description: "列标题，如'待办 / 进行中 / 已完成'" }),
+  hint: Type.Optional(Type.String({ description: "列头徽标文案，缺省自动为列内任务数" })),
+});
+
+export const TaskPrioritySchema = Type.Union([
+  Type.Literal("low"),
+  Type.Literal("medium"),
+  Type.Literal("high"),
+]);
+
+export const BoardTaskSchema = Type.Object({
+  id: Type.String({ description: "任务 ID" }),
+  columnId: Type.String({ description: "所属列 ID" }),
+  title: Type.String({ description: "任务标题" }),
+  assignee: Type.Optional(Type.String({ description: "负责人" })),
+  priority: Type.Optional(TaskPrioritySchema),
+  meta: Type.Optional(Type.String({ description: "截止/耗时等角标文案" })),
+});
+
+export const TaskBoardToolSchema = Type.Object(
+  {
+    columns: Type.Array(BoardColumnSchema, { description: "看板列定义" }),
+    tasks: Type.Array(BoardTaskSchema, { description: "任务条目集合" }),
+  },
+  {
+    $id: "ui_task_board",
+    description: "把任务拆解/分工/状态流转展示为多列看板（列 + 任务卡）",
+  }
+);
+
+export type TaskBoardToolArgs = Static<typeof TaskBoardToolSchema>;
+
+// ==========================================
+// 8. 邮件草稿工具 (EmailDraft) — HITL
+// ==========================================
+export const EmailToneOptionSchema = Type.Object({
+  value: Type.String({ description: "语气值" }),
+  label: Type.String({ description: "语气展示文案" }),
+});
+
+export const EmailDraftToolSchema = Type.Object(
+  {
+    to: Type.String({ description: "收件人（邮箱地址或姓名）" }),
+    subject: Type.String({ description: "邮件主题" }),
+    body: Type.String({ description: "邮件正文（保留换行）" }),
+    tone: Type.Optional(Type.String({ description: "当前语气 value（配合 tones）" })),
+    tones: Type.Optional(
+      Type.Array(EmailToneOptionSchema, { description: "可选语气列表，提供后显示语气 chips" })
+    ),
+  },
+  {
+    $id: "ui_email_draft",
+    description:
+      "起草邮件并挂起等待人工确认（HITL）：用户批准即发送、可要求重新起草或拒绝；邮件属外部副作用，任何权限档位都需要人工确认",
+  }
+);
+
+export type EmailDraftToolArgs = Static<typeof EmailDraftToolSchema>;
+
+// ==========================================
+// 9. 变更摘要卡片工具 (ChangeSummary)
+// ==========================================
+export const SummaryFileSchema = Type.Object({
+  path: Type.String({ description: "文件相对路径" }),
+  status: Type.Optional(FileStatusSchema),
+  additions: Type.Optional(Type.Number({ description: "新增行数" })),
+  deletions: Type.Optional(Type.Number({ description: "删除行数" })),
+});
+
+export const ChangeSummaryToolSchema = Type.Object(
+  {
+    title: Type.Optional(Type.String({ description: "本轮工作标题，如'重构用户列表页'" })),
+    files: Type.Array(SummaryFileSchema, { description: "本轮变更的文件清单" }),
+    duration: Type.Optional(Type.Number({ description: "总耗时毫秒" })),
+    toolCalls: Type.Optional(Type.Number({ description: "使用的工具调用次数" })),
+    finishedAt: Type.Optional(Type.Number({ description: "完成时间（毫秒时间戳）" })),
+  },
+  {
+    $id: "ui_change_summary",
+    description: "agent 一轮工作收尾时展示变更摘要卡：N 文件 +adds −dels、耗时与工具调用次数",
+  }
+);
+
+export type ChangeSummaryToolArgs = Static<typeof ChangeSummaryToolSchema>;
+
+// ==========================================
+// 10. 评论线程卡片工具 (CommentThread)
+// ==========================================
+export const CommentItemSchema = Type.Object({
+  id: Type.String({ description: "评论 ID" }),
+  author: Type.String({ description: "作者名" }),
+  avatar: Type.Optional(Type.String({ description: "头像图片地址，缺省用首字母色块" })),
+  initials: Type.Optional(Type.String({ description: "首字母色块文案，缺省取 author 首字符" })),
+  role: Type.Optional(Type.String({ description: "身份标注，如 'Agent' / '工程师'" })),
+  text: Type.String({ description: "评论正文（保留换行）" }),
+  createdAt: Type.Optional(Type.Number({ description: "创建时间（毫秒时间戳）" })),
+  pending: Type.Optional(
+    Type.Boolean({ description: "agent 起草待审条目（展示采纳/重写操作条）" })
+  ),
+});
+
+export const CommentThreadToolSchema = Type.Object(
+  {
+    comments: Type.Array(CommentItemSchema, { description: "评论线程（含 agent 草稿条目）" }),
+    maxHeight: Type.Optional(Type.Number({ description: "线程最大高度 px，超出滚动" })),
+  },
+  {
+    $id: "ui_comment_thread",
+    description: "展示 agent 起草的评论/评审意见线程，待审条目与正式评论视觉区分",
+  }
+);
+
+export type CommentThreadToolArgs = Static<typeof CommentThreadToolSchema>;
+
+// ==========================================
+// 11. 引用回答卡片工具 (AiAnswer)
+// ==========================================
+export const AnswerSourceSchema = Type.Object({
+  id: Type.String({ description: "来源 ID，与正文 [n] 角标对应" }),
+  title: Type.String({ description: "来源标题，如'Vuagent 文档 · 快速开始'" }),
+  url: Type.Optional(Type.String({ description: "链接，不设则为纯文本来源" })),
+  origin: Type.Optional(Type.String({ description: "域名/出处短标，如 'vuagent.dev'" })),
+});
+
+export const AiAnswerToolSchema = Type.Object(
+  {
+    question: Type.Optional(Type.String({ description: "用户问题（小字展示在答案上方）" })),
+    answer: Type.String({
+      description: "回答正文；支持引用标记 [1] [2]（与 sources 下标对应）渲染为可点击上标角标",
+    }),
+    sources: Type.Array(AnswerSourceSchema, { description: "引用来源列表" }),
+  },
+  {
+    $id: "ui_ai_answer",
+    description: "结论性回答需要给出引用出处时使用：正文角标 + 来源列表",
+  }
+);
+
+export type AiAnswerToolArgs = Static<typeof AiAnswerToolSchema>;
+
+// ==========================================
 // 工具 Schema 汇总映射表
 // ==========================================
 export const VuagentToolSchemas = {
@@ -219,6 +364,11 @@ export const VuagentToolSchemas = {
   ui_metric_chart: MetricChartToolSchema,
   ui_agent_plan: AgentPlanToolSchema,
   ui_file_tree: FileTreeToolSchema,
+  ui_task_board: TaskBoardToolSchema,
+  ui_email_draft: EmailDraftToolSchema,
+  ui_change_summary: ChangeSummaryToolSchema,
+  ui_comment_thread: CommentThreadToolSchema,
+  ui_ai_answer: AiAnswerToolSchema,
 } as const;
 
 export type VuagentToolName = keyof typeof VuagentToolSchemas;

@@ -14,6 +14,11 @@ import { VaCodeDiff } from "../components/code-diff/index.js";
 import { VaAgentPlan } from "../components/agent-plan/index.js";
 import { VaMetricChart } from "../components/metric-chart/index.js";
 import { VaFileTree } from "../components/file-tree/index.js";
+import { VaTaskBoard } from "../components/task-board/index.js";
+import { VaEmailDraft } from "../components/email-draft/index.js";
+import { VaChangeSummary } from "../components/change-summary/index.js";
+import { VaCommentThread } from "../components/comment-thread/index.js";
+import { VaAiAnswer } from "../components/ai-answer/index.js";
 import CardSkeleton from "./skeletons/CardSkeleton.vue";
 import CodeSkeleton from "./skeletons/CodeSkeleton.vue";
 import ChartSkeleton from "./skeletons/ChartSkeleton.vue";
@@ -181,6 +186,102 @@ export function setupDefaultAgentRegistry(): void {
         tree: asArray(args.tree),
         defaultExpandDepth: asNumber(args.defaultExpandDepth) ?? 1,
         maxHeight: asNumber(args.maxHeight) ?? 360,
+      };
+    },
+  });
+
+  // 7. 任务看板（agent 任务拆解/分工/状态流转）
+  registerAgentComponent("ui_task_board", {
+    component: VaTaskBoard,
+    skeleton: CardSkeleton,
+    progressive: true, // 列与任务随模型输出渐进追加
+    propAdapter: (rawArgs) => {
+      const args = asRecord(rawArgs);
+      return {
+        columns: asArray(args.columns),
+        tasks: asArray(args.tasks),
+      };
+    },
+  });
+
+  // 8. 邮件草稿（HITL：发送=批准、重新起草=拒绝，复用审批回传通道）
+  registerAgentComponent("ui_email_draft", {
+    component: VaEmailDraft,
+    skeleton: CardSkeleton,
+    progressive: false, // 三字段齐备才有展示意义
+    propAdapter: (rawArgs, ctx) => {
+      const args = asRecord(rawArgs);
+      const tones = asArray(args.tones);
+      return {
+        to: asString(args.to),
+        subject: asString(args.subject),
+        body: asString(args.body),
+        tone: asString(args.tone),
+        tones: tones.length > 0 ? tones : undefined,
+        // 状态闸门对齐审批卡：仅 executing（审批通过、协程恢复后）阶段允许决策回传
+        onSend: (draft?: unknown) => {
+          if (ctx.onSubmitAction && ctx.status === "executing") {
+            const d = asRecord(draft as RawArgs);
+            ctx.onSubmitAction({
+              approved: true,
+              reason: "manual",
+              note: `确认发送邮件至 ${asString(d.to) ?? "收件人"}`,
+            });
+          }
+        },
+        onRegenerate: () => {
+          if (ctx.onSubmitAction && ctx.status === "executing") {
+            ctx.onSubmitAction({ approved: false, reason: "manual", note: "用户要求重新起草" });
+          }
+        },
+      };
+    },
+  });
+
+  // 9. 变更摘要（一轮工作收尾的 N 文件 +adds −dels 台账）
+  registerAgentComponent("ui_change_summary", {
+    component: VaChangeSummary,
+    skeleton: CardSkeleton,
+    progressive: false, // 文件清单齐备后一次性呈现
+    propAdapter: (rawArgs) => {
+      const args = asRecord(rawArgs);
+      return {
+        title: asString(args.title),
+        files: asArray(args.files),
+        duration: asNumber(args.duration),
+        toolCalls: asNumber(args.toolCalls),
+        finishedAt: asNumber(args.finishedAt),
+      };
+    },
+  });
+
+  // 10. 评论线程（契约卡为持久化记录：关闭输入框，不做无后端的"发布"假交互）
+  registerAgentComponent("ui_comment_thread", {
+    component: VaCommentThread,
+    skeleton: CardSkeleton,
+    progressive: true,
+    propAdapter: (rawArgs) => {
+      const args = asRecord(rawArgs);
+      return {
+        comments: asArray(args.comments),
+        maxHeight: asNumber(args.maxHeight) ?? 360,
+        composer: false,
+      };
+    },
+  });
+
+  // 11. 引用回答（正文 [n] 角标 + 来源列表；流式阶段带光标）
+  registerAgentComponent("ui_ai_answer", {
+    component: VaAiAnswer,
+    skeleton: CardSkeleton,
+    progressive: true,
+    propAdapter: (rawArgs, ctx) => {
+      const args = asRecord(rawArgs);
+      return {
+        question: asString(args.question),
+        answer: asString(args.answer) ?? "",
+        sources: asArray(args.sources),
+        streaming: ctx.status === "streaming",
       };
     },
   });
