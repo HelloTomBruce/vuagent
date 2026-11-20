@@ -795,6 +795,14 @@ function quickFillPrompt(text: string) {
           @patch="(key, value) => onConfigPatch('execution', key, value)"
           @reset="onConfigReset('execution')"
         />
+        <!-- 成本配额（TASK-075）：finops 命名空间此前无 UI 入口，挂到执行 tab（与 429 准入同源） -->
+        <ConfigPanel
+          :namespace="configNs('finops')"
+          :loading="configLoading"
+          :load-error="configError"
+          @patch="(key, value) => onConfigPatch('finops', key, value)"
+          @reset="onConfigReset('finops')"
+        />
       </template>
       <template #security>
         <ConfigPanel

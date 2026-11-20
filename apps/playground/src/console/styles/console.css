@@ -1256,6 +1256,11 @@
 .va-dlg:has(.va-settings__dlg-body) .va-dlg__body {
   padding: 0;
   overflow: hidden;
+  /* 关键：base 的 .va-dlg__body 是 block，子级 dlg-body 的 flex:1 + min-height:0
+     不生效 → 高度被内容撑开 → overflow:hidden 直接裁切且无处滚动。
+     转为 flex 列容器后 dlg-body 才被 dialog max-height 约束，滚动链贯通 */
+  display: flex;
+  flex-direction: column;
 }
 .va-settings__dlg-body {
   flex: 1;

@@ -38,6 +38,11 @@ export function useUsage() {
     windowMs: 86_400_000,
   });
   const loading = ref(false);
+  /**
+   * 配额水位口径（与准入 429 同源）：固定按配置中心 finops.windowMs 汇总，
+   * 独立于上方分析窗口——准入判断用的是 config 窗口，水位条不得跟随分析窗口漂移
+   */
+  const quotaUsage = ref<FinopsSummary | null>(null);
 
   const isCustom = computed(() => customStart.value != null && customEnd.value != null);
 
@@ -57,9 +62,19 @@ export function useUsage() {
             until: dayEnd(customEnd.value!),
           })
         : await fetchFinopsSummary({ windowMs: PRESET_WINDOW_MS[preset.value] });
+      // 配额水位同步刷新（准入口径窗口 ≠ 分析窗口）
+      void refreshQuotaUsage();
     } finally {
       loading.value = false;
     }
+  }
+
+  /** 按配置配额窗口拉取准入口径用量；未设配额则清空 */
+  async function refreshQuotaUsage() {
+    const hasQuota = limits.value.windowTokenLimit > 0 || limits.value.windowUsdLimit > 0;
+    quotaUsage.value = hasQuota
+      ? await fetchFinopsSummary({ windowMs: limits.value.windowMs })
+      : null;
   }
 
   /** 切预设滚动窗口（清除自定义区间） */
@@ -79,6 +94,7 @@ export function useUsage() {
 
   async function refreshLimits() {
     limits.value = await fetchFinopsLimits();
+    await refreshQuotaUsage();
   }
 
   return {
@@ -88,6 +104,7 @@ export function useUsage() {
     isCustom,
     summary,
     limits,
+    quotaUsage,
     loading,
     byModelTokens,
     refresh,

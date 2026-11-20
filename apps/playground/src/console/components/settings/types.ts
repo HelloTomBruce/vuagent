@@ -27,7 +27,7 @@ export const SETTINGS_TABS: SettingsTabDescriptor[] = [
   { id: "models", title: "模型与 API", description: "供应商、模型与 API Key 配置" },
   { id: "interaction", title: "交互", description: "自动折叠等交互偏好" },
   { id: "tools", title: "工具", description: "内置工具的启用与停用" },
-  { id: "execution", title: "执行", description: "步数上限、审批超时与上下文预算" },
+  { id: "execution", title: "执行", description: "步数上限、审批超时、上下文预算与成本配额" },
   { id: "security", title: "安全", description: "默认权限模式与网络边界" },
   { id: "prompt", title: "提示词", description: "系统提示组装块与全局自定义指令" },
 ];

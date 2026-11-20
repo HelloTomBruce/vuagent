@@ -48,14 +48,20 @@ const costByModel = computed(() =>
     .sort((a, b) => b.value - a.value)
 );
 
-/** 配额水位（limit=0 不限则隐藏） */
+/** 配额水位（limit=0 不限则隐藏）：used 取准入口径（config.windowMs 窗口），非分析窗口 */
+function humanWindow(ms: number): string {
+  if (ms < 3_600_000) return `${Math.round(ms / 60_000)} 分钟`;
+  if (ms < 86_400_000) return `${Math.round(ms / 3_600_000)} 小时`;
+  return `${Math.round(ms / 86_400_000)} 天`;
+}
+const quotaPeriod = computed(() => `准入窗口 · ${humanWindow(props.usage.limits.value.windowMs)} · 超限新请求 429`);
 const tokenQuota = computed(() => {
   const limit = props.usage.limits.value.windowTokenLimit;
-  return limit > 0 ? { limit, used: tokensTotal.value } : null;
+  return limit > 0 ? { limit, used: props.usage.quotaUsage.value?.tokens ?? 0 } : null;
 });
 const usdQuota = computed(() => {
   const limit = props.usage.limits.value.windowUsdLimit;
-  return limit > 0 ? { limit, used: costTotal.value } : null;
+  return limit > 0 ? { limit, used: props.usage.quotaUsage.value?.costUsd ?? 0 } : null;
 });
 </script>
 
@@ -114,7 +120,7 @@ const usdQuota = computed(() => {
           :segments="[{ label: 'Tokens', used: tokenQuota.used }]"
           :limit="tokenQuota.limit"
           unit="tokens"
-          period="滚动窗口 · 至此刻"
+          :period="quotaPeriod"
         />
       </div>
       <div v-if="usdQuota" class="va-usage__quota">
@@ -122,11 +128,11 @@ const usdQuota = computed(() => {
           :segments="[{ label: 'Cost', used: usdQuota.used }]"
           :limit="usdQuota.limit"
           unit="USD"
-          period="滚动窗口 · 至此刻"
+          :period="quotaPeriod"
         />
       </div>
       <p v-if="!tokenQuota && !usdQuota" class="va-usage__hint">
-        未设配额（设置 → 配置 → 成本配额可开启 429 准入拦截）
+        未设配额（设置 → 执行 → 成本配额：设窗口 Token/费用上限，达到后新请求 429 拒绝）
       </p>
 
       <!-- 按模型成本分解 -->
