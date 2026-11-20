@@ -14,5 +14,6 @@ export const router = createRouter({
     { path: "/m7", name: "m7", component: () => import("./M7Demo.vue"), meta: { title: "M7 收官批" } },
     { path: "/overlay", name: "overlay", component: () => import("./OverlayDemo.vue"), meta: { title: "Overlay 浮层" } },
     { path: "/gallery", name: "gallery", component: () => import("./Gallery.vue"), meta: { title: "画廊" } },
+    { path: "/theme", name: "theme", component: () => import("./ThemeDemo.vue"), meta: { title: "主题" } },
   ],
 });
