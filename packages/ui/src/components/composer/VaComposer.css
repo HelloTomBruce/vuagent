@@ -44,8 +44,12 @@
 }
 .va-cmp__hl {
   background: color-mix(in srgb, var(--_accent) 16%, transparent);
-  border-radius: 3px;
+  border-radius: 4px;
   color: transparent;
+  /* 视觉留白：背板必须与 textarea 文字逐字对齐，水平 padding 用等值负 margin 抵消
+     （净位移为 0，仅让底色外扩）；垂直方向溢出不影响行盒，可安全加高 */
+  padding: 2px 4px;
+  margin: -2px -4px;
 }
 .va-cmp__area {
   position: relative;
