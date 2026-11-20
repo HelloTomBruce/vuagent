@@ -19,6 +19,7 @@ const props = withDefaults(defineProps<ComposerProps>(), {
   attachable: false,
   uploading: false,
   attachments: () => [],
+  mentionPaths: () => [],
 });
 
 const text = defineModel<string>("text", { default: "" });
@@ -48,6 +49,47 @@ function onModelPicked(id: string) {
 }
 const modelLabel = computed(() => props.models.find((m) => m.id === currentModel.value)?.label ?? currentModel.value);
 const permLabel = computed(() => props.permissions.find((p) => p.id === currentPermission.value)?.label ?? currentPermission.value);
+
+/* ---------- @引用 高亮（G23 增强）：明文 textarea 无法给子串上色，
+   用同排版背板铺底色、文本框透明叠在上层实现 ---------- */
+const backdrop = useTemplateRef<HTMLElement>("backdrop");
+
+/** 可高亮的引用路径集合（宿主传入工作区文件路径；@path 命中即铺底色） */
+const mentionSet = computed(() => new Set(props.mentionPaths ?? []));
+
+function escapeHtml(input: string): string {
+  return input.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+const highlightedHtml = computed(() => {
+  const value = text.value;
+  if (!value) return "";
+  const set = mentionSet.value;
+  // 无引用路径时退化为纯转义（背板仍需存在以保持行高一致）
+  if (set.size === 0) return escapeHtml(value);
+
+  let out = "";
+  let cursor = 0;
+  const tokenRe = /@[^\s@]+/g;
+  let m: RegExpExecArray | null;
+  while ((m = tokenRe.exec(value)) !== null) {
+    if (!set.has(m[0].slice(1))) continue;
+    out += escapeHtml(value.slice(cursor, m.index));
+    out += `<mark class="va-cmp__hl">${escapeHtml(m[0])}</mark>`;
+    cursor = m.index + m[0].length;
+  }
+  out += escapeHtml(value.slice(cursor));
+  return out;
+});
+
+/** 文本框内部滚动时，背板跟随（内容封顶 maxHeight 后必然出现滚动错位） */
+function onAreaScroll() {
+  const el = area.value;
+  const bd = backdrop.value;
+  if (!el || !bd) return;
+  bd.scrollTop = el.scrollTop;
+  bd.scrollLeft = el.scrollLeft;
+}
 
 /* ---------- 附件（G23）：回形针 / 拖拽 / 粘贴 ---------- */
 const fileInput = useTemplateRef<HTMLInputElement>("file");
@@ -111,19 +153,24 @@ defineExpose({
     </div>
 
     <div v-if="$slots.prefix" class="va-cmp__prefix"><slot name="prefix" /></div>
-    <textarea
-      ref="area"
-      class="va-cmp__area"
-      :value="text"
-      :placeholder="props.placeholder"
-      :disabled="props.disabled"
-      rows="1"
-      @input="onInput"
-      @keydown="onKeydown"
-      @compositionstart="composing = true"
-      @compositionend="composing = false"
-      @paste="onPaste"
-    />
+    <div class="va-cmp__input-wrap">
+      <!-- 高亮背板：与 textarea 同字同排版，仅给 @引用 令牌铺底色（文字透明，不重影） -->
+      <div ref="backdrop" class="va-cmp__backdrop" aria-hidden="true" v-html="highlightedHtml" />
+      <textarea
+        ref="area"
+        class="va-cmp__area"
+        :value="text"
+        :placeholder="props.placeholder"
+        :disabled="props.disabled"
+        rows="1"
+        @input="onInput"
+        @keydown="onKeydown"
+        @compositionstart="composing = true"
+        @compositionend="composing = false"
+        @paste="onPaste"
+        @scroll="onAreaScroll"
+      />
+    </div>
     <div class="va-cmp__foot">
       <div class="va-cmp__actions">
         <slot name="actions" />

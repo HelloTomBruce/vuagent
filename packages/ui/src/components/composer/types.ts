@@ -23,6 +23,8 @@ export interface ComposerProps {
   uploading?: boolean;
   /** 待发送附件 rail */
   attachments?: ComposerAttachment[];
+  /** 可高亮的 @引用 路径白名单（不含 @ 前缀；命中者以背景色强化显示） */
+  mentionPaths?: string[];
 }
 
 export interface ComposerEvents {

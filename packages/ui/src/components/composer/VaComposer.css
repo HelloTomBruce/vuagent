@@ -23,7 +23,32 @@
 
 .va-cmp__prefix { display: inline-flex; align-items: center; padding-bottom: var(--va-s2, 4px); flex: none; }
 
+/* 输入区外层：承载「高亮背板 + 透明 textarea」两层 */
+.va-cmp__input-wrap { position: relative; flex: 1; min-width: 0; display: flex; }
+/* 背板：与 textarea 逐项对齐（字体/行高/内边距/换行策略），只负责令牌底色 */
+.va-cmp__backdrop {
+  position: absolute;
+  inset: 0;
+  padding: var(--va-s3, 8px) 0;
+  font: inherit;
+  font-size: var(--va-fs-lg, 14px);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  /* 文本对齐必须与 textarea 默认行为一致：宿主容器可能是 text-align:center
+     （如居中布局的欢迎页），继承会令背板色块整体偏移 */
+  text-align: start;
+  color: transparent;
+  overflow: hidden;
+  pointer-events: none;
+}
+.va-cmp__hl {
+  background: color-mix(in srgb, var(--_accent) 16%, transparent);
+  border-radius: 3px;
+  color: transparent;
+}
 .va-cmp__area {
+  position: relative;
   flex: 1;
   min-width: 0;
   border: 0;
@@ -65,8 +90,8 @@
 
 /* ---- M2 扩展：模型/权限 seat、菜单、附件 rail ---- */
 .va-cmp__actions { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--va-s3h, 6px); flex-wrap: wrap; position: relative; }
-/* 尾部插槽容器（#trailing）：靠右贴发送钮 */
-.va-cmp__trailing { display: inline-flex; align-items: center; gap: var(--va-s2, 4px); margin-left: auto; }
+/* 尾部插槽容器（#trailing）：跟随图标排布（不上推最右，紧邻附件等图标） */
+.va-cmp__trailing { display: inline-flex; align-items: center; gap: var(--va-s2, 4px); }
 
 .va-cmp__seat-wrap { position: relative; display: inline-flex; }
 .va-cmp__seat {

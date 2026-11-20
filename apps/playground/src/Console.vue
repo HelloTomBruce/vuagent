@@ -977,6 +977,7 @@ function quickFillPrompt(text: string) {
               :permission="activePermission"
               attachable
               :attachments="attachments"
+              :mention-paths="mentionFiles"
               @send="(t) => handleSend(t)"
               @update:model="onSelectModel"
               @update:permission="onSelectPermission"
@@ -1145,6 +1146,7 @@ function quickFillPrompt(text: string) {
             :permission="activePermission"
             attachable
             :attachments="attachments"
+            :mention-paths="mentionFiles"
             @send="(t) => handleSend(t)"
             @stop="stopExecution"
             @update:model="onSelectModel"
