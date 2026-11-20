@@ -20,12 +20,14 @@ export const INTERACTION_SETTINGS_VERSION = 1;
  *   （执行失败的卡片始终展开，不受此开关影响）
  * - showApprovals：右侧边栏显示审批收件箱
  * - showFileTree：右侧边栏显示当前工作区文件目录树
+ * - showUsage：右侧边栏显示成本用量面板（TASK-075）
  */
 export interface InteractionSettings {
   autoCollapseThought: boolean;
   autoCollapseToolCards: boolean;
   showApprovals: boolean;
   showFileTree: boolean;
+  showUsage: boolean;
 }
 
 /** 持久化 JSON 的顶层结构 */
@@ -48,6 +50,7 @@ export function defaultInteractionSettings(): InteractionSettings {
     autoCollapseToolCards: true,
     showApprovals: true,
     showFileTree: true,
+    showUsage: true,
   };
 }
 

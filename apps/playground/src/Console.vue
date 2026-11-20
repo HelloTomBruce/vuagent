@@ -10,7 +10,7 @@
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
 import { ArrowDown, ChevronDown, History, PanelRight, Route } from "lucide-vue-next";
-import { formatTokens, useStickToBottom, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaPopover, VaSegmentedControl, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
+import { formatTokens, useStickToBottom, VaCompactBreakdown, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaPopover, VaSegmentedControl, VaThinkingLoader, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
 import type { ContextPart } from "@vuagent/ui";
 import type { Decision } from "@vuagent/ui";
 import ConsoleSidebar from "./console/components/ConsoleSidebar.vue";
@@ -36,6 +36,7 @@ import { useModelProfiles } from "./console/composables/useModelProfiles";
 import { useSessions } from "./console/composables/useSessions";
 import type { SessionsApi } from "./console/composables/useSessions";
 import { useWorkspaces } from "./console/composables/useWorkspaces";
+import { useUsage } from "./console/composables/useUsage";
 import { PERMISSION_MODES } from "./console/types";
 import type { SessionItem } from "./console/types";
 
@@ -196,6 +197,7 @@ function openSettings(tab: SettingsTab = "models") {
 
 const {
   sessions,
+  sessionsLoading,
   activeSessionId,
   fetchSessions,
   createSessionForPrompt,
@@ -205,6 +207,9 @@ const {
   togglePinSession,
   askDeleteSession,
 } = sessionsApi;
+
+// 成本用量数据域（TASK-075）：右栏用量 tab 与消息区迷你占比条共享单实例
+const usage = useUsage();
 
 const {
   chatTurns,
@@ -242,6 +247,24 @@ const ctxParts = computed<ContextPart[]>(() =>
 
 /** 压缩中：历史格子微光收缩（VaContextWindow 内置动画），按钮进入禁用态 */
 const isCompacting = ref(false);
+
+/** 成本迷你占比段（TASK-075）：按模型 token 份额降序取前 4，其余不展示（面板内看全量） */
+const usageCompactSegments = computed(() =>
+  usage.byModelTokens.value.filter((seg) => seg.value > 0).slice(0, 4)
+);
+
+/** 流式间隙：已发车（running + assistant turn streaming）但首段内容/卡片未到 */
+const awaitingFirstContent = computed(() => {
+  if (!isRunning.value) return false;
+  const last = chatTurns.value[chatTurns.value.length - 1];
+  return (
+    !!last &&
+    last.role === "assistant" &&
+    last.isStreaming === true &&
+    !last.content &&
+    !(last.cards && last.cards.length > 0)
+  );
+});
 
 /** TASK-008 手动压缩：调服务端压缩接口 → 消费返回的新占用(totalTokens/parts)刷新仪表 → toast 释放量 */
 async function onCompactSession() {
@@ -325,6 +348,10 @@ onMounted(async () => {
   await fetchSessions();
   await fetchModelProfiles();
   void fetchTools();
+
+  // 成本用量（TASK-075）：首拉窗口汇总与配额生效值；后续随窗口切换在面板内刷新
+  void usage.refresh();
+  void usage.refreshLimits();
 
   // 页面刷新后自动检测是否有正在执行中的会话，若有直接进入并重新连入输出流
   const runningSession = sessions.value.find((s) => s.isRunning);
@@ -478,6 +505,7 @@ function quickFillPrompt(text: string) {
     <ConsoleSidebar
       :workspaces="workspaces"
       :sessions="sessions"
+      :loading="sessionsLoading"
       :active-workspace-id="activeWorkspaceId"
       :active-session-id="activeSessionId"
       :is-new-chat="isNewChat"
@@ -592,12 +620,26 @@ function quickFillPrompt(text: string) {
             class="va-console__messages-stream"
             @scroll.passive="onChatScroll"
           >
+            <!-- 成本迷你占比条（TASK-075）：按模型 token 份额，仅在有数据时渲染 -->
+            <VaCompactBreakdown
+              v-if="usageCompactSegments.length > 0"
+              class="va-console__usage-bar"
+              :segments="usageCompactSegments"
+              :height="6"
+            />
             <TurnList
               :turns="chatTurns"
               @approve="(actionId) => submitApproval(actionId, true)"
               @deny="(actionId, reason) => submitApproval(actionId, false, reason)"
               @regenerate="regenerateTurn"
               @feedback="onFeedback"
+            />
+            <!-- 流式间隙思考指示（TASK-075）：已发车但首段内容未到 -->
+            <VaThinkingLoader
+              v-if="awaitingFirstContent"
+              class="va-console__thinking"
+              size="sm"
+              :phases="['连接模型', '读取上下文', '规划步骤']"
             />
           </div>
 
@@ -686,6 +728,7 @@ function quickFillPrompt(text: string) {
         v-if="!isRightSidebarCollapsed"
         :decisions="pendingDecisions"
         :workspace-id="activeWorkspaceId"
+        :usage="usage"
         @decide="onDecide"
         @collapse="isRightSidebarCollapsed = true"
       />

@@ -7,7 +7,9 @@
  */
 import { computed, ref, watch } from "vue";
 import { PanelRight } from "lucide-vue-next";
-import { VaDecisionInbox, VaFileTree, VaTooltip } from "@vuagent/ui";
+import { VaDecisionInbox, VaFileTree, VaSkeleton, VaTooltip } from "@vuagent/ui";
+import UsagePanel from "./UsagePanel.vue";
+import type { UsageState } from "../composables/useUsage";
 import type { Decision } from "@vuagent/ui";
 import { fetchWorkspaceFiles, type WorkspaceFileNode } from "../api/client";
 import { useInteractionSettings } from "../composables/useInteractionSettings";
@@ -17,6 +19,8 @@ const props = defineProps<{
   decisions: Decision[];
   /** 当前工作区 id（文件树数据源；空串 = 无工作区，文件 tab 显示引导） */
   workspaceId: string;
+  /** 成本用量数据域（Console 单实例持有，与消息区迷你占比条共享） */
+  usage: UsageState;
 }>();
 
 const emit = defineEmits<{
@@ -26,13 +30,14 @@ const emit = defineEmits<{
 
 const { settings } = useInteractionSettings();
 
-type TabKey = "approvals" | "files";
+type TabKey = "approvals" | "files" | "usage";
 
 /** 存在的 tab 由交互设置决定（顺序即展示顺序） */
 const tabs = computed(() => {
   const list: { key: TabKey; label: string }[] = [];
   if (settings.value.showApprovals) list.push({ key: "approvals", label: "审批" });
   if (settings.value.showFileTree) list.push({ key: "files", label: "文件" });
+  if (settings.value.showUsage) list.push({ key: "usage", label: "用量" });
   return list;
 });
 
@@ -123,7 +128,12 @@ watch(
         <div v-if="!workspaceId" class="va-console__rtab-empty">
           <p>先选择或创建工作区</p>
         </div>
-        <div v-else-if="filesLoading" class="va-console__rtab-empty"><p>正在读取目录…</p></div>
+        <div v-else-if="filesLoading" class="va-rsb__skeleton" aria-label="加载目录">
+          <VaSkeleton :height="14" radius="4px" />
+          <VaSkeleton :height="14" radius="4px" width="86%" />
+          <VaSkeleton :height="14" radius="4px" width="72%" />
+          <VaSkeleton :height="14" radius="4px" width="80%" />
+        </div>
         <div v-else-if="filesError" class="va-console__rtab-empty"><p>{{ filesError }}</p></div>
         <template v-else>
           <p v-if="filesTruncated" class="va-rsb__truncate-note">目录过大，仅展示前 2000 项</p>
@@ -133,6 +143,11 @@ watch(
             aria-label="当前工作区文件目录"
           />
         </template>
+      </template>
+
+      <!-- 用量 tab（TASK-075） -->
+      <template v-else-if="activeTab === 'usage'">
+        <UsagePanel :usage="usage" />
       </template>
 
       <!-- 两个 tab 都被关闭时的兜底提示 -->
@@ -145,6 +160,13 @@ watch(
 </template>
 
 <style>
+/* 加载骨架（文件 tab / 通用行骨架） */
+.va-rsb__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+}
 /* 文件 tab 的超限截断提示 */
 .va-rsb__truncate-note {
   margin: 0;

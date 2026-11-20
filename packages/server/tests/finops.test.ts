@@ -353,6 +353,43 @@ describe("路由级准入与 summary（TASK-052）", () => {
     expect(summary.costUsd).toBe(1);
     expect(summary.byModel["glm"].recordCount).toBe(1);
   });
+
+  it("GET /api/finops/summary 支持 since/until 自定义区间 [since, until)（TASK-075）", async () => {
+    const storage = new MemoryStorageDriver();
+    const repo = new CostRecordRepository(storage);
+    const T = Date.now() - 60_000; // 相对 now，保证回落滚动窗口口径（24h）时能命中
+    await repo.record({ turnId: "r1", sessionId: "s", model: "glm", promptTokens: 100, completionTokens: 50, costUsd: 0.2, finishedAt: T });
+    await repo.record({ turnId: "r2", sessionId: "s", model: "kimi", promptTokens: 10, completionTokens: 5, costUsd: 0.3, finishedAt: T + 500 });
+    await repo.record({ turnId: "r3", sessionId: "s", model: "glm", promptTokens: 999, completionTokens: 999, finishedAt: T + 2000 });
+
+    const { app } = createHarnessServer({ storageDriver: storage, modelDriver: new MockDriver() });
+
+    // 全量区间 [T, T+3000)：3 条全进
+    const full = await (await app.request(`/api/finops/summary?since=${T}&until=${T + 3000}`)).json();
+    expect(full.tokens).toBe(2163);
+    expect(full.costUsd).toBe(0.5);
+    expect(full.recordCount).toBe(3);
+    expect(full.since).toBe(T);
+
+    // 收窄 [T, T+1000)：r1+r2，按模型分账正确
+    const narrow = await (await app.request(`/api/finops/summary?since=${T}&until=${T + 1000}`)).json();
+    expect(narrow.tokens).toBe(165);
+    expect(narrow.recordCount).toBe(2);
+    expect(narrow.byModel["kimi"].costUsd).toBe(0.3);
+
+    // 上界开区间：until == r3.finishedAt 不含 r3
+    const edge = await (await app.request(`/api/finops/summary?since=${T + 500}&until=${T + 2000}`)).json();
+    expect(edge.recordCount).toBe(1);
+
+    // 空区间
+    const empty = await (await app.request(`/api/finops/summary?since=${T + 5000}&until=${T + 6000}`)).json();
+    expect(empty.tokens).toBe(0);
+
+    // 非法区间（since >= until）回落滚动窗口口径（无上界，全部命中），不抛错
+    const fallback = await (await app.request(`/api/finops/summary?since=2000&until=1000`)).json();
+    expect(fallback.tokens).toBe(2163);
+    expect(fallback.since).toBeUndefined();
+  });
 });
 
 afterEach(() => {

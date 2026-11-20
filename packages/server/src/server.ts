@@ -641,8 +641,22 @@ export function createHarnessServer(options: ServerOptions = {}) {
     return c.json(actionHub.listSuspended());
   });
 
-  // TASK-052 成本台账查询出口：滚动窗口累计与按模型聚合（前端仪表可选接入）
+  // TASK-052 成本台账查询出口：滚动窗口累计与按模型聚合（TASK-075 起由前端用量面板消费）
+  // 两种窗口形态：windowMs（滚动至此刻）或 since+until（自定义日期区间，毫秒时间戳，[since, until)）
   app.get("/api/finops/summary", async (c) => {
+    const sinceQ = Number(c.req.query("since"));
+    const untilQ = Number(c.req.query("until"));
+    const hasRange =
+      Number.isFinite(sinceQ) && Number.isFinite(untilQ) && sinceQ > 0 && untilQ > sinceQ;
+
+    if (hasRange) {
+      const [usage, byModel] = await Promise.all([
+        costRepo.sumWindowBetween(sinceQ, untilQ),
+        costRepo.sumWindowByModelBetween(sinceQ, untilQ),
+      ]);
+      return c.json({ windowMs: untilQ - sinceQ, since: sinceQ, until: untilQ, ...usage, byModel });
+    }
+
     const raw = Number(c.req.query("windowMs"));
     const windowMs = Number.isFinite(raw) && raw > 0 ? raw : 86_400_000;
     const [usage, byModel] = await Promise.all([

@@ -6,13 +6,15 @@
  */
 import { computed } from "vue";
 import { Settings } from "lucide-vue-next";
-import { VaButton, VaSessionTree } from "@vuagent/ui";
+import { VaButton, VaSessionTree, VaSkeleton } from "@vuagent/ui";
 import type { SessionItem, WorkspaceItem } from "../types";
 
 const props = defineProps<{
   workspaces: WorkspaceItem[];
   /** 全量会话（组件按 archived/status 分区为活跃列表与归档区） */
   sessions: SessionItem[];
+  /** 会话列表首拉加载态（TASK-075：骨架占位，语义性加载而非装饰） */
+  loading?: boolean;
   activeWorkspaceId: string;
   activeSessionId: string;
   isNewChat: boolean;
@@ -76,7 +78,11 @@ function sessionById(id: string) {
 
 <template>
   <aside class="va-console__sidebar">
+    <div v-if="loading" class="va-console__stree-skeleton" aria-label="加载会话列表">
+      <VaSkeleton v-for="i in 6" :key="i" :height="26" radius="6px" :width="i % 2 ? '92%' : '78%'" />
+    </div>
     <VaSessionTree
+      v-else
       class="va-console__stree"
       :workspaces="treeWorkspaces"
       :sessions="treeSessions"

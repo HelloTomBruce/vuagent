@@ -44,14 +44,18 @@ export class CostRecordRepository {
     return this.driver.list<CostRecord>(COLLECTION);
   }
 
-  /** 滚动窗口累计（截止 now）：tokens = prompt + completion 总和 */
+  /** 滚动窗口累计（自 now-windowMs 起、无上界）：tokens = prompt + completion 总和 */
   async sumWindow(windowMs: number): Promise<WindowUsage> {
-    const since = Date.now() - windowMs;
+    return this.sumWindowBetween(Date.now() - windowMs, Number.POSITIVE_INFINITY);
+  }
+
+  /** 任意区间累计 [since, until)（TASK-075：自定义日期范围出口） */
+  async sumWindowBetween(since: number, until: number): Promise<WindowUsage> {
     let tokens = 0;
     let costUsd = 0;
     let recordCount = 0;
     for (const r of await this.list()) {
-      if (r.finishedAt < since) continue;
+      if (r.finishedAt < since || r.finishedAt >= until) continue;
       tokens += r.promptTokens + r.completionTokens;
       costUsd += r.costUsd ?? 0;
       recordCount++;
@@ -59,12 +63,16 @@ export class CostRecordRepository {
     return { tokens, costUsd: Number(costUsd.toFixed(6)), recordCount };
   }
 
-  /** 滚动窗口按模型聚合（finops summary 出口） */
+  /** 滚动窗口按模型聚合（finops summary 出口，无上界） */
   async sumWindowByModel(windowMs: number): Promise<Record<string, WindowUsage>> {
-    const since = Date.now() - windowMs;
+    return this.sumWindowByModelBetween(Date.now() - windowMs, Number.POSITIVE_INFINITY);
+  }
+
+  /** 任意区间按模型聚合 [since, until) */
+  async sumWindowByModelBetween(since: number, until: number): Promise<Record<string, WindowUsage>> {
     const byModel: Record<string, WindowUsage> = {};
     for (const r of await this.list()) {
-      if (r.finishedAt < since) continue;
+      if (r.finishedAt < since || r.finishedAt >= until) continue;
       const bucket = (byModel[r.model] ??= { tokens: 0, costUsd: 0, recordCount: 0 });
       bucket.tokens += r.promptTokens + r.completionTokens;
       bucket.costUsd += r.costUsd ?? 0;

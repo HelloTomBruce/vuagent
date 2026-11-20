@@ -398,3 +398,55 @@ export async function openSessionStream(sessionId: string): Promise<Response> {
   }
   return res;
 }
+
+/* ==========================================================================
+   成本观测（TASK-075：/api/finops/summary 首次前端消费）
+   ========================================================================== */
+
+/** 窗口用量（tokens = prompt + completion；costUsd 计价表命中才记钱） */
+export interface FinopsWindowUsage {
+  tokens: number;
+  costUsd: number;
+  recordCount: number;
+}
+
+export interface FinopsSummary extends FinopsWindowUsage {
+  windowMs: number;
+  since?: number;
+  until?: number;
+  byModel: Record<string, FinopsWindowUsage>;
+}
+
+/** GET /api/finops/summary：windowMs 滚动窗口（至此刻、无上界）或 since/until 自定义区间 */
+export function fetchFinopsSummary(
+  params: { windowMs?: number; since?: number; until?: number } = {}
+): Promise<FinopsSummary | null> {
+  const qs = new URLSearchParams();
+  if (params.since && params.until) {
+    qs.set("since", String(params.since));
+    qs.set("until", String(params.until));
+  } else if (params.windowMs) {
+    qs.set("windowMs", String(params.windowMs));
+  }
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return httpGet<FinopsSummary>(`/api/finops/summary${suffix}`);
+}
+
+/** finops 配额生效值（UsageMeter 分母；0 = 不限） */
+export interface FinopsLimits {
+  windowTokenLimit: number;
+  windowUsdLimit: number;
+  windowMs: number;
+}
+
+/** 从配置中心取 finops 配额生效值；结构异常回退 0（不限，配额条隐藏） */
+export async function fetchFinopsLimits(): Promise<FinopsLimits> {
+  const cfg = await getConfig();
+  const ns = cfg?.namespaces.find((n) => n.id === "finops");
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : 0);
+  return {
+    windowTokenLimit: num(ns?.values.windowTokenLimit),
+    windowUsdLimit: num(ns?.values.windowUsdLimit),
+    windowMs: num(ns?.values.windowMs) || 86_400_000,
+  };
+}

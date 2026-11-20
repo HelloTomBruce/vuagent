@@ -45,7 +45,10 @@ export function useSessions(options: SessionsOptions) {
     return sessions.value.filter((s) => s.archived || s.status === "archived");
   });
 
+  const sessionsLoading = ref(false);
+
   async function fetchSessions() {
+    sessionsLoading.value = true;
     try {
       const data = await listSessions();
       if (data) {
@@ -53,6 +56,8 @@ export function useSessions(options: SessionsOptions) {
       }
     } catch (e) {
       console.error("加载会话失败:", e);
+    } finally {
+      sessionsLoading.value = false;
     }
   }
 
@@ -350,6 +355,7 @@ export function useSessions(options: SessionsOptions) {
     activeSessions,
     archivedSessions,
     fetchSessions,
+  sessionsLoading,
     createSessionForPrompt,
     selectSession,
     renameSession,

@@ -1639,3 +1639,21 @@
   line-height: 14px;
   text-align: center;
 }
+
+/* TASK-075 成本观测：消息区迷你占比条与流式思考指示 */
+.va-console__usage-bar {
+  margin: 0 0 8px;
+  padding: 0 4px;
+}
+.va-console__thinking {
+  display: flex;
+  justify-content: flex-start;
+  padding: 10px 4px 0;
+}
+/* 左栏会话列表首拉骨架 */
+.va-console__stree-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}

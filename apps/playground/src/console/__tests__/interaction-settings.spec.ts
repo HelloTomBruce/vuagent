@@ -39,6 +39,7 @@ describe("defaultInteractionSettings", () => {
       autoCollapseToolCards: true,
       showApprovals: true,
       showFileTree: true,
+      showUsage: true,
     });
   });
 });
@@ -77,6 +78,7 @@ describe("loadInteractionSettings", () => {
       autoCollapseToolCards: true, // 缺字段回退默认
       showApprovals: true,
       showFileTree: true,
+      showUsage: true, // 缺字段回退默认
     });
   });
 
@@ -91,6 +93,7 @@ describe("loadInteractionSettings", () => {
       autoCollapseToolCards: false,
       showApprovals: true,
       showFileTree: true,
+      showUsage: true, // 未提供的新字段回退默认
     });
     expect("unknownFutureFlag" in merged).toBe(false);
   });
@@ -104,7 +107,7 @@ describe("saveInteractionSettings", () => {
   it("持久化 JSON 含 version 字段", () => {
     const storage = createMemoryStorage();
     saveInteractionSettings(
-      { autoCollapseThought: false, autoCollapseToolCards: true, showApprovals: false, showFileTree: true },
+      { autoCollapseThought: false, autoCollapseToolCards: true, showApprovals: false, showFileTree: true, showUsage: true },
       storage
     );
     const raw = storage.data.get(INTERACTION_SETTINGS_STORAGE_KEY);
@@ -116,12 +119,13 @@ describe("saveInteractionSettings", () => {
       autoCollapseToolCards: true,
       showApprovals: false,
       showFileTree: true,
+      showUsage: true,
     });
   });
 
   it("持久化往返：save 后 load 得到相同设置", () => {
     const storage = createMemoryStorage();
-    const value = { autoCollapseThought: false, autoCollapseToolCards: false, showApprovals: true, showFileTree: false };
+    const value = { autoCollapseThought: false, autoCollapseToolCards: false, showApprovals: true, showFileTree: false, showUsage: false };
     saveInteractionSettings(value, storage);
     expect(loadInteractionSettings(storage)).toEqual(value);
   });
@@ -149,6 +153,7 @@ describe("createInteractionSettingsStore", () => {
       autoCollapseToolCards: false,
       showApprovals: true,
       showFileTree: true,
+      showUsage: true,
     });
   });
 

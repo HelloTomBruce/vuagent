@@ -62,6 +62,11 @@ export const INTERACTION_SETTING_ITEMS: InteractionSettingItem[] = [
     title: "右侧边栏显示工作区文件树",
     description: "当前工作区的目录结构（只读预览，深度 4 层）；关闭后右侧边栏不再展示该分区",
   },
+  {
+    key: "showUsage",
+    title: "右侧边栏显示成本用量面板",
+    description: "滚动窗口/自定义区间的 token 与费用、按模型分解与配额水位（TASK-075）；关闭后右侧边栏不再展示该分区",
+  },
 ];
 
 /* ==========================================================================
