@@ -38,7 +38,9 @@ export interface TurnFinalState {
   thought: string;
   cards: Array<{ id: string; type: string; data: any }>;
   /** R8：中止成因（协议 reason 枚举），落库持久化供历史恢复呈现徽标 */
-  abortedReason?: "user" | "timeout" | "preempt";
+  abortedReason?: "user" | "timeout" | "preempt" | "token_budget";
+  /** 轮次收尾形态：explicit（finish_task 显式宣告）/ natural（自然停机）/ truncated（步数耗尽） */
+  finishReason?: "explicit" | "natural" | "truncated";
   stepCount: number;
   checkpoints: CheckpointEntity[];
   startAt: number;
@@ -127,6 +129,7 @@ export class TurnPersistence {
       status: "done",
       // R8：优雅中止（loop-top break）以 done 落库但仍标记中止成因
       ...(state.abortedReason ? { abortedReason: state.abortedReason } : {}),
+      ...(state.finishReason ? { finishReason: state.finishReason } : {}),
       stepCount: state.stepCount,
       checkpoints: state.checkpoints,
       telemetry: {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createHarnessServer } from "../src/server.js";
-import { MockDriver } from "../src/adapters/mock-driver.js";
+import { MockDriver } from "./helpers/mock-driver.js";
 import {
   DEFAULT_LOCAL_ORIGINS,
   isAllowedOrigin,

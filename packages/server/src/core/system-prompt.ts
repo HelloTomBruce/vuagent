@@ -131,6 +131,12 @@ export interface PromptAssemblyConfig {
   includeEnvironmentBlock?: boolean;
   /** 权限声明块开关（默认 true） */
   includePermissionBlock?: boolean;
+  /**
+   * 显式终态协议开关（execution.finishTaskMode=enforced 时为 true）：
+   * 向模型声明「完成必须调用 finish_task 且通过交付断言」的契约块。
+   * 与工具可见性同源（agent-loop 同一配置推导），提示词声明与引擎裁决不漂移。
+   */
+  finishTaskEnforced?: boolean;
 }
 
 export interface BuildSystemPromptOptions {
@@ -162,6 +168,18 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
     parts.push(buildPermissionBlock(opts.workspace, opts.effectiveMode));
   }
   parts.push(buildDisciplineBlock());
+
+  // 显式终态协议块（finishTaskMode=enforced）：与引擎侧交付断言同源声明
+  if (opts.promptConfig?.finishTaskEnforced) {
+    parts.push(
+      [
+        "## 任务完成协议",
+        "完成任务时必须调用 finish_task 工具宣告：summary 概括做了什么与结果，deliverables 列出交付物。",
+        "只有在本轮已产出实质性内容（面向用户的正文回复或工具产物）后才可宣告完成；",
+        "若交付断言未通过，你会收到结构化驳回说明——继续完成任务并产出实质内容后再次宣告。",
+      ].join("\n")
+    );
+  }
 
   // 工作区级与会话级自定义指令置后（用户显式配置优先级最高）
   if (opts.workspace.systemInstruction?.trim()) {

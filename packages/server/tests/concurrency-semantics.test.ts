@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { SessionExecutionHub } from "../src/core/session-execution-hub.js";
 import { createHarnessServer } from "../src/server.js";
 import { MemoryStorageDriver } from "../src/storage/drivers/memory.driver.js";
-import { MockDriver } from "../src/adapters/mock-driver.js";
+import { MockDriver } from "./helpers/mock-driver.js";
 import type { AgentLoop } from "../src/core/agent-loop.js";
 import type { AgentTurnRequest, HarnessStreamEvent } from "../src/core/types.js";
 import type { IModelDriver, ModelDriverRequest, ModelStreamChunk } from "../src/adapters/model-driver.js";
@@ -110,7 +110,7 @@ describe("SessionExecutionHub.claimTurn — 并发语义（TASK-050）", () => {
   });
 });
 
-/** 路由级测试用：挂起至 abort 的 MockDriver（isMock=true 跳过沙箱分支） */
+/** 路由级测试用：挂起至 abort 的驱动（显式注入即被信任，跳过沙箱演示分支） */
 class HangingDriver extends MockDriver implements IModelDriver {
   override async *generateStream(req: ModelDriverRequest): AsyncGenerator<ModelStreamChunk> {
     yield { type: "text_delta", text: "hanging" };

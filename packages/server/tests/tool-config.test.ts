@@ -12,7 +12,7 @@ import { SettingsRepository } from "../src/storage/repositories/settings.reposit
 import { ToolRegistry } from "../src/core/tool-registry.js";
 import { ActionHub } from "../src/core/action-hub.js";
 import { AgentLoop } from "../src/core/agent-loop.js";
-import { MockDriver } from "../src/adapters/mock-driver.js";
+import { MockDriver } from "./helpers/mock-driver.js";
 import type { ModelDriverRequest } from "../src/adapters/model-driver.js";
 import { FsReadTool, FsWriteTool } from "../src/tools/system/fs-tools.js";
 import { createHarnessServer } from "../src/server.js";

@@ -1,6 +1,7 @@
 import type { HarnessStreamEvent, AgentTurnRequest } from "./types.js";
 import type { AgentLoop } from "./agent-loop.js";
 import { createNoopSink, mapAbortCause, type HarnessEventSink } from "./event-sink.js";
+import type { TurnLeaseManager } from "./turn-lease.js";
 
 export interface ActiveExecution {
   sessionId: string;
@@ -36,13 +37,33 @@ export type ClaimTurnResult =
  * 2. 实时事件缓冲 (Event Replay Buffer)：支持断线重连或切回会话时按序重放
  * 3. 多端/跨标签页订阅：支持多个 SSE 连接同时监听同一运行中的会话
  */
+/**
+ * 跨副本租约配置（Redis 分布式形态，TASK-074）：
+ * 同一会话同一时刻全集群只允许一轮执行——claimTurn 进程内互斥通过后，
+ * 再经 Redis SET NX PX 取跨副本租约（fail-closed：拿不到即拒绝开轮）；
+ * 运行期 ttl/3 心跳续期，连续失败达阈值中止本副本轮次（防 TTL 过期后他副本双主）；
+ * 抽干落库后释放。
+ */
+export interface LeaseOptions {
+  manager: TurnLeaseManager;
+  /** 本副本实例标识（VUAGENT_INSTANCE_ID / hostname） */
+  instanceId: string;
+  /** 租约 TTL（毫秒），缺省 30_000 */
+  ttlMs?: number;
+  /** 心跳连续失败阈值（达到即中止本副本轮次），缺省 3 */
+  maxHeartbeatFailures?: number;
+}
+
 export class SessionExecutionHub {
   private activeRuns = new Map<string, ActiveExecution>();
   /** 运维事件出口（TASK-051）：preempt/abort 等生命周期事件 */
   private sink: HarnessEventSink;
+  /** 跨副本租约（Redis 形态可选；缺省单副本无租约语义） */
+  private lease?: LeaseOptions;
 
-  constructor(private agentLoop: AgentLoop, sink?: HarnessEventSink) {
+  constructor(private agentLoop: AgentLoop, sink?: HarnessEventSink, lease?: LeaseOptions) {
     this.sink = sink ?? createNoopSink();
+    this.lease = lease;
   }
 
   /** sink 故障不阻断主链路 */
@@ -138,14 +159,38 @@ export class SessionExecutionHub {
         return { ok: false, reason: "running" };
       }
     }
+    // 跨副本租约门禁（Redis 形态）：fail-closed——拿不到租约即拒绝，映射 running 409
+    if (this.lease) {
+      const ttl = this.lease.ttlMs ?? 30_000;
+      const leaseTurnId =
+        req.turnId ?? `turn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const acquired = await this.lease.manager.acquire(req.sessionId, leaseTurnId, ttl);
+      if (!acquired) {
+        this.emit({
+          type: "warn",
+          at: Date.now(),
+          code: "SESSION_RUNNING_REJECTED",
+          sessionId: req.sessionId,
+          detail: `跨副本租约获取失败（fail-closed，instanceId=${this.lease.instanceId}）`,
+        });
+        return { ok: false, reason: "running" };
+      }
+      this.spawnRun(req, { turnId: leaseTurnId, leaseTtlMs: ttl });
+      return { ok: true };
+    }
     this.spawnRun(req);
     return { ok: true };
   }
 
   /** 创建 run 并启动后台消费循环（同步登记，原子 wrt 事件循环） */
-  private spawnRun(req: AgentTurnRequest): ActiveExecution {
+  private spawnRun(
+    req: AgentTurnRequest,
+    leaseOpts?: { turnId: string; leaseTtlMs: number }
+  ): ActiveExecution {
     const abortController = new AbortController();
-    const turnId = `turn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    // 租约形态：turnId 由 claimTurn 租约门禁预生成（租约身份 = sessionId+turnId 配对）；
+    // 单副本形态：回落自生成（与 agent-loop 回落口径一致）
+    const turnId = leaseOpts?.turnId ?? `turn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     let drainResolve!: () => void;
     const drainPromise = new Promise<void>((resolve) => {
       drainResolve = resolve;
@@ -164,6 +209,45 @@ export class SessionExecutionHub {
       seqCounter: 0,
     };
     this.activeRuns.set(req.sessionId, run);
+
+    // 跨副本租约心跳（ttl/3）：连续失败达阈值即中止本副本轮次——
+    // TTL 过期后他副本可重取同会话租约，保不住续期就不能继续持有执行权（防双主）
+    let heartbeatTimer: NodeJS.Timeout | undefined;
+    let heartbeatFailures = 0;
+    if (this.lease && leaseOpts) {
+      const ttl = leaseOpts.leaseTtlMs;
+      const leaseTurnId = leaseOpts.turnId;
+      heartbeatTimer = setInterval(() => {
+        void this.lease!.manager.heartbeat(req.sessionId, leaseTurnId, ttl).then((ok) => {
+          if (ok) {
+            heartbeatFailures = 0;
+            return;
+          }
+          heartbeatFailures++;
+          this.emit({
+            type: "warn",
+            at: Date.now(),
+            code: "TURN_LEASE_HEARTBEAT_FAILED",
+            sessionId: req.sessionId,
+            turnId: leaseTurnId,
+            detail: `failures=${heartbeatFailures}/${this.lease?.maxHeartbeatFailures ?? 3}`,
+          });
+          if (heartbeatFailures >= (this.lease?.maxHeartbeatFailures ?? 3)) {
+            this.emit({
+              type: "error",
+              at: Date.now(),
+              code: "TURN_LEASE_LOST",
+              sessionId: req.sessionId,
+              turnId: leaseTurnId,
+              detail: `instanceId=${this.lease?.instanceId}，中止本副本轮次防双主`,
+            });
+            // signalReason=lease_lost：mapAbortCause 映射 opsReason=lease_lost（协议 reason=user）
+            run.abortController.abort("lease_lost");
+          }
+        });
+      }, Math.ceil(ttl / 3));
+      (heartbeatTimer as { unref?: () => void }).unref?.();
+    }
 
     // 启动非阻塞后台任务循环
     (async () => {
@@ -202,6 +286,11 @@ export class SessionExecutionHub {
           } catch {}
         }
       } finally {
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
+        // 释放跨副本租约（fail-open：删除失败依赖 TTL 自然过期兜底）
+        if (this.lease && leaseOpts) {
+          void this.lease.manager.release(req.sessionId, leaseOpts.turnId);
+        }
         run.isDone = true;
         drainResolve();
         for (const sub of run.subscribers) {

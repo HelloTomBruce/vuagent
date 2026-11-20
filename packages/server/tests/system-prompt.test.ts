@@ -21,7 +21,7 @@ import { AgentLoop } from "../src/core/agent-loop.js";
 import { ToolConfigRepository } from "../src/storage/repositories/tool-config.repository.js";
 import { HarnessConfigRepository } from "../src/storage/repositories/harness-config.repository.js";
 import { ConfigResolver } from "../src/core/config-resolver.js";
-import { MockDriver } from "../src/adapters/mock-driver.js";
+import { MockDriver } from "./helpers/mock-driver.js";
 import type { ModelDriverRequest } from "../src/adapters/model-driver.js";
 import type { WorkspaceEntity } from "../src/storage/interfaces.js";
 import type { HarnessStreamEvent } from "../src/core/types.js";

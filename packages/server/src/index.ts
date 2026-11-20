@@ -16,8 +16,8 @@ export * from "./core/pricing-table.js";
 export * from "./storage/repositories/cost-record.repository.js";
 export * from "./adapters/model-driver.js";
 export * from "./adapters/openai-driver.js";
+export * from "./adapters/anthropic-driver.js";
 export * from "./adapters/resilience.js";
-export * from "./adapters/mock-driver.js";
 export * from "./storage/interfaces.js";
 export * from "./storage/drivers/base.driver.js";
 export * from "./storage/drivers/memory.driver.js";
@@ -37,11 +37,28 @@ const isDirectRun =
 if (isDirectRun) {
   const port = Number(process.env.PORT) || 3001;
   const dbPath = process.env.DB_PATH || ".vuagent/harness.db";
-  const { app } = createHarnessServer({ dbPath });
 
-  console.log(`[Vuagent Harness Server] Starting on http://localhost:${port}...`);
-  serve({
-    fetch: app.fetch,
-    port,
-  });
+  // Redis 分布式形态（可选）：REDIS_URL 配置后存储实体共享 + 跨副本轮次租约
+  const bootstrap = async () => {
+    const redisUrl = process.env.REDIS_URL;
+    if (!redisUrl) return {};
+    const { createRedisLikeFromUrl } = await import("./storage/drivers/redis.driver.js");
+    const client = await createRedisLikeFromUrl(redisUrl);
+    console.log(`[Vuagent Harness Server] Redis 形态启用：${redisUrl}`);
+    return { redisClient: client };
+  };
+
+  void bootstrap()
+    .then((redisOptions) => {
+      const { app } = createHarnessServer({ dbPath, ...redisOptions });
+      console.log(`[Vuagent Harness Server] Starting on http://localhost:${port}...`);
+      serve({
+        fetch: app.fetch,
+        port,
+      });
+    })
+    .catch((err) => {
+      console.error("[Vuagent Harness Server] 启动失败：", err);
+      process.exit(1);
+    });
 }

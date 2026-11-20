@@ -19,7 +19,7 @@ import { ConfigResolver } from "../src/core/config-resolver.js";
 import { ToolRegistry } from "../src/core/tool-registry.js";
 import { ActionHub } from "../src/core/action-hub.js";
 import { AgentLoop } from "../src/core/agent-loop.js";
-import { MockDriver } from "../src/adapters/mock-driver.js";
+import { MockDriver } from "./helpers/mock-driver.js";
 import { BashRunTool } from "../src/tools/system/bash-tool.js";
 import { createWebFetchTool } from "../src/tools/web/web-tools.js";
 import { createHarnessServer } from "../src/server.js";

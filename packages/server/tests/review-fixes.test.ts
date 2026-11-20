@@ -4,7 +4,7 @@ import { createHarnessServer } from "../src/server.js";
 import { MemoryStorageDriver } from "../src/storage/drivers/memory.driver.js";
 import { createResilientFetch, classifyHttpError } from "../src/adapters/resilience.js";
 import { mapAbortCause } from "../src/core/event-sink.js";
-import { MockDriver } from "../src/adapters/mock-driver.js";
+import { MockDriver } from "./helpers/mock-driver.js";
 import type { AgentLoop } from "../src/core/agent-loop.js";
 import type { AgentTurnRequest, HarnessStreamEvent } from "../src/core/types.js";
 import type { ModelDriverRequest, ModelStreamChunk } from "../src/adapters/model-driver.js";

@@ -19,7 +19,7 @@ import { ToolRegistry } from "../src/core/tool-registry.js";
 import { ActionHub } from "../src/core/action-hub.js";
 import { AgentLoop } from "../src/core/agent-loop.js";
 import { ToolConfigRepository } from "../src/storage/repositories/tool-config.repository.js";
-import { MockDriver } from "../src/adapters/mock-driver.js";
+import { MockDriver } from "./helpers/mock-driver.js";
 import type { IModelDriver, ModelDriverRequest, ModelStreamChunk } from "../src/adapters/model-driver.js";
 import type { HarnessStreamEvent } from "../src/core/types.js";
 

@@ -19,15 +19,22 @@ export type HarnessOpsCode =
   | "MODEL_BAD_REQUEST"
   | "MODEL_CONTEXT_OVERFLOW"
   | "MODEL_UNKNOWN"
+  // 模型降级链（按序切换备用档案）
+  | "MODEL_FALLBACK"
   // 工具面
   | "TOOL_EXECUTION_FAILED"
   // 轮次生命周期
   | "WATCHDOG_TIMEOUT"
+  | "RUN_TOKEN_BUDGET_EXCEEDED"
   | "TURN_ABORTED"
   | "TURN_PREEMPTED"
   | "PREEMPT_TIMEOUT"
   | "TURN_EXECUTION_FAILED"
   | "TURN_PERSIST_FAILED"
+  // 跨副本租约（Redis 形态）
+  | "TURN_LEASE_HEARTBEAT_FAILED"
+  | "TURN_LEASE_LOST"
+  | "RECOVERED_LEASES"
   // 准入与恢复
   | "SESSION_RUNNING_REJECTED"
   | "CONCURRENCY_REJECTED"
@@ -63,23 +70,36 @@ export function opsCodeForErrorClass(errorClass: ProviderErrorClass): HarnessOps
  */
 export interface AbortCauseMapping {
   /** SSE aborted 事件的协议 reason 枚举 */
-  protocolReason: "user" | "timeout" | "preempt";
+  protocolReason: "user" | "timeout" | "preempt" | "token_budget";
   /** ops abort 事件的 reason 字段 */
-  opsReason: "user" | "new_task" | "watchdog";
+  opsReason: "user" | "new_task" | "watchdog" | "token_budget" | "lease_lost";
   /** ops 分类码 */
   code: HarnessOpsCode;
 }
 
 export function mapAbortCause(input: {
   watchdogFired: boolean;
+  /** 单轮 token 预算熔断触发（优先级高于看门狗——两者同用 watchdog controller） */
+  tokenBudgetFired?: boolean;
   /** runSignal.reason（hub abort(kind) 透传；用户手动停止为 undefined） */
   signalReason?: unknown;
 }): AbortCauseMapping {
+  if (input.tokenBudgetFired) {
+    return {
+      protocolReason: "token_budget",
+      opsReason: "token_budget",
+      code: "RUN_TOKEN_BUDGET_EXCEEDED",
+    };
+  }
   if (input.watchdogFired) {
     return { protocolReason: "timeout", opsReason: "watchdog", code: "WATCHDOG_TIMEOUT" };
   }
   if (input.signalReason === "new_task") {
     return { protocolReason: "preempt", opsReason: "new_task", code: "TURN_PREEMPTED" };
+  }
+  if (input.signalReason === "lease_lost") {
+    // 跨副本租约丢失：本副本主动停机防双主（协议 reason 取 user 口径，ops 侧可区分）
+    return { protocolReason: "user", opsReason: "lease_lost", code: "TURN_LEASE_LOST" };
   }
   return { protocolReason: "user", opsReason: "user", code: "TURN_ABORTED" };
 }
@@ -107,6 +127,8 @@ export type HarnessOpsEvent =
       /** 非正常收尾时的分类码 */
       code?: HarnessOpsCode;
       message?: string;
+      /** 轮次收尾形态：explicit（finish_task 显式宣告）/ natural（自然停机）/ truncated（步数耗尽）；中止时缺省 */
+      finishReason?: "explicit" | "natural" | "truncated";
     }
   | {
       type: "step_finish";
@@ -141,12 +163,24 @@ export type HarnessOpsEvent =
       reason: string;
     }
   | {
+      type: "model_fallback";
+      at: number;
+      sessionId?: string;
+      turnId?: string;
+      /** 触发降级的档案名 */
+      from: string;
+      /** 切换到的档案名 */
+      to: string;
+      errorClass: ProviderErrorClass;
+      reason: string;
+    }
+  | {
       type: "abort";
       at: number;
       sessionId: string;
       turnId: string;
-      /** 中止成因：user=手动停止 / new_task=顶替 / watchdog=看门狗超时 */
-      reason: "user" | "new_task" | "watchdog";
+      /** 中止成因：user=手动停止 / new_task=顶替 / watchdog=看门狗超时 / token_budget=单轮预算熔断 / lease_lost=跨副本租约丢失 */
+      reason: "user" | "new_task" | "watchdog" | "token_budget" | "lease_lost";
       code: HarnessOpsCode;
     }
   | {

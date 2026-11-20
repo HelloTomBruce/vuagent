@@ -6,7 +6,7 @@ import { ModelPricingTable, computeCostUsd } from "../src/core/pricing-table.js"
 import { CostRecordRepository } from "../src/storage/repositories/cost-record.repository.js";
 import { MemoryStorageDriver } from "../src/storage/drivers/memory.driver.js";
 import { createHarnessServer } from "../src/server.js";
-import { MockDriver } from "../src/adapters/mock-driver.js";
+import { MockDriver } from "./helpers/mock-driver.js";
 import type { ModelDriverRequest, ModelStreamChunk } from "../src/adapters/model-driver.js";
 import { WorkspaceRepository } from "../src/storage/repositories/workspace.repository.js";
 import { SessionRepository } from "../src/storage/repositories/session.repository.js";

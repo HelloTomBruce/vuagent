@@ -25,7 +25,7 @@ import { WorkspaceRepository } from "../src/storage/repositories/workspace.repos
 import { SessionRepository } from "../src/storage/repositories/session.repository.js";
 import { SettingsRepository } from "../src/storage/repositories/settings.repository.js";
 import { ToolConfigRepository } from "../src/storage/repositories/tool-config.repository.js";
-import { MockDriver } from "../src/adapters/mock-driver.js";
+import { MockDriver } from "./helpers/mock-driver.js";
 import { FsReadTool } from "../src/tools/system/fs-tools.js";
 import { BashRunTool } from "../src/tools/system/bash-tool.js";
 import { ContextCompactor, type ChatMessage } from "../src/core/context-compactor.js";

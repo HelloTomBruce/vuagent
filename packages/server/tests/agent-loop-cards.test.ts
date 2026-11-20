@@ -7,7 +7,7 @@ import { ToolRegistry } from "../src/core/tool-registry.js";
 import { ActionHub } from "../src/core/action-hub.js";
 import { AgentLoop } from "../src/core/agent-loop.js";
 import { ToolConfigRepository } from "../src/storage/repositories/tool-config.repository.js";
-import { MockDriver } from "../src/adapters/mock-driver.js";
+import { MockDriver } from "./helpers/mock-driver.js";
 import type { HarnessStreamEvent, HarnessTool } from "../src/core/types.js";
 
 /** find 结果断言收窄（未找到时直接失败） */

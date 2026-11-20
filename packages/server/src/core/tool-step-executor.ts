@@ -10,6 +10,11 @@ import { parsePartialJson } from "./stream-orchestrator.js";
 import { clipTrajectoryEvent, type TelemetryLedger } from "./telemetry.js";
 import type { ChatMessage } from "./context-compactor.js";
 import type { OpsReporter } from "./ops-reporter.js";
+import {
+  createToolGuardState,
+  runToolGuards,
+  type ToolGuardContext,
+} from "./tool-guards.js";
 
 /**
  * 工具调用执行段（TASK-057 自 agent-loop.ts 拆出，行为逐字节等价）：
@@ -120,20 +125,7 @@ export async function* executeToolCallStep(
     accumulatedCards.push(callCard);
 
     const toolDef = deps.toolRegistry.get(call.name);
-
-    let executionResult: unknown;
-    let isError = false;
-    let errorMessage: string | undefined;
-
-    // 工具启停仲裁（TASK-019）+ per-tool 覆盖（TASK-026）：逐调用实时重读该工具
-    // 配置记录——模型上下文可能残留轮次开始时的旧 definitions（禁用前已下发），
-    // 此兜底保证禁用语义不被绕过；禁用即最终裁决，不再进入权限链与执行
     const toolCfg = await deps.toolConfigRepo.get(call.name);
-    if (toolCfg && toolCfg.enabled === false) {
-      isError = true;
-      errorMessage = `工具 [${call.name}] 已被禁用（设置 → 工具 页可重新启用）`;
-      executionResult = { disabled: true, reason: errorMessage };
-    }
 
     // TASK-012 权限仲裁（评审 P0-2 修复）：
     // ① 请求级 req.permission 与会话级 session.permission 取交集，更严者生效。
@@ -156,47 +148,26 @@ export async function* executeToolCallStep(
       // 会话读取失败时保守回落轮次起点口径，不阻断仲裁
     }
 
-    // ② 声明式元数据取代旧字符串黑名单：是否写工作区由工具定义自述
-    //    （修复 fs_write 不在 "write_file/edit_file/..." 黑名单导致的只读静默写绕过）
-    const writesWorkspace = toolDef?.writesWorkspace === true;
-
-    // 权限模式与审批判断
-    let requiresApproval = false;
-
-    // ③ 工作区级硬闸门：read-only 工作区在任何模式（含 auto）下都拦截写工具
-    //    （!isError 守卫：工具已被禁用裁决时，权限链不得覆写禁用错误）
-    if (!isError && writesWorkspace && workspace.permission === "read-only") {
-      isError = true;
-      errorMessage = `[工作区权限限制] 当前工作区权限为只读 (read-only)，已拦截写操作工具 [${call.name}]`;
-      executionResult = { approved: false, reason: errorMessage };
-    } else if (mode === "read-only" && writesWorkspace) {
-      // ④ 只读模式：按工具元数据拦截一切写工作区工具（含 bash_run 等执行副作用）
-      isError = true;
-      errorMessage = `[只读模式限制] 当前权限模式为只读 (read-only)，已拦截写操作工具 [${call.name}]`;
-      executionResult = { approved: false, reason: errorMessage };
-    } else if (mode === "review") {
-      // ⑤ 审批模式 (review)：高风险或需审批的工具进入 HITL 挂起。
-      // TASK-026 per-tool requiresApproval 覆盖（deny-wins）：
-      // override=true 可追加审批（低风险工具提升为需审批）；override=false
-      // 不放宽既有推导——安全项只能升不能降，存储的 false 视为无效。
-      requiresApproval =
-        toolDef?.requiresApproval === true ||
-        toolDef?.riskLevel === "high" ||
-        toolCfg?.requiresApproval === true;
-    }
-    // ⑥ auto 模式：Agent 自主执行无需审批介入；工作区级硬闸门（③）仍然生效
-
-    // TASK-059 入参闸门前移：幻觉入参在 HITL 挂起判断前拦截——
-    // 非法入参直接走 isError 路径回喂模型（附校验错误文案），
-    // 不产生审批卡、不占用人工注意力；审批卡只在「参数合法且需人工决策」时出现。
-    // （!isError 守卫：工具禁用/只读拦截已裁决时，不覆写既有错误）
-    if (!isError) {
-      const validation = deps.toolRegistry.validateParams(call.name, parsedArgs);
-      if (!validation.ok) {
-        isError = true;
-        errorMessage = validation.error;
-      }
-    }
+    // 守卫链（TASK-071 自内联序列提取，行为逐字节等价）：
+    // 启停仲裁 → 工作区级硬闸门 → 只读模式闸门 → 审批判定（deny-wins）→ 入参闸门 → 超时策略。
+    // 裁决文案与短路顺序是契约面，定义见 core/tool-guards.ts；
+    // HITL 挂起与沙箱执行是流耦合副作用，留在本生成器内消费裁决结果
+    const guardCtx: ToolGuardContext = {
+      call,
+      toolDef,
+      toolCfg,
+      workspacePermission: workspace.permission,
+      mode,
+      parsedArgs,
+      validateParams: (name, args) => deps.toolRegistry.validateParams(name, args),
+      bashTimeoutCeilingMs,
+    };
+    const guardState = createToolGuardState();
+    await runToolGuards(guardCtx, guardState);
+    let executionResult: unknown = guardState.executionResult;
+    let isError = guardState.isError;
+    let errorMessage: string | undefined = guardState.errorMessage;
+    const requiresApproval = guardState.requiresApproval;
 
     // HITL 拦截机制 (仅在需要人工审批且未被只读限制时进入)
     if (requiresApproval && !isError) {
@@ -257,31 +228,11 @@ export async function* executeToolCallStep(
       }
     }
 
-    // 若未被驳回，在沙箱中执行工具
+    // 若未被驳回，在沙箱中执行工具（超时策略已由守卫链裁决：
+    // executorTimeoutMs 与 bash 钳制后入参见 guardState.effectiveParsedArgs）
     let toolDurationMs = 0;
     if (!isError) {
-      // TASK-026 per-tool 超时覆盖：
-      // - bash_run：生效命令超时 = per-tool timeoutMs 覆盖 > 模型请求 timeoutMs > 默认 30s，
-      //   再按 tools.bashTimeoutCeilingMs 全局封顶；执行器竞速超时放宽 10s 让内层
-      //   exec 先触发（保留 timedOut:true 结构化契约，而非笼统的 "timed out" 错误）
-      // - 其他工具：per-tool timeoutMs 覆盖执行器 60s 超时上限
-      let executorTimeoutMs: number | undefined;
-      if (call.name === "bash_run") {
-        const argTimeout =
-          typeof parsedArgs.timeoutMs === "number" && Number.isFinite(parsedArgs.timeoutMs)
-            ? parsedArgs.timeoutMs
-            : undefined;
-        const requested = toolCfg?.timeoutMs ?? argTimeout ?? 30_000;
-        const effective = Math.min(Math.max(1, requested), bashTimeoutCeilingMs);
-        parsedArgs = { ...parsedArgs, timeoutMs: effective };
-        executorTimeoutMs = effective + 10_000;
-      } else if (
-        typeof toolCfg?.timeoutMs === "number" &&
-        Number.isFinite(toolCfg.timeoutMs) &&
-        toolCfg.timeoutMs > 0
-      ) {
-        executorTimeoutMs = toolCfg.timeoutMs;
-      }
+      parsedArgs = guardState.effectiveParsedArgs;
 
       const ctx: ToolExecutionContext = {
         toolCallId: call.id,
@@ -294,7 +245,7 @@ export async function* executeToolCallStep(
       const execRes = await deps.toolRegistry.execute(
         call.name,
         ctx,
-        executorTimeoutMs
+        guardState.executorTimeoutMs
       );
       isError = execRes.isError;
       executionResult = execRes.result;

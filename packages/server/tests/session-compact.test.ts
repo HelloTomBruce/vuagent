@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { createHarnessServer } from "../src/server.js";
-import { MockDriver } from "../src/adapters/mock-driver.js";
-import type { IModelDriver, ModelDriverRequest, ModelStreamChunk } from "../src/adapters/model-driver.js";
+import { MockDriver } from "./helpers/mock-driver.js";
+import type { ModelDriverRequest, ModelStreamChunk } from "../src/adapters/model-driver.js";
 import { COMPACT_SUMMARY_MARKER } from "../src/core/context-compactor.js";
 
 /**
  * 捕获型 MockDriver：记录每次 generateStream 收到的完整 messages，
  * 用于断言压缩后下一轮真实发送给模型的上下文（无 1214 类非法消息）。
- * instanceof MockDriver 成立 → agent-loop 直接使用本实例（沙箱演示分支不会劫持）。
+ * instanceof 检查已移除：显式注入的驱动会被 agent-loop 直接信任（沙箱演示分支不会劫持）。
  */
 class CapturingMockDriver extends MockDriver {
   captured: ModelDriverRequest["messages"][] = [];
@@ -248,17 +248,12 @@ describe("POST /api/sessions/:id/compact 手动压缩 (TASK-008)", () => {
   });
 
   it("沙箱演示轮次(无 API Key)的 checkpoint 快照含 assistant 回复，历史可完整重建", async () => {
-    // 演示分支条件：非 MockDriver 且无任何 API Key——测试期间摘除环境变量兜底凭据
+    // 演示分支条件：未注入模型驱动且无任何 API Key——测试期间摘除环境变量兜底凭据
     const savedKey = process.env.OPENAI_API_KEY;
     delete process.env.OPENAI_API_KEY;
     try {
-      const noopDriver: IModelDriver = {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        async *generateStream(_req: ModelDriverRequest): AsyncIterable<ModelStreamChunk> {
-          throw new Error("沙箱演示分支不应调用真实模型驱动");
-        },
-      };
-      const { app, sessionRepo } = createHarnessServer({ dbPath: ":memory:", modelDriver: noopDriver });
+      // 未注入模型驱动 + 无 API Key → 沙箱演示分支（不触达任何真实模型驱动）
+      const { app, sessionRepo } = createHarnessServer({ dbPath: ":memory:" });
 
       const wsRes = await app.request("/api/workspaces", {
         method: "POST",

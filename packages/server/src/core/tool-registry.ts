@@ -45,9 +45,13 @@ export class ToolRegistry {
    * 转换为大模型标准 Function Calling 工具列表
    * @param disabledNames 被禁用的工具名集合（缺省全部暴露）；
    *      禁用语义 = 不进入模型可见的 definitions（调用侧由 agent-loop 仲裁兜底报错）
+   * @param hideTools 引擎侧条件隐藏的工具名集合（如 finish_task 在 finishTaskMode=off 时）；
+   *      与 disabledNames 同为可见性过滤，区别在于 hideTools 是配置推导而非用户启停配置，
+   *      不进入 /api/tools 的启停语义
    */
   toModelToolDefinitions(options?: {
     disabledNames?: Set<string>;
+    hideTools?: Set<string>;
   }): Array<{
     type: "function";
     function: {
@@ -57,8 +61,10 @@ export class ToolRegistry {
     };
   }> {
     const disabled = options?.disabledNames;
+    const hidden = options?.hideTools;
     return this.list()
       .filter((t) => !disabled || !disabled.has(t.name))
+      .filter((t) => !hidden || !hidden.has(t.name))
       .map((t) => ({
         type: "function",
         function: {

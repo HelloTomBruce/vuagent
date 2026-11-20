@@ -92,3 +92,60 @@ describe("SessionExecutionHub.abort — 抽干落库语义", () => {
     expect(hub.getActiveRun("s3")).toBeUndefined();
   });
 });
+
+describe("SessionExecutionHub 跨副本租约（LeaseOptions）", () => {
+  it("租约持有期间同会话 claimTurn 拒绝（409 running 语义）；轮次抽干落库后释放可再获取", async () => {
+    const { createTestClock, FakeRedis } = await import("./helpers/fake-redis.js");
+    const fake = new FakeRedis(createTestClock().now);
+    const { TurnLeaseManager } = await import("../src/core/turn-lease.js");
+    const manager = new TurnLeaseManager(fake, "pod-a");
+
+    let finishStream: (() => void) | undefined;
+    const hub = new SessionExecutionHub(
+      {
+        runTurn: async function* (_req: AgentTurnRequest, signal?: AbortSignal) {
+          yield { type: "text_delta", messageId: "m", delta: "x" } as HarnessStreamEvent;
+          await new Promise<void>((resolve) => {
+            if (signal?.aborted) resolve();
+            else finishStream = resolve;
+          });
+          yield { type: "turn_end", stepCount: 1, durationMs: 1 } as HarnessStreamEvent;
+        },
+      } as unknown as AgentLoop,
+      undefined,
+      { manager, instanceId: "pod-a", ttlMs: 60_000 }
+    );
+
+    const first = await hub.claimTurn({ sessionId: "s-lease", workspaceId: "w", prompt: "p1" });
+    expect(first).toEqual({ ok: true });
+
+    // 进程内互斥 + 跨副本租约均拒绝第二请求
+    const second = await hub.claimTurn({ sessionId: "s-lease", workspaceId: "w", prompt: "p2" });
+    expect(second).toEqual({ ok: false, reason: "running" });
+
+    // 流结束后租约释放（抽干落库 → finally release）：manager2 重试获取成功即证明已释放
+    finishStream?.();
+    const manager2 = new TurnLeaseManager(fake, "pod-a");
+    let again = false;
+    const deadline = Date.now() + 500;
+    while (!again && Date.now() < deadline) {
+      await sleep(5);
+      again = await manager2.acquire("s-lease", "turn-next", 60_000);
+    }
+    expect(again).toBe(true);
+  });
+
+  it("租约获取失败（fail-closed）→ claimTurn 返回 running", async () => {
+    const { FakeRedis } = await import("./helpers/fake-redis.js");
+    const fake = new FakeRedis();
+    fake.failAll = true;
+    const { TurnLeaseManager } = await import("../src/core/turn-lease.js");
+    const hub = new SessionExecutionHub(
+      { runTurn: async function* () { yield { type: "turn_end", stepCount: 1, durationMs: 1 }; } } as unknown as AgentLoop,
+      undefined,
+      { manager: new TurnLeaseManager(fake as never, "pod-a"), instanceId: "pod-a" }
+    );
+    const result = await hub.claimTurn({ sessionId: "s-x", workspaceId: "w", prompt: "p" });
+    expect(result).toEqual({ ok: false, reason: "running" });
+  });
+});

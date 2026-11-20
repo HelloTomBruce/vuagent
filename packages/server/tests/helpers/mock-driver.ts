@@ -1,4 +1,4 @@
-import type { IModelDriver, ModelDriverRequest, ModelStreamChunk } from "./model-driver.js";
+import type { IModelDriver, ModelDriverRequest, ModelStreamChunk } from "../../src/adapters/model-driver.js";
 
 export type MockStep =
   | { type: "text"; text: string }
@@ -14,8 +14,9 @@ export interface MockScript {
 }
 
 /**
- * 确定性仿真驱动 (MockDriver)
- * 用于驱动严格的单元测试与断言校验
+ * 确定性仿真驱动（测试专用替身）
+ * 原发布面 src/adapters/mock-driver.ts 已移出：server 包不再携带 mock 驱动，
+ * 测试注入的驱动由 agent-loop 直接信任（沙箱演示分支不会劫持）。
  */
 export class MockDriver implements IModelDriver {
   private turnCursor = 0;

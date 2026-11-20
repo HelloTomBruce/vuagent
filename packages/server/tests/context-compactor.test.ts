@@ -320,3 +320,137 @@ describe("ContextCompactor.manualCompact 手动压缩 (TASK-008)", () => {
     }
   });
 });
+
+/* ==========================================================================
+   纯投影不可变性 + 消息保护钩子（compact 增强）
+   ========================================================================== */
+describe("ContextCompactor.compact 纯投影不可变性", () => {
+  /** 构造带超长工具结果的多轮消息：早期轮次可被截断，尾部保留最近一轮 */
+  function buildLongSession(): ChatMessage[] {
+    return [
+      { role: "system", content: "sys" },
+      { role: "user", content: `提问 1：${"背景说明".repeat(50)}` },
+      { role: "assistant", tool_calls: [{ id: "c1", type: "function", function: { name: "read_file", arguments: "{}" } }] },
+      { role: "tool", tool_call_id: "c1", name: "read_file", content: "r".repeat(2000) },
+      { role: "assistant", content: "任务 1 完成" },
+      { role: "user", content: "提问 2：最近的问题" },
+      { role: "assistant", content: "最近回答" },
+    ];
+  }
+
+  it("工具结果截断路径:入参深比较不变,返回新数组,被截断消息为新对象且零共享引用", () => {
+    const compactor = new ContextCompactor({ maxToolResultChars: 100, preserveRecentTurns: 1 });
+    const messages = buildLongSession();
+    const before = JSON.stringify(messages);
+
+    const out = compactor.compact(messages);
+
+    // 入参(含超长工具结果原文)未被写改
+    expect(JSON.stringify(messages)).toBe(before);
+    // 返回数组是新引用
+    expect(out).not.toBe(messages);
+    // 被截断的 tool 消息是新对象,原文完好保留在入参中
+    const inTool = messages[3];
+    const outTool = out.find((m) => m.role === "tool")!;
+    expect(outTool).not.toBe(inTool);
+    expect(inTool.content).toBe("r".repeat(2000));
+    expect(outTool.content!.length).toBeLessThan(2000);
+    expect(outTool.content).toContain("自动截断超长历史输出");
+    // 未变更的普通消息同样以新对象呈现:写返回值不会写穿入参
+    const outUser = out.find((m) => m.content?.startsWith("提问 1"))!;
+    expect(outUser).not.toBe(messages[1]);
+    outUser.content = "写穿探针";
+    expect(messages[1].content).not.toBe("写穿探针");
+    assertValidPairing(out);
+  });
+
+  it("滑动窗口块裁剪路径:整块删除同样不写改入参", () => {
+    const compactor = new ContextCompactor({ maxContextTokens: 300, maxToolResultChars: 100_000, preserveRecentTurns: 1 });
+    const messages: ChatMessage[] = [
+      { role: "system", content: "sys" },
+      { role: "user", content: `块1：${"块内容".repeat(200)}` },
+      { role: "assistant", tool_calls: [{ id: "w1", type: "function", function: { name: "f", arguments: "{}" } }] },
+      { role: "tool", tool_call_id: "w1", name: "f", content: `结果：${"x".repeat(200)}` },
+      { role: "user", content: "块2：最近的问题" },
+      { role: "assistant", content: "最近回答" },
+    ];
+    const before = JSON.stringify(messages);
+
+    const out = compactor.compact(messages);
+
+    expect(JSON.stringify(messages)).toBe(before);
+    expect(out).not.toBe(messages);
+    assertValidPairing(out);
+    // 块1 整块被裁剪(输入原文仍在),块2 照常保留
+    expect(out.some((m) => m.content?.startsWith("块1"))).toBe(false);
+    expect(out.some((m) => m.role === "tool")).toBe(false);
+    expect(out.some((m) => m.content?.startsWith("块2"))).toBe(true);
+  });
+});
+
+describe("ContextCompactor.compact 消息保护钩子 isProtectedMessage", () => {
+  /** 受保护 user(保留窗外,旧块起点) + 超长 tool,默认配置下两者都会被裁剪/截断 */
+  function buildGuardedSession(): ChatMessage[] {
+    return [
+      { role: "system", content: "sys" },
+      { role: "user", content: `保护提问：${"历史背景".repeat(300)}` }, // idx1 轮次块起点,保留窗外
+      { role: "assistant", tool_calls: [{ id: "p1", type: "function", function: { name: "f", arguments: "{}" } }] },
+      { role: "tool", tool_call_id: "p1", name: "f", content: "t".repeat(2000) }, // idx3 超长 tool
+      { role: "assistant", content: "任务完成" },
+      { role: "user", content: "最近提问" },
+      { role: "assistant", content: "最近回答" },
+    ];
+  }
+
+  const GUARD_OPTIONS = { maxContextTokens: 400, maxToolResultChars: 100, preserveRecentTurns: 1 };
+
+  it("受保护 user 与超长 tool 双豁免:内容逐字保留且未被折叠掉", () => {
+    const seen: Array<{ index: number; total: number; role: string }> = [];
+    const guarded = new ContextCompactor({
+      ...GUARD_OPTIONS,
+      isProtectedMessage: (msg, index, total) => {
+        seen.push({ index, total, role: msg.role });
+        return (msg.role === "user" && msg.content!.startsWith("保护提问")) || msg.role === "tool";
+      },
+    });
+    const messages = buildGuardedSession();
+
+    const out = guarded.compact(messages);
+
+    // 钩子契约:收到入参下标与总条数
+    expect(seen.length).toBeGreaterThanOrEqual(messages.length);
+    expect(seen.every((s) => s.total === messages.length)).toBe(true);
+    expect(seen.some((s) => s.index === 1 && s.role === "user")).toBe(true);
+
+    // 未触发滑动窗口裁剪:受保护消息所在块截停裁剪,消息序列原样保留
+    expect(out).toHaveLength(messages.length);
+    const keptProtectedUser = out.find((m) => m.role === "user" && m.content!.startsWith("保护提问"));
+    expect(keptProtectedUser).toBeDefined();
+    expect(keptProtectedUser!.content).toBe(messages[1].content); // 内容逐字保留
+    // 超长 tool 结果未被截断
+    const keptTool = out.find((m) => m.role === "tool")!;
+    expect(keptTool.content).toBe("t".repeat(2000));
+    assertValidPairing(out);
+  });
+
+  it("未传钩子时同输入仍被裁剪:证明豁免只对钩子生效", () => {
+    const compactor = new ContextCompactor(GUARD_OPTIONS);
+    const messages = buildGuardedSession();
+    const before = JSON.stringify(messages);
+
+    const out = compactor.compact(messages);
+
+    // 超长 tool 结果被截断
+    const clippedTool = out.find((m) => m.role === "tool");
+    if (clippedTool) {
+      expect(clippedTool.content).toContain("自动截断超长历史输出");
+      expect(clippedTool.content!.length).toBeLessThan(2000);
+    }
+    // 受保护场景外的 user(旧块起点)所在轮次块被滑动窗口折叠掉
+    expect(out.some((m) => m.content?.startsWith("保护提问"))).toBe(false);
+    expect(out.some((m) => m.content === "最近提问")).toBe(true);
+    // 入参依旧未被写改
+    expect(JSON.stringify(messages)).toBe(before);
+    assertValidPairing(out);
+  });
+});

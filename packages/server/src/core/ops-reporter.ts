@@ -80,8 +80,30 @@ export class OpsReporter {
     });
   }
 
-  /** 中止（user=手动停止 / new_task=顶替 / watchdog=看门狗超时） */
-  abort(input: { reason: "user" | "new_task" | "watchdog"; code: HarnessOpsCode }): void {
+  /** 模型降级链遥测：档案 A 失败切换档案 B（流开始前） */
+  modelFallback(info: {
+    from: string;
+    to: string;
+    errorClass: ProviderErrorClass;
+    reason: string;
+  }): void {
+    this.emit({
+      type: "model_fallback",
+      at: Date.now(),
+      sessionId: this.ids.sessionId,
+      turnId: this.ids.turnId,
+      from: info.from,
+      to: info.to,
+      errorClass: info.errorClass,
+      reason: info.reason,
+    });
+  }
+
+  /** 中止（user=手动停止 / new_task=顶替 / watchdog=看门狗超时 / token_budget=单轮预算熔断 / lease_lost=跨副本租约丢失） */
+  abort(input: {
+    reason: "user" | "new_task" | "watchdog" | "token_budget" | "lease_lost";
+    code: HarnessOpsCode;
+  }): void {
     this.emit({
       type: "abort",
       at: Date.now(),
@@ -124,6 +146,8 @@ export class OpsReporter {
     totalTokens: number;
     code?: HarnessOpsCode;
     message?: string;
+    /** 轮次收尾形态：explicit / natural / truncated；中止时缺省 */
+    finishReason?: "explicit" | "natural" | "truncated";
   }): void {
     this.emit({
       type: "turn_finish",
@@ -136,6 +160,7 @@ export class OpsReporter {
       totalTokens: input.totalTokens,
       code: input.code,
       message: input.message,
+      finishReason: input.finishReason,
     });
   }
 }

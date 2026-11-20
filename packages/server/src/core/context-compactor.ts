@@ -58,6 +58,15 @@ export interface CompactorOptions {
   keepTokens?: number;
   /** 自动裁剪尾部保留轮次数，缺省 4 */
   preserveRecentTurns?: number;
+  /**
+   * 消息保护钩子：返回 true 的消息在自动压缩（compact）中获得双重豁免——
+   * 1. 滑动窗口轮次块裁剪不会删除其所在的轮次块（内容与位置原样保留）；
+   * 2. 单条工具结果截断（maxToolResultChars）跳过该消息，正文逐字保留。
+   * index 为消息在入参数组中的下标，total 为入参消息总条数。
+   * 未传时行为与旧版完全一致。仅作用于自动 compact 路径；
+   * manualCompact（显式摘要压缩）语义独立，不消费该钩子。
+   */
+  isProtectedMessage?: (msg: ChatMessage, index: number, total: number) => boolean;
 }
 
 /**
@@ -74,24 +83,28 @@ export class ContextCompactor {
   private maxToolChars: number;
   private keepTokens: number;
   private preserveRecent: number;
+  private isProtectedMessage?: (msg: ChatMessage, index: number, total: number) => boolean;
 
   constructor(options: CompactorOptions = {}) {
     this.maxTokens = options.maxContextTokens ?? 16_000;
     this.maxToolChars = options.maxToolResultChars ?? 2_000;
     this.keepTokens = options.keepTokens ?? 15_000;
     this.preserveRecent = options.preserveRecentTurns ?? 4;
+    this.isProtectedMessage = options.isProtectedMessage;
   }
 
   /**
    * 运行时更新配置（TASK-025）：配置中心每轮生效，无需重建实例。
    * 仅更新显式传入的项；本实例为全局单例（agent-loop 与手动压缩路由共用），
    * 值来源同为全局配置，并发写等价（last-write-wins 收敛到同一全局值）。
+   * isProtectedMessage 同样仅显式传入时更新（undefined 不覆盖，无法经 configure 置空）。
    */
   configure(options: CompactorOptions): void {
     if (options.maxContextTokens !== undefined) this.maxTokens = options.maxContextTokens;
     if (options.maxToolResultChars !== undefined) this.maxToolChars = options.maxToolResultChars;
     if (options.keepTokens !== undefined) this.keepTokens = options.keepTokens;
     if (options.preserveRecentTurns !== undefined) this.preserveRecent = options.preserveRecentTurns;
+    if (options.isProtectedMessage !== undefined) this.isProtectedMessage = options.isProtectedMessage;
   }
 
   /**
@@ -184,10 +197,25 @@ export class ContextCompactor {
   }
 
   /**
-   * 合法性兜底修复：
+   * 消息克隆（纯投影基元）：浅拷贝消息体，tool_calls 数组连同调用项、函数体一并复制，
+   * 保证产出消息与入参对象零共享引用（嵌套字段写入互不可见）。
+   * compact / sanitize 的全部产出路径统一经此呈现，调用方修改返回消息不会写穿真实历史。
+   */
+  #cloneMessage(msg: ChatMessage): ChatMessage {
+    const copy: ChatMessage = { ...msg };
+    if (msg.tool_calls) {
+      copy.tool_calls = msg.tool_calls.map((tc) => ({ ...tc, function: { ...tc.function } }));
+    }
+    return copy;
+  }
+
+  /**
+   * 合法性兜底修复（纯投影）：
    * - 丢弃孤儿 tool 消息（其 tool_call_id 没有对应的 assistant.tool_calls 声明）
    * - 剥离没有响应的 tool_calls 声明；剥空且无正文的 assistant 消息整条移除
    * - 空 content 一律填占位符（user/assistant/tool 均不接受空字符串）
+   * 返回全新数组：未变更的消息也以克隆呈现（重构前透传分支直接复用入参对象引用，
+   * 返回值与入参共享消息对象，下游写返回消息会写穿真实历史——已消除）。
    */
   sanitize(messages: ChatMessage[]): ChatMessage[] {
     const declared = new Set<string>();
@@ -208,14 +236,20 @@ export class ContextCompactor {
       if (m.role === "tool") {
         // 孤儿响应：直接丢弃
         if (!m.tool_call_id || !declared.has(m.tool_call_id)) continue;
-        result.push({ ...m, content: m.content || "[空工具结果]" });
+        const copy = this.#cloneMessage(m);
+        copy.content = m.content || "[空工具结果]";
+        result.push(copy);
         continue;
       }
       if (m.role === "assistant") {
-        const calls = m.tool_calls?.filter((tc) => answered.has(tc.id));
+        const copy = this.#cloneMessage(m);
+        // 剥离无响应声明：过滤基于已克隆的数组，产出与入参零共享
+        const calls = copy.tool_calls?.filter((tc) => answered.has(tc.id));
         const content = m.content || "";
         if (calls && calls.length > 0) {
-          result.push({ ...m, tool_calls: calls, content: content || undefined });
+          copy.tool_calls = calls;
+          copy.content = content || undefined;
+          result.push(copy);
         } else if (content.trim()) {
           result.push({ role: "assistant", content });
         }
@@ -224,10 +258,12 @@ export class ContextCompactor {
       }
       // user / system：空内容占位
       if (!(m.content || "").trim()) {
-        result.push({ ...m, content: m.content || "(empty)" });
+        const copy = this.#cloneMessage(m);
+        copy.content = m.content || "(empty)";
+        result.push(copy);
         continue;
       }
-      result.push(m);
+      result.push(this.#cloneMessage(m));
     }
     return result;
   }
@@ -376,7 +412,28 @@ export class ContextCompactor {
   }
 
   /**
-   * 执行上下文修剪与压缩。
+   * 执行上下文修剪与压缩（纯投影）。
+   *
+   * 不可变性契约（本次重构锁定）：
+   * - 绝不修改入参数组与任何入参消息对象；
+   * - 返回全新数组，且数组内每条消息都是新对象（浅拷贝 + tool_calls 逐项复制），
+   *   输出与入参零共享引用——调用方（agent-loop 每步把结果当临时上下文）即便修改
+   *   返回消息，也不会写穿到真实会话历史。
+   *
+   * 重构前的入参改动/写穿风险路径（已消除，留档说明）：
+   * 1. 滑动窗口裁剪：`result.splice` 虽作用于本地投影数组（未字面写改入参数组），
+   *    但投影数组对"系统提示 / 保留窗 / 未变更消息"直接 `result.push(msg)` 复用入参对象引用；
+   * 2. sanitize 透传分支同样 `result.push(m)` 复用入参引用，assistant 分支的
+   *    tool_calls 数组元素也与入参共享；
+   * 3. 即：返回值与入参共享消息对象，任何下游对临时上下文的字段写入都会污染真实历史。
+   *    现统一改为逐条克隆（#cloneMessage）呈现。
+   *
+   * 保护钩子（isProtectedMessage）：
+   * - 早期超长工具结果截断（maxToolResultChars）：受保护消息跳过截断，正文逐字保留；
+   * - 滑动窗口轮次块裁剪：受保护消息所在块不可删除——自最老块裁剪、遇保护块即截停
+   *   （保护语义优先于窗口预算，绝不为了继续裁剪而删除保护块之后的新块）；
+   * - 未传钩子时行为与旧版完全一致。
+   *
    * @param opts.maxTokens 覆盖默认裁剪阈值——调用方应传模型真实窗口的约 85%，
    *   避免过早裁剪造成"上下文占用每轮跳水"（默认 16k 仅适用于未知窗口的兜底）。
    */
@@ -384,36 +441,45 @@ export class ContextCompactor {
     if (messages.length <= 2) return this.sanitize(messages);
 
     const maxTokens = opts?.maxTokens ?? this.maxTokens;
-    const result: ChatMessage[] = [];
     const totalCount = messages.length;
+
+    // 保护钩子对入参一次性判定（截断与裁剪共用同一份结果：语义一致且避免重复回调）
+    const guard = this.isProtectedMessage;
+    const protectedFlags = guard ? messages.map((m, i) => guard(m, i, totalCount)) : null;
+
+    // 第一段投影：逐条克隆入列（与入参零共享引用）。
+    // 早期（保留窗外）超长工具结果在此截断（head+tail）；
+    // 系统提示 / 保留窗 / 受保护消息豁免截断。
+    const result: ChatMessage[] = [];
+    // 与 result 平行的保护标记（裁剪阶段据此跳过受保护块；splice 与 result 严格同步）
+    const protectedOut: boolean[] = [];
 
     for (let i = 0; i < totalCount; i++) {
       const msg = messages[i];
+      const isProtected = protectedFlags?.[i] ?? false;
       const isSystem = msg.role === "system";
       const isRecent = i >= totalCount - this.preserveRecent * 2;
+      const needsClip =
+        !isSystem && !isRecent && !isProtected &&
+        msg.role === "tool" && !!msg.content && msg.content.length > this.maxToolChars;
 
-      // 系统提示词或最近几轮消息：完全保留
-      if (isSystem || isRecent) {
-        result.push(msg);
-        continue;
-      }
-
-      // 对早期较旧的历史消息进行精简：超大 tool 结果截断
-      if (msg.role === "tool" && msg.content && msg.content.length > this.maxToolChars) {
-        const head = msg.content.slice(0, 800);
-        const tail = msg.content.slice(-400);
+      if (needsClip) {
+        const head = msg.content!.slice(0, 800);
+        const tail = msg.content!.slice(-400);
         result.push({
-          ...msg,
-          content: `${head}\n\n... [Harness 自动截断超长历史输出 (原长度 ${msg.content.length} 字符)] ...\n\n${tail}`,
+          ...this.#cloneMessage(msg),
+          content: `${head}\n\n... [Harness 自动截断超长历史输出 (原长度 ${msg.content!.length} 字符)] ...\n\n${tail}`,
         });
       } else {
-        result.push(msg);
+        result.push(this.#cloneMessage(msg));
       }
+      protectedOut.push(isProtected);
     }
 
     // 若依然超出最大 Token 限制，按"轮次块"从最老块开始整块删除。
     // 块 = 一条 user 消息起到下一条 user 之前（含其间 assistant/tool_calls/tool），
     // 绝不逐条删除——那会拆散 tool_calls ↔ tool 配对，触发供应商 400（如 GLM 1214）。
+    // 受保护消息所在块不可删除：保护块截停裁剪，其后的新块照常保留。
     while (this.estimateTokens(result) > maxTokens && result.length > 3) {
       const start = result.findIndex((m) => m.role !== "system");
       if (start < 0) break;
@@ -423,7 +489,9 @@ export class ContextCompactor {
         // 只剩最后一个块：删除会清空对话上下文，放弃裁剪
         break;
       }
+      if (protectedOut.slice(start, end).some(Boolean)) break;
       result.splice(start, end - start);
+      protectedOut.splice(start, end - start);
     }
 
     return this.sanitize(result);

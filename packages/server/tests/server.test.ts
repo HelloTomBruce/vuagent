@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createHarnessServer } from "../src/server.js";
-import { MockDriver } from "../src/adapters/mock-driver.js";
+import { MockDriver } from "./helpers/mock-driver.js";
 
 describe("Harness Server HTTP / SSE Gateway", () => {
   it("should respond to health check", async () => {

@@ -15,8 +15,8 @@ import {
   type HarnessEventSink,
   type HarnessOpsEvent,
 } from "../src/core/event-sink.js";
-import { MockDriver } from "../src/adapters/mock-driver.js";
-import type { ModelDriverRequest, ModelStreamChunk } from "../src/adapters/model-driver.js";
+import { MockDriver } from "./helpers/mock-driver.js";
+import type { IModelDriver, ModelDriverRequest, ModelStreamChunk } from "../src/adapters/model-driver.js";
 import type { HarnessTool } from "../src/core/types.js";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -28,7 +28,8 @@ function memorySink(): HarnessEventSink & { events: HarnessOpsEvent[] } {
 }
 
 describe("运维事件出口（TASK-051）", () => {
-  async function setupLoop(sink: HarnessEventSink, mock = new MockDriver()) {
+  /** injected=null 表示不注入模型驱动（loop 按档案自建真驱动，走生产路径） */
+  async function setupLoop(sink: HarnessEventSink, injected: IModelDriver | null = new MockDriver()) {
     const driver = new MemoryStorageDriver();
     const workspaceRepo = new WorkspaceRepository(driver);
     const sessionRepo = new SessionRepository(driver);
@@ -51,7 +52,7 @@ describe("运维事件出口（TASK-051）", () => {
       toolConfigRepo: new ToolConfigRepository(driver),
       toolRegistry: registry,
       actionHub: new ActionHub(),
-      modelDriver: mock,
+      ...(injected ? { modelDriver: injected } : {}),
       eventSink: sink,
     });
     return { loop, registry, sessionRepo, session, ws, settingsRepo };
@@ -126,11 +127,9 @@ describe("运维事件出口（TASK-051）", () => {
 
   it("已分类模型错误：turn_finish error + MODEL_NETWORK 码 + SSE error 带 code", async () => {
     const sink = memorySink();
-    // 注入非 Mock driver 使 loop 走真驱动路径（loop 会按 profile.baseUrl 重建真驱动，
-    // 注入对象本身不参与执行）；profile 指向不可达端口 → ECONNREFUSED → network
-    const { loop, session, ws, settingsRepo } = await setupLoop(sink, {
-      generateStream: async function* () {},
-    } as never);
+    // 不注入模型驱动：loop 按档案 apiKey/baseUrl 自建真驱动，
+    // baseUrl 指向不可达端口 → ECONNREFUSED → network 分类
+    const { loop, session, ws, settingsRepo } = await setupLoop(sink, null);
     await settingsRepo.updateProfile("p1", { baseUrl: "http://127.0.0.1:9" });
 
     const events: unknown[] = [];
@@ -335,7 +334,7 @@ describe("路由级事件（TASK-051）", () => {
       model: "m",
       isDefault: true,
     });
-    // 非 MockDriver 实例 + 无 API Key → 进入沙箱演示分支
+    // 未注入模型驱动 + 无 API Key → 进入沙箱演示分支
     const loop = new AgentLoop({
       workspaceRepo,
       sessionRepo,
@@ -343,7 +342,6 @@ describe("路由级事件（TASK-051）", () => {
       toolConfigRepo: new ToolConfigRepository(driver),
       toolRegistry: new ToolRegistry(),
       actionHub: new ActionHub(),
-      modelDriver: { generateStream: async function* () {} } as never,
       eventSink: sink,
     });
 

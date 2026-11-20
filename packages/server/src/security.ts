@@ -54,7 +54,8 @@ export function isAllowedOrigin(origin: string, config: SecurityConfig): boolean
 }
 
 /** 恒时字符串比较（避免令牌校验引入时序侧信道） */
-function secureEqual(a: string, b: string): boolean {
+/** 常数时间字符串比较（防令牌逐字节探测）；鉴权中间件与 /metrics 出口共用 */
+export function secureEqual(a: string, b: string): boolean {
   const ha = createHash("sha256").update(a).digest();
   const hb = createHash("sha256").update(b).digest();
   return timingSafeEqual(ha, hb);

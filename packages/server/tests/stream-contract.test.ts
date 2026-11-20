@@ -9,7 +9,7 @@ import { ToolConfigRepository } from "../src/storage/repositories/tool-config.re
 import { ToolRegistry } from "../src/core/tool-registry.js";
 import { ActionHub } from "../src/core/action-hub.js";
 import { AgentLoop } from "../src/core/agent-loop.js";
-import { MockDriver } from "../src/adapters/mock-driver.js";
+import { MockDriver } from "./helpers/mock-driver.js";
 import type { HarnessStreamEvent, HarnessTool } from "../src/core/types.js";
 
 /**

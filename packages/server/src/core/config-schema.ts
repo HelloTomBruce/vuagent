@@ -128,6 +128,42 @@ export const CONFIG_SCHEMA: ConfigNamespaceSchema[] = [
         max: 64,
         risk: "high",
       },
+      {
+        key: "maxRunTokens",
+        title: "单轮 token 预算熔断",
+        description:
+          "单轮内累计消耗（输入+输出计费口径跨步求和）达到上限时自动中止并保留已完成进度：" +
+          "0 = 不限；防跑飞兜底，与看门狗墙钟上限互补",
+        type: "number",
+        default: 0,
+        min: 0,
+        max: 10_000_000,
+        risk: "high",
+      },
+      {
+        key: "modelFallbackIds",
+        title: "降级模型档案（按序）",
+        description:
+          "主档案在流开始前失败（限流/服务端/网络类错误）时按序切换的备用档案 id，" +
+          "逗号分隔；流已开始吐字后不透明切换（诚实重试边界）",
+        type: "text",
+        default: "",
+        maxLength: 400,
+      },
+      {
+        key: "finishTaskMode",
+        title: "显式终态协议（finish_task）",
+        description:
+          "enforced = 模型必须调用 finish_task 且通过交付断言才能宣告完成，" +
+          "无实质产出的空跑收尾会被驳回并引导继续（防空跑护栏）；" +
+          "off = 自然停机（模型不再调用工具即完成，默认，向后兼容）",
+        type: "select",
+        default: "off",
+        options: [
+          { value: "off", label: "关闭（自然停机）" },
+          { value: "enforced", label: "强制（显式终态 + 交付断言）" },
+        ],
+      },
     ],
   },
   {

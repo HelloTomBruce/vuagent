@@ -8,7 +8,7 @@ import type { ToolRegistry } from "./tool-registry.js";
 import type { ActionHub } from "./action-hub.js";
 import type { IModelDriver } from "../adapters/model-driver.js";
 import { OpenAICompatibleDriver } from "../adapters/openai-driver.js";
-import { MockDriver } from "../adapters/mock-driver.js";
+import { AnthropicDriver } from "../adapters/anthropic-driver.js";
 import { ContextCompactor, type ChatMessage } from "./context-compactor.js";
 import { parsePartialJson } from "./stream-orchestrator.js";
 import { TelemetryLedger, clipTrajectoryEvent } from "./telemetry.js";
@@ -16,6 +16,17 @@ import { runSandboxDemoTurn } from "./sandbox-demo.js";
 import { buildSystemPrompt } from "./system-prompt.js";
 import { resolveEffectivePermissionMode } from "./permissions.js";
 import { defaultNamespaceValues, getNamespaceSchema } from "./config-schema.js";
+import { resolveContextWindow } from "./model-catalog.js";
+import {
+  FallbackChainDriver,
+  type FallbackAttempt,
+  type FallbackNotice,
+} from "./fallback-driver.js";
+import {
+  FINISH_TASK_TOOL_NAME,
+  defaultDeliverableAssertion,
+  type DeliverableAssertion,
+} from "./finish-task.js";
 import { ClassifiedModelError } from "../adapters/resilience.js";
 import {
   opsCodeForErrorClass,
@@ -25,7 +36,7 @@ import {
   type HarnessOpsCode,
 } from "./event-sink.js";
 import type { CostRecorder } from "./pricing-table.js";
-import type { CheckpointEntity } from "../storage/interfaces.js";
+import type { CheckpointEntity, ModelProfileEntity } from "../storage/interfaces.js";
 import { OpsReporter } from "./ops-reporter.js";
 import { TurnPersistence } from "./turn-persistence.js";
 import { buildHistoryMessages } from "./history-builder.js";
@@ -51,7 +62,15 @@ export interface AgentLoopServices {
   configResolver?: ConfigResolver;
   toolRegistry: ToolRegistry;
   actionHub: ActionHub;
-  modelDriver: IModelDriver;
+  /** 显式注入的模型驱动（宿主/测试替身用，直接信任）；缺省按所选模型档案逐轮构造 OpenAI 兼容驱动 */
+  modelDriver?: IModelDriver;
+  /** 按档案构造驱动的工厂注入点（测试替身 / 自定义协议驱动）；缺省构造 OpenAI 兼容驱动 */
+  driverFactory?: (profile: ModelProfileEntity) => IModelDriver;
+  /**
+   * 可插拔交付断言（finishTaskMode=enforced 时生效）：验收 finish_task 自述与
+   * 轮次实际产出是否匹配；缺省非空内容/卡片断言（防空跑最小守卫）
+   */
+  deliverableAssertion?: DeliverableAssertion;
   compactor?: ContextCompactor;
   /** 运维事件出口（TASK-051）；缺省 no-op，server 注入 console NDJSON */
   eventSink?: HarnessEventSink;
@@ -97,6 +116,10 @@ export class AgentLoop {
     const maxSteps = req.maxSteps ?? (execCfg.maxSteps as number);
     const approvalTimeoutMs = execCfg.approvalTimeoutMs as number;
     const contextBudgetRatio = execCfg.contextBudgetRatio as number;
+    // 单轮 token 预算熔断（0 = 不限）：计费口径跨步累计，超限自动中止保留进度
+    const maxRunTokens = execCfg.maxRunTokens as number;
+    // 降级链备用档案 id（逗号分隔，按序尝试）
+    const modelFallbackIdsCfg = String(execCfg.modelFallbackIds ?? "");
     // TASK-048 整轮看门狗：解析链 请求级 req.timeoutMs > 配置中心 execution.turnTimeoutMs > 内置默认；
     // 请求级覆盖同样受 30s–1h 钳制。此前该参数被接收但从未消费（SSE 停滞可致轮次永久挂起）。
     const configuredTimeout = Number(execCfg.turnTimeoutMs);
@@ -148,6 +171,15 @@ export class AgentLoop {
       req.modelOverride
     );
 
+    // 上下文窗口动态解析：档案显式值 > 模型名前缀查表 > 默认兜底，恒钳制 [8k, 2M]
+    //（修正档案漏填/错填导致的过早压缩或滑动窗口失效）
+    const effectiveContextWindow = resolveContextWindow({
+      model: modelProfile.model,
+      contextWindow: modelProfile.contextWindow,
+    });
+    // 显式终态协议模式：off（默认，工具对模型不可见）/ enforced（finish_task + 交付断言）
+    const finishTaskMode = (execCfg.finishTaskMode as string) === "enforced" ? "enforced" : "off";
+
     // 3. 构建历史消息上下文
     // TASK-058：turnId 单一事实来源——hub spawnRun 生成后经 req.turnId 传入，
     // 直接调用方（无 hub）缺省时回落自生成，全链路（事件/落库/ops 台账）一致
@@ -192,6 +224,7 @@ export class AgentLoop {
           customInstructions: promptCfg.customInstructions as string,
           includeEnvironmentBlock: promptCfg.includeEnvironmentBlock as boolean,
           includePermissionBlock: promptCfg.includePermissionBlock as boolean,
+          finishTaskEnforced: finishTaskMode === "enforced",
         },
       }),
     });
@@ -216,10 +249,17 @@ export class AgentLoop {
     let currentStep = 0;
     const currentMsgId = `msg-${turnId}`;
 
-    const isMock = this.services.modelDriver instanceof MockDriver;
-    const hasApiKey = Boolean(modelProfile.apiKey || process.env.OPENAI_API_KEY || modelProfile.provider === "ollama");
+    // 模型驱动解析：显式注入的驱动（ServerOptions.modelDriver，宿主/测试替身用）直接信任；
+    // 缺省时按所选模型档案逐轮构造 OpenAI 兼容驱动
+    const injectedDriver = this.services.modelDriver;
+    const hasApiKey = Boolean(
+      modelProfile.apiKey ||
+        process.env.OPENAI_API_KEY ||
+        (modelProfile.provider === "anthropic" && process.env.ANTHROPIC_API_KEY) ||
+        modelProfile.provider === "ollama"
+    );
 
-    if (!isMock && !hasApiKey) {
+    if (!injectedDriver && !this.services.driverFactory && !hasApiKey) {
       // 未配置大模型 API Key 时进入沙箱演示分支（TASK-005：演示脚本剥离至 core/sandbox-demo.ts，核心引擎保持纯净）
       // TASK-008：携带与主流程同口径的上下文快照与占用估算，演示轮次同样落 checkpoint——
       // 历史可恢复、手动压缩在演示会话上同样可用
@@ -258,10 +298,18 @@ export class AgentLoop {
     let accumulatedThought = "";
     let lastContextTokens = 0;
     const accumulatedCards: Array<{ id: string; type: string; data: any }> = [];
-    /** 非正常收尾的分类码（中止/超时），正常 done 为 undefined */
+    /** 非正常收尾的分类码（中止/超时/预算），正常 done 为 undefined */
     let turnFinishCode: HarnessOpsCode | undefined;
     /** R8：中止成因（协议 reason 枚举），落库持久化供历史恢复呈现徽标 */
-    let abortedReasonForPersist: "user" | "timeout" | "preempt" | undefined;
+    let abortedReasonForPersist: "user" | "timeout" | "preempt" | "token_budget" | undefined;
+    /** 单轮 token 预算熔断触发标记（与看门狗共用 watchdogController 中止通道） */
+    let tokenBudgetFired = false;
+    /** 单轮累计消耗（计费口径：输入+输出跨步求和） */
+    let runTokensUsed = 0;
+    /** 降级通知缓冲（onFallback 回调收集，流结束后收敛为轨迹事件） */
+    const modelFallbackNotices: FallbackNotice[] = [];
+    /** 轮次收尾形态：explicit（finish_task 显式宣告）/ natural（自然停机）/ truncated（步数耗尽）；中止时 undefined */
+    let finishReason: "explicit" | "natural" | "truncated" | undefined;
 
     // TASK-049 即时落库：轮次开始即落 running 行（中途崩溃留痕），
     // 每 step 增量更新，终态 appendTurn upsert 兜底（幂等替换，不产生重复行）
@@ -294,9 +342,70 @@ export class AgentLoop {
       ? AbortSignal.any([abortSignal, watchdogController.signal])
       : watchdogController.signal;
     const abortMessage = () =>
-      watchdogFired
+      tokenBudgetFired
+        ? `本轮累计 token 消耗（${runTokensUsed}）已达预算上限（${maxRunTokens}），已自动中止并保留已完成进度`
+        : watchdogFired
         ? `本轮执行已超时（看门狗上限 ${turnTimeoutSeconds}s），已自动中止并保留已完成进度`
         : "Agent execution was aborted by client";
+
+    // 模型驱动解析（每轮一次，自 while 内联提升）：注入驱动直接信任；
+    // 否则主档案 + 按序降级链——仅「流开始前」的限流/服务端/网络类失败触发切换
+    //（诚实重试边界，见 FallbackChainDriver）；auth/请求非法/窗口溢出不降级。
+    const defaultBaseUrl = (provider: string) =>
+      provider === "ollama" ? "http://localhost:11434/v1" : "https://api.openai.com/v1";
+    const hasProfileCreds = (profile: ModelProfileEntity) =>
+      Boolean(
+        this.services.driverFactory ||
+          profile.apiKey ||
+          process.env.OPENAI_API_KEY ||
+          profile.provider === "ollama"
+      );
+    const buildProfileDriver = (profile: ModelProfileEntity) => {
+      const injected = this.services.driverFactory?.(profile);
+      if (injected) return injected;
+      // 协议路由：anthropic 原生档案（provider=anthropic 且未设 baseUrl，即直连官方端点）
+      // 走原生 Messages 协议驱动；设了 baseUrl 视为 OpenAI 兼容网关，保持兼容路径
+      if (profile.provider === "anthropic" && !profile.baseUrl) {
+        return new AnthropicDriver(profile.apiKey || process.env.ANTHROPIC_API_KEY);
+      }
+      return new OpenAICompatibleDriver(profile.apiKey || process.env.OPENAI_API_KEY, profile.baseUrl || defaultBaseUrl(profile.provider), {
+        // TASK-051：TASK-048 韧性层的重试遥测接缝 → model_retry 运维事件
+        onRetry: (info) => ops.modelRetry(info),
+      });
+    };
+
+    let effectiveDriver: IModelDriver;
+    if (injectedDriver) {
+      effectiveDriver = injectedDriver;
+    } else {
+      const attempts: FallbackAttempt[] = [
+        { name: modelProfile.name, model: modelProfile.model, driver: buildProfileDriver(modelProfile) },
+      ];
+      const fallbackIds = modelFallbackIdsCfg
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (fallbackIds.length > 0) {
+        const allProfiles = await this.services.settingsRepo.listProfiles();
+        for (const id of fallbackIds) {
+          const fp = allProfiles.find((p) => p.id === id);
+          if (!fp || fp.id === modelProfile.id || !hasProfileCreds(fp)) continue;
+          attempts.push({ name: fp.name, model: fp.model, driver: buildProfileDriver(fp) });
+        }
+      }
+      effectiveDriver =
+        attempts.length > 1
+          ? new FallbackChainDriver(attempts, (notice) => {
+              ops.modelFallback({
+                from: notice.from,
+                to: notice.to,
+                errorClass: notice.errorClass,
+                reason: notice.reason,
+              });
+              modelFallbackNotices.push(notice);
+            })
+          : attempts[0].driver;
+    }
 
     try {
       // TASK-050/049：轮次开始即落 running 行（中途崩溃留痕）已在上方完成；
@@ -306,9 +415,9 @@ export class AgentLoop {
       // 4. 进入 ReAct 核心回环
       while (currentStep < maxSteps) {
         if (runSignal.aborted) {
-          // R5 修复：成因经 mapAbortCause 集中映射（watchdog > signal.reason=new_task > user），
+          // R5 修复：成因经 mapAbortCause 集中映射（token 预算 > watchdog > signal.reason=new_task > user），
           // hub abort(kind) 透传的 preempt 不再被误记为 TURN_ABORTED
-          const cause = mapAbortCause({ watchdogFired, signalReason: runSignal.reason });
+          const cause = mapAbortCause({ watchdogFired, tokenBudgetFired, signalReason: runSignal.reason });
           ops.abort({ reason: cause.opsReason, code: cause.code });
           // TASK-054：aborted 控制事件取代旧假 text_delta 文案
           yield {
@@ -327,13 +436,15 @@ export class AgentLoop {
         // 默认 0.85）：固定 16k 阈值会在长会话中过早清掉历史，
         // 造成每轮占用跳水（前端仪表呈"清零重算"观感）。工具结果截断与 sanitize 不受影响。
         const compactedMessages = this.compactor.compact(messages, {
-          maxTokens: Math.floor((modelProfile.contextWindow || 128_000) * contextBudgetRatio),
+          maxTokens: Math.floor(effectiveContextWindow * contextBudgetRatio),
         });
         // TASK-019：按全局启用配置过滤模型可见的 function definitions
         //（每步重读——运行中禁用工具，下一步模型即不可见）
         const disabledToolNames = await this.services.toolConfigRepo.disabledNames();
         const toolsDefinition = this.services.toolRegistry.toModelToolDefinitions({
           disabledNames: disabledToolNames,
+          // finish_task 仅在 enforced 模式对模型可见（off 时隐藏，引擎侧条件过滤）
+          hideTools: finishTaskMode === "off" ? new Set([FINISH_TASK_TOOL_NAME]) : undefined,
         });
 
         let stepContent = "";
@@ -342,18 +453,7 @@ export class AgentLoop {
           { id: string; name: string; argumentsStr: string }
         > = new Map();
 
-        const effectiveDriver: IModelDriver = isMock
-          ? this.services.modelDriver
-          : new OpenAICompatibleDriver(
-              modelProfile.apiKey || process.env.OPENAI_API_KEY,
-              modelProfile.baseUrl || (modelProfile.provider === "ollama" ? "http://localhost:11434/v1" : "https://api.openai.com/v1"),
-              {
-                // TASK-051：TASK-048 韧性层的重试遥测接缝 → model_retry 运维事件
-                onRetry: (info) => ops.modelRetry(info),
-              }
-            );
-
-        // 调用模型流式输出
+        // 调用模型流式输出（effectiveDriver 已在轮次开始前装配：注入驱动或主档案+降级链）
         const stream = effectiveDriver.generateStream({
           model: modelProfile.model,
           messages: compactedMessages,
@@ -367,6 +467,13 @@ export class AgentLoop {
 
           if (chunk.type === "usage" && chunk.usage) {
             telemetry.addTokens(chunk.usage.promptTokens, chunk.usage.completionTokens);
+            // 单轮 token 预算熔断：计费口径（输入+输出）跨步累计，超限即经看门狗通道中止
+            //（mapAbortCause 按 tokenBudgetFired 优先分流成因，保留已完成进度落库）
+            runTokensUsed += chunk.usage.promptTokens + chunk.usage.completionTokens;
+            if (maxRunTokens > 0 && runTokensUsed >= maxRunTokens && !tokenBudgetFired) {
+              tokenBudgetFired = true;
+              watchdogController.abort();
+            }
             // 窗口占用口径（与 Codex/Claude Code 一致）：promptTokens 为本步发送的全部上下文
             // （ReAct 每步重发历史，取"最近一次调用"即当前真实占用），前端直接覆盖展示；
             // 跨步累加值仅作为计费口径存入 telemetry.totalTokens，不推给窗口仪表。
@@ -393,7 +500,7 @@ export class AgentLoop {
               promptTokens: chunk.usage.promptTokens,
               completionTokens: chunk.usage.completionTokens,
               totalTokens: lastContextTokens,
-              contextWindow: modelProfile.contextWindow,
+              contextWindow: effectiveContextWindow,
               parts,
             };
           }
@@ -457,6 +564,18 @@ export class AgentLoop {
           }
         }
 
+        // 降级通知收敛为轨迹事件（模型 lane，前端时间线可见「档案 A → 档案 B」切换）
+        for (const notice of modelFallbackNotices.splice(0)) {
+          const ev = telemetry.recordEvent({
+            at: notice.at,
+            lane: "model",
+            role: "system",
+            title: `模型降级：${notice.from} → ${notice.to}`,
+            detail: notice.reason,
+          });
+          yield { type: "traj", event: clipTrajectoryEvent(ev) };
+        }
+
         // 保存本步骤助手的文本输出
         if (stepContent) {
           messages.push({ role: "assistant", content: stepContent });
@@ -472,6 +591,34 @@ export class AgentLoop {
 
         // 检查是否有工具调用
         if (pendingToolCalls.size === 0) {
+          // 显式终态协议（enforced）：自然停机同样过交付断言——无实质产出的空跑
+          // 不放行，注入纠偏指令继续执行；步数耗尽/中止信号在即则兜底放行
+          if (finishTaskMode === "enforced" && !runSignal.aborted && currentStep < maxSteps) {
+            const verdict = (this.services.deliverableAssertion ?? defaultDeliverableAssertion)({
+              args: {},
+              content: accumulatedContent,
+              cardCount: accumulatedCards.length,
+              stepCount: currentStep,
+            });
+            if (!verdict.ok) {
+              messages.push({
+                role: "user",
+                content: `交付断言未通过：${verdict.reason} 请继续执行任务并产出实质内容，完成后调用 finish_task 宣告完成。`,
+              });
+              const ev = telemetry.recordEvent({
+                at: Date.now(),
+                lane: "tool",
+                role: "tool",
+                title: "交付断言未通过（自然停机拦截）",
+                detail: verdict.ok ? "" : verdict.reason,
+              });
+              yield { type: "traj", event: clipTrajectoryEvent(ev) };
+              await persistProgress();
+              continue;
+            }
+          }
+          // 自然停机（off 模式默认路径 / enforced 模式断言通过的兜底）
+          finishReason = "natural";
           // 无工具调用，表示 Agent 任务已彻底完成。
           // 纯文本完成步同样落检查点（TASK-008 修复）：此前提前 break 跳过了末尾的
           // checkpoint 记录，纯对话轮次没有 messagesSnapshot——历史重建会丢失 assistant
@@ -500,6 +647,98 @@ export class AgentLoop {
             },
           })),
         });
+
+        // 显式终态协议（enforced）：finish_task 不进通用执行链——
+        // 交付断言在此裁决：通过 → 成功结果喂回并宣告显式完成；未通过 →
+        // 断言驳回文案喂回（isError 口径），模型继续产出实质内容。
+        // 其余同步出现的工具调用照常执行，保证 tool_calls↔tool 配对完整
+        const finishCall = callsArray.find((c) => c.name === FINISH_TASK_TOOL_NAME);
+        // 禁用仲裁先行：用户禁用 finish_task 后（调用侧兜底口径与通用工具一致），
+        // 拦截语义失效——交还通用执行链按「已禁用」结构化报错回喂
+        const finishDisabled =
+          finishCall !== undefined && disabledToolNames.has(FINISH_TASK_TOOL_NAME);
+        if (finishTaskMode === "enforced" && finishCall && !finishDisabled) {
+          let parsedFinish: { summary?: string; deliverables?: unknown } = {};
+          try {
+            parsedFinish = JSON.parse(finishCall.argumentsStr || "{}");
+          } catch {
+            parsedFinish = parsePartialJson(finishCall.argumentsStr) || {};
+          }
+          const verdict = (this.services.deliverableAssertion ?? defaultDeliverableAssertion)({
+            args: parsedFinish as Parameters<DeliverableAssertion>[0]["args"],
+            content: accumulatedContent,
+            cardCount: accumulatedCards.length,
+            stepCount: currentStep,
+          });
+          const approved = verdict.ok;
+
+          const restCalls = callsArray.filter((c) => c !== finishCall);
+          if (restCalls.length > 0) {
+            yield* executeToolCallStep(
+              {
+                toolConfigRepo: this.services.toolConfigRepo,
+                sessionRepo: this.services.sessionRepo,
+                toolRegistry: this.services.toolRegistry,
+                actionHub: this.services.actionHub,
+                ops,
+              },
+              {
+                calls: restCalls,
+                runSignal,
+                workspace,
+                sessionId: session.id,
+                effectiveMode,
+                sessionPermissionAtStart: session.permission,
+                approvalTimeoutMs,
+                bashTimeoutCeilingMs,
+                getContentLength: () => accumulatedContent.length,
+                accumulatedCards,
+                messages,
+                telemetry,
+              }
+            );
+          }
+
+          messages.push({
+            role: "tool",
+            tool_call_id: finishCall.id,
+            name: FINISH_TASK_TOOL_NAME,
+            content: approved
+              ? JSON.stringify({
+                  finished: true,
+                  summary: typeof parsedFinish.summary === "string" ? parsedFinish.summary : "",
+                  deliverables: Array.isArray(parsedFinish.deliverables) ? parsedFinish.deliverables : [],
+                })
+              : `Error: 交付断言未通过：${(verdict as { ok: false; reason: string }).reason} 请继续完成任务、产出实质内容后再次调用 finish_task。`,
+          });
+          this.compactor.patchUnansweredToolCalls(messages);
+
+          const ev = telemetry.recordEvent({
+            at: Date.now(),
+            lane: "tool",
+            role: "tool",
+            title: approved ? "任务显式完成（finish_task）" : "交付断言未通过（finish_task 驳回）",
+            detail: typeof parsedFinish.summary === "string" ? parsedFinish.summary : "",
+            result: approved ? undefined : (verdict as { ok: false; reason: string }).reason,
+          });
+          yield { type: "traj", event: clipTrajectoryEvent(ev) };
+
+          checkpoints.push({
+            id: `cp-${turnId}-${currentStep}`,
+            turnId,
+            stepIndex: currentStep,
+            messagesSnapshot: JSON.parse(JSON.stringify(messages)),
+            snapshotAt: Date.now(),
+          });
+          await persistProgress();
+
+          if (approved) {
+            finishReason = "explicit";
+            break;
+          }
+          // 断言未通过：继续 ReAct（模型将看到驳回文案），步数预算照常消耗
+          continue;
+        }
 
         // 逐个执行工具调用（启停仲裁 → 工作区闸门 → 权限模式 → HITL 审批 → 执行 → 卡片收敛）
         yield* executeToolCallStep(
@@ -544,6 +783,11 @@ export class AgentLoop {
         await persistProgress();
       }
 
+      // while 条件耗尽（非 break 退出）= 步数截断收尾；中止路径 finishReason 保持 undefined
+      if (!finishReason && !turnFinishCode) {
+        finishReason = "truncated";
+      }
+
       const totalDuration = Date.now() - startAt;
       yield {
         type: "turn_end",
@@ -558,6 +802,7 @@ export class AgentLoop {
         thought: accumulatedThought,
         cards: accumulatedCards,
         abortedReason: abortedReasonForPersist,
+        finishReason,
         stepCount: currentStep,
         checkpoints,
         durationMs: totalDuration,
@@ -573,10 +818,23 @@ export class AgentLoop {
         durationMs: totalDuration,
         totalTokens: telemetry.exportSummary().tokens.totalTokens,
         code: turnFinishCode,
+        finishReason,
       });
     } catch (err: unknown) {
-      // R5 修复：catch 路径同样走集中映射
-      const catchCause = mapAbortCause({ watchdogFired, signalReason: runSignal.reason });
+      // R5 修复：catch 路径同样走集中映射（token 预算 > watchdog > 顶替 > user）
+      const catchCause = mapAbortCause({ watchdogFired, tokenBudgetFired, signalReason: runSignal.reason });
+      // 降级通知兜底收敛：流中途异常时，本步流结束后的常规收敛点不会到达——
+      // 在此补发已发生的降级轨迹，运维台账与前端时间线不丢「档案切换」事实
+      for (const notice of modelFallbackNotices.splice(0)) {
+        const ev = telemetry.recordEvent({
+          at: notice.at,
+          lane: "model",
+          role: "system",
+          title: `模型降级：${notice.from} → ${notice.to}`,
+          detail: notice.reason,
+        });
+        yield { type: "traj", event: clipTrajectoryEvent(ev) };
+      }
       // TASK-054：信号中止在流内部以异常冒出时，先补 aborted 控制事件（区分成因）
       if (runSignal.aborted) {
         abortedReasonForPersist = catchCause.protocolReason;
@@ -588,8 +846,10 @@ export class AgentLoop {
       }
       const rawMsg = err instanceof Error ? err.message : String(err);
       // TASK-048：看门狗触发的异常统一改为超时口径（卡在模型流/工具执行内部时
-      // 异常从深处冒出，loop-top 检查来不及拦），成因区分不丢
-      const msg = watchdogFired
+      // 异常从深处冒出，loop-top 检查来不及拦），成因区分不丢；token 预算熔断同口径优先
+      const msg = tokenBudgetFired
+        ? `本轮累计 token 消耗（${runTokensUsed}）已达预算上限（${maxRunTokens}）：${rawMsg}`
+        : watchdogFired
         ? `本轮执行已超时（看门狗上限 ${turnTimeoutSeconds}s）：${rawMsg}`
         : runSignal.aborted && err instanceof Error && /abort/i.test(rawMsg)
         ? abortMessage()

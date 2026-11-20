@@ -1,9 +1,16 @@
 import { Hono } from "hono";
+import os from "node:os";
 import path from "node:path";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import type { IStorageDriver } from "./storage/drivers/base.driver.js";
-import { applySecurityBaseline, BYO_FORBIDDEN_MESSAGE, isProfileSelectionOnly, resolveSecurityConfig, sanitizeModelProfile } from "./security.js";
+import type { RedisLike } from "./storage/drivers/redis.driver.js";
+import { TurnLeaseManager } from "./core/turn-lease.js";
+import type { LeaseOptions } from "./core/session-execution-hub.js";
+import { applySecurityBaseline, BYO_FORBIDDEN_MESSAGE, isProfileSelectionOnly, resolveSecurityConfig, sanitizeModelProfile, secureEqual } from "./security.js";
+import { MetricsRegistry, createOpsMetricsSink } from "./core/metrics-registry.js";
+import { createOtlpSink } from "./core/otlp-sink.js";
+import { createAdmissionPipeline } from "./core/admission.js";
 import { buildFileTree } from "./core/workspace-files.js";
 import type { ModelProfileEntity } from "./storage/interfaces.js";
 
@@ -29,11 +36,13 @@ import { OpenAICompatibleDriver } from "./adapters/openai-driver.js";
 import { FsEditTool, FsReadTool, FsWriteTool } from "./tools/system/fs-tools.js";
 import { BashRunTool } from "./tools/system/bash-tool.js";
 import { GlobTool, GrepTool } from "./tools/system/search-tools.js";
+import { FinishTaskTool } from "./tools/system/finish-task-tool.js";
 import { createWebFetchTool } from "./tools/web/web-tools.js";
 import { AllBuiltinTools } from "./tools/ui/protocol-tools.js";
 import { recoverInterruptedTurns } from "./core/recovery.js";
 import {
   createConsoleNdjsonSink,
+  compositeSink,
   type HarnessEventSink,
   type HarnessOpsCode,
 } from "./core/event-sink.js";
@@ -44,6 +53,10 @@ export interface ServerOptions {
   storageDriver?: IStorageDriver;
   modelDriver?: IModelDriver;
   dbPath?: string;
+  /** 本副本实例标识（Redis 租约形态的归属与清扫目标）；缺省 VUAGENT_INSTANCE_ID > os.hostname() */
+  instanceId?: string;
+  /** 跨副本轮次租约客户端（Redis 形态）；提供后同会话全集群互斥 + 心跳保活 + 启动清扫 */
+  redisClient?: RedisLike;
   /** 安全基线覆盖项（测试注入用）；缺省走 VUAGENT_* 环境变量 */
   security?: { authToken?: string; allowByoProvider?: boolean; extraOrigins?: string[] };
   /** 运维事件出口（TASK-051）：缺省 console NDJSON；测试注入内存 sink 断言事件流 */
@@ -56,7 +69,18 @@ export interface ServerOptions {
 export function createHarnessServer(options: ServerOptions = {}) {
   const app = new Hono();
   // TASK-051 运维事件出口：缺省 console NDJSON（error 级走 stderr）
-  const eventSink: HarnessEventSink = options.eventSink ?? createConsoleNdjsonSink();
+  // 可观测出口（三轨 composite，注入 sink 的宿主/测试仍整链接管）：
+  // ① console NDJSON（运维日志）；② Prometheus 指标注册表（GET /metrics 拉取）；
+  // ③ 可选 OTLP HTTP JSON 推送（OTEL_EXPORTER_OTLP_ENDPOINT 配置启用）
+  const metricsRegistry = new MetricsRegistry();
+  const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+  const eventSink: HarnessEventSink = options.eventSink ?? compositeSink(
+    createConsoleNdjsonSink(),
+    createOpsMetricsSink(metricsRegistry),
+    ...(otlpEndpoint
+      ? [createOtlpSink({ endpoint: otlpEndpoint, serviceName: "vuagent-server" })]
+      : [])
+  );
   // 安全基线（TASK-011）：CORS/Origin 白名单 + 可选 Bearer 鉴权，替代原先 cors() 全开
   const security = resolveSecurityConfig(options.security);
   applySecurityBaseline(app, security);
@@ -88,6 +112,9 @@ export function createHarnessServer(options: ServerOptions = {}) {
   toolRegistry.register(BashRunTool);
   toolRegistry.register(GlobTool);
   toolRegistry.register(GrepTool);
+  // 显式终态协议工具：注册进 registry（执行链可见性由 finishTaskMode 推导的
+  // hideTools 控制——off 时对模型不可见；enforced 时由 agent-loop 拦截裁决）
+  toolRegistry.register(FinishTaskTool);
   // TASK-026：私网放行改走配置中心 security.allowPrivateFetch（env 显式设置时
   // 由 resolver 的 envLock 锁定为 env 值），运行中改档逐次执行即时生效
   toolRegistry.register(
@@ -103,12 +130,9 @@ export function createHarnessServer(options: ServerOptions = {}) {
   const actionHub = new ActionHub();
   // TASK-008：压缩器单例，AgentLoop（自动滑动窗口）与会话压缩接口（手动摘要化）共用裁剪口径
   const compactor = new ContextCompactor();
-  const modelDriver: IModelDriver =
-    options.modelDriver ||
-    new OpenAICompatibleDriver(
-      process.env.OPENAI_API_KEY,
-      process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
-    );
+  // 模型驱动透传（宿主/测试注入用）；缺省由 AgentLoop 按所选模型档案逐轮构造，
+  // 生产路径不再默认构造占位驱动（与 agent-loop 逐档案构造口径一致）
+  const modelDriver = options.modelDriver;
 
   const agentLoop = new AgentLoop({
     workspaceRepo,
@@ -131,7 +155,30 @@ export function createHarnessServer(options: ServerOptions = {}) {
     },
   });
 
-  const executionHub = new SessionExecutionHub(agentLoop, eventSink);
+  // 跨副本租约（Redis 形态，TASK-074）：提供 redisClient 时启用——同会话全集群互斥、
+  // ttl/3 心跳保活（连续失败中止本副本轮次防双主）、抽干落库后释放、启动清扫本实例遗留
+  const instanceId = options.instanceId ?? process.env.VUAGENT_INSTANCE_ID ?? os.hostname();
+  const lease: LeaseOptions | undefined = options.redisClient
+    ? {
+        manager: new TurnLeaseManager(options.redisClient, instanceId),
+        instanceId,
+      }
+    : undefined;
+  const executionHub = new SessionExecutionHub(agentLoop, eventSink, lease);
+
+  // 启动清扫（Redis 形态）：清理本实例上次进程崩溃/重启遗留的租约（fire-and-forget）
+  if (lease) {
+    void lease.manager.sweepOrphans(instanceId).then((swept: string[]) => {
+      if (swept.length > 0) {
+        eventSink.emit({
+          type: "warn",
+          at: Date.now(),
+          code: "RECOVERED_LEASES",
+          detail: `instanceId=${instanceId} swept=${swept.length} sessions=[${swept.join(",")}]`,
+        });
+      }
+    });
+  }
 
   // TASK-049 进程重启恢复：扫描遗留 running 轮次，诚实标记 error/process_restart。
   // fire-and-forget：createHarnessServer 保持同步签名；恢复完成前极端情况下
@@ -154,6 +201,22 @@ export function createHarnessServer(options: ServerOptions = {}) {
     });
 
   // 3. 注册路由
+
+  // Prometheus 指标拉取端点（文本格式 v0.0.4）：配置 VUAGENT_TOKEN 时同样要求
+  // Bearer 令牌（与 /api/* 同一口径，Prometheus scrape 配置 bearer_token 即可）
+  app.get("/metrics", (c) => {
+    const security = resolveSecurityConfig(options.security);
+    if (security.authToken) {
+      const header = c.req.header("Authorization") || "";
+      const provided = header.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : "";
+      if (!provided || !secureEqual(provided, security.authToken)) {
+        return c.json({ error: "Unauthorized: /metrics 需要 Bearer 令牌（VUAGENT_TOKEN）" }, 401);
+      }
+    }
+    return c.text(metricsRegistry.renderPrometheus(), 200, {
+      "Content-Type": "text/plain; version=0.0.4; charset=utf-8",
+    });
+  });
 
   // 健康探针
   app.get("/api/health", (c) => {
@@ -335,63 +398,19 @@ export function createHarnessServer(options: ServerOptions = {}) {
 
     const preempt = body.preempt === true;
 
-    // TASK-052 并发准入（O1 修复：前移至 workspace/session 兜底创建之前——
-    // 被拒请求不再泄漏空会话/工作区）：runningCount 实时计数，超限 429
-    // （0=不限；运行中改档即时生效）。
-    // R3 修复：preempt 中止旧轮后净并发不变（-1+1），计数扣除将释放的名额——
-    // 此前 maxConcurrentTurns=1 时 preempt 永远 429 死锁。
+    // 准入洋葱管线（TASK-071 自内联提取为可组合中间件，拒绝口径逐字节一致）：
+    // 并发门禁 → 配额门禁。maxConcurrentTurns=0 不限；preempt 对目标会话豁免 1
+    // （旧轮即将被顶替释放，避免 maxConcurrentTurns=1 时 preempt 永远 429 死锁）。
+    // 新增准入策略 = 向 createAdmissionPipeline 追加中间件，不再改动路由主体。
     const execAdmission = await configResolver.resolve("execution");
     const maxConcurrentTurns = Number(execAdmission?.maxConcurrentTurns) || 0;
-    const preemptReleases =
-      preempt && body.sessionId && executionHub.isRunning(body.sessionId) ? 1 : 0;
-    if (
-      maxConcurrentTurns > 0 &&
-      executionHub.runningCount() - preemptReleases >= maxConcurrentTurns
-    ) {
-      try {
-        eventSink.emit({
-          type: "warn",
-          at: Date.now(),
-          code: "CONCURRENCY_REJECTED",
-          sessionId: body.sessionId,
-          detail: `running=${executionHub.runningCount()} >= max=${maxConcurrentTurns}`,
-        });
-      } catch {
-        // sink 故障不改变准入结果
-      }
-      return c.json(
-        { error: "全局并发轮次已达上限，请等待现有任务完成或调整并发上限设置", code: "CONCURRENCY_REJECTED" },
-        429
-      );
-    }
-
-    // TASK-052 配额准入：滚动窗口 token/费用累计，超限 429（0=不限）
-    const finopsAdmission = await configResolver.resolve("finops");
-    const windowTokenLimit = Number(finopsAdmission?.windowTokenLimit) || 0;
-    const windowUsdLimit = Number(finopsAdmission?.windowUsdLimit) || 0;
-    if (windowTokenLimit > 0 || windowUsdLimit > 0) {
-      const quotaWindowMs = Number(finopsAdmission?.windowMs) || 86_400_000;
-      const usage = await costRepo.sumWindow(quotaWindowMs);
-      if (
-        (windowTokenLimit > 0 && usage.tokens >= windowTokenLimit) ||
-        (windowUsdLimit > 0 && usage.costUsd >= windowUsdLimit)
-      ) {
-        try {
-          eventSink.emit({
-            type: "warn",
-            at: Date.now(),
-            code: "QUOTA_EXCEEDED",
-            sessionId: body.sessionId,
-            detail: `windowMs=${quotaWindowMs} tokens=${usage.tokens}/${windowTokenLimit} costUsd=${usage.costUsd}/${windowUsdLimit}`,
-          });
-        } catch {
-          // sink 故障不改变准入结果
-        }
-        return c.json(
-          { error: "配额已用尽（滚动窗口内累计达到上限），请稍后重试或调整成本配额设置", code: "QUOTA_EXCEEDED" },
-          429
-        );
-      }
+    const admission = createAdmissionPipeline(
+      { executionHub, configResolver, costRepo, eventSink },
+      maxConcurrentTurns
+    );
+    const rejection = await admission({ sessionId: body.sessionId, preempt });
+    if (rejection) {
+      return c.json(rejection.body, rejection.status);
     }
 
     // 默认工作区兜底
