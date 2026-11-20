@@ -984,13 +984,6 @@ function quickFillPrompt(text: string) {
               @remove-attachment="onRemoveAttachment"
             >
               <template #actions>
-              <ComposerMenu
-                :workspace-id="activeWorkspaceId"
-                @ref-file="openMentionPanel"
-                @clear="composerText = ''"
-                @insert="(text) => (composerText += text)"
-                @open-command-menu="cmdOpen = true"
-              />
                 <!-- 上下文窗口仪表（VaContextWindow，点击展开分段面板；VaPopover 托管定位/外部点击/Esc） -->
                 <VaPopover placement="top-start" :offset="8">
                   <template #trigger>
@@ -1012,7 +1005,16 @@ function quickFillPrompt(text: string) {
                   </div>
                 </VaPopover>
               </template>
-            </VaComposer>
+              <template #trailing>
+                <ComposerMenu
+                  :workspace-id="activeWorkspaceId"
+                  @ref-file="openMentionPanel"
+                  @clear="composerText = ''"
+                  @insert="(text) => (composerText += text)"
+                  @open-command-menu="cmdOpen = true"
+                />
+              </template>
+          </VaComposer>
 
             <!-- 快捷提示词 Chip 建议 -->
             <div class="va-console__suggestions">
@@ -1151,13 +1153,6 @@ function quickFillPrompt(text: string) {
             @remove-attachment="onRemoveAttachment"
           >
             <template #actions>
-              <ComposerMenu
-                :workspace-id="activeWorkspaceId"
-                @ref-file="openMentionPanel"
-                @clear="composerText = ''"
-                @insert="(text) => (composerText += text)"
-                @open-command-menu="cmdOpen = true"
-              />
               <!-- 上下文窗口仪表（VaContextWindow，点击展开分段面板；VaPopover 托管定位/外部点击/Esc） -->
               <VaPopover placement="top-start" :offset="8">
                 <template #trigger>
@@ -1178,6 +1173,15 @@ function quickFillPrompt(text: string) {
                   />
                 </div>
               </VaPopover>
+            </template>
+            <template #trailing>
+              <ComposerMenu
+                :workspace-id="activeWorkspaceId"
+                @ref-file="openMentionPanel"
+                @clear="composerText = ''"
+                @insert="(text) => (composerText += text)"
+                @open-command-menu="cmdOpen = true"
+              />
             </template>
           </VaComposer>
         </div>

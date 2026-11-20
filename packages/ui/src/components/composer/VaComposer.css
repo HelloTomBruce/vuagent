@@ -65,6 +65,8 @@
 
 /* ---- M2 扩展：模型/权限 seat、菜单、附件 rail ---- */
 .va-cmp__actions { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--va-s3h, 6px); flex-wrap: wrap; position: relative; }
+/* 尾部插槽容器（#trailing）：靠右贴发送钮 */
+.va-cmp__trailing { display: inline-flex; align-items: center; gap: var(--va-s2, 4px); margin-left: auto; }
 
 .va-cmp__seat-wrap { position: relative; display: inline-flex; }
 .va-cmp__seat {

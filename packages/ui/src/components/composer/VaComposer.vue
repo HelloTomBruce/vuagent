@@ -180,6 +180,11 @@ defineExpose({
           <Paperclip v-else :size="12" aria-hidden="true" />
         </button>
         <input ref="file" class="va-cmp__file" type="file" multiple hidden @change="onFileChange" />
+
+        <!-- 尾部操作区（宿主注入；靠右贴发送钮，如三点更多菜单） -->
+        <div v-if="$slots.trailing" class="va-cmp__trailing">
+          <slot name="trailing" />
+        </div>
       </div>
       <!-- busy：发送钮变为停止钮（运行中断）；空闲：正常发送 -->
       <button v-if="props.busy" class="va-cmp__send va-cmp__send--stop" type="button" aria-label="停止运行" title="停止（Esc）" @click="emit('stop')">
