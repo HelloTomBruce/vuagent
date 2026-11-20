@@ -10,11 +10,10 @@
  * 检查项：
  * 1. fallback 漂移：var(--va-*, fallback) 的字面 fallback 归一化后须等于该令牌
  *    在 :root（亮色）或暗色块的值（允许暗色值，覆盖 Toaster 等恒暗表面）；
- * 2. L2 裸引用：packages/ui/src 下语义令牌族（字号 fs、行高 lh、字重 fw、字距 tracking、
- *    控件高度 h、图标 icon、z-index z、动效时长 dur、位移 dist、缓动 ease、骨架屏 skel、
- *    间距半步 s3h/s4h、遮罩 scrim、语义对照色 *-contrast）禁止裸 var() 引用——
- *    无 tokens.css 宿主会 IACVT 整条声明失效（TASK-006 评审 C1）。
- *    L1/L3 存量裸引用不在本门禁范围（登记为已知债务）；
+ * 2. 全局令牌裸引用：packages/ui/src 下凡引用 tokens.css 定义的 --va-* 令牌（含 L1
+ *    色彩/间距/圆角/阴影/字体与 L2 语义档位族）禁止裸 var() 引用——无 tokens.css
+ *    宿主会 IACVT 整条声明失效（TASK-006 评审 C1 及后续债务清偿）。
+ *    组件文件内自定义的 L3 钩子（--va-<组件>-*）不在 tokens 集合内，自含引用合法；
  * 3. @keyframes 同名一致性：同名 keyframes 在多文件定义时（单文件拷贝要求
  *    各文件自含）规范化 body 必须一致，防止一处改动静默影响全部 spinner；
  * 4. fail-closed 守卫：tokens.css 解析为空、或实际校验数为 0 时按失败退出，
@@ -31,7 +30,7 @@ import {
   parseTokens,
   stripComments,
   extractVarRefs,
-  findBareL2Refs,
+  findBareTokenRefs,
   extractStyleBlocks,
   extractKeyframes,
   normalize,
@@ -119,9 +118,9 @@ function main() {
         }
       }
 
-      // L2 裸引用门禁（仅库分发面）
+      // 全局令牌裸引用门禁（仅库分发面）：凡 tokens.css 定义的令牌禁止裸引用
       if (unit.file.startsWith(BARE_GATE_DIR)) {
-        for (const bare of findBareL2Refs(unit.css)) {
+        for (const bare of findBareTokenRefs(unit.css, light)) {
           bareProblems.push(
             `${rel}:${bare.line}  ${bare.name} 裸 var() 引用缺字面 fallback，` +
               `请补 tokens.css 亮色值（单文件拷贝分发要求）`
@@ -160,7 +159,7 @@ function main() {
   }
 
   if (bareProblems.length) {
-    console.error(`✗ L2 语义令牌裸引用（${bareProblems.length} 处，缺字面 fallback）：`);
+    console.error(`✗ 全局令牌裸引用（${bareProblems.length} 处，缺字面 fallback）：`);
     for (const p of bareProblems) console.error("  " + p);
   }
 
@@ -171,7 +170,7 @@ function main() {
 
   if (problems.length || bareProblems.length) process.exit(1);
   console.log(
-    `✓ tokens 校验通过：${checked} 处 fallback 一致、L2 裸引用 0 处、` +
+    `✓ tokens 校验通过：${checked} 处 fallback 一致、全局令牌裸引用 0 处、` +
       `${[...keyframesIndex.keys()].length} 个 @keyframes 同名一致性通过`
   );
 }

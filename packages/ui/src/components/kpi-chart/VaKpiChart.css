@@ -4,30 +4,30 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-m);
-  background: var(--va-card);
-  padding: var(--va-s4) var(--va-s5);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-m, 10px);
+  background: var(--va-card, #ffffff);
+  padding: var(--va-s4, 12px) var(--va-s5, 16px);
   min-width: 180px;
 }
 
 .va-kpi--clickable { cursor: pointer; transition: border-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)); }
-.va-kpi--clickable:hover { border-color: var(--va-edge-strong); }
-.va-kpi--clickable:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+.va-kpi--clickable:hover { border-color: var(--va-edge-strong, rgba(26, 25, 23, 0.22)); }
+.va-kpi--clickable:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: 1px; }
 
-.va-kpi__label { font-size: var(--va-fs-sm, 12px); color: var(--va-muted); }
+.va-kpi__label { font-size: var(--va-fs-sm, 12px); color: var(--va-muted, #6f6d66); }
 
 .va-kpi__row {
   display: flex;
   align-items: baseline;
-  gap: var(--va-s3);
+  gap: var(--va-s3, 8px);
   flex-wrap: wrap;
 }
 
 .va-kpi__value {
   font-size: 22px; /* display 豁免：KPI 数值展示，不入 scale */
   font-weight: var(--va-fw-bold, 700);
-  color: var(--va-ink);
+  color: var(--va-ink, #1a1917);
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
 }
@@ -41,13 +41,13 @@
   gap: 2px;
 }
 
-.va-kpi__delta[data-good="true"] { color: var(--va-success); }
-.va-kpi__delta[data-good="false"] { color: var(--va-danger); }
+.va-kpi__delta[data-good="true"] { color: var(--va-success, #1a7f4b); }
+.va-kpi__delta[data-good="false"] { color: var(--va-danger, #d5453c); }
 
-.va-kpi__vs { font-size: var(--va-fs-xs, 11px); color: var(--va-muted); }
+.va-kpi__vs { font-size: var(--va-fs-xs, 11px); color: var(--va-muted, #6f6d66); }
 
 .va-kpi__spark {
-  margin-top: var(--va-s3);
+  margin-top: var(--va-s3, 8px);
   display: block;
   width: 100%;
   overflow: visible;

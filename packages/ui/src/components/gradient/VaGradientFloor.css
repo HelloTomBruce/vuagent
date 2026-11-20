@@ -9,8 +9,8 @@
   pointer-events: none;
   opacity: var(--va-gf-o, 0.5);
   background:
-    radial-gradient(60% 100% at var(--va-gf-x, 50%) 100%, var(--va-gf-c1, var(--va-accent)), transparent 70%),
-    radial-gradient(40% 80% at calc(100% - var(--va-gf-x, 50%)) 100%, var(--va-gf-c2, var(--va-info)), transparent 70%);
+    radial-gradient(60% 100% at var(--va-gf-x, 50%) 100%, var(--va-gf-c1, var(--va-accent, #c2410c)), transparent 70%),
+    radial-gradient(40% 80% at calc(100% - var(--va-gf-x, 50%)) 100%, var(--va-gf-c2, var(--va-info, #2563eb)), transparent 70%);
   filter: blur(48px);
 }
 

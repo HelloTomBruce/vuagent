@@ -3,7 +3,7 @@
 .va-tilt {
   position: relative;
   display: block;
-  border-radius: var(--va-radius-l);
+  border-radius: var(--va-radius-l, 16px);
   transform-style: preserve-3d;
   transition: transform var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
   will-change: transform;

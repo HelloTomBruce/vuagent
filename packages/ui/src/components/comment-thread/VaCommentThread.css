@@ -1,31 +1,31 @@
 /* VaCommentThread — 评论线程（agent 草稿人审） */
 
 .va-cmt {
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-m);
-  background: var(--va-card);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-m, 10px);
+  background: var(--va-card, #ffffff);
   display: flex;
   flex-direction: column;
 }
 
 .va-cmt__list {
   overflow-y: auto;
-  padding: var(--va-s5);
+  padding: var(--va-s5, 16px);
   display: flex;
   flex-direction: column;
-  gap: var(--va-s5);
+  gap: var(--va-s5, 16px);
 }
 
 .va-cmt__empty {
   margin: 0;
-  padding: var(--va-s3) 0;
-  color: var(--va-muted);
+  padding: var(--va-s3, 8px) 0;
+  color: var(--va-muted, #6f6d66);
   font-size: var(--va-fs-md, 13px);
 }
 
 .va-cmt__item {
   display: flex;
-  gap: var(--va-s4);
+  gap: var(--va-s4, 12px);
 }
 
 .va-cmt__avatar {
@@ -49,47 +49,47 @@
 .va-cmt__head {
   display: flex;
   align-items: baseline;
-  gap: var(--va-s3);
+  gap: var(--va-s3, 8px);
 }
 
-.va-cmt__author { font-size: var(--va-fs-md, 13px); font-weight: var(--va-fw-semibold, 600); color: var(--va-ink); }
-.va-cmt__time { font-size: var(--va-fs-xs, 11px); color: var(--va-muted); font-variant-numeric: tabular-nums; }
+.va-cmt__author { font-size: var(--va-fs-md, 13px); font-weight: var(--va-fw-semibold, 600); color: var(--va-ink, #1a1917); }
+.va-cmt__time { font-size: var(--va-fs-xs, 11px); color: var(--va-muted, #6f6d66); font-variant-numeric: tabular-nums; }
 
 .va-cmt__role {
   font-size: var(--va-fs-xs, 11px);
   font-weight: var(--va-fw-semibold, 600);
   padding: 1px 7px;
-  border-radius: var(--va-radius-pill);
-  background: var(--va-bg-subtle);
-  color: var(--va-muted);
+  border-radius: var(--va-radius-pill, 999px);
+  background: var(--va-bg-subtle, #efede7);
+  color: var(--va-muted, #6f6d66);
 }
 
 .va-cmt__role[data-agent="true"] {
-  background: var(--va-accent-soft);
-  color: var(--va-accent);
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  color: var(--va-accent, #c2410c);
 }
 
 .va-cmt__text {
   margin: 3px 0 0;
   font-size: var(--va-fs-md, 13px);
   line-height: 1.6;
-  color: var(--va-ink-2);
+  color: var(--va-ink-2, #43413c);
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 /* agent 草稿：左侧强调 */
 .va-cmt__item--pending .va-cmt__main {
-  background: var(--va-accent-soft);
-  border-radius: 0 var(--va-radius-m) var(--va-radius-m) var(--va-radius-m);
-  padding: var(--va-s3) var(--va-s4);
-  margin: 0 calc(-1 * var(--va-s4)) 0 calc(-1 * var(--va-s3));
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  border-radius: 0 var(--va-radius-m, 10px) var(--va-radius-m, 10px) var(--va-radius-m, 10px);
+  padding: var(--va-s3, 8px) var(--va-s4, 12px);
+  margin: 0 calc(-1 * var(--va-s4, 12px)) 0 calc(-1 * var(--va-s3, 8px));
 }
 
 .va-cmt__pending-ops {
   display: flex;
-  gap: var(--va-s2);
-  margin-top: var(--va-s3);
+  gap: var(--va-s2, 4px);
+  margin-top: var(--va-s3, 8px);
 }
 
 
@@ -100,19 +100,19 @@
 .va-cmt__composer {
   display: flex;
   align-items: flex-end;
-  gap: var(--va-s3);
-  padding: var(--va-s3) var(--va-s4);
-  border-top: 1px solid var(--va-edge);
-  background: var(--va-bg-subtle);
-  border-radius: 0 0 var(--va-radius-m) var(--va-radius-m);
+  gap: var(--va-s3, 8px);
+  padding: var(--va-s3, 8px) var(--va-s4, 12px);
+  border-top: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  background: var(--va-bg-subtle, #efede7);
+  border-radius: 0 0 var(--va-radius-m, 10px) var(--va-radius-m, 10px);
 }
 
 .va-cmt__area {
   flex: 1;
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-s);
-  background: var(--va-card);
-  color: var(--va-ink);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-s, 8px);
+  background: var(--va-card, #ffffff);
+  color: var(--va-ink, #1a1917);
   font: inherit;
   font-size: var(--va-fs-md, 13px);
   line-height: 1.5;
@@ -125,7 +125,7 @@
 
 .va-cmt__area:focus {
   outline: none;
-  border-color: var(--va-accent);
+  border-color: var(--va-accent, #c2410c);
 }
 
 

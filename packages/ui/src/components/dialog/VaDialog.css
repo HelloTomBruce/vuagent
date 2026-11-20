@@ -28,12 +28,13 @@
   max-width: 520px;
   max-height: calc(100vh - 32px);
   overflow: hidden; /* 圆角裁剪：body 无 padding 的宿主（如左导航满高）不会从圆角外漏底色 */
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-l);
-  background: var(--va-card);
-  color: var(--va-ink);
-  box-shadow: var(--va-shadow-3);
-  font-family: var(--va-font);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-l, 16px);
+  background: var(--va-card, #ffffff);
+  color: var(--va-ink, #1a1917);
+  box-shadow: var(--va-shadow-3, 0 12px 32px rgba(26, 25, 23, 0.12));
+  font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Helvetica Neue", sans-serif);
   font-size: var(--va-fs-md, 13px);
   line-height: 1.5;
   outline: none;
@@ -52,7 +53,7 @@
   max-width: none;
   width: calc(100vw - 32px);
   height: calc(100vh - 32px);
-  border-radius: var(--va-radius-m);
+  border-radius: var(--va-radius-m, 10px);
 }
 
 /* 退出态：淡出 + 轻微缩放下沉；visibility 延迟到过渡末尾翻转 */
@@ -72,7 +73,7 @@
 
 /* 头部 */
 .va-dlg__header {
-  padding: var(--va-s5) var(--va-s6) 0;
+  padding: var(--va-s5, 16px) var(--va-s6, 24px) 0;
 }
 
 .va-dlg__title {
@@ -81,14 +82,14 @@
   font-size: var(--va-fs-lg, 14px);
   font-weight: var(--va-fw-semibold, 600);
   line-height: 1.4;
-  color: var(--va-ink);
+  color: var(--va-ink, #1a1917);
 }
 
 .va-dlg__desc {
-  margin: var(--va-s2) 0 0;
+  margin: var(--va-s2, 4px) 0 0;
   font-size: var(--va-fs-md, 13px);
   line-height: 1.5;
-  color: var(--va-muted);
+  color: var(--va-muted, #6f6d66);
 }
 
 /* 主体：内容超高时滚动（面板本身 max-height 约束） */
@@ -96,15 +97,15 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: var(--va-s4) var(--va-s6) var(--va-s5);
+  padding: var(--va-s4, 12px) var(--va-s6, 24px) var(--va-s5, 16px);
 }
 
 /* 底部操作区 */
 .va-dlg__footer {
   display: flex;
   justify-content: flex-end;
-  gap: var(--va-s3);
-  padding: 0 var(--va-s6) var(--va-s5);
+  gap: var(--va-s3, 8px);
+  padding: 0 var(--va-s6, 24px) var(--va-s5, 16px);
 }
 
 /* 关闭按钮：幽灵图标按钮（DOM 序在末尾，视觉绝对定位在右上） */
@@ -118,9 +119,9 @@
   width: 26px;
   height: 26px;
   border: none;
-  border-radius: var(--va-radius-s);
+  border-radius: var(--va-radius-s, 8px);
   background: transparent;
-  color: var(--va-muted);
+  color: var(--va-muted, #6f6d66);
   cursor: pointer;
   transition:
     background var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
@@ -128,12 +129,12 @@
 }
 
 .va-dlg__close:hover {
-  background: var(--va-bg-subtle);
-  color: var(--va-ink);
+  background: var(--va-bg-subtle, #efede7);
+  color: var(--va-ink, #1a1917);
 }
 
 .va-dlg__close:focus-visible {
-  outline: 2px solid var(--va-accent);
+  outline: 2px solid var(--va-accent, #c2410c);
   outline-offset: 1px;
 }
 

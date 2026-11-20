@@ -3,14 +3,14 @@
 .va-cbd {
   display: flex;
   flex-direction: column;
-  gap: var(--va-s3);
+  gap: var(--va-s3, 8px);
 }
 
 .va-cbd__bar {
   display: flex;
   width: 100%;
-  border-radius: var(--va-radius-pill);
-  background: var(--va-bg-subtle);
+  border-radius: var(--va-radius-pill, 999px);
+  background: var(--va-bg-subtle, #efede7);
   overflow: hidden;
 }
 
@@ -25,18 +25,18 @@
   margin: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--va-s2) var(--va-s5);
+  gap: var(--va-s2, 4px) var(--va-s5, 16px);
   font-size: var(--va-fs-xs, 11px);
-  color: var(--va-muted);
+  color: var(--va-muted, #6f6d66);
 }
 
 .va-cbd__item {
   display: inline-flex;
   align-items: center;
-  gap: var(--va-s2);
+  gap: var(--va-s2, 4px);
 }
 
-.va-cbd__item b { color: var(--va-ink-2); font-variant-numeric: tabular-nums; }
+.va-cbd__item b { color: var(--va-ink-2, #43413c); font-variant-numeric: tabular-nums; }
 
 .va-cbd__dot {
   width: 8px;

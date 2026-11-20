@@ -1,23 +1,23 @@
 /* VaFileTree — 带变更标记的文件树 */
 
 .va-ftree {
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-m);
-  background: var(--va-card);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-m, 10px);
+  background: var(--va-card, #ffffff);
   overflow: hidden;
 }
 
 .va-ftree__head {
-  padding: var(--va-s2) var(--va-s4);
-  border-bottom: 1px solid var(--va-edge);
-  background: var(--va-bg-subtle);
+  padding: var(--va-s2, 4px) var(--va-s4, 12px);
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  background: var(--va-bg-subtle, #efede7);
   font-size: var(--va-fs-sm, 12px);
-  color: var(--va-muted);
+  color: var(--va-muted, #6f6d66);
 }
 
 .va-ftree__body {
   overflow: auto;
-  padding: var(--va-s2) 0;
+  padding: var(--va-s2, 4px) 0;
   font-size: var(--va-fs-md, 13px);
 }
 
@@ -25,21 +25,21 @@
   display: flex;
   align-items: center;
   gap: var(--va-s3h, 6px);
-  padding-right: var(--va-s4);
+  padding-right: var(--va-s4, 12px);
   height: 28px;
   cursor: pointer;
-  color: var(--va-ink-2);
+  color: var(--va-ink-2, #43413c);
   user-select: none;
   transition: background var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
-.va-ftree__row:hover { background: var(--va-bg-subtle); }
+.va-ftree__row:hover { background: var(--va-bg-subtle, #efede7); }
 
 .va-ftree__row[data-active="true"] { outline: none; }
 .va-ftree__row:focus-visible {
-  outline: 2px solid var(--va-accent);
+  outline: 2px solid var(--va-accent, #c2410c);
   outline-offset: -2px;
-  border-radius: var(--va-radius-s);
+  border-radius: var(--va-radius-s, 8px);
 }
 
 .va-ftree__caret {
@@ -48,12 +48,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--va-muted);
+  color: var(--va-muted, #6f6d66);
   /* 收起态旋转 -90°（指向右），展开态归位（指向下）；随行 hover 提亮 */
   transition: transform var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)), color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 .va-ftree__caret:not([data-open]) { transform: rotate(-90deg); }
-.va-ftree__row:hover .va-ftree__caret { color: var(--va-ink-2); }
+.va-ftree__row:hover .va-ftree__caret { color: var(--va-ink-2, #43413c); }
 
 .va-ftree__dot {
   width: 12px;
@@ -69,29 +69,29 @@
   height: 4px;
   border-radius: 1px;
   transform: translateY(-50%);
-  background: var(--va-edge-strong);
+  background: var(--va-edge-strong, rgba(26, 25, 23, 0.22));
 }
 
 .va-ftree__name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--va-font-mono);
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   font-size: var(--va-fs-md, 13px);
 }
 
-.va-ftree__row--dir .va-ftree__name { font-weight: var(--va-fw-semibold, 600); color: var(--va-ink); }
+.va-ftree__row--dir .va-ftree__name { font-weight: var(--va-fw-semibold, 600); color: var(--va-ink, #1a1917); }
 
 .va-ftree__spacer { flex: 1; }
 
 .va-ftree__row--selected {
-  background: var(--va-accent-soft);
-  box-shadow: inset 2px 0 0 var(--va-accent);
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  box-shadow: inset 2px 0 0 var(--va-accent, #c2410c);
 }
 
 .va-ftree__count {
   font-size: var(--va-fs-xs, 11px);
-  color: var(--va-muted);
+  color: var(--va-muted, #6f6d66);
   font-variant-numeric: tabular-nums;
 }
 
@@ -99,22 +99,22 @@
   flex: none;
   width: 18px;
   height: 18px;
-  border-radius: var(--va-radius-s);
+  border-radius: var(--va-radius-s, 8px);
   font-size: var(--va-fs-xs, 11px);
   font-weight: var(--va-fw-bold, 700);
   line-height: 18px;
   text-align: center;
-  font-family: var(--va-font-mono);
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
 }
 
-.va-ftree__status[data-status="modified"] { background: color-mix(in srgb, var(--va-warning) 16%, transparent); color: var(--va-warning); }
-.va-ftree__status[data-status="added"] { background: color-mix(in srgb, var(--va-success) 16%, transparent); color: var(--va-success); }
-.va-ftree__status[data-status="deleted"] { background: color-mix(in srgb, var(--va-danger) 14%, transparent); color: var(--va-danger); }
-.va-ftree__status[data-status="untracked"] { background: color-mix(in srgb, var(--va-info) 14%, transparent); color: var(--va-info); }
+.va-ftree__status[data-status="modified"] { background: color-mix(in srgb, var(--va-warning, #b45309) 16%, transparent); color: var(--va-warning, #b45309); }
+.va-ftree__status[data-status="added"] { background: color-mix(in srgb, var(--va-success, #1a7f4b) 16%, transparent); color: var(--va-success, #1a7f4b); }
+.va-ftree__status[data-status="deleted"] { background: color-mix(in srgb, var(--va-danger, #d5453c) 14%, transparent); color: var(--va-danger, #d5453c); }
+.va-ftree__status[data-status="untracked"] { background: color-mix(in srgb, var(--va-info, #2563eb) 14%, transparent); color: var(--va-info, #2563eb); }
 
 .va-ftree__empty {
   margin: 0;
-  padding: var(--va-s4);
-  color: var(--va-muted);
+  padding: var(--va-s4, 12px);
+  color: var(--va-muted, #6f6d66);
   font-size: var(--va-fs-md, 13px);
 }

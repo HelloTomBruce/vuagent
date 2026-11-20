@@ -10,10 +10,10 @@
   align-items: center;
   justify-content: center;
   gap: var(--va-s3h, 6px);
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-s);
-  background: var(--va-card);
-  color: var(--va-ink-2);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-s, 8px);
+  background: var(--va-card, #ffffff);
+  color: var(--va-ink-2, #43413c);
   font: inherit;
   font-size: var(--va-fs-md, 13px);
   line-height: 1.4;
@@ -24,9 +24,9 @@
     color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
-.va-act:hover:not(:disabled) { border-color: var(--va-edge-strong); }
+.va-act:hover:not(:disabled) { border-color: var(--va-edge-strong, rgba(26, 25, 23, 0.22)); }
 
-.va-act:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+.va-act:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: 1px; }
 
 .va-act:disabled { opacity: 0.45; cursor: default; }
 
@@ -36,15 +36,15 @@
 
 /* 变体 */
 .va-act--primary {
-  background: var(--va-accent);
-  border-color: var(--va-accent);
-  color: var(--va-card);
+  background: var(--va-accent, #c2410c);
+  border-color: var(--va-accent, #c2410c);
+  color: var(--va-card, #ffffff);
   font-weight: var(--va-fw-semibold, 600);
 }
 
 .va-act--primary:hover:not(:disabled) {
-  background: var(--va-accent-hover);
-  border-color: var(--va-accent-hover);
+  background: var(--va-accent-hover, #9a3412);
+  border-color: var(--va-accent-hover, #9a3412);
 }
 
 .va-act--ghost {
@@ -52,28 +52,28 @@
   background: transparent;
 }
 
-.va-act--ghost:hover:not(:disabled) { background: var(--va-bg-subtle); }
+.va-act--ghost:hover:not(:disabled) { background: var(--va-bg-subtle, #efede7); }
 
-.va-act--danger { border-color: transparent; background: transparent; color: var(--va-danger); }
+.va-act--danger { border-color: transparent; background: transparent; color: var(--va-danger, #d5453c); }
 
 .va-act--danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--va-danger) 10%, transparent);
+  background: color-mix(in srgb, var(--va-danger, #d5453c) 10%, transparent);
   border-color: transparent;
 }
 
 /* 语义色实底（成功/危险确认场景，按需叠加） */
 .va-act--success {
-  background: var(--va-success);
-  border-color: var(--va-success);
+  background: var(--va-success, #1a7f4b);
+  border-color: var(--va-success, #1a7f4b);
   color: #fff;
   font-weight: var(--va-fw-semibold, 600);
 }
 
 /* 墨色实底：审批/决策/应用这类"终审"主操作（区别于 accent 常规主操作） */
 .va-act--ink {
-  background: var(--va-ink);
-  border-color: var(--va-ink);
-  color: var(--va-card);
+  background: var(--va-ink, #1a1917);
+  border-color: var(--va-ink, #1a1917);
+  color: var(--va-card, #ffffff);
   font-weight: var(--va-fw-semibold, 600);
 }
 

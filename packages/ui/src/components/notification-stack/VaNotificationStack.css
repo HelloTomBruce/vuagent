@@ -1,9 +1,9 @@
 /* VaNotificationStack — 通知中心列表 */
 
 .va-ns {
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-m);
-  background: var(--va-card);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-m, 10px);
+  background: var(--va-card, #ffffff);
   overflow: hidden;
 }
 
@@ -11,27 +11,27 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--va-s3) var(--va-s4);
-  border-bottom: 1px solid var(--va-edge);
-  background: var(--va-bg-subtle);
+  padding: var(--va-s3, 8px) var(--va-s4, 12px);
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  background: var(--va-bg-subtle, #efede7);
 }
 
 .va-ns__title {
   margin: 0;
   font-size: var(--va-fs-md, 13px);
   font-weight: var(--va-fw-bold, 700);
-  color: var(--va-ink);
+  color: var(--va-ink, #1a1917);
   display: flex;
   align-items: center;
-  gap: var(--va-s3);
+  gap: var(--va-s3, 8px);
 }
 
 .va-ns__count {
   min-width: 18px;
   height: 18px;
-  border-radius: var(--va-radius-pill);
-  background: var(--va-accent);
-  color: var(--va-card);
+  border-radius: var(--va-radius-pill, 999px);
+  background: var(--va-accent, #c2410c);
+  color: var(--va-card, #ffffff);
   font-size: var(--va-fs-xs, 11px);
   font-weight: var(--va-fw-bold, 700);
   line-height: 18px;
@@ -42,13 +42,13 @@
 .va-ns__allread {
   border: 0;
   background: transparent;
-  color: var(--va-info);
+  color: var(--va-info, #2563eb);
   font-size: var(--va-fs-sm, 12px);
   cursor: pointer;
 }
 
 .va-ns__allread:hover { text-decoration: underline; }
-.va-ns__allread:focus-visible { outline: 2px solid var(--va-accent); }
+.va-ns__allread:focus-visible { outline: 2px solid var(--va-accent, #c2410c); }
 
 .va-ns__list {
   /* 离场项 position:absolute 的包含块：缺它会让 width:100% 退化到视口，动画期间宽度突跳 */
@@ -62,28 +62,28 @@
 .va-ns__item {
   display: flex;
   align-items: stretch;
-  border-bottom: 1px solid var(--va-edge);
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
 }
 
 .va-ns__item:last-child { border-bottom: 0; }
-.va-ns__item[data-unread="true"] { background: color-mix(in srgb, var(--va-accent) 4%, transparent); }
+.va-ns__item[data-unread="true"] { background: color-mix(in srgb, var(--va-accent, #c2410c) 4%, transparent); }
 
 .va-ns__main {
   flex: 1;
   display: flex;
   align-items: flex-start;
-  gap: var(--va-s3);
+  gap: var(--va-s3, 8px);
   border: 0;
   background: transparent;
-  padding: var(--va-s3) var(--va-s4);
+  padding: var(--va-s3, 8px) var(--va-s4, 12px);
   cursor: pointer;
   text-align: left;
   font: inherit;
   min-width: 0;
 }
 
-.va-ns__main:hover { background: var(--va-bg-subtle); }
-.va-ns__main:focus-visible { outline: 2px solid var(--va-accent); outline-offset: -2px; }
+.va-ns__main:hover { background: var(--va-bg-subtle, #efede7); }
+.va-ns__main:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; }
 
 .va-ns__icon {
   flex: none;
@@ -98,17 +98,17 @@
   margin-top: 1px;
 }
 
-.va-ns__item[data-kind="info"] .va-ns__icon { background: color-mix(in srgb, var(--va-info) 14%, transparent); color: var(--va-info); }
-.va-ns__item[data-kind="success"] .va-ns__icon { background: color-mix(in srgb, var(--va-success) 14%, transparent); color: var(--va-success); }
-.va-ns__item[data-kind="warning"] .va-ns__icon { background: color-mix(in srgb, var(--va-warning) 16%, transparent); color: var(--va-warning); }
-.va-ns__item[data-kind="danger"] .va-ns__icon { background: color-mix(in srgb, var(--va-danger) 14%, transparent); color: var(--va-danger); }
-.va-ns__item[data-kind="agent"] .va-ns__icon { background: var(--va-accent-soft); color: var(--va-accent); }
+.va-ns__item[data-kind="info"] .va-ns__icon { background: color-mix(in srgb, var(--va-info, #2563eb) 14%, transparent); color: var(--va-info, #2563eb); }
+.va-ns__item[data-kind="success"] .va-ns__icon { background: color-mix(in srgb, var(--va-success, #1a7f4b) 14%, transparent); color: var(--va-success, #1a7f4b); }
+.va-ns__item[data-kind="warning"] .va-ns__icon { background: color-mix(in srgb, var(--va-warning, #b45309) 16%, transparent); color: var(--va-warning, #b45309); }
+.va-ns__item[data-kind="danger"] .va-ns__icon { background: color-mix(in srgb, var(--va-danger, #d5453c) 14%, transparent); color: var(--va-danger, #d5453c); }
+.va-ns__item[data-kind="agent"] .va-ns__icon { background: var(--va-accent-soft, rgba(194, 65, 12, 0.1)); color: var(--va-accent, #c2410c); }
 
 .va-ns__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 
-.va-ns__t { font-size: var(--va-fs-md, 13px); font-weight: var(--va-fw-semibold, 600); color: var(--va-ink); }
-.va-ns__b { font-size: var(--va-fs-sm, 12px); color: var(--va-ink-2); line-height: 1.5; }
-.va-ns__time { font-size: var(--va-fs-xs, 11px); color: var(--va-muted); margin-top: 2px; }
+.va-ns__t { font-size: var(--va-fs-md, 13px); font-weight: var(--va-fw-semibold, 600); color: var(--va-ink, #1a1917); }
+.va-ns__b { font-size: var(--va-fs-sm, 12px); color: var(--va-ink-2, #43413c); line-height: 1.5; }
+.va-ns__time { font-size: var(--va-fs-xs, 11px); color: var(--va-muted, #6f6d66); margin-top: 2px; }
 
 .va-ns__dot {
   flex: none;
@@ -116,16 +116,16 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--va-accent);
-  margin-right: var(--va-s4);
+  background: var(--va-accent, #c2410c);
+  margin-right: var(--va-s4, 12px);
 }
 
 .va-ns__empty {
   margin: 0;
-  padding: var(--va-s6) var(--va-s4);
+  padding: var(--va-s6, 24px) var(--va-s4, 12px);
   text-align: center;
   font-size: var(--va-fs-md, 13px);
-  color: var(--va-muted);
+  color: var(--va-muted, #6f6d66);
 }
 
 /* ---------- 进出编排（Vue <TransitionGroup name="va-ns">） ----------

@@ -11,7 +11,7 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 1.5px solid var(--va-orb-c, var(--va-accent));
+  border: 1.5px solid var(--va-orb-c, var(--va-accent, #c2410c));
   opacity: 0.25;
 }
 
@@ -28,8 +28,8 @@
   width: 58%;
   height: 58%;
   border-radius: 50%;
-  background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--va-orb-c, var(--va-accent)) 88%, #fff 12%), var(--va-orb-c, var(--va-accent)));
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--va-orb-c, var(--va-accent)) 40%, transparent);
+  background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--va-orb-c, var(--va-accent, #c2410c)) 88%, #fff 12%), var(--va-orb-c, var(--va-accent, #c2410c)));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--va-orb-c, var(--va-accent, #c2410c)) 40%, transparent);
   display: inline-flex;
   align-items: center;
   justify-content: center;

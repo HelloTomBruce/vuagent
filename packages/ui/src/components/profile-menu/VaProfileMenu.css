@@ -12,7 +12,7 @@
   line-height: 0;
 }
 
-.va-pm__trigger:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 2px; }
+.va-pm__trigger:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: 2px; }
 
 .va-pm__avatar {
   width: 34px;
@@ -36,15 +36,15 @@
   bottom: -2px;
   min-width: 17px;
   height: 17px;
-  border-radius: var(--va-radius-pill);
-  background: var(--va-danger);
+  border-radius: var(--va-radius-pill, 999px);
+  background: var(--va-danger, #d5453c);
   color: var(--va-danger-contrast, #fff);
   font-size: var(--va-fs-2xs, 10px);
   font-weight: var(--va-fw-bold, 700);
   line-height: 17px;
   text-align: center;
   padding: 0 4px;
-  border: 2px solid var(--va-card);
+  border: 2px solid var(--va-card, #ffffff);
   box-sizing: content-box;
 }
 
@@ -54,11 +54,11 @@
   right: 0;
   z-index: 30;
   min-width: 220px;
-  background: var(--va-card);
-  border: 1px solid var(--va-edge-strong);
-  border-radius: var(--va-radius-m);
-  box-shadow: var(--va-shadow-2);
-  padding: var(--va-s2);
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge-strong, rgba(26, 25, 23, 0.22));
+  border-radius: var(--va-radius-m, 10px);
+  box-shadow: var(--va-shadow-2, 0 4px 12px rgba(26, 25, 23, 0.08));
+  padding: var(--va-s2, 4px);
   animation: va-pm-in var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
@@ -70,31 +70,31 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: var(--va-s2) var(--va-s3) var(--va-s4);
-  border-bottom: 1px solid var(--va-edge);
-  margin-bottom: var(--va-s2);
+  padding: var(--va-s2, 4px) var(--va-s3, 8px) var(--va-s4, 12px);
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  margin-bottom: var(--va-s2, 4px);
 }
 
-.va-pm__name { font-size: var(--va-fs-lg, 14px); font-weight: var(--va-fw-bold, 700); color: var(--va-ink); }
-.va-pm__email { font-size: var(--va-fs-sm, 12px); color: var(--va-muted); overflow: hidden; text-overflow: ellipsis; }
+.va-pm__name { font-size: var(--va-fs-lg, 14px); font-weight: var(--va-fw-bold, 700); color: var(--va-ink, #1a1917); }
+.va-pm__email { font-size: var(--va-fs-sm, 12px); color: var(--va-muted, #6f6d66); overflow: hidden; text-overflow: ellipsis; }
 
 .va-pm__item {
   display: block;
   width: 100%;
   border: 0;
-  border-radius: var(--va-radius-s);
+  border-radius: var(--va-radius-s, 8px);
   background: transparent;
-  color: var(--va-ink-2);
+  color: var(--va-ink-2, #43413c);
   font-size: var(--va-fs-md, 13px);
   text-align: left;
-  padding: 7px var(--va-s3);
+  padding: 7px var(--va-s3, 8px);
   cursor: pointer;
 }
 
-.va-pm__item:hover:not(:disabled) { background: var(--va-bg-subtle); }
-.va-pm__item:focus-visible { outline: 2px solid var(--va-accent); outline-offset: -2px; }
+.va-pm__item:hover:not(:disabled) { background: var(--va-bg-subtle, #efede7); }
+.va-pm__item:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; }
 .va-pm__item:disabled { opacity: 0.4; cursor: default; }
-.va-pm__item[data-danger="true"] { color: var(--va-danger); }
+.va-pm__item[data-danger="true"] { color: var(--va-danger, #d5453c); }
 
 @media (prefers-reduced-motion: reduce) {
   .va-pm__menu { animation: none; }

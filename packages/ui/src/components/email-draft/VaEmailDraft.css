@@ -1,29 +1,29 @@
 /* VaEmailDraft — agent 起草、人工确认发送的邮件卡片 */
 
 .va-mail {
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-l);
-  background: var(--va-card);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-l, 16px);
+  background: var(--va-card, #ffffff);
   overflow: hidden;
 }
 
 .va-mail__head {
   display: flex;
   align-items: center;
-  gap: var(--va-s3);
-  padding: var(--va-s4) var(--va-s5);
-  border-bottom: 1px solid var(--va-edge);
-  background: var(--va-bg-subtle);
+  gap: var(--va-s3, 8px);
+  padding: var(--va-s4, 12px) var(--va-s5, 16px);
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  background: var(--va-bg-subtle, #efede7);
 }
 
-.va-mail__title { font-size: var(--va-fs-lg, 14px); font-weight: var(--va-fw-bold, 700); color: var(--va-ink); }
+.va-mail__title { font-size: var(--va-fs-lg, 14px); font-weight: var(--va-fw-bold, 700); color: var(--va-ink, #1a1917); }
 
 .va-mail__badge {
   font-size: var(--va-fs-xs, 11px);
   padding: 2px 8px;
-  border-radius: var(--va-radius-pill);
-  background: var(--va-accent-soft);
-  color: var(--va-accent);
+  border-radius: var(--va-radius-pill, 999px);
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  color: var(--va-accent, #c2410c);
   font-weight: var(--va-fw-semibold, 600);
 }
 
@@ -32,30 +32,30 @@
 
 
 .va-mail__fields {
-  padding: var(--va-s5);
+  padding: var(--va-s5, 16px);
   display: flex;
   flex-direction: column;
-  gap: var(--va-s4);
+  gap: var(--va-s4, 12px);
 }
 
 .va-mail__field {
   display: flex;
   flex-direction: column;
-  gap: var(--va-s2);
+  gap: var(--va-s2, 4px);
 }
 
 .va-mail__label {
   font-size: var(--va-fs-xs, 11px);
   font-weight: var(--va-fw-semibold, 600);
-  color: var(--va-muted);
+  color: var(--va-muted, #6f6d66);
   letter-spacing: 0.02em;
 }
 
 .va-mail__input {
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-s);
-  background: var(--va-bg);
-  color: var(--va-ink);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-s, 8px);
+  background: var(--va-bg, #f7f6f2);
+  color: var(--va-ink, #1a1917);
   font: inherit;
   font-size: var(--va-fs-lg, 14px);
   padding: 8px var(--va-s4h, 10px);
@@ -64,20 +64,20 @@
 
 .va-mail__input:focus {
   outline: none;
-  border-color: var(--va-accent);
-  box-shadow: 0 0 0 3px var(--va-accent-soft);
+  border-color: var(--va-accent, #c2410c);
+  box-shadow: 0 0 0 3px var(--va-accent-soft, rgba(194, 65, 12, 0.1));
 }
 
 .va-mail__body { resize: vertical; min-height: 130px; line-height: 1.6; }
 
 /* 起草中骨架（共享扫光需要 keyframes —— 用 opacity 呼吸，无 tokens 依赖） */
 .va-mail__skel {
-  border-radius: var(--va-radius-s);
+  border-radius: var(--va-radius-s, 8px);
   background: linear-gradient(
     100deg,
-    var(--va-bg-subtle) 40%,
-    color-mix(in srgb, var(--va-bg-subtle) 50%, var(--va-card)) 50%,
-    var(--va-bg-subtle) 60%
+    var(--va-bg-subtle, #efede7) 40%,
+    color-mix(in srgb, var(--va-bg-subtle, #efede7) 50%, var(--va-card, #ffffff)) 50%,
+    var(--va-bg-subtle, #efede7) 60%
   );
   background-size: 200% 100%;
   animation: va-mail-sweep 1.4s linear infinite;
@@ -93,15 +93,15 @@
 
 .va-mail__tones {
   display: flex;
-  gap: var(--va-s2);
+  gap: var(--va-s2, 4px);
   flex-wrap: wrap;
 }
 
 .va-mail__tone {
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-pill);
-  background: var(--va-card);
-  color: var(--va-ink-2);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-pill, 999px);
+  background: var(--va-card, #ffffff);
+  color: var(--va-ink-2, #43413c);
   font-size: var(--va-fs-sm, 12px);
   padding: 3px 12px;
   cursor: pointer;
@@ -109,28 +109,28 @@
 }
 
 .va-mail__tone[data-active="true"] {
-  background: var(--va-ink);
-  border-color: var(--va-ink);
-  color: var(--va-card);
+  background: var(--va-ink, #1a1917);
+  border-color: var(--va-ink, #1a1917);
+  color: var(--va-card, #ffffff);
 }
 
-.va-mail__tone:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+.va-mail__tone:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: 1px; }
 
 .va-mail__foot {
   display: flex;
   align-items: center;
-  gap: var(--va-s3);
-  padding: var(--va-s3) var(--va-s5);
-  border-top: 1px solid var(--va-edge);
-  background: var(--va-bg-subtle);
+  gap: var(--va-s3, 8px);
+  padding: var(--va-s3, 8px) var(--va-s5, 16px);
+  border-top: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  background: var(--va-bg-subtle, #efede7);
 }
 
-.va-mail__hint { font-size: var(--va-fs-sm, 12px); color: var(--va-muted); }
+.va-mail__hint { font-size: var(--va-fs-sm, 12px); color: var(--va-muted, #6f6d66); }
 
 .va-mail__error {
   margin: 0;
   font-size: var(--va-fs-sm, 12px);
-  color: var(--va-danger);
+  color: var(--va-danger, #d5453c);
 }
 
 

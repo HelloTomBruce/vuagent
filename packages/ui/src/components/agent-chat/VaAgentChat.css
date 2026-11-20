@@ -4,39 +4,39 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-l);
-  background: var(--va-card);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-l, 16px);
+  background: var(--va-card, #ffffff);
   overflow: hidden;
 }
 
 .va-chat__head {
-  padding: var(--va-s4) var(--va-s5);
-  border-bottom: 1px solid var(--va-edge);
-  background: var(--va-bg-subtle);
+  padding: var(--va-s4, 12px) var(--va-s5, 16px);
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  background: var(--va-bg-subtle, #efede7);
   font-size: var(--va-fs-lg, 14px);
   font-weight: var(--va-fw-bold, 700);
-  color: var(--va-ink);
+  color: var(--va-ink, #1a1917);
 }
 
 .va-chat__stream {
   flex: 1;
   overflow-y: auto;
-  padding: var(--va-s5);
+  padding: var(--va-s5, 16px);
   display: flex;
   flex-direction: column;
-  gap: var(--va-s5);
+  gap: var(--va-s5, 16px);
 }
 
 .va-chat__empty {
   margin: auto;
   font-size: var(--va-fs-md, 13px);
-  color: var(--va-muted);
+  color: var(--va-muted, #6f6d66);
 }
 
 .va-chat__msg {
   display: flex;
-  gap: var(--va-s3);
+  gap: var(--va-s3, 8px);
   max-width: 86%;
 }
 
@@ -54,26 +54,26 @@
   font-weight: var(--va-fw-bold, 700);
 }
 
-.va-chat__avatar[data-role="agent"] { background: var(--va-accent-soft); color: var(--va-accent); }
-.va-chat__avatar[data-role="user"] { background: var(--va-bg-subtle); color: var(--va-ink-2); }
+.va-chat__avatar[data-role="agent"] { background: var(--va-accent-soft, rgba(194, 65, 12, 0.1)); color: var(--va-accent, #c2410c); }
+.va-chat__avatar[data-role="user"] { background: var(--va-bg-subtle, #efede7); color: var(--va-ink-2, #43413c); }
 
 .va-chat__bubble {
-  border-radius: var(--va-radius-m);
-  padding: var(--va-s3) var(--va-s4);
+  border-radius: var(--va-radius-m, 10px);
+  padding: var(--va-s3, 8px) var(--va-s4, 12px);
   font-size: var(--va-fs-lg, 14px);
   line-height: 1.65;
   min-width: 0;
 }
 
 .va-chat__msg[data-role="agent"] .va-chat__bubble {
-  background: var(--va-bg-subtle);
-  color: var(--va-ink);
+  background: var(--va-bg-subtle, #efede7);
+  color: var(--va-ink, #1a1917);
   border-top-left-radius: 4px;
 }
 
 .va-chat__msg[data-role="user"] .va-chat__bubble {
-  background: var(--va-ink);
-  color: var(--va-card);
+  background: var(--va-ink, #1a1917);
+  color: var(--va-card, #ffffff);
   border-top-right-radius: 4px;
 }
 
@@ -81,19 +81,19 @@
 
 .va-chat__tools {
   display: flex;
-  gap: var(--va-s2);
+  gap: var(--va-s2, 4px);
   flex-wrap: wrap;
-  margin-top: var(--va-s3);
+  margin-top: var(--va-s3, 8px);
 }
 
 .va-chat__tool {
-  font-family: var(--va-font-mono);
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   font-size: var(--va-fs-xs, 11px);
   padding: 1px 7px;
-  border-radius: var(--va-radius-pill);
-  background: var(--va-card);
-  color: var(--va-muted);
-  border: 1px solid var(--va-edge);
+  border-radius: var(--va-radius-pill, 999px);
+  background: var(--va-card, #ffffff);
+  color: var(--va-muted, #6f6d66);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
 }
 
 /* 思考态三点 */
@@ -101,14 +101,14 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: var(--va-s4) var(--va-s5);
+  padding: var(--va-s4, 12px) var(--va-s5, 16px);
 }
 
 .va-chat__pulse {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--va-muted);
+  background: var(--va-muted, #6f6d66);
   animation: va-chat-hop 1.2s ease-in-out infinite;
 }
 
@@ -130,19 +130,19 @@
 }
 
 .va-chat__composer {
-  border-top: 1px solid var(--va-edge);
-  padding: var(--va-s4) var(--va-s5);
-  background: var(--va-bg-subtle);
+  border-top: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  padding: var(--va-s4, 12px) var(--va-s5, 16px);
+  background: var(--va-bg-subtle, #efede7);
 }
 
 .va-chat__composer-hint {
   margin: 0;
   font-size: var(--va-fs-sm, 12px);
-  color: var(--va-muted);
+  color: var(--va-muted, #6f6d66);
   text-align: center;
-  padding: var(--va-s2);
-  border: 1px dashed var(--va-edge);
-  border-radius: var(--va-radius-s);
+  padding: var(--va-s2, 4px);
+  border: 1px dashed var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-s, 8px);
 }
 
 @media (prefers-reduced-motion: reduce) {

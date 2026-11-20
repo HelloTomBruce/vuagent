@@ -1,22 +1,22 @@
 /* VaAiAnswer — 带来源引用的 AI 回答卡 */
 
 .va-ans {
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-m);
-  background: var(--va-card);
-  padding: var(--va-s5);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-m, 10px);
+  background: var(--va-card, #ffffff);
+  padding: var(--va-s5, 16px);
 }
 
 .va-ans__q {
-  margin: 0 0 var(--va-s3);
+  margin: 0 0 var(--va-s3, 8px);
   font-size: var(--va-fs-md, 13px);
-  color: var(--va-muted);
+  color: var(--va-muted, #6f6d66);
 }
 
 .va-ans__body {
   font-size: var(--va-fs-lg, 14px);
   line-height: 1.75;
-  color: var(--va-ink);
+  color: var(--va-ink, #1a1917);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -31,8 +31,8 @@
   margin: 0 1px;
   border: 0;
   border-radius: 5px;
-  background: var(--va-accent-soft);
-  color: var(--va-accent);
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  color: var(--va-accent, #c2410c);
   font-size: var(--va-fs-xs, 11px);
   font-weight: var(--va-fw-bold, 700);
   line-height: 1;
@@ -42,8 +42,8 @@
   transform: translateY(-2px);
 }
 
-.va-ans__cite:hover { background: var(--va-accent); color: var(--va-card); }
-.va-ans__cite:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
+.va-ans__cite:hover { background: var(--va-accent, #c2410c); color: var(--va-card, #ffffff); }
+.va-ans__cite:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: 1px; }
 
 /* 流式光标 */
 .va-ans__cursor {
@@ -51,7 +51,7 @@
   width: 2px;
   height: 1em;
   margin-left: 2px;
-  background: var(--va-accent);
+  background: var(--va-accent, #c2410c);
   vertical-align: -2px;
   animation: va-ans-blink 1s steps(2) infinite;
 }
@@ -71,17 +71,17 @@
 
 /* 来源列表 */
 .va-ans__sources {
-  margin-top: var(--va-s5);
-  padding-top: var(--va-s4);
-  border-top: 1px solid var(--va-edge);
+  margin-top: var(--va-s5, 16px);
+  padding-top: var(--va-s4, 12px);
+  border-top: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
 }
 
 .va-ans__src-title {
-  margin: 0 0 var(--va-s3);
+  margin: 0 0 var(--va-s3, 8px);
   font-size: var(--va-fs-xs, 11px);
   font-weight: var(--va-fw-bold, 700);
   letter-spacing: 0.05em;
-  color: var(--va-muted);
+  color: var(--va-muted, #6f6d66);
 }
 
 .va-ans__list {
@@ -96,27 +96,27 @@
 .va-ans__src {
   display: flex;
   align-items: center;
-  gap: var(--va-s3);
+  gap: var(--va-s3, 8px);
   width: 100%;
   border: 0;
-  border-radius: var(--va-radius-s);
+  border-radius: var(--va-radius-s, 8px);
   background: transparent;
-  padding: 5px var(--va-s2);
+  padding: 5px var(--va-s2, 4px);
   cursor: pointer;
   text-align: left;
   font: inherit;
 }
 
-.va-ans__src:hover { background: var(--va-bg-subtle); }
-.va-ans__src:focus-visible { outline: 2px solid var(--va-accent); outline-offset: -2px; }
+.va-ans__src:hover { background: var(--va-bg-subtle, #efede7); }
+.va-ans__src:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; }
 
 .va-ans__no {
   flex: none;
   width: 18px;
   height: 18px;
   border-radius: 5px;
-  background: var(--va-bg-subtle);
-  color: var(--va-muted);
+  background: var(--va-bg-subtle, #efede7);
+  color: var(--va-muted, #6f6d66);
   font-size: var(--va-fs-xs, 11px);
   font-weight: var(--va-fw-bold, 700);
   display: inline-flex;
@@ -125,8 +125,8 @@
 }
 
 .va-ans__src:hover .va-ans__no {
-  background: var(--va-accent-soft);
-  color: var(--va-accent);
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  color: var(--va-accent, #c2410c);
 }
 
 .va-ans__src-main {
@@ -138,7 +138,7 @@
 
 .va-ans__src-title-text {
   font-size: var(--va-fs-md, 13px);
-  color: var(--va-ink-2);
+  color: var(--va-ink-2, #43413c);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -146,8 +146,8 @@
 
 .va-ans__origin {
   font-size: var(--va-fs-xs, 11px);
-  color: var(--va-muted);
-  font-family: var(--va-font-mono);
+  color: var(--va-muted, #6f6d66);
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
 }
 
 @media (prefers-reduced-motion: reduce) {

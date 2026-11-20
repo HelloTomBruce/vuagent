@@ -10,7 +10,7 @@
 .va-wheel__ring {
   position: absolute;
   inset: 26px;
-  border: 1.5px dashed var(--va-edge-strong);
+  border: 1.5px dashed var(--va-edge-strong, rgba(26, 25, 23, 0.22));
   border-radius: 50%;
 }
 
@@ -31,23 +31,23 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--va-card);
-  border: 1px solid var(--va-edge);
-  color: var(--va-ink-2);
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  color: var(--va-ink-2, #43413c);
   font-size: var(--va-fs-md, 13px);
   font-weight: var(--va-fw-bold, 700);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--va-shadow-1);
+  box-shadow: var(--va-shadow-1, 0 1px 2px rgba(26, 25, 23, 0.06));
 }
 
 .va-wheel__center {
   font-size: var(--va-fs-md, 13px);
   font-weight: var(--va-fw-bold, 700);
-  color: var(--va-accent);
-  background: var(--va-accent-soft);
-  border-radius: var(--va-radius-pill);
+  color: var(--va-accent, #c2410c);
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  border-radius: var(--va-radius-pill, 999px);
   padding: 4px 14px;
   z-index: 1;
 }

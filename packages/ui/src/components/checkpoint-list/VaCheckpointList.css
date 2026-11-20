@@ -17,7 +17,7 @@
   top: 14px;
   bottom: 14px;
   width: 2px;
-  background: var(--va-edge);
+  background: var(--va-edge, rgba(26, 25, 23, 0.12));
   border-radius: 1px;
 }
 
@@ -25,8 +25,8 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--va-s4);
-  padding: var(--va-s3) var(--va-s3) var(--va-s3) 0;
+  gap: var(--va-s4, 12px);
+  padding: var(--va-s3, 8px) var(--va-s3, 8px) var(--va-s3, 8px) 0;
 }
 
 .va-ckpt__pin {
@@ -34,16 +34,16 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 2px solid var(--va-edge-strong);
-  background: var(--va-card);
+  border: 2px solid var(--va-edge-strong, rgba(26, 25, 23, 0.22));
+  background: var(--va-card, #ffffff);
   z-index: 1;
   box-sizing: border-box;
 }
 
 .va-ckpt__item--current .va-ckpt__pin {
-  border-color: var(--va-accent);
-  background: var(--va-accent-soft);
-  box-shadow: 0 0 0 4px var(--va-accent-soft);
+  border-color: var(--va-accent, #c2410c);
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  box-shadow: 0 0 0 4px var(--va-accent-soft, rgba(194, 65, 12, 0.1));
 }
 
 .va-ckpt__main { flex: 1; min-width: 0; }
@@ -51,13 +51,13 @@
 .va-ckpt__line {
   display: flex;
   align-items: center;
-  gap: var(--va-s3);
+  gap: var(--va-s3, 8px);
 }
 
 .va-ckpt__label {
   font-size: var(--va-fs-lg, 14px);
   font-weight: var(--va-fw-semibold, 600);
-  color: var(--va-ink);
+  color: var(--va-ink, #1a1917);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -67,26 +67,26 @@
   flex: none;
   font-size: var(--va-fs-xs, 11px);
   padding: 1px 8px;
-  border-radius: var(--va-radius-pill);
-  background: var(--va-accent-soft);
-  color: var(--va-accent);
+  border-radius: var(--va-radius-pill, 999px);
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  color: var(--va-accent, #c2410c);
   font-weight: var(--va-fw-semibold, 600);
 }
 
 .va-ckpt__meta {
   display: flex;
-  gap: var(--va-s4);
+  gap: var(--va-s4, 12px);
   margin-top: 2px;
   font-size: var(--va-fs-sm, 12px);
-  color: var(--va-muted);
+  color: var(--va-muted, #6f6d66);
 }
 
-.va-ckpt__sum { font-family: var(--va-font-mono); font-size: var(--va-fs-xs, 11px); }
+.va-ckpt__sum { font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); font-size: var(--va-fs-xs, 11px); }
 .va-ckpt__time { font-variant-numeric: tabular-nums; }
 
 .va-ckpt__ops {
   display: flex;
-  gap: var(--va-s2);
+  gap: var(--va-s2, 4px);
   opacity: 0;
   transition: opacity var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
@@ -97,19 +97,19 @@
 
 
 
-.va-ckpt__btn--restore { color: var(--va-accent); border-color: color-mix(in srgb, var(--va-accent) 35%, transparent); }
+.va-ckpt__btn--restore { color: var(--va-accent, #c2410c); border-color: color-mix(in srgb, var(--va-accent, #c2410c) 35%, transparent); }
 .va-ckpt__btn--restore[data-armed="true"] {
-  background: var(--va-accent);
-  border-color: var(--va-accent);
-  color: var(--va-card);
+  background: var(--va-accent, #c2410c);
+  border-color: var(--va-accent, #c2410c);
+  color: var(--va-card, #ffffff);
 }
 
 .va-ckpt__item--restoring 
 .va-ckpt__empty {
   margin: 0;
-  padding: var(--va-s4);
+  padding: var(--va-s4, 12px);
   font-size: var(--va-fs-md, 13px);
-  color: var(--va-muted);
+  color: var(--va-muted, #6f6d66);
 }
 
 @media (prefers-reduced-motion: reduce) {

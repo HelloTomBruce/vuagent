@@ -3,17 +3,17 @@
 .va-otp {
   display: inline-flex;
   align-items: center;
-  gap: var(--va-s3);
+  gap: var(--va-s3, 8px);
 }
 
 .va-otp__cell {
   width: 42px;
   height: 48px;
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-s);
-  background: var(--va-card);
-  color: var(--va-ink);
-  font-family: var(--va-font-mono);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-s, 8px);
+  background: var(--va-card, #ffffff);
+  color: var(--va-ink, #1a1917);
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   font-size: var(--va-fs-2xl, 20px);
   text-align: center;
   transition: border-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)), box-shadow var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
@@ -21,15 +21,15 @@
 
 .va-otp__cell:focus {
   outline: none;
-  border-color: var(--va-accent);
-  box-shadow: 0 0 0 3px var(--va-accent-soft);
+  border-color: var(--va-accent, #c2410c);
+  box-shadow: 0 0 0 3px var(--va-accent-soft, rgba(194, 65, 12, 0.1));
 }
 
-.va-otp__cell--filled { border-color: var(--va-edge-strong); }
-.va-otp__cell:disabled { opacity: 0.5; background: var(--va-bg-subtle); }
+.va-otp__cell--filled { border-color: var(--va-edge-strong, rgba(26, 25, 23, 0.22)); }
+.va-otp__cell:disabled { opacity: 0.5; background: var(--va-bg-subtle, #efede7); }
 
 .va-otp__done {
-  color: var(--va-success);
+  color: var(--va-success, #1a7f4b);
   font-size: var(--va-fs-xl, 16px);
   font-weight: var(--va-fw-bold, 700);
 }

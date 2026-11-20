@@ -1,24 +1,24 @@
 /* VaSetupGuide — 上手引导清单 */
 
 .va-sg {
-  border: 1px solid var(--va-edge);
-  border-radius: var(--va-radius-m);
-  background: var(--va-card);
-  padding: var(--va-s5);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-m, 10px);
+  background: var(--va-card, #ffffff);
+  padding: var(--va-s5, 16px);
 }
 
 .va-sg__head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: var(--va-s4);
+  margin-bottom: var(--va-s4, 12px);
 }
 
-.va-sg__title { margin: 0; font-size: var(--va-fs-lg, 14px); font-weight: var(--va-fw-bold, 700); color: var(--va-ink); }
+.va-sg__title { margin: 0; font-size: var(--va-fs-lg, 14px); font-weight: var(--va-fw-bold, 700); color: var(--va-ink, #1a1917); }
 
 .va-sg__progress {
   font-size: var(--va-fs-sm, 12px);
-  color: var(--va-muted);
+  color: var(--va-muted, #6f6d66);
   font-variant-numeric: tabular-nums;
 }
 
@@ -33,11 +33,11 @@
 .va-sg__item {
   display: flex;
   align-items: center;
-  gap: var(--va-s4);
-  padding: var(--va-s4) 0;
+  gap: var(--va-s4, 12px);
+  padding: var(--va-s4, 12px) 0;
 }
 
-.va-sg__item + .va-sg__item { border-top: 1px solid var(--va-edge); }
+.va-sg__item + .va-sg__item { border-top: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12)); }
 .va-sg__item[data-status="done"],
 .va-sg__item[data-status="skipped"] { opacity: 0.62; }
 
@@ -46,7 +46,7 @@
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  border: 2px solid var(--va-edge-strong);
+  border: 2px solid var(--va-edge-strong, rgba(26, 25, 23, 0.22));
   color: transparent;
   font-size: var(--va-fs-sm, 12px);
   font-weight: var(--va-fw-bold, 700);
@@ -57,32 +57,32 @@
 }
 
 .va-sg__item[data-status="done"] .va-sg__mark {
-  border-color: var(--va-success);
-  background: var(--va-success);
+  border-color: var(--va-success, #1a7f4b);
+  background: var(--va-success, #1a7f4b);
   color: var(--va-success-contrast, #fff);
 }
 
-.va-sg__item[data-status="skipped"] .va-sg__mark { border-style: dashed; color: var(--va-muted); }
+.va-sg__item[data-status="skipped"] .va-sg__mark { border-style: dashed; color: var(--va-muted, #6f6d66); }
 
 .va-sg__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 
-.va-sg__name { font-size: var(--va-fs-lg, 14px); font-weight: var(--va-fw-semibold, 600); color: var(--va-ink); }
-.va-sg__desc { font-size: var(--va-fs-sm, 12px); color: var(--va-muted); line-height: 1.5; }
+.va-sg__name { font-size: var(--va-fs-lg, 14px); font-weight: var(--va-fw-semibold, 600); color: var(--va-ink, #1a1917); }
+.va-sg__desc { font-size: var(--va-fs-sm, 12px); color: var(--va-muted, #6f6d66); line-height: 1.5; }
 
-.va-sg__ops { display: flex; gap: var(--va-s2); flex: none; }
-
-
+.va-sg__ops { display: flex; gap: var(--va-s2, 4px); flex: none; }
 
 
 
-.va-sg__state { flex: none; font-size: var(--va-fs-sm, 12px); color: var(--va-muted); }
+
+
+.va-sg__state { flex: none; font-size: var(--va-fs-sm, 12px); color: var(--va-muted, #6f6d66); }
 
 .va-sg__done {
-  margin: var(--va-s4) 0 0;
-  padding: var(--va-s4);
-  border-radius: var(--va-radius-s);
-  background: color-mix(in srgb, var(--va-success) 10%, transparent);
-  color: var(--va-success);
+  margin: var(--va-s4, 12px) 0 0;
+  padding: var(--va-s4, 12px);
+  border-radius: var(--va-radius-s, 8px);
+  background: color-mix(in srgb, var(--va-success, #1a7f4b) 10%, transparent);
+  color: var(--va-success, #1a7f4b);
   font-size: var(--va-fs-md, 13px);
   font-weight: var(--va-fw-semibold, 600);
 }

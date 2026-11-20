@@ -168,6 +168,19 @@ export function findBareL2Refs(css) {
     .map((r) => ({ name: r.name, offset: r.offset, line: lineAtRaw(css, map, r.offset) }));
 }
 
+/**
+ * 找出「全局令牌裸引用」：引用了 tokens 集合中定义的令牌且无 fallback。
+ * 这是分发自包含的完整口径——凡 tokens.css 定义的令牌，拷出到无 tokens 宿主
+ * 都需要字面 fallback（L3 组件钩子不在 tokens 集合内，天然跳过）。
+ */
+export function findBareTokenRefs(css, tokens) {
+  const { text, map } = stripComments(css);
+  const { refs } = extractVarRefs(text);
+  return refs
+    .filter((r) => r.fallback === null && r.name.startsWith("--va-") && r.name in tokens)
+    .map((r) => ({ name: r.name, offset: r.offset, line: lineAtRaw(css, map, r.offset) }));
+}
+
 /** 从 .vue 单文件组件提取 <style> 块，返回 [{ css, startLine }]（startLine 为块在原文件中的 1 起行号；不含 <style src=...> 外链形式） */
 export function extractStyleBlocks(vueSource) {
   const blocks = [];
