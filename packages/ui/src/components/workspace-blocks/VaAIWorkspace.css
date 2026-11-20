@@ -29,9 +29,9 @@
 
 .va-ws__label {
   margin: 0 0 var(--va-s3);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: var(--va-fs-xs, 11px);
+  font-weight: var(--va-fw-bold, 700);
+  letter-spacing: var(--va-tracking-wider, 0.06em);
   text-transform: uppercase;
   color: var(--va-muted);
   overflow: hidden;
@@ -63,8 +63,8 @@
   width: 18px;
   height: 18px;
   border-radius: 5px;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--va-fs-xs, 11px);
+  font-weight: var(--va-fw-bold, 700);
   line-height: 18px;
   text-align: center;
   font-family: var(--va-font-mono);
@@ -77,19 +77,19 @@
 
 .va-ws__name {
   font-family: var(--va-font-mono);
-  font-size: 12px;
+  font-size: var(--va-fs-sm, 12px);
   color: var(--va-ink-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.va-ws__file[data-selected="true"] .va-ws__name { color: var(--va-ink); font-weight: 600; }
+.va-ws__file[data-selected="true"] .va-ws__name { color: var(--va-ink); font-weight: var(--va-fw-semibold, 600); }
 
 .va-ws__none {
   margin: 0;
   padding: var(--va-s3);
-  font-size: 12px;
+  font-size: var(--va-fs-sm, 12px);
   color: var(--va-muted);
 }
 

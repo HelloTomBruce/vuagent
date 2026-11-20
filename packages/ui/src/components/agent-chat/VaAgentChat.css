@@ -14,8 +14,8 @@
   padding: var(--va-s4) var(--va-s5);
   border-bottom: 1px solid var(--va-edge);
   background: var(--va-bg-subtle);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--va-fs-lg, 14px);
+  font-weight: var(--va-fw-bold, 700);
   color: var(--va-ink);
 }
 
@@ -30,7 +30,7 @@
 
 .va-chat__empty {
   margin: auto;
-  font-size: 13px;
+  font-size: var(--va-fs-md, 13px);
   color: var(--va-muted);
 }
 
@@ -50,8 +50,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12.5px;
-  font-weight: 700;
+  font-size: var(--va-fs-md, 13px);
+  font-weight: var(--va-fw-bold, 700);
 }
 
 .va-chat__avatar[data-role="agent"] { background: var(--va-accent-soft); color: var(--va-accent); }
@@ -60,7 +60,7 @@
 .va-chat__bubble {
   border-radius: var(--va-radius-m);
   padding: var(--va-s3) var(--va-s4);
-  font-size: 13.5px;
+  font-size: var(--va-fs-lg, 14px);
   line-height: 1.65;
   min-width: 0;
 }
@@ -88,7 +88,7 @@
 
 .va-chat__tool {
   font-family: var(--va-font-mono);
-  font-size: 10.5px;
+  font-size: var(--va-fs-xs, 11px);
   padding: 1px 7px;
   border-radius: var(--va-radius-pill);
   background: var(--va-card);
@@ -137,7 +137,7 @@
 
 .va-chat__composer-hint {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--va-fs-sm, 12px);
   color: var(--va-muted);
   text-align: center;
   padding: var(--va-s2);

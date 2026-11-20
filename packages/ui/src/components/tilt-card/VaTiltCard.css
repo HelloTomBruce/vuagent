@@ -5,7 +5,7 @@
   display: block;
   border-radius: var(--va-radius-l);
   transform-style: preserve-3d;
-  transition: transform var(--va-dur-2) var(--va-ease);
+  transition: transform var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
   will-change: transform;
 }
 
@@ -14,7 +14,7 @@
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  transition: opacity var(--va-dur-2) var(--va-ease);
+  transition: opacity var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 @media (prefers-reduced-motion: reduce) {

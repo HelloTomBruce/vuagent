@@ -5,7 +5,7 @@
   --_ink: var(--va-dib-ink, var(--va-ink, #1a1917));
   --_muted: var(--va-dib-muted, var(--va-muted, #6f6d66));
   --_warning: var(--va-dib-warning, var(--va-warning, #b45309));
-  font-family: var(--va-font, system-ui, sans-serif);
+  font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif);
 }
 
 .va-dib__head {
@@ -13,13 +13,13 @@
   align-items: center;
   gap: var(--va-s2, 4px);
   margin: 0 0 var(--va-s3, 8px);
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: var(--va-fs-md, 13px);
+  font-weight: var(--va-fw-semibold, 600);
   color: var(--_warning);
 }
 .va-dib__head svg { width: 15px; height: 15px; }
 
-.va-dib__empty { margin: 0; font-size: 12.5px; color: var(--_muted); }
+.va-dib__empty { margin: 0; font-size: var(--va-fs-md, 13px); color: var(--_muted); }
 .va-dib[data-empty] { padding: var(--va-s3, 8px); border: 1px dashed var(--_edge); border-radius: var(--va-radius-m, 10px); }
 
 .va-dib__list { display: grid; gap: var(--va-s2, 4px); position: relative; }
@@ -50,19 +50,19 @@
 .va-dib__fold:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: 1px; border-radius: 4px; }
 .va-dib__fold-title {
   flex: 1;
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .va-dib__fold svg { width: 13px; height: 13px; flex: none; }
 
-.va-dib__title { margin: 0; font-size: 13px; font-weight: 600; color: var(--_ink); }
-.va-dib__detail { margin: 2px 0 0; font-size: 12px; color: var(--_muted); }
+.va-dib__title { margin: 0; font-size: var(--va-fs-md, 13px); font-weight: var(--va-fw-semibold, 600); color: var(--_ink); }
+.va-dib__detail { margin: 2px 0 0; font-size: var(--va-fs-sm, 12px); color: var(--_muted); }
 
 .va-dib__actions { display: flex; gap: var(--va-s2, 4px); margin-top: var(--va-s3, 8px); }
 /* va-act / va-act--ink 基类兜底，仅保留 28px 定高形态 */
-.va-dib__btn { height: 28px; padding: 0 var(--va-s4, 12px); border-radius: var(--va-radius-m, 10px); font-size: 12.5px; }
+.va-dib__btn { height: 28px; padding: 0 var(--va-s4, 12px); border-radius: var(--va-radius-m, 10px); font-size: var(--va-fs-md, 13px); }
 .va-dib__btn:active { transform: scale(0.97); }
 
 .va-dib__confirm {
@@ -70,7 +70,7 @@
   align-items: center;
   gap: var(--va-s2, 4px);
   margin-top: var(--va-s3, 8px);
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
   color: var(--va-success, #1a7f4b);
 }
 .va-dib__confirm svg { width: 14px; height: 14px; }
@@ -79,7 +79,7 @@
 .va-dib-leave-active { position: absolute; left: 0; right: 0; }
 .va-dib-leave-to { opacity: 0; }
 .va-dib-leave-active { transition: opacity var(--va-dur-2, 200ms) ease; }
-.va-dib-move { transition: transform var(--va-dur-3, 300ms) var(--va-ease, ease); }
+.va-dib-move { transition: transform var(--va-dur-3, 300ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)); }
 .va-dib-fade-enter-active, .va-dib-fade-leave-active { transition: opacity var(--va-dur-2, 200ms) ease; }
 .va-dib-fade-enter-from, .va-dib-fade-leave-to { opacity: 0; }
 

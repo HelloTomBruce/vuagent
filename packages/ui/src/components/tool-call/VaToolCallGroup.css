@@ -4,7 +4,7 @@
   border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
   border-radius: var(--va-radius-m, 10px);
   overflow: hidden;
-  font-family: var(--va-font, system-ui, sans-serif);
+  font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif);
 }
 .va-tclg[data-running] { border-color: color-mix(in srgb, var(--va-accent, #c2410c) 40%, transparent); }
 
@@ -31,7 +31,7 @@
   border-radius: var(--va-radius-s, 8px);
   background: var(--va-bg-subtle, #efede7);
   color: var(--va-ink-2, #43413c);
-  border: 1.5px solid var(--va-card, #fff);
+  border: 1.5px solid var(--va-card, #ffffff);
   margin-left: -6px;
 }
 .va-tclg__icon:first-child { margin-left: 0; }
@@ -39,8 +39,8 @@
 
 .va-tclg__title { flex: 1; min-width: 0; text-align: left; }
 .va-tclg__label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--va-fs-md, 13px);
+  font-weight: var(--va-fw-semibold, 600);
   color: var(--va-ink, #1a1917);
 }
 .va-tclg__label[data-shine] {
@@ -62,14 +62,14 @@
   height: 14px;
   color: var(--va-muted, #6f6d66);
   flex: none;
-  transition: transform var(--va-dur-2, 200ms) var(--va-ease, ease);
+  transition: transform var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 .va-tclg--open .va-tclg__chevron { transform: rotate(90deg); }
 
 .va-tclg__body {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows var(--va-dur-3, 300ms) var(--va-ease, ease);
+  transition: grid-template-rows var(--va-dur-3, 300ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 .va-tclg--open .va-tclg__body { grid-template-rows: 1fr; }
 .va-tclg__inner { overflow: hidden; min-height: 0; }

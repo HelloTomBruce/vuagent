@@ -21,8 +21,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--va-s2);
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: var(--va-fs-md, 13px);
+  font-weight: var(--va-fw-semibold, 600);
   color: var(--va-muted);
   border: 1px solid var(--va-edge);
   border-radius: var(--va-radius-pill);
@@ -39,15 +39,15 @@
 
 .va-ob__title {
   margin: 0;
-  font-size: clamp(26px, 5vw, 38px);
-  font-weight: 800;
+  font-size: clamp(26px, 5vw, 38px); /* display 豁免：hero 响应式标题 */
+  font-weight: var(--va-fw-bold, 700);
   letter-spacing: -0.02em;
   color: var(--va-ink);
 }
 
 .va-ob__subtitle {
   margin: 0;
-  font-size: 14.5px;
+  font-size: var(--va-fs-lg, 14px);
   line-height: 1.7;
   color: var(--va-ink-2);
 }

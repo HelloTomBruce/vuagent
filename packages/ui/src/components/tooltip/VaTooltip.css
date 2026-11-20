@@ -24,10 +24,10 @@
   pointer-events: none;
   /* max-width 由内联样式（maxWidth prop，默认 280）给出，这里兜底 */
   max-width: 280px;
-  padding: 5px 10px;
+  padding: 5px var(--va-s4h, 10px);
   border-radius: var(--va-radius-s);
   font-family: var(--va-font);
-  font-size: 12px;
+  font-size: var(--va-fs-sm, 12px);
   line-height: 1.5;
   overflow-wrap: break-word;
 }
@@ -47,7 +47,7 @@
   box-shadow: var(--va-shadow-2);
 }
 
-/* 入场淡入由 .va-pop 容器承担（va-pop-in）；此处按组件冗余声明关闭，
+/* 进出淡入由 .va-pop 容器的 va-pop-enter-*/leave-* 过渡类承担；此处按组件冗余声明关闭，
    保证 tooltip 样式单独分发时同样尊重 prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   .va-pop:has(> .va-tip) {

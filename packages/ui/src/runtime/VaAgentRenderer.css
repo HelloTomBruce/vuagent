@@ -80,19 +80,19 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--va-fs-md, 13px);
+  font-weight: var(--va-fw-medium, 500);
   color: var(--va-ink, #1a1917);
 }
 
 .va-agent-fallback-code {
   margin: 0;
-  padding: 10px;
+  padding: var(--va-s4h, 10px);
   background: var(--va-card, #ffffff);
-  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.1));
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
   border-radius: 6px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
+  font-size: var(--va-fs-sm, 12px);
   line-height: 1.5;
   color: var(--va-ink-2, #43413c);
   max-height: 240px;

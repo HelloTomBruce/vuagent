@@ -11,8 +11,8 @@
   border: 1px solid var(--_edge);
   border-radius: var(--va-radius-m, 10px);
   overflow: hidden;
-  font-family: var(--va-font, system-ui, sans-serif);
-  transition: border-color var(--va-dur-2, 200ms) var(--va-ease, ease);
+  font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif);
+  transition: border-color var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .va-tcl[data-status="error"] { border-color: color-mix(in srgb, var(--_danger) 45%, transparent); }
@@ -56,19 +56,19 @@
   border-radius: 50%;
   border: 2px solid transparent;
   border-top-color: var(--_accent);
-  animation: va-tcl-spin 0.9s linear infinite;
+  animation: va-spin calc(var(--va-dur-loop, 1.8s) * 0.5) linear infinite;
 }
-@keyframes va-tcl-spin { to { transform: rotate(360deg); } }
+@keyframes va-spin { to { transform: rotate(360deg); } }
 
 .va-tcl__meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 .va-tcl__name {
-  font-family: var(--va-font-mono, monospace);
-  font-size: 12.5px;
-  font-weight: 600;
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: var(--va-fs-md, 13px);
+  font-weight: var(--va-fw-semibold, 600);
   color: var(--va-ink, #1a1917);
 }
 .va-tcl__summary {
-  font-size: 12px;
+  font-size: var(--va-fs-sm, 12px);
   color: var(--_muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -77,8 +77,8 @@
 
 .va-tcl__side { display: flex; align-items: center; gap: var(--va-s2, 4px); flex: none; }
 .va-tcl__time {
-  font-family: var(--va-font-mono, monospace);
-  font-size: 11.5px;
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: var(--va-fs-xs, 11px);
   color: var(--_muted);
   font-variant-numeric: tabular-nums;
 }
@@ -89,7 +89,7 @@
   width: 14px;
   height: 14px;
   color: var(--_muted);
-  transition: transform var(--va-dur-2, 200ms) var(--va-ease, ease);
+  transition: transform var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 .va-tcl--open .va-tcl__chevron { transform: rotate(90deg); }
 
@@ -97,7 +97,7 @@
 .va-tcl__body {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows var(--va-dur-3, 300ms) var(--va-ease, ease);
+  transition: grid-template-rows var(--va-dur-3, 300ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 .va-tcl--open .va-tcl__body { grid-template-rows: 1fr; }
 .va-tcl__inner { overflow: hidden; min-height: 0; border-top: 1px solid transparent; }
@@ -110,7 +110,7 @@
   padding: var(--va-s3, 8px) var(--va-s4, 12px);
   background: color-mix(in srgb, var(--_danger) 8%, transparent);
   color: var(--_danger);
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
 }
 .va-tcl__error-text { flex: 1; min-width: 0; }
 /* va-act 基类兜底，仅保留危险 pill 形态 */
@@ -124,8 +124,8 @@
 .va-tcl__sec:last-child { padding-bottom: var(--va-s4, 12px); }
 .va-tcl__sec-title {
   margin: 0 0 var(--va-s2, 4px);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--va-fs-xs, 11px);
+  font-weight: var(--va-fw-semibold, 600);
   letter-spacing: 0.08em;
   color: var(--_muted);
 }
@@ -135,8 +135,8 @@
   border-radius: var(--va-radius-s, 8px);
   background: var(--va-bg-subtle, #efede7);
   color: var(--va-ink-2, #43413c);
-  font-family: var(--va-font-mono, monospace);
-  font-size: 11.5px;
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: var(--va-fs-xs, 11px);
   line-height: 1.55;
   overflow: auto;
   white-space: pre-wrap;
@@ -150,7 +150,7 @@
   border: 0;
   background: none;
   color: var(--_accent);
-  font-size: 12px;
+  font-size: var(--va-fs-sm, 12px);
   cursor: pointer;
   padding: 2px 0;
   font-family: inherit;

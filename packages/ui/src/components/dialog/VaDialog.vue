@@ -107,7 +107,7 @@ const isTop = () => dialogStack[dialogStack.length - 1] === id;
 let listening = false;
 let holdsLock = false;
 
-/** 组件内过渡时长（与 VaDialog.css 的 var(--va-dur-2) 保持同步，毫秒） */
+/** 组件内过渡时长（与 VaDialog.css 的 var(--va-dur-2, 200ms) 保持同步，毫秒） */
 const TRANSITION_MS = 200;
 
 function reducedMotion(): boolean {

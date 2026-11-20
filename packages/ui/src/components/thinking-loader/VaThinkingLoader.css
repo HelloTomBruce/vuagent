@@ -10,11 +10,11 @@
   padding: 5px 12px;
   border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
   border-radius: var(--va-radius-pill, 999px);
-  background: var(--va-card, #fff);
-  font-family: var(--va-font, system-ui, sans-serif);
+  background: var(--va-card, #ffffff);
+  font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif);
 }
-.va-think--sm { padding: 3px 10px; }
-.va-think--sm .va-think__label { font-size: 12px; }
+.va-think--sm { padding: 3px var(--va-s4h, 10px); }
+.va-think--sm .va-think__label { font-size: var(--va-fs-sm, 12px); }
 
 .va-think__icon {
   flex: none;
@@ -34,12 +34,12 @@
   border-radius: 50%;
   border: 2px solid color-mix(in srgb, var(--_accent) 25%, transparent);
   border-top-color: var(--_accent);
-  animation: va-think-spin 0.9s linear infinite;
+  animation: va-spin calc(var(--va-dur-loop, 1.8s) * 0.5) linear infinite;
 }
-@keyframes va-think-spin { to { transform: rotate(360deg); } }
+@keyframes va-spin { to { transform: rotate(360deg); } }
 
-.va-think__label { font-size: 13px; color: var(--va-ink-2, #43413c); white-space: nowrap; }
-.va-think--done .va-think__label { color: var(--_success); font-weight: 600; }
+.va-think__label { font-size: var(--va-fs-md, 13px); color: var(--va-ink-2, #43413c); white-space: nowrap; }
+.va-think--done .va-think__label { color: var(--_success); font-weight: var(--va-fw-semibold, 600); }
 
 .va-think__label[data-shine] {
   background: linear-gradient(100deg, var(--_muted) 40%, var(--va-ink, #1a1917) 50%, var(--_muted) 60%);

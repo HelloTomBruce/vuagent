@@ -40,14 +40,14 @@
   display: flex;
   flex-direction: column;
   gap: var(--va-s4, 12px);
-  font-family: var(--va-font, system-ui, sans-serif);
+  font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif);
 }
 
 .va-confirm__field {
   display: flex;
   flex-direction: column;
   gap: var(--va-s2, 4px);
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
   line-height: 1.5;
   color: var(--va-muted, #6f6d66);
 }
@@ -57,23 +57,23 @@
   border-radius: var(--va-radius-s, 8px);
   background: var(--va-bg-subtle, #efede7);
   color: var(--va-ink, #1a1917);
-  font-family: var(--va-font-mono, ui-monospace, monospace);
-  font-size: 12px;
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: var(--va-fs-sm, 12px);
 }
 
 .va-confirm__input {
   width: 100%;
-  padding: 5px 10px;
+  padding: 5px var(--va-s4h, 10px);
   border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
   border-radius: var(--va-radius-s, 8px);
-  background: var(--va-card, #fff);
+  background: var(--va-card, #ffffff);
   color: var(--va-ink, #1a1917);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--va-fs-md, 13px);
   line-height: 1.4;
   transition:
-    border-color var(--va-dur-1, 120ms) var(--va-ease, ease),
-    box-shadow var(--va-dur-1, 120ms) var(--va-ease, ease);
+    border-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    box-shadow var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .va-confirm__input::placeholder {
@@ -91,7 +91,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--va-s2, 4px);
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
   line-height: 1.5;
   color: var(--va-ink-2, #43413c);
   cursor: pointer;
@@ -111,8 +111,8 @@
 .va-confirm__btn--danger {
   border-color: var(--va-danger, #d5453c);
   background: var(--va-danger, #d5453c);
-  color: #fff;
-  font-weight: 600;
+  color: var(--va-danger-contrast, #fff);
+  font-weight: var(--va-fw-semibold, 600);
 }
 
 .va-confirm__btn--danger:hover:not(:disabled) {
@@ -124,8 +124,8 @@
 .va-confirm__btn--warning {
   border-color: var(--va-warning, #b45309);
   background: var(--va-warning, #b45309);
-  color: #fff;
-  font-weight: 600;
+  color: var(--va-warning-contrast, #fff);
+  font-weight: var(--va-fw-semibold, 600);
 }
 
 .va-confirm__btn--warning:hover:not(:disabled) {

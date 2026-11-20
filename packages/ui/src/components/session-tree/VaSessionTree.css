@@ -3,8 +3,8 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-family: var(--va-font, system-ui, sans-serif);
-  font-size: 13px;
+  font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif);
+  font-size: var(--va-fs-md, 13px);
 }
 
 .va-stree__new {
@@ -17,8 +17,8 @@
   background: transparent;
   color: var(--va-ink-2, #43413c);
   font: inherit;
-  font-size: 13px;
-  padding: 9px 10px;
+  font-size: var(--va-fs-md, 13px);
+  padding: 9px var(--va-s4h, 10px);
   cursor: pointer;
   margin-bottom: 8px;
 }
@@ -42,13 +42,13 @@
   border: 0;
   border-radius: var(--va-radius-s, 8px);
   background: var(--va-accent, #c2410c);
-  color: var(--va-card, #fff);
+  color: var(--va-card, #ffffff);
   font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 9px 10px;
+  font-size: var(--va-fs-md, 13px);
+  font-weight: var(--va-fw-semibold, 600);
+  padding: 9px var(--va-s4h, 10px);
   cursor: pointer;
-  margin-bottom: 6px;
+  margin-bottom: var(--va-s3h, 6px);
 }
 .va-stree__new-session:hover:not(:disabled) { background: var(--va-accent-hover, #9a3412); }
 .va-stree__new-session:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: 2px; }
@@ -58,8 +58,8 @@
 .va-stree__search {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: var(--va-card, #fff);
+  gap: var(--va-s3h, 6px);
+  background: var(--va-card, #ffffff);
   border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
   border-radius: var(--va-radius-s, 8px);
   padding: 5px 8px;
@@ -72,7 +72,7 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
   color: var(--va-ink, #1a1917);
   outline: none;
 }
@@ -80,7 +80,7 @@
 /* 会话行状态点（G8）与置顶标记（G10） */
 .va-stree__dot { flex: none; width: 7px; height: 7px; border-radius: 50%; }
 .va-stree__dot--run { background: var(--va-warning, #b45309); animation: va-stree-pulse 1.2s infinite; }
-.va-stree__dot--warn { background: var(--va-danger, #d5484d); }
+.va-stree__dot--warn { background: var(--va-danger, #d5453c); }
 @keyframes va-stree-pulse { 50% { opacity: 0.3; } }
 @media (prefers-reduced-motion: reduce) { .va-stree__dot--run { animation: none; } }
 
@@ -88,21 +88,21 @@
 
 .va-stree__warn-tag {
   flex: none;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--va-danger, #d5484d);
-  border: 1px solid var(--va-danger, #d5484d);
+  font-size: var(--va-fs-2xs, 10px);
+  font-weight: var(--va-fw-bold, 700);
+  color: var(--va-danger, #d5453c);
+  border: 1px solid var(--va-danger, #d5453c);
   border-radius: var(--va-radius-pill, 999px);
   padding: 0 5px;
   line-height: 15px;
 }
 
-.va-stree__search-empty { padding: 10px 8px; text-align: center; }
+.va-stree__search-empty { padding: var(--va-s4h, 10px) 8px; text-align: center; }
 
 /* 工作区分组：平铺分组标题（非卡片）—— 标题行 + 会话行直接排在侧栏底色上，
    当前工作区仅以文字强调（图标/名称/计数变 accent 色），不画容器 */
 .va-stree__group {
-  margin-top: 10px;
+  margin-top: var(--va-s4h, 10px);
 }
 .va-stree__group:first-child { margin-top: 2px; }
 
@@ -118,16 +118,16 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 6px;
+  gap: var(--va-s3h, 6px);
+  padding: 5px var(--va-s3h, 6px);
   text-align: left;
 }
 .va-stree__ws-icon { flex: none; display: inline-flex; color: var(--va-muted, #6f6d66); }
 .va-stree__group[data-current="true"] .va-stree__ws-icon { color: var(--va-accent, #c2410c); }
 
 .va-stree__ws-name {
-  font-size: 13.5px;
-  font-weight: 700;
+  font-size: var(--va-fs-lg, 14px);
+  font-weight: var(--va-fw-bold, 700);
   color: var(--va-ink, #1a1917);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -141,8 +141,8 @@
   height: 18px;
   border-radius: var(--va-radius-pill, 999px);
   padding: 0 5px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--va-fs-xs, 11px);
+  font-weight: var(--va-fw-semibold, 600);
   line-height: 18px;
   text-align: center;
   background: var(--va-bg-subtle, #efede7);
@@ -155,8 +155,8 @@
 
 .va-stree__tag {
   flex: none;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--va-fs-xs, 11px);
+  font-weight: var(--va-fw-semibold, 600);
   border-radius: var(--va-radius-pill, 999px);
   padding: 0 7px;
   line-height: 18px;
@@ -185,7 +185,7 @@
   border-radius: var(--va-radius-s, 8px);
 }
 .va-stree__session:hover { background: var(--va-bg-subtle, #efede7); }
-.va-stree__session[data-active="true"] { background: var(--va-accent-soft, rgba(194, 65, 12, 0.08)); }
+.va-stree__session[data-active="true"] { background: var(--va-accent-soft, rgba(194, 65, 12, 0.1)); }
 .va-stree__session[data-archived="true"] { opacity: 0.6; }
 
 .va-stree__session-main {
@@ -194,7 +194,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: var(--va-s3h, 6px);
   border: 0;
   background: none;
   font: inherit;
@@ -209,18 +209,18 @@
 .va-stree__session-title {
   flex: 1 1 0;
   min-width: 0; /* flex 子项省略号生效前提；同时让 space-between 布局下标题紧随指示器左对齐，而非被均分到行中 */
-  font-size: 13px;
+  font-size: var(--va-fs-md, 13px);
   color: var(--va-ink-2, #43413c);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .va-stree__session[data-active="true"] .va-stree__session-title {
-  font-weight: 600;
+  font-weight: var(--va-fw-semibold, 600);
   color: var(--va-accent, #c2410c);
 }
 
-.va-stree__time { flex: none; font-size: 11px; color: var(--va-muted, #6f6d66); }
+.va-stree__time { flex: none; font-size: var(--va-fs-xs, 11px); color: var(--va-muted, #6f6d66); }
 
 .va-stree__op {
   flex: none;
@@ -229,8 +229,8 @@
   justify-content: center;
   border: 0;
   background: none;
-  font-size: 12px;
-  padding: 4px 6px;
+  font-size: var(--va-fs-sm, 12px);
+  padding: 4px var(--va-s3h, 6px);
   border-radius: var(--va-radius-s, 8px);
   cursor: pointer;
   color: var(--va-muted, #6f6d66);
@@ -242,7 +242,7 @@
 .va-stree__op:hover:not(:disabled) { background: var(--va-bg-subtle, #efede7); color: var(--va-ink, #1a1917); opacity: 1; }
 .va-stree__op:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; opacity: 1; }
 .va-stree__op:disabled { cursor: default; }
-.va-stree__op[data-danger="true"] { color: var(--va-danger, #d5484d); font-weight: 700; opacity: 1; }
+.va-stree__op[data-danger="true"] { color: var(--va-danger, #d5453c); font-weight: var(--va-fw-bold, 700); opacity: 1; }
 .va-stree__confirm { white-space: nowrap; }
 
 .va-stree__input {
@@ -250,19 +250,19 @@
   min-width: 0;
   border: 1px solid var(--va-accent, #c2410c);
   border-radius: var(--va-radius-s, 8px);
-  background: var(--va-card, #fff);
+  background: var(--va-card, #ffffff);
   color: var(--va-ink, #1a1917);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--va-fs-md, 13px);
   padding: 5px 8px;
   margin: 2px 0;
 }
 .va-stree__input:focus-visible { outline: none; }
 
-.va-stree__empty { margin: 0; padding: 4px 8px; font-size: 12px; color: var(--va-muted, #6f6d66); line-height: 1.5; }
+.va-stree__empty { margin: 0; padding: 4px 8px; font-size: var(--va-fs-sm, 12px); color: var(--va-muted, #6f6d66); line-height: 1.5; }
 
 /* 已归档分区 */
-.va-stree__archived { margin-top: 12px; border-top: 1px dashed var(--va-edge, rgba(26, 25, 23, 0.12)); padding-top: 6px; }
+.va-stree__archived { margin-top: 12px; border-top: 1px dashed var(--va-edge, rgba(26, 25, 23, 0.12)); padding-top: var(--va-s3h, 6px); }
 .va-stree__archived-toggle {
   display: flex;
   align-items: center;
@@ -271,9 +271,9 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
   color: var(--va-muted, #6f6d66);
-  padding: 6px 8px;
+  padding: var(--va-s3h, 6px) 8px;
   cursor: pointer;
   border-radius: var(--va-radius-s, 8px);
   text-align: left;
@@ -319,8 +319,8 @@
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
+  gap: var(--va-s3h, 6px);
+  padding: 8px var(--va-s4h, 10px);
   border-top: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
   background: var(--va-card, #ffffff);
 }

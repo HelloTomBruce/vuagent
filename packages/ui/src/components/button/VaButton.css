@@ -12,8 +12,8 @@
   gap: var(--va-s3, 8px);
   border: 1px solid transparent;
   border-radius: var(--va-radius-m, 10px);
-  font-family: var(--va-font, system-ui, sans-serif);
-  font-weight: 500;
+  font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif);
+  font-weight: var(--va-fw-medium, 500);
   line-height: 1;
   cursor: pointer;
   user-select: none;
@@ -21,23 +21,23 @@
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
   transition:
-    background var(--va-dur-2, 200ms) var(--va-ease, ease),
-    border-color var(--va-dur-2, 200ms) var(--va-ease, ease),
-    color var(--va-dur-2, 200ms) var(--va-ease, ease),
-    box-shadow var(--va-dur-2, 200ms) var(--va-ease, ease),
-    transform var(--va-dur-1, 120ms) var(--va-ease, ease);
+    background var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    border-color var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    box-shadow var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 /* 尺寸 */
-.va-btn--sm { height: 30px; padding: 0 var(--va-s4, 12px); font-size: 13px; }
-.va-btn--md { height: 36px; padding: 0 var(--va-s5, 16px); font-size: 14px; }
-.va-btn--lg { height: 44px; padding: 0 var(--va-s6, 24px); font-size: 15px; }
+.va-btn--sm { height: var(--va-h-sm, 30px); padding: 0 var(--va-s4, 12px); font-size: var(--va-fs-md, 13px); }
+.va-btn--md { height: var(--va-h-md, 36px); padding: 0 var(--va-s5, 16px); font-size: var(--va-fs-lg, 14px); }
+.va-btn--lg { height: var(--va-h-lg, 44px); padding: 0 var(--va-s6, 24px); font-size: var(--va-fs-lg, 14px); }
 
 /* 变体 */
 .va-btn--primary {
   background: var(--_ink);
   color: var(--_card);
-  box-shadow: var(--va-shadow-1, none);
+  box-shadow: var(--va-shadow-1, 0 1px 2px rgba(26, 25, 23, 0.06));
 }
 .va-btn--primary:hover:not(:disabled) { opacity: 0.88; }
 
@@ -45,7 +45,7 @@
   background: var(--_card);
   border-color: var(--_edge);
   color: var(--va-ink, #1a1917);
-  box-shadow: var(--va-shadow-1, none);
+  box-shadow: var(--va-shadow-1, 0 1px 2px rgba(26, 25, 23, 0.06));
 }
 .va-btn--secondary:hover:not(:disabled) { border-color: var(--va-edge-strong, rgba(26, 25, 23, 0.22)); }
 
@@ -57,7 +57,7 @@
 
 .va-btn--destructive {
   background: var(--_danger);
-  color: #fff;
+  color: var(--va-danger-contrast, #fff);
 }
 .va-btn--destructive:hover:not(:disabled) { opacity: 0.9; }
 
@@ -89,13 +89,13 @@
   border-radius: 50%;
   border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
   border-top-color: currentColor;
-  animation: va-btn-spin 0.9s linear infinite;
+  animation: va-spin calc(var(--va-dur-loop, 1.8s) * 0.5) linear infinite;
 }
 /* 有 icon 插槽时用转圈顶替，避免并排 */
 .va-btn--loading .va-btn__icon { display: none; }
 .va-btn--loading .va-btn__label { opacity: 0.6; }
 
-@keyframes va-btn-spin { to { transform: rotate(360deg); } }
+@keyframes va-spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
   .va-btn { transition: none; }

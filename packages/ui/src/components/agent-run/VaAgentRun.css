@@ -13,12 +13,12 @@
   flex-wrap: wrap;
 }
 
-.va-run__title { font-size: 16px; font-weight: 700; color: var(--va-ink); }
+.va-run__title { font-size: var(--va-fs-xl, 16px); font-weight: var(--va-fw-bold, 700); color: var(--va-ink); }
 
 .va-run__status {
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 2px 10px;
+  font-size: var(--va-fs-xs, 11px);
+  font-weight: var(--va-fw-semibold, 600);
+  padding: 2px var(--va-s4h, 10px);
   border-radius: var(--va-radius-pill);
 }
 
@@ -30,7 +30,7 @@
 
 .va-run__time {
   font-family: var(--va-font-mono);
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
   color: var(--va-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -55,9 +55,9 @@
 
 .va-run__col-title {
   margin: 0;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: var(--va-fs-xs, 11px);
+  font-weight: var(--va-fw-bold, 700);
+  letter-spacing: var(--va-tracking-wider, 0.06em);
   text-transform: uppercase;
   color: var(--va-muted);
 }

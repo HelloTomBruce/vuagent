@@ -150,6 +150,6 @@ watch(
   margin: 0;
   padding: 4px 12px;
   font-size: 11px;
-  color: var(--va-warning, #b8860b);
+  color: var(--va-warning, #b45309);
 }
 </style>

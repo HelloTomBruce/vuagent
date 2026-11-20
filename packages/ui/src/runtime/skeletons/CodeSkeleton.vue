@@ -31,7 +31,7 @@ import { VaSkeleton } from "../../components/shimmer";
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--va-edge, rgba(26,25,23,0.1));
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
   padding-bottom: 8px;
 }
 .va-agent-skel-code-lines {

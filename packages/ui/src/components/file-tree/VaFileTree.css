@@ -11,26 +11,26 @@
   padding: var(--va-s2) var(--va-s4);
   border-bottom: 1px solid var(--va-edge);
   background: var(--va-bg-subtle);
-  font-size: 12px;
+  font-size: var(--va-fs-sm, 12px);
   color: var(--va-muted);
 }
 
 .va-ftree__body {
   overflow: auto;
   padding: var(--va-s2) 0;
-  font-size: 13px;
+  font-size: var(--va-fs-md, 13px);
 }
 
 .va-ftree__row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--va-s3h, 6px);
   padding-right: var(--va-s4);
   height: 28px;
   cursor: pointer;
   color: var(--va-ink-2);
   user-select: none;
-  transition: background var(--va-dur-1) var(--va-ease);
+  transition: background var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .va-ftree__row:hover { background: var(--va-bg-subtle); }
@@ -50,7 +50,7 @@
   justify-content: center;
   color: var(--va-muted);
   /* 收起态旋转 -90°（指向右），展开态归位（指向下）；随行 hover 提亮 */
-  transition: transform var(--va-dur-1) var(--va-ease), color var(--va-dur-1) var(--va-ease);
+  transition: transform var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)), color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 .va-ftree__caret:not([data-open]) { transform: rotate(-90deg); }
 .va-ftree__row:hover .va-ftree__caret { color: var(--va-ink-2); }
@@ -77,10 +77,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--va-font-mono);
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
 }
 
-.va-ftree__row--dir .va-ftree__name { font-weight: 600; color: var(--va-ink); }
+.va-ftree__row--dir .va-ftree__name { font-weight: var(--va-fw-semibold, 600); color: var(--va-ink); }
 
 .va-ftree__spacer { flex: 1; }
 
@@ -90,7 +90,7 @@
 }
 
 .va-ftree__count {
-  font-size: 11px;
+  font-size: var(--va-fs-xs, 11px);
   color: var(--va-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -100,8 +100,8 @@
   width: 18px;
   height: 18px;
   border-radius: var(--va-radius-s);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--va-fs-xs, 11px);
+  font-weight: var(--va-fw-bold, 700);
   line-height: 18px;
   text-align: center;
   font-family: var(--va-font-mono);
@@ -116,5 +116,5 @@
   margin: 0;
   padding: var(--va-s4);
   color: var(--va-muted);
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
 }

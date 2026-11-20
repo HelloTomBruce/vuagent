@@ -20,7 +20,7 @@
   margin: 0;
   padding: var(--va-s3) 0;
   color: var(--va-muted);
-  font-size: 13px;
+  font-size: var(--va-fs-md, 13px);
 }
 
 .va-cmt__item {
@@ -40,8 +40,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--va-fs-md, 13px);
+  font-weight: var(--va-fw-bold, 700);
 }
 
 .va-cmt__main { flex: 1; min-width: 0; }
@@ -52,12 +52,12 @@
   gap: var(--va-s3);
 }
 
-.va-cmt__author { font-size: 13px; font-weight: 600; color: var(--va-ink); }
-.va-cmt__time { font-size: 11.5px; color: var(--va-muted); font-variant-numeric: tabular-nums; }
+.va-cmt__author { font-size: var(--va-fs-md, 13px); font-weight: var(--va-fw-semibold, 600); color: var(--va-ink); }
+.va-cmt__time { font-size: var(--va-fs-xs, 11px); color: var(--va-muted); font-variant-numeric: tabular-nums; }
 
 .va-cmt__role {
-  font-size: 10.5px;
-  font-weight: 600;
+  font-size: var(--va-fs-xs, 11px);
+  font-weight: var(--va-fw-semibold, 600);
   padding: 1px 7px;
   border-radius: var(--va-radius-pill);
   background: var(--va-bg-subtle);
@@ -71,7 +71,7 @@
 
 .va-cmt__text {
   margin: 3px 0 0;
-  font-size: 13px;
+  font-size: var(--va-fs-md, 13px);
   line-height: 1.6;
   color: var(--va-ink-2);
   white-space: pre-wrap;
@@ -114,13 +114,13 @@
   background: var(--va-card);
   color: var(--va-ink);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--va-fs-md, 13px);
   line-height: 1.5;
-  padding: 7px 10px;
+  padding: 7px var(--va-s4h, 10px);
   resize: none;
   min-height: 34px;
   max-height: 120px;
-  transition: border-color var(--va-dur-1) var(--va-ease);
+  transition: border-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .va-cmt__area:focus {

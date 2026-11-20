@@ -38,6 +38,6 @@ import { VaSkeleton } from "../../components/shimmer";
   justify-content: space-around;
   height: 100px;
   padding: 10px 0;
-  border-bottom: 1px solid var(--va-edge, rgba(26,25,23,0.1));
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
 }
 </style>

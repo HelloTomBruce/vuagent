@@ -14,9 +14,9 @@
   background: var(--va-card);
   color: var(--va-ink);
   font-family: var(--va-font-mono);
-  font-size: 19px;
+  font-size: var(--va-fs-2xl, 20px);
   text-align: center;
-  transition: border-color var(--va-dur-1) var(--va-ease), box-shadow var(--va-dur-1) var(--va-ease);
+  transition: border-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)), box-shadow var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .va-otp__cell:focus {
@@ -30,8 +30,8 @@
 
 .va-otp__done {
   color: var(--va-success);
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--va-fs-xl, 16px);
+  font-weight: var(--va-fw-bold, 700);
 }
 
 @media (prefers-reduced-motion: reduce) {

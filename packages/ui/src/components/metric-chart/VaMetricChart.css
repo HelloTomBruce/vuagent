@@ -20,8 +20,8 @@
 
 .va-chart-title {
   margin: 0;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--va-fs-lg, 14px);
+  font-weight: var(--va-fw-semibold, 600);
   color: var(--va-ink, #1a1917);
 }
 
@@ -33,13 +33,13 @@
 
 .va-chart-max-val {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--va-fs-xl, 16px);
+  font-weight: var(--va-fw-bold, 700);
   color: var(--va-ink, #1a1917);
 }
 
 .va-chart-unit {
-  font-size: 12px;
+  font-size: var(--va-fs-sm, 12px);
   color: var(--va-muted, #6f6d66);
 }
 
@@ -50,7 +50,7 @@
   justify-content: space-between;
   height: 120px;
   padding: 12px 4px 0;
-  border-bottom: 1px solid var(--va-edge, rgba(26,25,23,0.1));
+  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
   gap: 8px;
 }
 
@@ -70,7 +70,7 @@
   background: var(--va-accent, #c2410c);
   border-radius: 3px 3px 0 0;
   min-height: 4px;
-  transition: height 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  transition: height var(--va-dur-3, 300ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)), opacity var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
   opacity: 0.85;
 }
 
@@ -83,10 +83,10 @@
   position: absolute;
   top: -24px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 10px;
+  font-size: var(--va-fs-2xs, 10px);
   color: var(--va-ink-2, #43413c);
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
   pointer-events: none;
   white-space: nowrap;
 }
@@ -99,13 +99,13 @@
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  padding-top: 6px;
+  padding-top: var(--va-s3h, 6px);
 }
 
 .va-bar-label {
   flex: 1;
   text-align: center;
-  font-size: 11px;
+  font-size: var(--va-fs-xs, 11px);
   color: var(--va-muted, #6f6d66);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -142,7 +142,7 @@
   fill: var(--va-card, #ffffff);
   stroke: var(--va-accent, #c2410c);
   stroke-width: 2;
-  transition: r 0.15s ease;
+  transition: r var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .va-line-dot:hover {

@@ -3,7 +3,7 @@
 .va-xfade { display: block; }
 
 .va-xfade__pane {
-  animation: va-xf-in var(--va-xf-dur, 300ms) var(--va-ease) both;
+  animation: va-xf-in var(--va-xf-dur, 300ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
 @keyframes va-xf-in {

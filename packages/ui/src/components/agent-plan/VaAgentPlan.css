@@ -6,12 +6,12 @@
   --_accent: var(--va-plan-accent, var(--va-accent, #c2410c));
   --_success: var(--va-plan-success, var(--va-success, #1a7f4b));
   --_danger: var(--va-plan-danger, var(--va-danger, #d5453c));
-  font-family: var(--va-font, system-ui, sans-serif);
+  font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif);
 }
 
 .va-plan__head { display: flex; align-items: baseline; gap: var(--va-s3, 8px); margin-bottom: var(--va-s3, 8px); }
-.va-plan__title { margin: 0; font-size: 13.5px; font-weight: 650; color: var(--_ink); }
-.va-plan__progress { font-size: 12px; color: var(--_muted); }
+.va-plan__title { margin: 0; font-size: var(--va-fs-lg, 14px); font-weight: var(--va-fw-semibold, 600); color: var(--_ink); }
+.va-plan__progress { font-size: var(--va-fs-sm, 12px); color: var(--_muted); }
 .va-plan__progress[data-error] { color: var(--_danger); }
 
 .va-plan__list {
@@ -47,9 +47,9 @@
   height: 21px;
   flex: none;
   border-radius: 50%;
-  background: var(--va-card, #fff);
+  background: var(--va-card, #ffffff);
   border: 1.5px solid var(--_edge);
-  color: var(--va-card, #fff);
+  color: var(--va-card, #ffffff);
 }
 .va-plan__item[data-status="done"] .va-plan__node { background: var(--_success); border-color: var(--_success); }
 .va-plan__item[data-status="error"] .va-plan__node { background: var(--_danger); border-color: var(--_danger); }
@@ -64,17 +64,17 @@
   border-radius: 50%;
   border: 2px solid color-mix(in srgb, var(--_accent) 25%, transparent);
   border-top-color: var(--_accent);
-  animation: va-plan-spin 0.9s linear infinite;
+  animation: va-spin calc(var(--va-dur-loop, 1.8s) * 0.5) linear infinite;
 }
-@keyframes va-plan-spin { to { transform: rotate(360deg); } }
+@keyframes va-spin { to { transform: rotate(360deg); } }
 
 .va-plan__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; padding-top: 2px; }
-.va-plan__step-title { font-size: 13px; color: var(--_ink); }
+.va-plan__step-title { font-size: var(--va-fs-md, 13px); color: var(--_ink); }
 .va-plan__step-title[data-done] { color: var(--_muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--_muted) 50%, transparent); }
-.va-plan__step-detail { font-size: 12px; color: var(--_muted); }
+.va-plan__step-detail { font-size: var(--va-fs-sm, 12px); color: var(--_muted); }
 
 .va-plan__side { display: flex; align-items: center; gap: var(--va-s2, 4px); padding-top: 2px; flex: none; }
-.va-plan__time { font-family: var(--va-font-mono, monospace); font-size: 11.5px; color: var(--_muted); font-variant-numeric: tabular-nums; }
+.va-plan__time { font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); font-size: var(--va-fs-xs, 11px); color: var(--_muted); font-variant-numeric: tabular-nums; }
 /* va-act danger 基类兜底，仅保留危险 pill 形态 */
 .va-plan__retry {
   border-radius: var(--va-radius-pill, 999px);
@@ -84,7 +84,7 @@
 
 /* 编辑模式 */
 .va-plan--edit .va-plan__item {
-  background: var(--va-card, #fff);
+  background: var(--va-card, #ffffff);
   border: 1px solid var(--_edge);
   border-radius: var(--va-radius-m, 10px);
   padding: var(--va-s2, 4px) var(--va-s3, 8px);
@@ -99,7 +99,7 @@
   justify-content: center;
   border-radius: 50%;
   background: var(--va-bg-subtle, #efede7);
-  font-size: 11px;
+  font-size: var(--va-fs-xs, 11px);
   color: var(--_muted);
 }
 .va-plan__rename {
@@ -109,7 +109,7 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--va-fs-md, 13px);
   color: var(--_ink);
   cursor: text;
   padding: 4px 2px;
@@ -127,14 +127,14 @@
   border-radius: var(--va-radius-s, 8px);
   padding: 5px 8px;
   font: inherit;
-  font-size: 13px;
-  background: var(--va-card, #fff);
+  font-size: var(--va-fs-md, 13px);
+  background: var(--va-card, #ffffff);
   color: var(--_ink);
 }
 .va-plan__input:focus { outline: none; }
 .va-plan__ops { display: inline-flex; gap: 2px; flex: none; }
 /* va-act ghost 基类兜底，仅保留 22px 图标方钮形态 */
-.va-plan__op { width: 22px; height: 22px; padding: 0; font-size: 12px; color: var(--_muted); }
+.va-plan__op { width: 22px; height: 22px; padding: 0; font-size: var(--va-fs-sm, 12px); color: var(--_muted); }
 .va-plan__op:hover:not(:disabled) { color: var(--_ink); }
 .va-plan__op--danger:hover { color: var(--_danger); }
 
@@ -142,11 +142,11 @@
 .va-plan__add-btn {
   flex: none;
   border: 1px solid var(--_edge);
-  background: var(--va-card, #fff);
+  background: var(--va-card, #ffffff);
   color: var(--_ink);
   border-radius: var(--va-radius-m, 10px);
   padding: 5px var(--va-s4, 12px);
-  font-size: 13px;
+  font-size: var(--va-fs-md, 13px);
   cursor: pointer;
   font-family: inherit;
 }
@@ -154,7 +154,7 @@
 .va-plan__add-btn:focus-visible { outline: 2px solid var(--_accent); outline-offset: 1px; }
 
 /* FLIP 与离场 */
-.va-plan-move { transition: transform var(--va-dur-3, 300ms) var(--va-ease, ease); }
+.va-plan-move { transition: transform var(--va-dur-3, 300ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)); }
 .va-plan-leave-active { position: absolute; left: 0; right: 0; transition: opacity var(--va-dur-2, 200ms) ease; }
 .va-plan-leave-to { opacity: 0; }
 .va-plan-enter-active { transition: opacity var(--va-dur-2, 200ms) ease; }

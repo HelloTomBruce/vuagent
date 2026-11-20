@@ -1,14 +1,21 @@
 <script setup lang="ts">
-import { ref } from "vue";
 import { useRoute } from "vue-router";
-import { VaButton } from "@vuagent/ui";
 import { router } from "./router";
+import { useTheme, type ThemePreference } from "./console/composables/useTheme";
 
-const theme = ref<"light" | "dark">("light");
+/** 三态主题选项（亮色 / 暗色 / 跟随系统），顺序即 UI 呈现顺序 */
+const THEME_OPTIONS: Array<{ value: ThemePreference; label: string; icon: string }> = [
+  { value: "light", label: "亮色", icon: "☀" },
+  { value: "dark", label: "暗色", icon: "🌙" },
+  { value: "system", label: "系统", icon: "🖥" },
+];
 
-function toggleTheme() {
-  theme.value = theme.value === "light" ? "dark" : "light";
-  document.documentElement.dataset.theme = theme.value;
+const { preference, resolved, setPreference } = useTheme();
+
+/** 系统态的 title 提示当前解析结果 */
+function themeTitle(value: ThemePreference): string {
+  if (value !== "system") return value === "light" ? "亮色主题" : "暗色主题";
+  return `跟随系统（当前 ${resolved.value === "dark" ? "暗色" : "亮色"}）`;
 }
 
 const route = useRoute();
@@ -42,9 +49,20 @@ router.afterEach((to) => {
           {{ r.meta.title }}
         </RouterLink>
       </nav>
-      <VaButton variant="secondary" size="sm" @click="toggleTheme">
-        {{ theme === "light" ? "🌙 暗色" : "☀️ 亮色" }}
-      </VaButton>
+      <div class="pg__theme" role="group" aria-label="主题切换">
+        <button
+          v-for="opt in THEME_OPTIONS"
+          :key="opt.value"
+          type="button"
+          class="pg__theme-opt"
+          :class="{ 'pg__theme-opt--on': preference === opt.value }"
+          :aria-pressed="preference === opt.value"
+          :title="themeTitle(opt.value)"
+          @click="setPreference(opt.value)"
+        >
+          <span class="pg__theme-icon" aria-hidden="true">{{ opt.icon }}</span>{{ opt.label }}
+        </button>
+      </div>
     </header>
 
     <main :key="String(route.path)" class="pg__main" :class="{ 'pg__main--fullscreen': route.name === 'console' }">
@@ -105,6 +123,55 @@ router.afterEach((to) => {
 }
 
 .pg__brand small { font-weight: 500; color: var(--va-muted, #6f6d66); font-size: 11.5px; }
+
+/* 主题三态切换（亮/暗/跟随系统）：总高 30px 与 VaButton sm 等高，头栏高度不变 */
+.pg__theme {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-s, 8px);
+  background: var(--va-bg-subtle, #efede7);
+}
+
+.pg__theme-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 9px;
+  border: none;
+  border-radius: calc(var(--va-radius-s, 8px) - 2px);
+  background: transparent;
+  color: var(--va-ink-2, #43413c);
+  font-family: inherit;
+  font-size: var(--va-fs-xs, 11px);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.pg__theme-opt:hover { color: var(--va-ink, #1a1917); }
+
+.pg__theme-opt:focus-visible {
+  outline: 2px solid var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  outline-offset: 1px;
+}
+
+.pg__theme-opt--on {
+  background: var(--va-card, #ffffff);
+  color: var(--va-ink, #1a1917);
+  font-weight: var(--va-fw-semibold, 600);
+  box-shadow: var(--va-shadow-1, 0 1px 2px rgba(26, 25, 23, 0.06));
+}
+
+.pg__theme-icon { font-size: var(--va-fs-xs, 11px); line-height: 1; }
 
 .pg__mark {
   width: 18px;

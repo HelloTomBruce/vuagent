@@ -61,7 +61,7 @@
 
 .va-pt[data-orientation="horizontal"] .va-pt__node {
   flex-direction: column;
-  gap: 6px;
+  gap: var(--va-s3h, 6px);
   align-items: center;
   text-align: center;
 }
@@ -76,20 +76,20 @@
   border: 2px solid var(--va-edge-strong);
   background: var(--va-card);
   color: transparent;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--va-fs-sm, 12px);
+  font-weight: var(--va-fw-bold, 700);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  transition: all var(--va-dur-2) var(--va-ease);
+  transition: all var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
   box-sizing: border-box;
 }
 
 .va-pt__step[data-status="done"] .va-pt__dot {
   border-color: var(--va-success);
   background: var(--va-success);
-  color: #fff;
+  color: var(--va-success-contrast, #fff);
 }
 
 .va-pt__step[data-status="current"] .va-pt__dot {
@@ -103,11 +103,11 @@
 }
 
 .va-pt__label {
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
   color: var(--va-muted);
 }
 
-.va-pt__step[data-status="current"] .va-pt__label { color: var(--va-ink); font-weight: 600; }
+.va-pt__step[data-status="current"] .va-pt__label { color: var(--va-ink); font-weight: var(--va-fw-semibold, 600); }
 .va-pt__step[data-status="done"] .va-pt__label { color: var(--va-ink-2); }
 .va-pt__step[data-status="error"] .va-pt__label { color: var(--va-danger); }
 

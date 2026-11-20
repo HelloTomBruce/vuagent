@@ -12,7 +12,7 @@
   border: 1px solid var(--_edge);
   border-radius: var(--va-radius-m, 10px);
   overflow: hidden;
-  font-family: var(--va-font, system-ui, sans-serif);
+  font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif);
   transition: border-color var(--va-dur-2, 200ms) ease;
 }
 .va-acd--high { --_risk: var(--_danger); }
@@ -22,7 +22,7 @@
 .va-acd__timer {
   margin-left: auto;
   flex: none;
-  font-size: 11.5px;
+  font-size: var(--va-fs-xs, 11px);
   font-variant-numeric: tabular-nums;
   color: var(--_risk);
   opacity: 0.9;
@@ -42,7 +42,7 @@
   margin-left: auto; /* 剩余时间从右向左消退，更符合直觉 */
   background: var(--_risk);
   border-radius: var(--va-radius-pill, 999px) 0 0 var(--va-radius-pill, 999px);
-  transition: width 0.1s linear;
+  transition: width var(--va-dur-1, 120ms) linear;
 }
 
 .va-acd__main { padding: var(--va-s3, 8px) var(--va-s4, 12px) var(--va-s4, 12px); }
@@ -72,8 +72,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--va-fs-xs, 11px);
+  font-weight: var(--va-fw-semibold, 600);
   padding: 2px 8px;
   border-radius: var(--va-radius-pill, 999px);
 }
@@ -105,24 +105,24 @@
 .va-acd__collapse-btn svg { width: 14px; height: 14px; }
 .va-acd__risk {
   flex: none;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--va-fs-xs, 11px);
+  font-weight: var(--va-fw-bold, 700);
   letter-spacing: 0.02em;
   color: var(--_risk);
   background: color-mix(in srgb, var(--_risk) 12%, transparent);
   border-radius: var(--va-radius-pill, 999px);
   padding: 2px 8px;
 }
-.va-acd__title { margin: 0; font-size: 13.5px; font-weight: 650; color: var(--_ink); }
-.va-acd__detail { margin: var(--va-s2, 4px) 0 0; font-size: 12.5px; color: var(--_muted); }
+.va-acd__title { margin: 0; font-size: var(--va-fs-lg, 14px); font-weight: var(--va-fw-semibold, 600); color: var(--_ink); }
+.va-acd__detail { margin: var(--va-s2, 4px) 0 0; font-size: var(--va-fs-md, 13px); color: var(--_muted); }
 
 .va-acd__preview {
   margin: var(--va-s3, 8px) 0 0;
   padding: var(--va-s3, 8px) var(--va-s4, 12px);
   background: var(--va-bg-subtle, #efede7);
   border-radius: var(--va-radius-s, 8px);
-  font-family: var(--va-font-mono, monospace);
-  font-size: 12px;
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: var(--va-fs-sm, 12px);
   color: var(--va-ink-2, #43413c);
   overflow: auto;
   white-space: pre-wrap;
@@ -134,10 +134,10 @@
 .va-acd__btn { height: 30px; padding: 0 var(--va-s5, 16px); border-radius: var(--va-radius-m, 10px); }
 .va-acd__btn:active { transform: scale(0.97); }
 
-.va-acd__kbd-hint { margin-left: auto; font-size: 11px; color: var(--_muted); }
+.va-acd__kbd-hint { margin-left: auto; font-size: var(--va-fs-xs, 11px); color: var(--_muted); }
 .va-acd__kbd-hint kbd {
-  font-family: var(--va-font-mono, monospace);
-  font-size: 10.5px;
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: var(--va-fs-xs, 11px);
   border: 1px solid var(--_edge);
   border-bottom-width: 2px;
   border-radius: 4px;
@@ -151,8 +151,8 @@
   align-items: center;
   gap: var(--va-s2, 4px);
   padding: var(--va-s3, 8px) var(--va-s4, 12px);
-  font-size: 12.5px;
-  animation: va-acd-in var(--va-dur-2, 200ms) var(--va-ease, ease);
+  font-size: var(--va-fs-md, 13px);
+  animation: va-acd-in var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 .va-acd--approved .va-acd__done { color: var(--va-success, #1a7f4b); }
 .va-acd--denied .va-acd__done { color: var(--_danger); }

@@ -10,21 +10,21 @@
   border-radius: var(--va-radius-s);
   background: var(--va-card);
   color: var(--va-ink-2);
-  font-size: 13px;
-  padding: 6px 12px;
+  font-size: var(--va-fs-md, 13px);
+  padding: var(--va-s3h, 6px) 12px;
   cursor: pointer;
-  transition: border-color var(--va-dur-1) var(--va-ease);
+  transition: border-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .va-cmd__trigger:hover { border-color: var(--va-edge-strong); }
 .va-cmd__trigger:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 1px; }
 .va-cmd__trigger[aria-expanded="true"] { border-color: var(--va-accent); color: var(--va-accent); }
 
-.va-cmd__icon { color: var(--va-muted); font-size: 14px; }
+.va-cmd__icon { color: var(--va-muted); font-size: var(--va-fs-lg, 14px); }
 
 .va-cmd__kbd {
   font-family: var(--va-font-mono);
-  font-size: 10.5px;
+  font-size: var(--va-fs-xs, 11px);
   color: var(--va-muted);
   border: 1px solid var(--va-edge);
   border-radius: 5px;
@@ -55,7 +55,7 @@
   box-shadow: var(--va-shadow-3);
   overflow: hidden;
   z-index: 61;
-  animation: va-cmd-in var(--va-dur-2) var(--va-ease);
+  animation: va-cmd-in var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 @keyframes va-cmd-in {
@@ -70,7 +70,7 @@
   border-bottom: 1px solid var(--va-edge);
 }
 
-.va-cmd__mag { color: var(--va-muted); font-size: 15px; }
+.va-cmd__mag { color: var(--va-muted); font-size: var(--va-fs-lg, 14px); }
 
 .va-cmd__input {
   flex: 1;
@@ -78,10 +78,19 @@
   background: transparent;
   color: var(--va-ink);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--va-fs-lg, 14px);
 }
 
 .va-cmd__input:focus { outline: none; }
+
+/* 焦点补偿：input 裸 outline 由容器统一呈现 focus ring（键盘可达性） */
+.va-cmd__panel:focus-within {
+  border-color: var(--va-accent);
+  box-shadow: 0 0 0 3px var(--va-accent-soft);
+}
+.va-cmd__panel:focus-within .va-cmd__search {
+  border-bottom-color: color-mix(in srgb, var(--va-accent) 35%, transparent);
+}
 
 .va-cmd__kbd--fixed { flex: none; }
 
@@ -93,9 +102,9 @@
 
 .va-cmd__group {
   padding: var(--va-s3) var(--va-s3) var(--va-s2);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: var(--va-fs-xs, 11px);
+  font-weight: var(--va-fw-semibold, 600);
+  letter-spacing: var(--va-tracking-wide, 0.04em);
   color: var(--va-muted);
 }
 
@@ -109,7 +118,7 @@
   border-radius: var(--va-radius-s);
   background: transparent;
   color: var(--va-ink-2);
-  font-size: 13.5px;
+  font-size: var(--va-fs-lg, 14px);
   padding: 8px var(--va-s3);
   cursor: pointer;
   text-align: left;
@@ -127,7 +136,7 @@
   margin: 0;
   padding: var(--va-s6) var(--va-s4);
   text-align: center;
-  font-size: 13px;
+  font-size: var(--va-fs-md, 13px);
   color: var(--va-muted);
 }
 

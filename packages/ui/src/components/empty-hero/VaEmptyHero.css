@@ -4,7 +4,7 @@
   margin: auto;
   padding: 24px;
   text-align: center;
-  font-family: var(--va-font, system-ui, sans-serif);
+  font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif);
 }
 
 .va-hero__mark {
@@ -18,14 +18,14 @@
 
 .va-hero__title {
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
+  font-size: var(--va-fs-2xl, 20px);
+  font-weight: var(--va-fw-bold, 700);
   color: var(--va-ink, #1a1917);
 }
 
 .va-hero__desc {
-  margin: 6px 0 0;
-  font-size: 13px;
+  margin: var(--va-s3h, 6px) 0 0;
+  font-size: var(--va-fs-md, 13px);
   line-height: 1.6;
   color: var(--va-muted, #6f6d66);
 }
@@ -33,7 +33,7 @@
 .va-hero__cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+  gap: var(--va-s4h, 10px);
   margin-top: 22px;
 }
 
@@ -42,10 +42,10 @@
   flex-direction: column;
   align-items: center;
   gap: 5px;
-  background: var(--va-card, #fff);
+  background: var(--va-card, #ffffff);
   border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
   border-radius: var(--va-radius-m, 10px);
-  padding: 16px 10px;
+  padding: 16px var(--va-s4h, 10px);
   font: inherit;
   cursor: pointer;
   box-shadow: var(--va-shadow-1, 0 1px 2px rgba(26, 25, 23, 0.06));
@@ -57,8 +57,8 @@
 .va-hero__card > svg { color: var(--va-accent, #c2410c); }
 
 .va-hero__card-name {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--va-fs-md, 13px);
+  font-weight: var(--va-fw-bold, 700);
   color: var(--va-ink, #1a1917);
   max-width: 100%;
   overflow: hidden;
@@ -67,9 +67,9 @@
 }
 
 .va-hero__card-path {
-  font-size: 11px;
+  font-size: var(--va-fs-xs, 11px);
   color: var(--va-muted, #6f6d66);
-  font-family: var(--va-font-mono, ui-monospace, monospace);
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -16,8 +16,8 @@
 
 .va-is__titlewrap { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 
-.va-is__name { margin: 0; font-size: 14.5px; font-weight: 700; color: var(--va-ink); }
-.va-is__desc { margin: 0; font-size: 12.5px; color: var(--va-muted); line-height: 1.5; }
+.va-is__name { margin: 0; font-size: var(--va-fs-lg, 14px); font-weight: var(--va-fw-bold, 700); color: var(--va-ink); }
+.va-is__desc { margin: 0; font-size: var(--va-fs-md, 13px); color: var(--va-muted); line-height: 1.5; }
 
 /* 开关 */
 .va-is__switch {
@@ -29,7 +29,7 @@
   background: var(--va-edge-strong);
   position: relative;
   cursor: pointer;
-  transition: background var(--va-dur-2) var(--va-ease);
+  transition: background var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
   padding: 0;
 }
 
@@ -46,7 +46,7 @@
   border-radius: 50%;
   background: #fff;
   box-shadow: var(--va-shadow-1);
-  transition: transform var(--va-dur-2) var(--va-ease);
+  transition: transform var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .va-is__switch[aria-checked="true"] .va-is__knob { transform: translateX(18px); }
@@ -62,7 +62,7 @@
 
 .va-is__field { display: flex; flex-direction: column; gap: var(--va-s2); }
 
-.va-is__label { font-size: 12px; font-weight: 600; color: var(--va-muted); }
+.va-is__label { font-size: var(--va-fs-sm, 12px); font-weight: var(--va-fw-semibold, 600); color: var(--va-muted); }
 
 .va-is__req { color: var(--va-danger); font-style: normal; }
 
@@ -72,8 +72,8 @@
   background: var(--va-bg);
   color: var(--va-ink);
   font: inherit;
-  font-size: 13px;
-  padding: 8px 10px;
+  font-size: var(--va-fs-md, 13px);
+  padding: 8px var(--va-s4h, 10px);
 }
 
 .va-is__input:focus {
@@ -84,7 +84,7 @@
 
 .va-is__input[aria-invalid="true"] { border-color: var(--va-danger); }
 
-.va-is__err { font-size: 11.5px; color: var(--va-danger); }
+.va-is__err { font-size: var(--va-fs-xs, 11px); color: var(--va-danger); }
 
 .va-is__foot {
   display: flex;
@@ -97,7 +97,7 @@
 
 .va-is__spacer { flex: 1; }
 
-.va-is__saved { font-size: 12px; color: var(--va-success); }
+.va-is__saved { font-size: var(--va-fs-sm, 12px); color: var(--va-success); }
 
 
 

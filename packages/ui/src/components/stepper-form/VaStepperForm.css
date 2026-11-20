@@ -8,7 +8,7 @@
 
 .va-sf__desc {
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
   color: var(--va-muted);
 }
 
@@ -25,7 +25,7 @@
 .va-sf__spacer { flex: 1; }
 
 .va-sf__pos {
-  font-size: 12px;
+  font-size: var(--va-fs-sm, 12px);
   color: var(--va-muted);
   font-variant-numeric: tabular-nums;
   margin-right: var(--va-s2);

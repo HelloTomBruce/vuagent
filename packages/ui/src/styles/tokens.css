@@ -2,10 +2,20 @@
    Vuagent design tokens — Calm palette
    亮色为 :root 默认；暗色用 [data-theme="dark"] 或 .dark 双选择器。
    宿主应用负责切换属性；"跟随系统"由宿主监听 prefers-color-scheme 实现。
+
+   三层主题模型：
+   L1 基础令牌（本文件）——换肤只改这里；
+   L2 语义令牌（本文件 · 排版/尺寸/层级/动效段）——从 L1 派生的规范档位，
+      组件不得绕过它裸写字号/字重/控件高度；
+   L3 组件钩子——--va-<组件>-*（各组件 CSS 内定义，见组件文件头注释）。
+
+   动效分频策略（prefers-reduced-motion: reduce）：
+   装饰动画（shimmer/breathe/float/drift 等循环）→ 全部关闭；
+   功能动画（浮层进出/按压反馈/数字滚动）→ 降级为纯 opacity 过渡，保留状态可感知性。
    ============================================================ */
 
 :root {
-  /* 色彩 · 亮色（暖纸底 + 墨色） */
+  /* ---- 色彩 · 亮色（暖纸底 + 墨色） ---- */
   --va-bg: #f7f6f2;
   --va-bg-subtle: #efede7;
   --va-card: #ffffff;
@@ -22,33 +32,104 @@
   --va-danger: #d5453c;
   --va-info: #2563eb;
 
-  /* 圆角 */
+  /* 语义对照色：实底色上的文字/图标。亮色 accent 上用白；
+     用法：background: var(--va-accent); color: var(--va-accent-contrast); */
+  --va-accent-contrast: #ffffff;
+  --va-success-contrast: #ffffff;
+  --va-warning-contrast: #ffffff;
+  --va-danger-contrast: #ffffff;
+  --va-info-contrast: #ffffff;
+
+  /* 遮罩层：dialog/popover 等浮层的页面压暗（对齐 VaDialog 历史值） */
+  --va-scrim: rgba(26, 25, 23, 0.45);
+
+  /* 骨架屏（亮色：灰底白高光；暗色块内另有白叠加版本） */
+  --va-skel-bg: rgba(128, 128, 128, 0.28);
+  --va-skel-hl: rgba(255, 255, 255, 0.55);
+
+  /* ---- 圆角 ---- */
   --va-radius-s: 8px;
   --va-radius-m: 10px;
   --va-radius-l: 16px;
   --va-radius-pill: 999px;
 
-  /* 间距（4px 栅格） */
+  /* ---- 间距（4px 栅格 + 6/10 半步；h = half-step） ---- */
   --va-s1: 2px;
   --va-s2: 4px;
   --va-s3: 8px;
+  --va-s3h: 6px;
   --va-s4: 12px;
+  --va-s4h: 10px;
   --va-s5: 16px;
   --va-s6: 24px;
   --va-s7: 32px;
 
-  /* 阴影 */
+  /* ---- 字号 scale（组件排版统一档位） ---- */
+  --va-fs-2xs: 10px;
+  --va-fs-xs: 11px;
+  --va-fs-sm: 12px;
+  --va-fs-md: 13px;
+  --va-fs-lg: 14px;
+  --va-fs-xl: 16px;
+  --va-fs-2xl: 20px;
+
+  /* 行高配套 */
+  --va-lh-tight: 1.3;
+  --va-lh-normal: 1.5;
+
+  /* ---- 字重 ---- */
+  --va-fw-medium: 500;
+  --va-fw-semibold: 600;
+  --va-fw-bold: 700;
+
+  /* ---- 字距（标签/大写场景） ---- */
+  --va-tracking-wide: 0.04em;
+  --va-tracking-wider: 0.06em;
+
+  /* ---- 控件高度三档（按钮/输入/下拉等统一） ---- */
+  --va-h-sm: 30px;
+  --va-h-md: 36px;
+  --va-h-lg: 44px;
+
+  /* 图标尺寸三档 */
+  --va-icon-sm: 14px;
+  --va-icon-md: 16px;
+  --va-icon-lg: 18px;
+
+  /* ---- z-index 阶梯（组件浮层互斥顺序，勿裸写新值） ---- */
+  --va-z-base: 0;
+  --va-z-raised: 10;
+  --va-z-sticky: 50;
+  --va-z-dropdown: 70;
+  --va-z-overlay: 80;
+  --va-z-popover-inner: 90;
+  --va-z-toast: 1000;
+
+  /* ---- 阴影 ---- */
   --va-shadow-1: 0 1px 2px rgba(26, 25, 23, 0.06);
   --va-shadow-2: 0 4px 12px rgba(26, 25, 23, 0.08);
   --va-shadow-3: 0 12px 32px rgba(26, 25, 23, 0.12);
 
-  /* 动效 */
+  /* ---- 动效 ----
+     基础三档用于 hover/按压等微交互；
+     进出编排骨架（浮层统一协议）：入场 --va-dur-in + ease-out-quart，
+     离场 --va-dur-out + ease-in-quad（离场更快更短，感知更干脆）；
+     --va-ease-spring 用于成功/强调反馈的弹性过冲；
+     --va-dur-loop 为循环动画底速（shimmer/spinner/pulse），组件内 calc 倍率微调。 */
   --va-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --va-ease-out-quart: cubic-bezier(0.22, 1, 0.36, 1);
+  --va-ease-in-quad: cubic-bezier(0.55, 0, 0.55, 0.2);
+  --va-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --va-dur-1: 120ms;
   --va-dur-2: 200ms;
   --va-dur-3: 300ms;
+  --va-dur-in: 180ms;
+  --va-dur-out: 140ms;
+  --va-dist-s: 4px;
+  --va-dist-m: 8px;
+  --va-dur-loop: 1.8s;
 
-  /* 字体 */
+  /* ---- 字体 ---- */
   --va-font:
     -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
     "Microsoft YaHei", "Helvetica Neue", sans-serif;
@@ -74,6 +155,15 @@
   --va-warning: #e5a53a;
   --va-danger: #f07168;
   --va-info: #7ab0f5;
+
+  /* 暗色 accent 变浅橙：实底上改用深墨字（对 #e8925e 对比度 ≈7.3:1） */
+  --va-accent-contrast: #1a1917;
+  --va-success-contrast: #0d221a;
+  --va-warning-contrast: #241a04;
+  --va-danger-contrast: #2a1210;
+  --va-info-contrast: #10233f;
+
+  --va-scrim: rgba(0, 0, 0, 0.6);
 
   --va-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
   --va-shadow-2: 0 4px 12px rgba(0, 0, 0, 0.35);

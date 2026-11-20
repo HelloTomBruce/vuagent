@@ -13,9 +13,9 @@
   background: var(--va-card);
   color: var(--va-ink);
   font: inherit;
-  font-size: 13.5px;
-  padding: 7px 28px 7px 10px;
-  transition: border-color var(--va-dur-1) var(--va-ease);
+  font-size: var(--va-fs-lg, 14px);
+  padding: 7px 28px 7px var(--va-s4h, 10px);
+  transition: border-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .va-cbx__input:focus {
@@ -30,7 +30,7 @@
   top: 50%;
   transform: translateY(-50%);
   color: var(--va-muted);
-  font-size: 10px;
+  font-size: var(--va-fs-2xs, 10px);
   cursor: pointer;
   user-select: none;
 }
@@ -63,26 +63,26 @@
   gap: var(--va-s3);
   padding: 7px var(--va-s3);
   border-radius: var(--va-radius-s);
-  font-size: 13.5px;
+  font-size: var(--va-fs-lg, 14px);
   color: var(--va-ink-2);
   cursor: pointer;
 }
 
 .va-cbx__opt[data-active="true"] { background: var(--va-accent-soft); color: var(--va-ink); }
-.va-cbx__opt[aria-selected="true"] { font-weight: 600; }
+.va-cbx__opt[aria-selected="true"] { font-weight: var(--va-fw-semibold, 600); }
 .va-cbx__opt[data-disabled="true"] { opacity: 0.4; cursor: default; }
 
 .va-cbx__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .va-cbx__hint {
   flex: none;
-  font-size: 11px;
+  font-size: var(--va-fs-xs, 11px);
   color: var(--va-muted);
   font-family: var(--va-font-mono);
 }
 
 .va-cbx__empty {
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
   color: var(--va-muted);
   text-align: center;
   padding: var(--va-s4);

@@ -20,12 +20,12 @@
   font: inherit;
   cursor: pointer;
   text-align: left;
-  transition: border-color var(--va-dur-1) var(--va-ease), box-shadow var(--va-dur-1) var(--va-ease);
+  transition: border-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)), box-shadow var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
-.va-sel--sm .va-sel__trigger { padding: 4px 24px 4px 8px; font-size: 12.5px; }
-.va-sel--md .va-sel__trigger { padding: 7px 28px 7px 10px; font-size: 13.5px; }
-.va-sel--lg .va-sel__trigger { padding: 9px 32px 9px 12px; font-size: 14.5px; }
+.va-sel--sm .va-sel__trigger { padding: 4px 24px 4px 8px; font-size: var(--va-fs-md, 13px); }
+.va-sel--md .va-sel__trigger { padding: 7px 28px 7px var(--va-s4h, 10px); font-size: var(--va-fs-lg, 14px); }
+.va-sel--lg .va-sel__trigger { padding: 9px 32px 9px 12px; font-size: var(--va-fs-lg, 14px); }
 
 .va-sel__trigger:hover:not(:disabled) { border-color: var(--va-edge-strong); }
 
@@ -69,7 +69,7 @@
 
 .va-sel__chev {
   color: var(--va-muted);
-  font-size: 10px;
+  font-size: var(--va-fs-2xs, 10px);
   user-select: none;
 }
 
@@ -79,10 +79,10 @@
   border: 2px solid var(--va-accent-soft);
   border-top-color: var(--va-accent);
   border-radius: 50%;
-  animation: va-sel-spin 0.7s linear infinite;
+  animation: va-spin calc(var(--va-dur-loop, 1.8s) * 0.5) linear infinite;
 }
 
-@keyframes va-sel-spin {
+@keyframes va-spin {
   to { transform: rotate(360deg); }
 }
 
@@ -102,7 +102,7 @@
   border-radius: 50%;
   background: transparent;
   color: var(--va-muted);
-  font-size: 12px;
+  font-size: var(--va-fs-sm, 12px);
   line-height: 1;
   cursor: pointer;
 }
@@ -136,7 +136,7 @@
   background: var(--va-card);
   color: var(--va-ink);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--va-fs-md, 13px);
   padding: 5px 8px;
 }
 
@@ -150,15 +150,24 @@
   max-height: 240px;
   overflow-y: auto;
   padding: var(--va-s2);
+  /* 入场编排：下拉自上方 -dist-m 滑入（向下开），离场无动画（即时关合干脆） */
+  animation: va-sel-in var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+@keyframes va-sel-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--va-dist-m, 8px) * -1));
+  }
 }
 
 .va-sel__group-title {
   padding: 5px var(--va-s3) 3px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--va-fs-xs, 11px);
+  font-weight: var(--va-fw-semibold, 600);
   color: var(--va-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--va-tracking-wide, 0.04em);
 }
 
 .va-sel__opt {
@@ -167,14 +176,14 @@
   gap: var(--va-s2);
   padding: 7px var(--va-s3);
   border-radius: var(--va-radius-s);
-  font-size: 13.5px;
+  font-size: var(--va-fs-lg, 14px);
   color: var(--va-ink-2);
   cursor: pointer;
   user-select: none;
 }
 
-.va-sel--sm .va-sel__opt { padding: 5px var(--va-s2); font-size: 12.5px; }
-.va-sel--lg .va-sel__opt { padding: 9px var(--va-s3); font-size: 14.5px; }
+.va-sel--sm .va-sel__opt { padding: 5px var(--va-s2); font-size: var(--va-fs-md, 13px); }
+.va-sel--lg .va-sel__opt { padding: 9px var(--va-s3); font-size: var(--va-fs-lg, 14px); }
 
 .va-sel__opt[data-active] { background: var(--va-accent-soft); color: var(--va-ink); }
 .va-sel__opt[aria-disabled="true"] { opacity: 0.4; cursor: default; }
@@ -193,10 +202,10 @@
   white-space: nowrap;
 }
 
-.va-sel__opt[aria-selected="true"] .va-sel__opt-label { font-weight: 600; }
+.va-sel__opt[aria-selected="true"] .va-sel__opt-label { font-weight: var(--va-fw-semibold, 600); }
 
 .va-sel__opt-desc {
-  font-size: 11.5px;
+  font-size: var(--va-fs-xs, 11px);
   color: var(--va-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -206,7 +215,7 @@
 .va-sel__opt-tick {
   flex: none;
   color: var(--va-accent);
-  font-size: 12px;
+  font-size: var(--va-fs-sm, 12px);
 }
 
 /* 多选勾选框 */
@@ -218,7 +227,7 @@
   border-radius: 3px;
   background: var(--va-card);
   position: relative;
-  transition: background var(--va-dur-1) var(--va-ease), border-color var(--va-dur-1) var(--va-ease);
+  transition: background var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)), border-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .va-sel__check[data-checked] {
@@ -240,7 +249,7 @@
 
 .va-sel__empty {
   padding: var(--va-s4);
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
   color: var(--va-muted);
   text-align: center;
 }
@@ -249,4 +258,5 @@
   .va-sel__trigger,
   .va-sel__check { transition: none; }
   .va-sel__spinner { animation: none; }
+  .va-sel__list { animation: none; }
 }

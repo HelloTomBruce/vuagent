@@ -8,8 +8,8 @@
 
 .va-price__title {
   margin: 0;
-  font-size: 17px;
-  font-weight: 700;
+  font-size: var(--va-fs-xl, 16px);
+  font-weight: var(--va-fw-bold, 700);
   color: var(--va-ink);
   text-align: center;
 }
@@ -42,11 +42,11 @@
 
 .va-price__head { display: flex; align-items: center; gap: var(--va-s2); }
 
-.va-price__name { font-size: 14px; font-weight: 700; color: var(--va-ink); }
+.va-price__name { font-size: var(--va-fs-lg, 14px); font-weight: var(--va-fw-bold, 700); color: var(--va-ink); }
 
 .va-price__flag {
-  font-size: 10.5px;
-  font-weight: 700;
+  font-size: var(--va-fs-xs, 11px);
+  font-weight: var(--va-fw-bold, 700);
   padding: 1px 8px;
   border-radius: var(--va-radius-pill);
   background: var(--va-accent-soft);
@@ -58,12 +58,12 @@
   color: var(--va-success);
 }
 
-.va-price__desc { margin: 0; font-size: 12px; color: var(--va-muted); line-height: 1.5; }
+.va-price__desc { margin: 0; font-size: var(--va-fs-sm, 12px); color: var(--va-muted); line-height: 1.5; }
 
 .va-price__price { margin: 0; display: flex; align-items: baseline; gap: var(--va-s2); }
 
-.va-price__price strong { font-size: 24px; font-weight: 800; color: var(--va-ink); }
-.va-price__period { font-size: 12px; color: var(--va-muted); }
+.va-price__price strong { font-size: 24px; /* display 豁免：价格数字 */ font-weight: var(--va-fw-bold, 700); color: var(--va-ink); }
+.va-price__period { font-size: var(--va-fs-sm, 12px); color: var(--va-muted); }
 
 .va-price__features {
   list-style: none;
@@ -76,7 +76,7 @@
 }
 
 .va-price__features li {
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
   color: var(--va-ink-2);
   display: flex;
   gap: var(--va-s2);
@@ -85,5 +85,5 @@
 .va-price__features li::before {
   content: "✓";
   color: var(--va-success);
-  font-weight: 700;
+  font-weight: var(--va-fw-bold, 700);
 }

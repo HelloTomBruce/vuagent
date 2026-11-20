@@ -45,8 +45,10 @@ function onOpen(id: string) {
     </header>
 
     <p v-if="!props.notifications.length" class="va-ns__empty">{{ props.emptyLabel ?? "没有新通知" }}</p>
-    <ul
+    <TransitionGroup
       v-else
+      tag="ul"
+      name="va-ns"
       class="va-ns__list"
       :style="props.maxHeight ? { maxHeight: `${props.maxHeight}px` } : undefined"
     >
@@ -69,7 +71,7 @@ function onOpen(id: string) {
         </button>
         <span v-if="n.unread" class="va-ns__dot" aria-label="未读" />
       </li>
-    </ul>
+    </TransitionGroup>
   </section>
 </template>
 

@@ -13,7 +13,7 @@
   border-radius: 50%;
   background: var(--va-accent-soft);
   color: var(--va-accent);
-  font-size: 18px;
+  font-size: var(--va-fs-xl, 16px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -34,8 +34,8 @@
   border: 2px solid var(--va-card);
   background: var(--va-bg-subtle);
   color: var(--va-ink-2);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--va-fs-lg, 14px);
+  font-weight: var(--va-fw-bold, 700);
   display: inline-flex;
   align-items: center;
   justify-content: center;

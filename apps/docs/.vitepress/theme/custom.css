@@ -1,0 +1,20 @@
+/*
+ * Docs 站品牌对齐（TASK-006）
+ *
+ * --vp-c-brand 系 → --va-accent：brand 变量全部指向 var(--va-accent)，
+ * 而非复制字面色值——令牌单一事实来源在 tokens.css，库内改 accent 文档站自动跟随。
+ * 暗色无需在此重复声明：VitePress 给 <html> 挂 .dark 类，tokens.css 的
+ * [data-theme="dark"], .dark 双选择器块会同步翻转 --va-accent 系取值。
+ */
+
+/* 引入库内 L1/L2 令牌（亮色 :root + 暗色 .dark 两组） */
+@import "@vuagent/ui/tokens.css";
+
+:root {
+  --vp-c-brand: var(--va-accent);
+  --vp-c-brand-1: var(--va-accent);
+  /* hover 态取 accent-hover（亮色加深 / 暗色提亮，与组件库按钮一致） */
+  --vp-c-brand-2: var(--va-accent-hover);
+  --vp-c-brand-3: var(--va-accent);
+  --vp-c-brand-soft: var(--va-accent-soft);
+}

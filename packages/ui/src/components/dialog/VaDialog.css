@@ -4,24 +4,19 @@
 .va-dlg__overlay {
   position: fixed;
   inset: 0;
-  z-index: 80; /* 高于 VaPopover（70）：遮罩压住弹窗打开之前就存在的浮层。
+  z-index: var(--va-z-overlay, 80); /* 高于 VaPopover（--va-z-dropdown）：遮罩压住弹窗打开之前就存在的浮层。
      弹窗打开后才打开的浮层（弹窗内 select/dropdown）由 VaPopover.css 的
-     `body > .va-dlg__overlay ~ .va-pop` 规则提升到 90 —— 两处规则成对存在，改类名需同步 */
+     `body > .va-dlg__overlay ~ .va-pop` 规则提升到 --va-z-popover-inner —— 两处规则成对存在，改类名需同步 */
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(26, 25, 23, 0.45);
+  background: var(--va-scrim, rgba(26, 25, 23, 0.45));
   opacity: 1;
   visibility: visible;
   transition:
-    opacity var(--va-dur-2) var(--va-ease),
+    opacity var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
     visibility 0s;
-}
-
-[data-theme="dark"] .va-dlg__overlay,
-.dark .va-dlg__overlay {
-  background: rgba(0, 0, 0, 0.6);
 }
 
 /* 面板：尺寸变体只改 max-width / 高度；过渡结束由 data-state 驱动 */
@@ -39,14 +34,14 @@
   color: var(--va-ink);
   box-shadow: var(--va-shadow-3);
   font-family: var(--va-font);
-  font-size: 13px;
+  font-size: var(--va-fs-md, 13px);
   line-height: 1.5;
   outline: none;
   opacity: 1;
   transform: none;
   transition:
-    opacity var(--va-dur-2) var(--va-ease),
-    transform var(--va-dur-2) var(--va-ease);
+    opacity var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .va-dlg--sm { max-width: 380px; }
@@ -66,8 +61,8 @@
   visibility: hidden;
   pointer-events: none;
   transition:
-    opacity var(--va-dur-2) var(--va-ease),
-    visibility 0s var(--va-dur-2);
+    opacity var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    visibility 0s var(--va-dur-2, 200ms);
 }
 
 .va-dlg__overlay[data-state="closed"] .va-dlg {
@@ -83,15 +78,15 @@
 .va-dlg__title {
   margin: 0;
   padding-right: 28px; /* 给右上角关闭按钮让位 */
-  font-size: 15px;
-  font-weight: 600;
+  font-size: var(--va-fs-lg, 14px);
+  font-weight: var(--va-fw-semibold, 600);
   line-height: 1.4;
   color: var(--va-ink);
 }
 
 .va-dlg__desc {
   margin: var(--va-s2) 0 0;
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
   line-height: 1.5;
   color: var(--va-muted);
 }
@@ -128,8 +123,8 @@
   color: var(--va-muted);
   cursor: pointer;
   transition:
-    background var(--va-dur-1) var(--va-ease),
-    color var(--va-dur-1) var(--va-ease);
+    background var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .va-dlg__close:hover {

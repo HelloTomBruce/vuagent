@@ -17,7 +17,7 @@
   border-radius: 50%;
   background: color-mix(in srgb, var(--va-info) 14%, transparent);
   color: var(--va-info);
-  font-size: 14px;
+  font-size: var(--va-fs-lg, 14px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -32,11 +32,11 @@
   flex-wrap: wrap;
 }
 
-.va-rec__title { font-size: 13.5px; font-weight: 700; color: var(--va-ink); }
+.va-rec__title { font-size: var(--va-fs-lg, 14px); font-weight: var(--va-fw-bold, 700); color: var(--va-ink); }
 
 .va-rec__impact {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--va-fs-xs, 11px);
+  font-weight: var(--va-fw-semibold, 600);
   padding: 1px 8px;
   border-radius: var(--va-radius-pill);
   background: color-mix(in srgb, var(--va-success) 14%, transparent);
@@ -45,7 +45,7 @@
 
 .va-rec__desc {
   margin: 4px 0 0;
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
   line-height: 1.6;
   color: var(--va-ink-2);
 }
@@ -61,7 +61,7 @@
 .va-rec__btn[data-primary="true"] {
   background: var(--va-info);
   border-color: var(--va-info);
-  color: #fff;
+  color: var(--va-info-contrast, #fff);
 }
 
 .va-rec__btn[data-primary="true"]:hover:not(:disabled) {
@@ -74,7 +74,7 @@
   border: 0;
   background: transparent;
   color: var(--va-muted);
-  font-size: 16px;
+  font-size: var(--va-fs-xl, 16px);
   line-height: 1;
   width: 24px;
   height: 24px;

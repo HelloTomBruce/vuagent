@@ -91,15 +91,17 @@ defineExpose({ open, close, toggle, update });
   </span>
 
   <Teleport :to="props.teleportTo ?? 'body'">
-    <div
-      v-if="isOpen"
-      ref="floating"
-      class="va-pop"
-      :style="floatingStyle"
-      :data-placement="actualPlacement"
-    >
-      <slot :close="close" />
-    </div>
+    <Transition name="va-pop">
+      <div
+        v-if="isOpen"
+        ref="floating"
+        class="va-pop"
+        :style="floatingStyle"
+        :data-placement="actualPlacement"
+      >
+        <slot :close="close" />
+      </div>
+    </Transition>
   </Teleport>
 </template>
 

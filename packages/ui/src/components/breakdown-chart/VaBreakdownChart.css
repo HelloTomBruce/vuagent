@@ -30,7 +30,7 @@
 }
 
 .va-bdc__label {
-  font-size: 12.5px;
+  font-size: var(--va-fs-md, 13px);
   color: var(--va-ink-2);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -48,17 +48,17 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  transition: width var(--va-dur-3) var(--va-ease);
+  transition: width var(--va-dur-3, 300ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .va-bdc__value {
-  font-size: 12px;
+  font-size: var(--va-fs-sm, 12px);
   color: var(--va-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .va-bdc__pct {
-  font-size: 12px;
+  font-size: var(--va-fs-sm, 12px);
   color: var(--va-ink-2);
   font-variant-numeric: tabular-nums;
   width: 4ch;
