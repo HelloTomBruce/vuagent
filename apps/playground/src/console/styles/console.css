@@ -1662,3 +1662,48 @@
   gap: 8px;
   padding: 10px;
 }
+
+/* TASK-076 F3：共享操作行（命令入口 + 通知铃铛）与通知面板 */
+.va-console__viewhead {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 0 8px;
+}
+.va-console__bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-s, 8px);
+  background: var(--va-card, #fff);
+  color: var(--va-ink, #1a1917);
+  cursor: pointer;
+}
+.va-console__bell:hover {
+  border-color: var(--va-accent, #c2410c);
+}
+.va-console__bell-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--va-accent, #c2410c);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+.va-console__notif-panel {
+  width: 320px;
+  max-height: 420px;
+  overflow-y: auto;
+}

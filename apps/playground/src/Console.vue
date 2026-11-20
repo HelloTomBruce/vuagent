@@ -9,8 +9,9 @@
  * 本文件只保留：组合式装配、欢迎页 hero 文案与用户动作编排。
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
-import { ArrowDown, ChevronDown, History, PanelRight, Route } from "lucide-vue-next";
-import { formatTokens, useStickToBottom, VaCompactBreakdown, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaPopover, VaSegmentedControl, VaThinkingLoader, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
+import { ArrowDown, Bell, ChevronDown, History, PanelRight, Route } from "lucide-vue-next";
+import { formatTokens, useStickToBottom, VaCommandMenu, VaCompactBreakdown, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaNotificationStack, VaPopover, VaSegmentedControl, VaThinkingLoader, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
+import type { CommandItem, NotificationItem } from "@vuagent/ui";
 import type { ContextPart } from "@vuagent/ui";
 import type { Decision } from "@vuagent/ui";
 import ConsoleSidebar from "./console/components/ConsoleSidebar.vue";
@@ -36,6 +37,7 @@ import { useModelProfiles } from "./console/composables/useModelProfiles";
 import { useSessions } from "./console/composables/useSessions";
 import type { SessionsApi } from "./console/composables/useSessions";
 import { useWorkspaces } from "./console/composables/useWorkspaces";
+import { useTheme, type ThemePreference } from "./console/composables/useTheme";
 import { useUsage } from "./console/composables/useUsage";
 import { PERMISSION_MODES } from "./console/types";
 import type { SessionItem } from "./console/types";
@@ -211,6 +213,140 @@ const {
 // 成本用量数据域（TASK-075）：右栏用量 tab 与消息区迷你占比条共享单实例
 const usage = useUsage();
 
+/* ==========================================================================
+   全局命令面板与通知堆叠（TASK-076 F3）
+   ========================================================================== */
+const theme = useTheme();
+const cmdOpen = ref(false);
+
+function onGlobalKeydown(e: KeyboardEvent) {
+  if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+    e.preventDefault();
+    cmdOpen.value = !cmdOpen.value;
+  }
+}
+
+const commands = computed<CommandItem[]>(() => {
+  const list: CommandItem[] = [];
+  list.push({ id: "new-chat", label: "新建会话", group: "会话" });
+  for (const sess of sessions.value.filter((x) => !x.archived && x.status !== "archived").slice(0, 8)) {
+    list.push({ id: `session:${sess.id}`, label: `打开会话：${sess.title}`, group: "会话", keywords: sess.title });
+  }
+  for (const w of workspaces.value) {
+    list.push({ id: `ws:${w.id}`, label: `切换工作区：${w.name}`, group: "工作区", keywords: w.name });
+  }
+  for (const p of permissionModes) {
+    list.push({ id: `perm:${p.id}`, label: `权限档：${p.label}`, group: "权限", keywords: p.id });
+  }
+  const themes: Array<[ThemePreference, string]> = [["light", "亮色"], ["dark", "暗色"], ["system", "跟随系统"]];
+  for (const [v, label] of themes) {
+    list.push({ id: `theme:${v}`, label: `主题：${label}`, group: "外观" });
+  }
+  list.push({ id: "open-settings", label: "打开设置", group: "操作" });
+  list.push({ id: "usage-panel", label: "展开右侧用量面板", group: "操作" });
+  list.push({ id: "compact", label: "压缩当前会话上下文", group: "操作", disabled: isNewChat.value || isRunning.value });
+  list.push({ id: "stop", label: "中止当前运行", group: "操作", danger: true, disabled: !isRunning.value });
+  return list;
+});
+
+function onCommandSelect(item: CommandItem) {
+  const id = item.id;
+  if (id === "new-chat") {
+    startNewChat();
+  } else if (id.startsWith("session:")) {
+    const sess = sessions.value.find((x) => x.id === id.slice(8));
+    if (sess) selectSession(sess);
+  } else if (id.startsWith("ws:")) {
+    startNewChat(id.slice(3));
+  } else if (id.startsWith("perm:")) {
+    void onSelectPermission(id.slice(5));
+  } else if (id.startsWith("theme:")) {
+    theme.setPreference(id.slice(6) as ThemePreference);
+  } else if (id === "open-settings") {
+    isModelSettingsOpen.value = true;
+  } else if (id === "usage-panel") {
+    isRightSidebarCollapsed.value = false;
+  } else if (id === "compact") {
+    void onCompactSession();
+  } else if (id === "stop") {
+    stopExecution();
+  }
+  cmdOpen.value = false;
+}
+
+/** 通知堆叠：需关注事件（审批到达 / 后台任务结束）为主，toast 留给即时反馈 */
+const notifications = ref<NotificationItem[]>([]);
+const notifOpen = ref(false);
+const unreadCount = computed(() => notifications.value.filter((n) => n.unread).length);
+
+function pushNotification(item: NotificationItem) {
+  notifications.value.unshift(item);
+  if (notifications.value.length > 20) notifications.value.length = 20;
+}
+
+/** 新审批到达：右上角自动弹出通知（可点击跳转右栏审批） */
+const seenApprovalIds = new Set<string>();
+watch(
+  pendingDecisions,
+  (list) => {
+    for (const d of list) {
+      const aid = String(d.id);
+      if (!aid || seenApprovalIds.has(aid)) continue;
+      seenApprovalIds.add(aid);
+      pushNotification({
+        id: `approval-${aid}`,
+        title: "待审批决策",
+        body: d.detail || d.title || "有操作等待你的批准",
+        kind: "warning",
+        createdAt: Date.now(),
+        unread: true,
+      });
+      notifOpen.value = true;
+    }
+  },
+  { deep: true }
+);
+
+/** 后台会话运行结束（含用户未注视的会话）：成功态通知，点击跳转会话 */
+const prevRunningMap = new Map<string, boolean>();
+watch(
+  () => [...chat.sessionRunningMap.entries()],
+  (entries) => {
+    for (const [sid, running] of entries) {
+      const prev = prevRunningMap.get(sid);
+      prevRunningMap.set(sid, running);
+      if (prev === true && running === false && sid !== activeSessionId.value) {
+        const sess = sessions.value.find((x) => x.id === sid);
+        pushNotification({
+          id: `done-${sid}`,
+          title: "任务已结束",
+          body: `会话「${sess?.title ?? sid}」运行完成，点击查看`,
+          kind: "success",
+          createdAt: Date.now(),
+          unread: true,
+        });
+      }
+    }
+  }
+);
+
+function onNotificationOpen(item: NotificationItem) {
+  item.unread = false;
+  if (item.id.startsWith("approval-")) {
+    isRightSidebarCollapsed.value = false;
+  } else if (item.id.startsWith("done-")) {
+    const sess = sessions.value.find((x) => x.id === item.id.slice(5));
+    if (sess) selectSession(sess);
+  }
+}
+function onNotifRead(id: string) {
+  const n = notifications.value.find((x) => x.id === id);
+  if (n) n.unread = false;
+}
+function onNotifAllRead() {
+  for (const n of notifications.value) n.unread = false;
+}
+
 const {
   chatTurns,
   planSteps,
@@ -337,6 +473,8 @@ watch(
    生命周期
    ========================================================================== */
 onMounted(async () => {
+  // ⌘K / Ctrl+K 全局命令面板（TASK-076）
+  window.addEventListener("keydown", onGlobalKeydown);
   await refreshPendingActions();
   // 跨会话挂起审批轮询（suspended 事件只在对应会话的流里，收件箱需主动拉取）
   pendingPollTimer = setInterval(() => void refreshPendingActions(), 10_000);
@@ -361,6 +499,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  window.removeEventListener("keydown", onGlobalKeydown);
   if (pendingPollTimer !== undefined) clearInterval(pendingPollTimer);
 });
 
@@ -523,6 +662,35 @@ function quickFillPrompt(text: string) {
 
     <!-- 中间交互区域 -->
     <main class="va-console__main">
+      <!-- 共享操作行（TASK-076 F3）：⌘K 命令面板 + 通知铃铛（两场景常驻） -->
+      <div class="va-console__viewhead">
+        <VaCommandMenu
+          v-model:open="cmdOpen"
+          :commands="commands"
+          trigger-label="命令"
+          hotkey="⌘K"
+          @select="onCommandSelect"
+        />
+        <VaPopover v-model:open="notifOpen" placement="bottom-end" :offset="8">
+          <template #trigger>
+            <button class="va-console__bell" type="button" aria-label="通知">
+              <Bell :size="15" />
+              <span v-if="unreadCount > 0" class="va-console__bell-badge">{{ unreadCount > 9 ? "9+" : unreadCount }}</span>
+            </button>
+          </template>
+          <div class="va-console__notif-panel">
+            <VaNotificationStack
+              :notifications="notifications"
+              title="通知"
+              relative-time
+              empty-label="暂无通知；审批到达与后台任务结束会出现在这里"
+              @open="onNotificationOpen"
+              @read="onNotifRead"
+              @all-read="onNotifAllRead"
+            />
+          </div>
+        </VaPopover>
+      </div>
       <!-- 场景 A：新建会话 / 欢迎界面（VaEmptyHero 空态引导） -->
       <section v-if="isNewChat" class="va-console__welcome-view">
         <div class="va-console__welcome-hero">
