@@ -95,6 +95,8 @@ export function useSessions(options: SessionsOptions) {
     // 先归零上下文仪表，随后由历史 telemetry 水合（或运行时 usage 事件覆盖），
     // 避免残留上一个会话的数值
     chat.contextUsed.value = 0;
+    // 会话累计消耗：优先后台实时账本，无则待历史 telemetry 水合（下方循环累加）
+    chat.sessionTokensUsed.value = chat.sessionTokensUsedMap.get(session.id) ?? 0;
 
     const isCurrentlyStreaming = Boolean(chat.sessionRunningMap.get(session.id));
 
@@ -116,7 +118,13 @@ export function useSessions(options: SessionsOptions) {
         const unpacked: MessageTurn[] = [];
 
         if (detail.turns && detail.turns.length > 0) {
+          // 历史会话累计消耗水合：Σ 各 turn 计费口径 totalTokens（TelemetryLedger 同源）
+          chat.sessionTokensUsed.value = 0;
           for (const t of detail.turns) {
+            const billed = t.telemetry?.totalTokens;
+            if (typeof billed === "number" && billed > 0) {
+              chat.sessionTokensUsed.value += billed;
+            }
             if (t.role) {
               unpacked.push({
                 id: t.id || `turn-${Date.now()}`,

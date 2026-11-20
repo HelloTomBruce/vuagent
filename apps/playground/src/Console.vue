@@ -217,6 +217,7 @@ const {
   sessionRunningMap,
   contextUsed,
   contextLimit,
+  sessionTokensUsed,
   ctxParts: streamCtxParts,
   resetTurns,
   sendPrompt,
@@ -528,6 +529,7 @@ function quickFillPrompt(text: string) {
                     <button class="va-console__seat-btn" type="button">
                       <History :size="12" />
                       <span class="va-console__seat-text">Context: {{ formatTokens(contextUsed) }} / {{ formatTokens(contextLimit) }}</span>
+                      <span class="va-console__seat-text" title="会话累计消耗（计费口径：Σ各步 prompt+completion，含压缩前所有轮次）">· Session: {{ formatTokens(sessionTokensUsed) }}</span>
                       <ChevronDown :size="11" />
                     </button>
                   </template>
@@ -660,6 +662,7 @@ function quickFillPrompt(text: string) {
                   <button class="va-console__seat-btn" type="button">
                     <History :size="12" />
                     <span class="va-console__seat-text">Context: {{ formatTokens(contextUsed) }} / {{ formatTokens(contextLimit) }}</span>
+                      <span class="va-console__seat-text" title="会话累计消耗（计费口径：Σ各步 prompt+completion，含压缩前所有轮次）">· Session: {{ formatTokens(sessionTokensUsed) }}</span>
                     <ChevronDown :size="11" />
                   </button>
                 </template>

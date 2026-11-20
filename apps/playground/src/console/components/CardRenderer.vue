@@ -91,7 +91,7 @@ const UI_RENDERABLE = new Set([
 const uiProps = computed<Record<string, any>>(() => props.card.data?.props || {});
 const uiComponent = computed(() => String(props.card.data?.component || ""));
 const uiRenderable = computed(() => UI_RENDERABLE.has(uiComponent.value));
-</script></script>
+</script>
 
 <template>
   <div class="va-console__card-item">

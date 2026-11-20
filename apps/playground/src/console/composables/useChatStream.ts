@@ -45,6 +45,11 @@ export function useChatStream(options: ChatStreamOptions) {
   // 上下文用量（由 usage 事件实时驱动；无事件时保持默认占位）
   const contextUsed = ref(0);
   const contextLimit = ref(128000);
+  // 会话累计消耗（计费口径 = Σ各步 prompt+completion，与服务端 TelemetryLedger 同源；
+  // 注意 usage.promptTokens 含重发历史属窗口口径，跨步累加必须逐事件累加而非取 totalTokens）
+  const sessionTokensUsed = ref(0);
+  /** 每会话累计表：多会话并行时后台会话的消耗按 id 归账，切回时秒级恢复 */
+  const sessionTokensUsedMap = reactive(new Map<string, number>());
   // 协议级分段估算（system/history/tools），由 usage 事件的 parts 驱动；
   // 无 parts（旧服务端/沙箱演示流）时由视图层降级为单段「对话历史」
   const ctxParts = ref<ContextPart[]>([]);
@@ -60,6 +65,7 @@ export function useChatStream(options: ChatStreamOptions) {
     // 新会话：上下文仪表归零（等运行时 usage 事件按真实占用覆盖）
     contextUsed.value = 0;
     ctxParts.value = [];
+    sessionTokensUsed.value = 0;
   }
 
   function isActiveSession(targetSessionId?: string) {
@@ -76,6 +82,17 @@ export function useChatStream(options: ChatStreamOptions) {
     // （ReAct 每步重发历史，取"最近一次调用"即真实占用），直接覆盖而非跨步累加。
     if (event.type === "usage") {
       contextUsed.value = event.promptTokens + event.completionTokens;
+      // 累计消耗归账：逐事件累加 prompt+completion（计费口径）；后台会话按 id 记账
+      const usageSessionId = targetSessionId || options.getActiveSessionId();
+      sessionTokensUsedMap.set(
+        usageSessionId,
+        (sessionTokensUsedMap.get(usageSessionId) ?? 0) +
+          event.promptTokens +
+          event.completionTokens
+      );
+      if (isActiveSession(targetSessionId)) {
+        sessionTokensUsed.value += event.promptTokens + event.completionTokens;
+      }
       if (event.contextWindow) {
         contextLimit.value = event.contextWindow;
       }
@@ -263,6 +280,8 @@ export function useChatStream(options: ChatStreamOptions) {
     activeAbortController,
     contextUsed,
     contextLimit,
+    sessionTokensUsed,
+    sessionTokensUsedMap,
     ctxParts,
     sessionTurnsCache,
     sessionRunningMap,
