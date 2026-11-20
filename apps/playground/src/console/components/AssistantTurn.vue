@@ -32,6 +32,8 @@ const abortReasonLabel = computed(() => {
       return "被新请求顶替";
     case "process_restart":
       return "服务重启中断";
+    case "token_budget":
+      return "token 预算熔断";
     default:
       return "";
   }

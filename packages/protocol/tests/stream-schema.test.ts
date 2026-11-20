@@ -53,6 +53,11 @@ const HAPPY_SAMPLES: Record<string, HarnessStreamEvent> = {
   error: { type: "error", message: "boom", code: "MODEL_RATE_LIMIT" },
 };
 
+/** reason 枚举扩展回归：token_budget 预算熔断成因（非严格前向兼容的新字面量） */
+const EXTRA_REASON_SAMPLES = [
+  { type: "aborted", turnId: "turn-2", reason: "token_budget" },
+] as const;
+
 /** 契约内期望的事件全集：新增/删除事件必须同步更新此处（防漏卡口） */
 const EXPECTED_EVENT_TYPES = [
   "thought_delta",
@@ -83,6 +88,10 @@ describe("HarnessStreamEventSchema（TASK-053 契约运行时化）", () => {
   it.each(Object.keys(HAPPY_SAMPLES))("happy path: %s 通过校验", (type) => {
     const event = HAPPY_SAMPLES[type];
     expect(validateHarnessStreamEvent(event)).toBe(true);
+  });
+
+  it.each(EXTRA_REASON_SAMPLES)("reason 枚举扩展样例: %j 通过校验", (sample) => {
+    expect(validateHarnessStreamEvent(sample as unknown as Record<string, unknown>)).toBe(true);
   });
 
   it.each(Object.keys(HAPPY_SAMPLES))("非法变体: %s 被拒绝", (type) => {

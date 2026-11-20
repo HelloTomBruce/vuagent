@@ -110,6 +110,32 @@ export const WebFetchParamsSchema = Type.Object(
 export type WebFetchParams = Static<typeof WebFetchParamsSchema>;
 
 // ==========================================
+// 8. finish_task（显式终态声明，harness 控制面工具）
+// ==========================================
+/**
+ * 显式终态协议：execution.finishTaskMode=enforced 时模型必须调用本工具宣告完成，
+ * 由服务端交付断言（DeliverableAssertion）裁决——未产出实质内容即宣告完成将被
+ * 结构化驳回并引导模型继续，防止「空跑闭环」。off 时工具对模型不可见。
+ */
+export const FinishTaskParamsSchema = Type.Object(
+  {
+    summary: Type.String({ description: "本轮任务的完成摘要：做了什么、结果是什么" }),
+    deliverables: Type.Optional(
+      Type.Array(
+        Type.Object({
+          kind: Type.String({ description: "产物类型，如 text / diff / chart / file" }),
+          ref: Type.Optional(Type.String({ description: "产物引用（文件路径 / 卡片 id / 链接）" })),
+        }),
+        { description: "交付物清单：模型自述的实质性产出" }
+      )
+    ),
+  },
+  { $id: "finish_task" }
+);
+
+export type FinishTaskParams = Static<typeof FinishTaskParamsSchema>;
+
+// ==========================================
 // 系统工具 Schema 汇总表
 // ==========================================
 export const VuagentSystemToolSchemas = {
@@ -120,6 +146,7 @@ export const VuagentSystemToolSchemas = {
   glob: GlobParamsSchema,
   grep: GrepParamsSchema,
   web_fetch: WebFetchParamsSchema,
+  finish_task: FinishTaskParamsSchema,
 } as const;
 
 export type VuagentSystemToolName = keyof typeof VuagentSystemToolSchemas;

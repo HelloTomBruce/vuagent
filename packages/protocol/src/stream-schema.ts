@@ -215,7 +215,7 @@ export const TurnStartEventSchema = Type.Object({
   startedAt: Type.Number(),
 });
 
-/** TASK-054：中止控制事件（取代假 text_delta 斜体文案；reason 对齐看门狗/顶替/恢复标记） */
+/** TASK-054：中止控制事件（取代假 text_delta 斜体文案；reason 对齐看门狗/顶替/恢复/预算熔断标记） */
 export const AbortedEventSchema = Type.Object({
   type: Type.Literal("aborted"),
   seq: SeqField,
@@ -225,6 +225,7 @@ export const AbortedEventSchema = Type.Object({
     Type.Literal("timeout"),
     Type.Literal("preempt"),
     Type.Literal("process_restart"),
+    Type.Literal("token_budget"),
   ]),
 });
 
