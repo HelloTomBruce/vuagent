@@ -1139,6 +1139,10 @@
   border-bottom-color: var(--va-accent, #c2410c);
 }
 
+/* 收起按钮经 VaTooltip 包装，flex 子项是 va-tip__trigger —— 靠右的 auto margin 落在包裹层 */
+.va-console__rtabs > .va-tip__trigger {
+  margin-left: auto;
+}
 .va-console__rtab-collapse {
   margin-left: auto;
   border: none;
@@ -1186,6 +1190,7 @@
 
 /* 侧栏收起后的重开细条 */
 .va-console__rsb-reopen {
+  position: relative;
   width: 28px;
   min-width: 28px;
   height: 100%;
@@ -1616,4 +1621,21 @@
   .va-console-pop-leave-to {
     transform: none;
   }
+}
+
+/* 折叠态待审批徽标：叠加在重开按钮右上角 */
+.va-console__rsb-badge {
+  position: absolute;
+  top: 6px;
+  right: 2px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: var(--va-radius-pill, 999px);
+  background: var(--va-danger, #d5453c);
+  color: var(--va-danger-contrast, #ffffff);
+  font-size: var(--va-fs-2xs, 10px);
+  font-weight: var(--va-fw-semibold, 600);
+  line-height: 14px;
+  text-align: center;
 }

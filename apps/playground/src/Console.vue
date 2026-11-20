@@ -45,7 +45,8 @@ import type { SessionItem } from "./console/types";
 const isNewChat = ref<boolean>(true);
 /** 主区视图 tab（用户反馈）：轨迹从右侧栏迁入消息区宽幅展示，对话为默认视图 */
 const mainViewTab = ref<"chat" | "traj">("chat");
-const isRightSidebarCollapsed = ref<boolean>(false);
+// 右侧栏默认收起（用户反馈：切换会话不默认打开）；待审批数在折叠按钮上以徽标提示
+const isRightSidebarCollapsed = ref<boolean>(true);
 const composerText = ref<string>("");
 /**
  * 新建会话的缺省权限模式（TASK-026）：初值与「新对话」重置取自配置中心
@@ -693,6 +694,11 @@ function quickFillPrompt(text: string) {
           @click="isRightSidebarCollapsed = false"
         >
           <PanelRight :size="15" />
+          <span
+            v-if="pendingDecisions.length > 0"
+            class="va-console__rsb-badge"
+            aria-label="待审批数"
+          >{{ pendingDecisions.length }}</span>
         </button>
       </VaTooltip>
       </div>
