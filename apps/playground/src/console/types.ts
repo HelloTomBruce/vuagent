@@ -2,10 +2,11 @@
  * Console 领域模型与静态配置
  * 流事件契约统一来自 @vuagent/protocol（TASK-002），此处 re-export 供 console 模块便捷引用。
  */
-import type { HarnessStreamEvent } from "@vuagent/protocol";
+import type { HarnessStreamEvent, InputModality, ModelCapabilities } from "@vuagent/protocol";
 import type { PlanStep, TrajEvent } from "@vuagent/ui";
 
-export type { HarnessStreamEvent, PlanStep, TrajEvent };
+// 模型能力契约的唯一事实源在 @vuagent/protocol（与服务端共用，避免字段漂移）
+export type { HarnessStreamEvent, PlanStep, TrajEvent, InputModality, ModelCapabilities };
 
 export interface WorkspaceItem {
   id: string;
@@ -35,6 +36,8 @@ export interface SessionItem {
 
 export interface ModelProfileItem {
   id: string;
+  /** 所属供应商；缺失表示遗留内联配置 */
+  providerId?: string;
   name: string;
   provider: string;
   model: string;
@@ -43,8 +46,26 @@ export interface ModelProfileItem {
   /** 服务端脱敏回显的掩码（保留末 4 位）；明文 apiKey 不再返回前端（TASK-011） */
   maskedApiKey?: string;
   contextWindow?: number;
+  /** 结构化能力元数据（P0） */
+  capabilities?: ModelCapabilities;
+  /** @deprecated 服务端会归一到 parameters.temperature；仅用于表单回填 */
   temperature?: number;
   isDefault?: boolean;
+}
+
+/** 供应商：端点 + 凭证，1:N 挂载模型 */
+export interface ProviderItem {
+  id: string;
+  name: string;
+  provider: string;
+  baseUrl?: string;
+  apiKey?: string;
+  maskedApiKey?: string;
+  parameters?: { temperature?: number; maxTokens?: number; topP?: number; [k: string]: unknown };
+  /** 服务端随列表一起下发的归属模型（GET /api/settings/providers 内联） */
+  models?: ModelProfileItem[];
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface ActionCard {

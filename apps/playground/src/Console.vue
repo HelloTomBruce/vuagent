@@ -169,25 +169,42 @@ const {
   availableModels,
   activeModel,
   isModelSettingsOpen,
-  modelProfiles,
-  selectedProfileId,
-  isCreatingNewModel,
+  providers,
+  selectedProviderId,
+  isCreatingProvider,
+  currentProvider,
+  currentProviderModels,
+  providerForm,
+  modelDraft,
+  isCreatingModel,
   showApiKey,
   isTestingConnection,
+  isDiscovering,
   testStatus,
-  modelForm,
-  apiKeyPlaceholder,
+  discoveredModels,
+  discoveredItems,
   activeModelObj,
+  supportsImageInput,
   fetchModelProfiles,
   resetModelToDefault,
   openModelSettings,
   closeModelSettings,
-  selectProfileForEdit,
-  createNewProfile,
-  onProviderChange,
-  saveModelProfile,
-  deleteModelProfile,
+  selectProvider,
+  startCreateProvider,
+  onProviderKindChange,
+  saveProvider,
+  deleteProvider,
+  startCreateModel,
+  editModel,
+  cancelModelEdit,
+  saveModel,
+  deleteModel,
+  discoverModels,
+  applyDetected,
   testModelConnection,
+  toggleModality,
+  toggleReasoning,
+  toggleToolUse,
 } = models;
 
 /** 统一设置弹窗当前 tab（TASK-017）：默认打开「模型与 API」，保持原模型配置入口行为 */
@@ -562,6 +579,18 @@ function onFilesSelected(files: File[]) {
   for (const f of files.slice(0, 6)) {
     const id = `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const isImage = f.type.startsWith("image/");
+
+    // 能力联动（P0）：模型未声明支持图片时拒绝图片附件并说明原因，
+    // 而不是静默丢弃或等 provider 返回 400。
+    if (isImage && !supportsImageInput.value) {
+      vaToaster.add({
+        title: `当前模型未声明支持图片输入`,
+        description: "在「模型设置 → 能力标记」中勾选图片后即可上传",
+        kind: "warning",
+      });
+      continue;
+    }
+
     attachments.value.push({
       id,
       name: f.name,
@@ -569,7 +598,7 @@ function onFilesSelected(files: File[]) {
       kind: isImage ? "image" : "file",
       previewUrl: isImage ? URL.createObjectURL(f) : undefined,
     });
-    if (isImage) continue; // 图片仅登记名（无视觉通道，不假装内联）
+    if (isImage) continue; // 图片仅登记名（视觉通道由模型能力决定，不假装内联）
     const reader = new FileReader();
     reader.onload = () => {
       let content = String(reader.result ?? "");
@@ -1225,22 +1254,38 @@ function quickFillPrompt(text: string) {
     >
       <template #models>
         <ModelProfilesPanel
-          :model-profiles="modelProfiles"
-          :selected-profile-id="selectedProfileId"
-          :is-creating-new-model="isCreatingNewModel"
+          :providers="providers"
+          :selected-provider-id="selectedProviderId"
+          :is-creating-provider="isCreatingProvider"
+          :current-provider="currentProvider"
+          :current-provider-models="currentProviderModels"
+          :provider-form="providerForm"
+          :model-draft="modelDraft"
+          :is-creating-model="isCreatingModel"
           :show-api-key="showApiKey"
           :is-testing-connection="isTestingConnection"
+          :is-discovering="isDiscovering"
           :test-status="testStatus"
-          :model-form="modelForm"
-          :api-key-placeholder="apiKeyPlaceholder"
+          :discovered-models="discoveredModels"
+          :discovered-items="discoveredItems"
           @close="closeModelSettings"
-          @create-new="createNewProfile"
-          @select-profile="selectProfileForEdit"
-          @provider-change="onProviderChange"
-          @save="saveModelProfile"
-          @delete-profile="deleteModelProfile(modelForm.id)"
+          @select-provider="selectProvider"
+          @create-provider="startCreateProvider"
+          @delete-provider="deleteProvider"
+          @create-model="startCreateModel"
+          @edit-model="editModel"
+          @delete-model="deleteModel"
+          @cancel-model-edit="cancelModelEdit"
+          @save-provider="saveProvider"
+          @save-model="saveModel"
           @test="testModelConnection"
+          @discover="discoverModels"
+          @apply-detected="applyDetected"
+          @provider-kind-change="onProviderKindChange"
           @update:show-api-key="showApiKey = $event"
+          @toggle-modality="toggleModality"
+          @toggle-reasoning="toggleReasoning"
+          @toggle-tool-use="toggleToolUse"
         />
       </template>
       <template #interaction>

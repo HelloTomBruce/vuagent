@@ -2,7 +2,7 @@
  * Console 统一 API 客户端
  * 约定：业务码非 2xx 时返回 null（由调用方决定兜底行为），网络异常向上抛出（由调用方记录上下文日志）。
  */
-import type { ModelProfileItem, SessionItem, WorkspaceItem } from "../types";
+import type { ModelCapabilities, ModelProfileItem, ProviderItem, SessionItem, WorkspaceItem } from "../types";
 import type { UsageContextPart } from "@vuagent/protocol";
 
 const JSON_HEADERS: Record<string, string> = { "Content-Type": "application/json" };
@@ -77,11 +77,21 @@ export interface ModelProfilePayload {
   name: string;
   provider: string;
   model: string;
+  providerId?: string;
   baseUrl?: string;
   apiKey?: string;
   contextWindow?: number;
+  capabilities?: ModelCapabilities;
   temperature?: number;
   isDefault?: boolean;
+}
+
+export interface ProviderPayload {
+  name: string;
+  provider: string;
+  baseUrl?: string;
+  apiKey?: string;
+  parameters?: { temperature?: number; maxTokens?: number; [k: string]: unknown };
 }
 
 /* ==========================================================================
@@ -209,13 +219,85 @@ export function createModelProfileApi(
 
 export function updateModelProfileApi(
   id: string,
-  body: ModelProfilePayload
+  /** PATCH 部分更新语义：服务端白名单只 pick 出现过的字段 */
+  body: Partial<ModelProfilePayload>
 ): Promise<ModelProfileItem | null> {
   return httpSend<ModelProfileItem>(`/api/settings/models/${id}`, "PATCH", body);
 }
 
 export function deleteModelProfileById(id: string): Promise<{ success: boolean } | null> {
   return httpSend<{ success: boolean }>(`/api/settings/models/${id}`, "DELETE");
+}
+
+/* -------- 供应商层（P0：provider 1:N model） -------- */
+
+/** 列出供应商（含归属模型，apiKey 已服务端脱敏） */
+export function listProviders(): Promise<ProviderItem[] | null> {
+  return httpGet<ProviderItem[]>("/api/settings/providers");
+}
+
+export function createProviderApi(body: ProviderPayload): Promise<ProviderItem | null> {
+  return httpSend<ProviderItem>("/api/settings/providers", "POST", body);
+}
+
+export function updateProviderApi(
+  id: string,
+  body: Partial<ProviderPayload>
+): Promise<ProviderItem | null> {
+  return httpSend<ProviderItem>(`/api/settings/providers/${id}`, "PATCH", body);
+}
+
+/**
+ * 删除供应商；cascade=true 时连带删除其下模型。
+ *
+ * 单独实现而不复用 httpSend：服务端在「仍挂着模型」时返回 409 + 具体文案，
+ * 而 httpSend 对非 2xx 一律返回 null 并丢弃 body——那样这条提示永远到不了用户眼前。
+ */
+export async function deleteProviderApi(
+  id: string,
+  cascade = false
+): Promise<{ success: boolean; removedModels?: number; boundModels?: number; error?: string; reason?: string } | null> {
+  const res = await fetch(`/api/settings/providers/${id}${cascade ? "?cascade=true" : ""}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+
+  if (res.status === 409) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string; boundModels?: number; reason?: string };
+    return { success: false, error: body.error, boundModels: body.boundModels, reason: body.reason };
+  }
+  if (!res.ok) return null;
+  return (await res.json()) as { success: boolean; removedModels?: number };
+}
+
+/** 在指定供应商下新增模型（端点与凭证自动继承供应商） */
+export function createModelUnderProvider(
+  providerId: string,
+  body: Omit<ModelProfilePayload, "provider" | "baseUrl" | "apiKey">
+): Promise<ModelProfileItem | null> {
+  return httpSend<ModelProfileItem>(`/api/settings/providers/${providerId}/models`, "POST", body);
+}
+
+/** 供应商返回的单个模型及其可探测到的能力 */
+export interface DetectedModelInfo {
+  id: string;
+  displayName?: string;
+  capabilities?: ModelCapabilities;
+}
+
+export interface DiscoverModelsResult {
+  ok: boolean;
+  endpoint: string;
+  /** 纯 id 列表（兼容） */
+  models?: string[];
+  /** 详细条目：含 displayName 与服务端探测到的 capabilities */
+  items?: DetectedModelInfo[];
+  error?: string;
+}
+
+/** 拉取供应商可用模型列表（服务端代发 GET {baseUrl}/models，凭证明文不出服务端） */
+export function discoverProviderModels(providerId: string): Promise<DiscoverModelsResult | null> {
+  return httpGet<DiscoverModelsResult>(`/api/settings/providers/${providerId}/models/discover`);
 }
 
 export interface ModelProbeResult {
@@ -229,6 +311,8 @@ export interface ModelProbeResult {
 /** 连通性真探测（TASK-005）：发起最小 chat completion，返回首响应时延或真实错误 */
 export async function testModelConnectionApi(body: {
   profileId?: string;
+  /** 供应商层探测：用该供应商存储的端点与凭证 */
+  providerId?: string;
   baseUrl?: string;
   apiKey?: string;
   model: string;

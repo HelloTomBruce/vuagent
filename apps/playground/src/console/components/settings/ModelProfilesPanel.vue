@@ -1,148 +1,189 @@
 <script setup lang="ts">
 /**
- * 「模型与 API」设置面板（TASK-017：自 ModelSettingsModal.vue 整体迁入）
- * - 去掉了自身的弹窗外壳（backdrop/head 由 SettingsModal 统一承担），
- *   保留「左列 profile 列表 + 右列编辑表单 + 底栏操作」的完整交互
- * - props / 事件与原弹窗保持一致（保存/删除/测试连接/新建/默认档），复用
- *   .va-console__modal-left/right/foot 等既有样式
+ * 「模型与 API」设置面板（P0：Provider 1:N Model）
+ *
+ * 交互形态（用户反馈后调整）：
+ *   左列 —— **扁平的供应商列表**，不展开子项，只显示名称与模型数量；
+ *   右列 —— 全部配置集中在此：
+ *            · 上：供应商凭证（名称/类型/端点/密钥）
+ *            · 下：该供应商下的模型清单，点「添加」或某一行即内联展开编辑表单
+ *
+ * 凭证只在供应商层填写一次，其下所有模型共用——这是本次重构的核心
+ * （旧版配第二个模型要复制整条含密钥的配置）。
  */
+import { computed } from "vue";
 import {
   AlertCircle,
+  Check,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Eye,
   EyeOff,
   Globe,
+  Image as ImageIcon,
   Key,
   Loader2,
   Plus,
+  RefreshCw,
   Sliders,
+  Sparkles,
   Trash2,
+  Wrench,
   Zap,
 } from "lucide-vue-next";
 import { VaSelect } from "@vuagent/ui";
-import type { ModelProfileItem } from "../../types";
+import type { ModelProfileItem, ProviderItem } from "../../types";
+import type { DetectedModelInfo } from "../../api/client";
+import { capabilityBadges } from "../../utils/capability-badges";
 import { PROVIDER_OPTIONS } from "../../types";
 
-defineProps<{
-  modelProfiles: ModelProfileItem[];
-  selectedProfileId: string;
-  isCreatingNewModel: boolean;
+const props = defineProps<{
+  providers: ProviderItem[];
+  selectedProviderId: string;
+  isCreatingProvider: boolean;
+  currentProvider?: ProviderItem;
+  currentProviderModels: ModelProfileItem[];
+  providerForm: { id?: string; name: string; provider: string; baseUrl?: string; apiKey?: string; maskedApiKey?: string; parameters?: Record<string, unknown> };
+  modelDraft: ModelProfileItem | null;
+  isCreatingModel: boolean;
   showApiKey: boolean;
   isTestingConnection: boolean;
+  isDiscovering: boolean;
   testStatus: { ok: boolean; message: string } | null;
-  modelForm: ModelProfileItem;
-  /** API Key 输入占位：编辑已配置密钥时展示掩码与「留空保持不变」提示（TASK-011） */
-  apiKeyPlaceholder?: string;
+  discoveredModels: string[];
+  discoveredItems: DetectedModelInfo[];
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: "close"): void;
-  (e: "create-new"): void;
-  (e: "select-profile", profile: ModelProfileItem): void;
-  (e: "provider-change", provider: string): void;
-  (e: "save"): void;
-  (e: "delete-profile"): void;
+  (e: "select-provider", id: string): void;
+  (e: "create-provider"): void;
+  (e: "delete-provider", id: string): void;
+  (e: "create-model"): void;
+  (e: "edit-model", model: ModelProfileItem): void;
+  (e: "delete-model", id: string): void;
+  (e: "cancel-model-edit"): void;
+  (e: "save-provider"): void;
+  (e: "save-model"): void;
   (e: "test"): void;
+  (e: "discover"): void;
+  (e: "apply-detected", item: DetectedModelInfo): void;
+  (e: "provider-kind-change", kind: string): void;
   (e: "update:showApiKey", value: boolean): void;
+  (e: "toggle-modality", modality: string): void;
+  (e: "toggle-reasoning"): void;
+  (e: "toggle-tool-use"): void;
 }>();
+
+/** 模型层输入模态候选（文本恒选中且不可取消） */
+const MODALITY_OPTIONS = [
+  { id: "image", label: "图片", icon: ImageIcon },
+  { id: "pdf", label: "PDF", icon: null },
+  { id: "audio", label: "音频", icon: null },
+  { id: "video", label: "视频", icon: null },
+];
+
+/** 模型角标：委托给共享 helper，避免与 composable 各写一份 */
+function badges(m: ModelProfileItem): string[] {
+  return capabilityBadges({ capabilities: m.capabilities, contextWindow: m.contextWindow });
+}
+
+function modalityActive(id: string): boolean {
+  return (props.modelDraft?.capabilities?.inputModalities || ["text"]).includes(id as never);
+}
+function reasoningOn(): boolean {
+  return !!props.modelDraft?.capabilities?.reasoning?.supported;
+}
+function toolsOn(): boolean {
+  return !!props.modelDraft?.capabilities?.supportedParameters?.includes("tools");
+}
+
+/** 正在编辑的模型 id（用于高亮清单中对应行） */
+const editingModelId = computed(() => props.modelDraft?.id || "");
 </script>
 
 <template>
   <div class="va-settings__panel va-settings__panel--models">
-    <!-- 面板主体：左列模型列表 + 右列编辑表单（复用原弹窗 body/left/right 样式） -->
     <div class="va-console__modal-body">
-      <!-- 左侧：模型列表 -->
+      <!-- ============ 左列：扁平供应商列表 ============ -->
       <div class="va-console__modal-left">
         <div class="va-console__modal-list-head">
-          <span>已配置模型 ({{ modelProfiles.length }})</span>
-          <button class="va-console__btn-add-profile" type="button" @click="$emit('create-new')">
+          <span>供应商 ({{ providers.length }})</span>
+          <button class="va-console__btn-add-profile" type="button" @click="emit('create-provider')">
             <Plus :size="13" /> 添加
           </button>
         </div>
 
         <div class="va-console__modal-profile-list">
+          <!-- 新建中的占位项 -->
           <div
-            v-for="p in modelProfiles"
-            :key="p.id"
-            class="va-console__profile-card"
-            :class="{ 'va-console__profile-card--active': p.id === selectedProfileId && !isCreatingNewModel }"
-            @click="$emit('select-profile', p)"
+            v-if="isCreatingProvider"
+            class="va-console__profile-card va-console__profile-card--active"
           >
             <div class="va-console__profile-card-top">
-              <span class="va-console__profile-name">{{ p.name }}</span>
-              <span v-if="p.isDefault" class="va-console__default-chip">默认</span>
-            </div>
-            <div class="va-console__profile-card-sub">
-              <span class="va-console__provider-pill">{{ p.provider }}</span>
-              <span class="va-console__model-id">{{ p.model }}</span>
-            </div>
-          </div>
-
-          <!-- 新建中状态卡片 -->
-          <Transition name="va-console-pop">
-            <div
-              v-if="isCreatingNewModel"
-              class="va-console__profile-card va-console__profile-card--active"
-            >
-            <div class="va-console__profile-card-top">
-              <span class="va-console__profile-name">{{ modelForm.name || "新模型配置" }}</span>
+              <span class="va-console__profile-name">{{ providerForm.name || "新供应商" }}</span>
               <span class="va-console__new-chip">新建中</span>
             </div>
             <div class="va-console__profile-card-sub">
-              <span class="va-console__provider-pill">{{ modelForm.provider }}</span>
-              <span class="va-console__model-id">{{ modelForm.model }}</span>
+              <span class="va-console__provider-pill">{{ providerForm.provider }}</span>
             </div>
           </div>
-          </Transition>
+
+          <div
+            v-for="p in providers"
+            :key="p.id"
+            class="va-console__profile-card"
+            :class="{ 'va-console__profile-card--active': p.id === selectedProviderId && !isCreatingProvider }"
+            @click="emit('select-provider', p.id)"
+          >
+            <div class="va-console__profile-card-top">
+              <span class="va-console__profile-name">{{ p.name }}</span>
+              <span v-if="(p.models || []).length" class="va-prov-count-chip">
+                {{ (p.models || []).length }}
+              </span>
+            </div>
+            <div class="va-console__profile-card-sub">
+              <span class="va-console__provider-pill">{{ p.provider }}</span>
+              <span v-if="p.maskedApiKey" class="va-console__model-id">{{ p.maskedApiKey }}</span>
+            </div>
+          </div>
+
+          <p v-if="providers.length === 0 && !isCreatingProvider" class="va-console__empty-tip">
+            还没有供应商，先添加一个端点与密钥。
+          </p>
         </div>
       </div>
 
-      <!-- 右侧：详细参数编辑表单 -->
+      <!-- ============ 右列：全部配置 ============ -->
       <div class="va-console__modal-right">
+        <!-- ---------- 供应商凭证 ---------- -->
         <div class="va-settings__panel-heading">
           <p class="va-console__modal-sub">
-            配置接入 DeepSeek、阿里云通义千问、Claude、OpenAI、本地 Ollama 或任意兼容接口
+            端点与密钥在此配置一次，其下所有模型共用；修改后立即对全部模型生效。
           </p>
-        </div>
-
-        <div class="va-console__form-group">
-          <label class="va-console__label">显示名称 (Profile Name)</label>
-          <input
-            v-model="modelForm.name"
-            class="va-console__input"
-            type="text"
-            placeholder="如 DeepSeek V3 (生产)"
-          />
         </div>
 
         <div class="va-console__form-row">
           <div class="va-console__form-group flex-1">
-            <label class="va-console__label">供应商 (Provider)</label>
-            <VaSelect
-              :model-value="modelForm.provider"
-              :options="PROVIDER_OPTIONS"
-              label="供应商 Provider"
-              @update:model-value="(v: unknown) => $emit('provider-change', Array.isArray(v) ? String(v[0] ?? '') : String(v))"
-            />
+            <label class="va-console__label">供应商名称</label>
+            <input v-model="providerForm.name" class="va-console__input" type="text" placeholder="如 DeepSeek 官方" />
           </div>
-
           <div class="va-console__form-group flex-1">
-            <label class="va-console__label">模型标识 (Model ID)</label>
-            <input
-              v-model="modelForm.model"
-              class="va-console__input"
-              type="text"
-              placeholder="如 deepseek-chat"
+            <label class="va-console__label">类型</label>
+            <VaSelect
+              :model-value="providerForm.provider"
+              :options="PROVIDER_OPTIONS"
+              label="供应商类型"
+              @update:model-value="(v: unknown) => emit('provider-kind-change', Array.isArray(v) ? String(v[0] ?? '') : String(v))"
             />
           </div>
         </div>
 
         <div class="va-console__form-group">
-          <label class="va-console__label">
-            <Globe :size="12" /> API 基础地址 (Base URL)
-          </label>
+          <label class="va-console__label"><Globe :size="12" /> API 基础地址</label>
           <input
-            v-model="modelForm.baseUrl"
+            v-model="providerForm.baseUrl"
             class="va-console__input font-mono"
             type="text"
             placeholder="如 https://api.deepseek.com/v1"
@@ -151,69 +192,266 @@ defineEmits<{
 
         <div class="va-console__form-group">
           <label class="va-console__label">
-            <Key :size="12" /> API 密钥 (API Key)
-            <span
-              v-if="modelForm.maskedApiKey"
-              class="va-console__profile-card-sub"
-              style="margin-left: 6px"
-            >已配置 {{ modelForm.maskedApiKey }}</span>
+            <Key :size="12" /> API 密钥
+            <span v-if="providerForm.maskedApiKey" class="va-console__profile-card-sub" style="margin-left: 6px">
+              已配置 {{ providerForm.maskedApiKey }}
+            </span>
           </label>
           <div class="va-console__input-with-action">
             <input
-              v-model="modelForm.apiKey"
+              v-model="providerForm.apiKey"
               class="va-console__input font-mono"
               :type="showApiKey ? 'text' : 'password'"
-              :placeholder="apiKeyPlaceholder || 'sk-...'"
+              :placeholder="providerForm.maskedApiKey ? '留空保持原密钥' : 'sk-...'"
             />
-            <button
-              class="va-console__input-addon-btn"
-              type="button"
-              @click="$emit('update:showApiKey', !showApiKey)"
-            >
+            <button class="va-console__input-addon-btn" type="button" @click="emit('update:showApiKey', !showApiKey)">
               <EyeOff v-if="showApiKey" :size="14" />
               <Eye v-else :size="14" />
             </button>
           </div>
-          <p v-if="modelForm.maskedApiKey" class="va-console__modal-sub" style="margin-top: 4px">
-            服务端已安全存储密钥，仅展示掩码；留空保存即保持原密钥，输入新值则覆盖。
+        </div>
+
+        <div class="va-prov-actions">
+          <button class="va-console__btn-ghost" type="button" @click="emit('save-provider')">
+            {{ isCreatingProvider ? "创建供应商" : "保存供应商设置" }}
+          </button>
+        </div>
+
+        <!-- ---------- 该供应商下的模型 ---------- -->
+        <div class="va-model-section">
+          <div class="va-model-section__head">
+            <span class="va-model-section__title">
+              此供应商下的模型
+              <span class="va-model-section__count">{{ currentProviderModels.length }}</span>
+            </span>
+            <button
+              class="va-console__btn-add-profile"
+              type="button"
+              :disabled="!currentProvider"
+              @click="emit('create-model')"
+            >
+              <Plus :size="12" /> 添加模型
+            </button>
+          </div>
+
+          <!-- 模型清单 -->
+          <div v-if="currentProviderModels.length" class="va-model-list">
+            <div
+              v-for="m in currentProviderModels"
+              :key="m.id"
+              class="va-model-row"
+              :class="{ 'va-model-row--editing': m.id === editingModelId }"
+            >
+              <div class="va-model-row__main" @click="emit('edit-model', m)">
+                <div class="va-model-row__info">
+                  <span class="va-model-row__name">
+                    {{ m.name }}
+                    <span v-if="m.isDefault" class="va-console__default-chip">默认</span>
+                  </span>
+                  <span class="va-model-row__id">{{ m.model }}</span>
+                </div>
+                <div class="va-model-row__badges">
+                  <span v-for="b in badges(m)" :key="b" class="va-prov-badge">{{ b }}</span>
+                </div>
+                <button class="va-model-row__edit" type="button">
+                  <ChevronUp v-if="m.id === editingModelId" :size="13" />
+                  <ChevronDown v-else :size="13" />
+                </button>
+                <button
+                  class="va-model-row__del"
+                  type="button"
+                  title="删除该模型"
+                  @click.stop="emit('delete-model', m.id)"
+                >
+                  <Trash2 :size="12" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <p v-else-if="!modelDraft" class="va-console__empty-tip">
+            该供应商下还没有模型。点「添加模型」即可复用上面的端点与密钥。
           </p>
-        </div>
 
-        <div class="va-console__form-row">
-          <div class="va-console__form-group flex-1">
-            <label class="va-console__label">上下文窗口 (Context Window)</label>
-            <input
-              v-model.number="modelForm.contextWindow"
-              class="va-console__input font-mono"
-              type="number"
-              step="1000"
-              placeholder="128000"
-            />
+          <!-- ---------- 内联编辑表单 ---------- -->
+          <div v-if="modelDraft" class="va-model-editor">
+            <div class="va-model-editor__head">
+              <span class="va-model-editor__title">
+                {{ isCreatingModel ? "添加模型" : `编辑「${modelDraft.name || "未命名"}」` }}
+              </span>
+              <button class="va-model-editor__cancel" type="button" @click="emit('cancel-model-edit')">
+                收起
+              </button>
+            </div>
+
+            <div class="va-console__form-row">
+              <div class="va-console__form-group flex-1">
+                <label class="va-console__label">显示名称</label>
+                <input v-model="modelDraft.name" class="va-console__input" type="text" placeholder="如 DeepSeek V3 生产" />
+              </div>
+              <div class="va-console__form-group flex-1">
+                <label class="va-console__label">模型标识 (Model ID)</label>
+                <div class="va-console__input-with-action">
+                  <input
+                    v-model="modelDraft.model"
+                    class="va-console__input font-mono"
+                    type="text"
+                    placeholder="如 deepseek-chat"
+                    list="va-discovered-models"
+                  />
+                  <button
+                    class="va-console__input-addon-btn"
+                    type="button"
+                    :disabled="isDiscovering"
+                    title="从供应商拉取可用模型列表"
+                    @click="emit('discover')"
+                  >
+                    <Loader2 v-if="isDiscovering" :size="14" class="va-console__spin" />
+                    <RefreshCw v-else :size="14" />
+                  </button>
+                </div>
+                <datalist id="va-discovered-models">
+                  <option v-for="d in discoveredModels" :key="d" :value="d" />
+                </datalist>
+              </div>
+            </div>
+            <!-- 拉取结果：点选即自动填充标识与能力 -->
+            <div v-if="discoveredItems.length" class="va-discovered">
+              <div class="va-discovered__head">
+                <span>已拉取 {{ discoveredItems.length }} 个可用模型</span>
+                <span class="va-discovered__hint">
+                  {{ discoveredItems.filter((i) => i.capabilities).length }} 个带能力信息，点选自动填充
+                </span>
+              </div>
+              <div class="va-discovered__list">
+                <button
+                  v-for="d in discoveredItems"
+                  :key="d.id"
+                  class="va-discovered__item"
+                  :class="{ 'va-discovered__item--active': d.id === modelDraft.model }"
+                  type="button"
+                  @click="emit('apply-detected', d)"
+                >
+                  <span class="va-discovered__id">{{ d.id }}</span>
+                  <span v-if="d.displayName" class="va-discovered__name">{{ d.displayName }}</span>
+                  <span class="va-discovered__badges">
+                    <span v-for="b in capabilityBadges({ capabilities: d.capabilities })" :key="b" class="va-prov-badge">{{ b }}</span>
+                  </span>
+                </button>
+              </div>
+            </div>
+            <p v-else-if="discoveredModels.length" class="va-console__modal-sub">
+              已拉取 {{ discoveredModels.length }} 个可用模型，输入框可直接联想选择。
+            </p>
+
+            <!-- 能力元数据 -->
+            <div class="va-cap-block">
+              <div class="va-cap-block__title">
+                <Sparkles :size="12" /> 能力标记
+                <span class="va-cap-block__hint">决定附件入口、上下文仪表等行为</span>
+              </div>
+
+              <div class="va-console__form-row">
+                <div class="va-console__form-group flex-1">
+                  <label class="va-console__label">上下文窗口 (tokens)</label>
+                  <input
+                    v-model.number="modelDraft.contextWindow"
+                    class="va-console__input font-mono"
+                    type="number"
+                    step="1000"
+                    placeholder="128000"
+                  />
+                </div>
+                <div class="va-console__form-group flex-1">
+                  <label class="va-console__label">最大输出 (tokens)</label>
+                  <input
+                    v-model.number="modelDraft.capabilities!.maxOutputTokens"
+                    class="va-console__input font-mono"
+                    type="number"
+                    step="1000"
+                    placeholder="可选"
+                  />
+                </div>
+              </div>
+
+              <div class="va-console__form-group">
+                <label class="va-console__label">输入模态</label>
+                <div class="va-cap-chips">
+                  <span class="va-cap-chip va-cap-chip--locked">文本</span>
+                  <button
+                    v-for="opt in MODALITY_OPTIONS"
+                    :key="opt.id"
+                    class="va-cap-chip"
+                    :class="{ 'va-cap-chip--on': modalityActive(opt.id) }"
+                    type="button"
+                    @click="emit('toggle-modality', opt.id)"
+                  >
+                    <ImageIcon v-if="opt.id === 'image'" :size="11" />
+                    {{ opt.label }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="va-cap-toggles">
+                <button
+                  class="va-cap-toggle"
+                  :class="{ 'va-cap-toggle--on': reasoningOn() }"
+                  type="button"
+                  @click="emit('toggle-reasoning')"
+                >
+                  <Sparkles :size="12" />
+                  <span>支持推理</span>
+                  <Check v-if="reasoningOn()" :size="12" class="va-cap-toggle__check" />
+                </button>
+                <button
+                  class="va-cap-toggle"
+                  :class="{ 'va-cap-toggle--on': toolsOn() }"
+                  type="button"
+                  @click="emit('toggle-tool-use')"
+                >
+                  <Wrench :size="12" />
+                  <span>支持工具调用</span>
+                  <Check v-if="toolsOn()" :size="12" class="va-cap-toggle__check" />
+                </button>
+              </div>
+            </div>
+
+            <div class="va-console__form-row">
+              <div class="va-console__form-group flex-1">
+                <label class="va-console__label">
+                  <Sliders :size="12" /> 默认温度 ({{ modelDraft.temperature }})
+                </label>
+                <input
+                  v-model.number="modelDraft.temperature"
+                  class="va-console__range"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                />
+              </div>
+              <div class="va-console__form-group flex-1">
+                <div class="va-console__checkbox-row" style="margin-top: 22px">
+                  <label class="va-console__checkbox-label">
+                    <input v-model="modelDraft.isDefault" type="checkbox" />
+                    <span>设为全局默认模型</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="va-model-editor__foot">
+              <button class="va-console__btn-ghost" type="button" @click="emit('cancel-model-edit')">
+                取消
+              </button>
+              <button class="va-console__btn-primary" type="button" @click="emit('save-model')">
+                {{ isCreatingModel ? "添加" : "保存" }}
+              </button>
+            </div>
           </div>
-
-          <div class="va-console__form-group flex-1">
-            <label class="va-console__label">
-              <Sliders :size="12" /> 温度采样 (Temperature: {{ modelForm.temperature }})
-            </label>
-            <input
-              v-model.number="modelForm.temperature"
-              class="va-console__range"
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-            />
-          </div>
         </div>
 
-        <div class="va-console__checkbox-row">
-          <label class="va-console__checkbox-label">
-            <input v-model="modelForm.isDefault" type="checkbox" />
-            <span>设为全局默认模型</span>
-          </label>
-        </div>
-
-        <!-- 连通性测试状态展示 -->
+        <!-- 测试状态 -->
         <div
           v-if="testStatus"
           class="va-console__test-status-box"
@@ -229,36 +467,26 @@ defineEmits<{
       </div>
     </div>
 
-    <!-- 面板底栏（复用原弹窗 foot 样式） -->
+    <!-- ============ 底栏 ============ -->
     <div class="va-console__modal-foot">
       <div class="va-console__foot-left">
         <button
-          v-if="!isCreatingNewModel && modelProfiles.length > 1"
+          v-if="!isCreatingProvider && currentProvider"
           class="va-console__btn-delete-profile"
           type="button"
-          @click="$emit('delete-profile')"
+          @click="emit('delete-provider', currentProvider.id)"
         >
-          <Trash2 :size="13" /> 删除此配置
+          <Trash2 :size="13" /> 删除供应商
         </button>
       </div>
 
       <div class="va-console__foot-right">
-        <button
-          class="va-console__btn-ghost"
-          :disabled="isTestingConnection"
-          type="button"
-          @click="$emit('test')"
-        >
+        <button class="va-console__btn-ghost" :disabled="isTestingConnection" type="button" @click="emit('test')">
           <Loader2 v-if="isTestingConnection" :size="13" class="va-console__spin" />
           <Zap v-else :size="13" />
           <span>测试连通性</span>
         </button>
-        <button class="va-console__btn-ghost" type="button" @click="$emit('close')">
-          取消
-        </button>
-        <button class="va-console__btn-primary" type="button" @click="$emit('save')">
-          保存配置
-        </button>
+        <button class="va-console__btn-ghost" type="button" @click="emit('close')">关闭</button>
       </div>
     </div>
   </div>
