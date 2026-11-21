@@ -47,4 +47,4 @@ npx shadcn-vue add @vuagent/approval-card
 
 ## 给 AI 编码工具
 
-把 `llms.txt` / `llms-full.txt` 挂到站点根路径，Claude Code / Cursor 即可自主检索并安装组件；也可接入 MCP server（规划中）。
+把 `llms.txt` / `llms-full.txt` 挂到站点根路径，Claude Code / Cursor 即可自主检索并安装组件。

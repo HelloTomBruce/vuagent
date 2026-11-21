@@ -10,6 +10,7 @@ export default defineConfig({
     siteTitle: "Vuagent",
     nav: [
       { text: "指南", link: "/guide/getting-started" },
+      { text: "Agent Harness", link: "/guide/harness" },
       { text: "组件", link: "/components/" },
     ],
     sidebar: [
@@ -20,6 +21,10 @@ export default defineConfig({
           { text: "主题化", link: "/guide/theming" },
           { text: "Overlay 浮层组件", link: "/guide/overlays" },
         ],
+      },
+      {
+        text: "Agent Harness",
+        items: [{ text: "接入指南", link: "/guide/harness" }],
       },
       { text: "组件", items: [{ text: "组件总览", link: "/components/" }] },
     ],
