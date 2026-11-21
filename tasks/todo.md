@@ -62,7 +62,7 @@
 
 ---
 
-## Task 053: 真实端点验收（手动清单）
+## Task 053: 真实端点验收 ✅（清单与执行模板已落盘 docs/verification.md；本地无 anthropic/视觉模型账号，五项均标「待执行」，需真实账号后回填）
 
 **Description:** 上一轮 review 遗留的真实验证项，自动化（stub）已覆盖的部分不重复。产出 `docs/verification.md` 验收清单 + 执行记录模板，覆盖：① Anthropic 原生端点 thinking + 工具调用组合（真实 key）；② 真实视觉模型（如 glm-4v / qwen-vl / gpt-4o）发图获得描述性回答；③ DeepSeek/Kimi 端点的 cached_tokens / reasoning_tokens 明细落账；④ max_tokens 声明在真实端点生效（响应被截断可观察）。本地无对应账号的项标注「待执行」并留记录位。
 
