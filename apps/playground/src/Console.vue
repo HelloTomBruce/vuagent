@@ -930,6 +930,7 @@ function quickFillPrompt(text: string) {
           :commands="commands"
           trigger-label="命令"
           hotkey="⌘K"
+          hide-trigger
           @select="onCommandSelect"
         />
         <VaPopover v-model:open="notifOpen" placement="bottom-end" :offset="8">

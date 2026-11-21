@@ -27,6 +27,8 @@ export interface CommandMenuProps {
   hotkey?: string;
   /** 触发按钮文案，默认 "命令" */
   triggerLabel?: string;
+  /** 隐藏触发按钮（仅保留 ⌘K 等外部快捷键唤起；按钮不入 DOM，避免留下不可见可聚焦项） */
+  hideTrigger?: boolean;
   /** 空结果文案 */
   emptyLabel?: string;
   /** 面板最大高度 px，默认 380 */

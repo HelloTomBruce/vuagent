@@ -37,6 +37,7 @@ function onTriggerKeydown(e: KeyboardEvent) {
 <template>
   <span class="va-cmd">
     <button
+      v-if="!props.hideTrigger"
       class="va-cmd__trigger"
       type="button"
       :aria-expanded="isOpen"
