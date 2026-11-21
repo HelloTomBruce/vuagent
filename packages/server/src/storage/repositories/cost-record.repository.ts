@@ -68,6 +68,31 @@ export class CostRecordRepository {
     return this.sumWindowByModelBetween(Date.now() - windowMs, Number.POSITIVE_INFINITY);
   }
 
+  /** 近窗口按会话聚合（TASK-054 成本徽标数据源，一次批量避免逐会话 N+1） */
+  async sumWindowBySession(windowMs: number): Promise<Record<string, WindowUsage>> {
+    return this.sumWindowBySessionBetween(Date.now() - windowMs, Number.POSITIVE_INFINITY);
+  }
+
+  /** 任意区间按会话聚合 [since, until) */
+  async sumWindowBySessionBetween(
+    since: number,
+    until: number
+  ): Promise<Record<string, WindowUsage>> {
+    const bySession: Record<string, WindowUsage> = {};
+    for (const r of await this.list()) {
+      if (r.finishedAt < since || r.finishedAt >= until) continue;
+      if (!r.sessionId) continue;
+      const bucket = (bySession[r.sessionId] ??= { tokens: 0, costUsd: 0, recordCount: 0 });
+      bucket.tokens += r.promptTokens + r.completionTokens;
+      bucket.costUsd += r.costUsd ?? 0;
+      bucket.recordCount++;
+    }
+    for (const bucket of Object.values(bySession)) {
+      bucket.costUsd = Number(bucket.costUsd.toFixed(6));
+    }
+    return bySession;
+  }
+
   /** 任意区间按模型聚合 [since, until) */
   async sumWindowByModelBetween(since: number, until: number): Promise<Record<string, WindowUsage>> {
     const byModel: Record<string, WindowUsage> = {};

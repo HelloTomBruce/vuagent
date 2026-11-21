@@ -5,6 +5,8 @@ export interface SandboxDemoContext {
   workspace: WorkspaceEntity;
   sessionId: string;
   prompt: string;
+  /** 附件元数据（TASK-050 回显，与主流程同口径） */
+  attachments?: Array<{ name: string; kind: "image" | "file"; size: number }>;
   modelProfileName: string;
   modelProfileProvider: string;
   messageId: string;
@@ -175,6 +177,7 @@ export async function *runSandboxDemoTurn(
     id: turnId,
     sessionId: ctx.sessionId,
     prompt,
+    ...(ctx.attachments?.length ? { attachments: ctx.attachments } : {}),
     content: fullContent,
     thought: thoughtText,
     cards: [diffCard, termCard],

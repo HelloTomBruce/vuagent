@@ -353,6 +353,42 @@ export function createHarnessServer(options: ServerOptions = {}) {
   });
 
   // 核心对话流式接口 (SSE，委托 SessionExecutionHub 独立生命周期)
+  /* ---------- 成本查询（TASK-054）：只读聚合，复用既有仓储；配额口径与 admission 同源 ---------- */
+
+  /** windowMs 钳制：默认 24h，下限 1min，上限 30d */
+  const clampCostWindow = (raw: string | undefined): number => {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return 86_400_000;
+    return Math.min(Math.max(Math.floor(n), 60_000), 30 * 24 * 3_600_000);
+  };
+
+  app.get("/api/costs/summary", async (c) => {
+    const windowMs = clampCostWindow(c.req.query("windowMs"));
+    const [usage, byModel, finops] = await Promise.all([
+      costRepo.sumWindow(windowMs),
+      costRepo.sumWindowByModel(windowMs),
+      configResolver.resolve("finops"),
+    ]);
+    // 配额进度用配额自己的窗口口径（与 admission 判定同源），不用查询窗口
+    const windowTokenLimit = Number(finops?.windowTokenLimit) || 0;
+    const windowUsdLimit = Number(finops?.windowUsdLimit) || 0;
+    const quota =
+      windowTokenLimit > 0 || windowUsdLimit > 0
+        ? {
+            windowMs: Number(finops?.windowMs) || 86_400_000,
+            windowTokenLimit,
+            windowUsdLimit,
+            usage: await costRepo.sumWindow(Number(finops?.windowMs) || 86_400_000),
+          }
+        : null;
+    return c.json({ windowMs, usage, byModel, quota });
+  });
+
+  app.get("/api/costs/by-session", async (c) => {
+    const windowMs = clampCostWindow(c.req.query("windowMs"));
+    return c.json({ windowMs, bySession: await costRepo.sumWindowBySession(windowMs) });
+  });
+
   app.post("/api/chat", async (c) => {    const body = await c.req.json().catch(() => ({}));
     const prompt = String(body.prompt || "").trim();
 
@@ -502,6 +538,8 @@ export function createHarnessServer(options: ServerOptions = {}) {
             typeof body.reasoningEffort === "string" ? body.reasoningEffort.trim() || undefined : undefined,
           // 能力运行时 P2：图片附件（路由层已完成结构与能力校验）
           images: turnImages,
+          // TASK-050：附件元数据（回显用，白名单校验，不参与请求构造）
+          attachments: pickAttachmentMeta(body.attachments),
         },
         { preempt }
       );
@@ -1046,6 +1084,23 @@ export function createHarnessServer(options: ServerOptions = {}) {
       images.push({ name, mediaType: mediaType as TurnImageInput["mediaType"], data });
     }
     return { images };
+  };
+
+  /** 附件元数据校验（TASK-050 回显）：只收 name/kind/size，其余字段丢弃，≤6 条 */
+  const pickAttachmentMeta = (
+    raw: unknown
+  ): Array<{ name: string; kind: "image" | "file"; size: number }> | undefined => {
+    if (!Array.isArray(raw) || raw.length === 0) return undefined;
+    const out: Array<{ name: string; kind: "image" | "file"; size: number }> = [];
+    for (const item of raw.slice(0, 6)) {
+      const o = (item ?? {}) as Record<string, unknown>;
+      const name = typeof o.name === "string" ? o.name.slice(0, 200) : "";
+      const kind = o.kind === "image" ? "image" : "file";
+      const size = typeof o.size === "number" && Number.isFinite(o.size) ? Math.max(0, Math.floor(o.size)) : 0;
+      if (!name) continue;
+      out.push({ name, kind, size });
+    }
+    return out.length > 0 ? out : undefined;
   };
 
   /** 只接受 http(s)：provider.baseUrl 会被服务端拿去发请求，file:// 等协议须挡在门外 */

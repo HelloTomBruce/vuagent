@@ -316,6 +316,7 @@ export class AgentLoop {
           workspace,
           sessionId: session.id,
           prompt: req.prompt,
+          attachments: req.attachments,
           modelProfileName: modelProfile.name,
           modelProfileProvider: modelProfile.provider,
           messageId: currentMsgId,
@@ -361,7 +362,7 @@ export class AgentLoop {
 
     // TASK-049 即时落库：轮次开始即落 running 行（中途崩溃留痕），
     // 每 step 增量更新，终态 appendTurn upsert 兜底（幂等替换，不产生重复行）
-    await persistence.appendRunningRow({ prompt: req.prompt, startAt });
+    await persistence.appendRunningRow({ prompt: req.prompt, startAt, attachments: req.attachments });
 
     /** 每 step 结束后的增量进度落盘（best-effort，失败不影响主链路） */
     const persistProgress = async (): Promise<void> =>
@@ -860,6 +861,7 @@ export class AgentLoop {
       // 5. 保存本轮会话（终态 upsert done 段 + 成本记账）
       await persistence.finalizeDone({
         prompt: req.prompt,
+        attachments: req.attachments,
         content: accumulatedContent,
         thought: accumulatedThought,
         cards: accumulatedCards,
@@ -932,6 +934,7 @@ export class AgentLoop {
       await persistence.finalizeError(
         {
           prompt: req.prompt,
+          attachments: req.attachments,
           content: accumulatedContent,
           thought: accumulatedThought,
           cards: accumulatedCards,

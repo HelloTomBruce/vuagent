@@ -76,6 +76,11 @@ export interface AgentTurnRequest {
    * agent-loop 将其组装为本轮 user 消息的 content parts。
    */
   images?: TurnImageInput[];
+  /**
+   * 附件元数据（TASK-050 回显）：全部附件（图片 + 文本文件）的名字/类型/大小，
+   * 仅用于 TurnEntity 落库与前端历史占位渲染，不参与请求构造。
+   */
+  attachments?: Array<{ name: string; kind: "image" | "file"; size: number }>;
 }
 
 /** 图片附件入参：结构校验见 /api/chat 路由（张数/大小/类型白名单） */

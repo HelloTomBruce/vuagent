@@ -34,6 +34,8 @@ export interface TurnProgressState {
 /** 终态实体装配所需的累积态快照（done / error 两段 upsert 共用） */
 export interface TurnFinalState {
   prompt: string;
+  /** 附件元数据（TASK-050 回显，轻量不含内容） */
+  attachments?: Array<{ name: string; kind: "image" | "file"; size: number }>;
   content: string;
   thought: string;
   cards: Array<{ id: string; type: string; data: any }>;
@@ -57,12 +59,17 @@ export class TurnPersistence {
    * 每 step 增量更新，终态 appendTurn upsert 兜底（幂等替换，不产生重复行）。
    * 初始落库失败不阻断执行；终态 appendTurn 仍会兜底落库。
    */
-  async appendRunningRow(input: { prompt: string; startAt: number }): Promise<void> {
+  async appendRunningRow(input: {
+    prompt: string;
+    startAt: number;
+    attachments?: Array<{ name: string; kind: "image" | "file"; size: number }>;
+  }): Promise<void> {
     try {
       await this.opts.sessionRepo.appendTurn(this.opts.sessionId, {
         id: this.opts.turnId,
         sessionId: this.opts.sessionId,
         prompt: input.prompt,
+        ...(input.attachments?.length ? { attachments: input.attachments } : {}),
         status: "running",
         stepCount: 0,
         checkpoints: [],
@@ -123,6 +130,7 @@ export class TurnPersistence {
       id: this.opts.turnId,
       sessionId: this.opts.sessionId,
       prompt: state.prompt,
+      ...(state.attachments?.length ? { attachments: state.attachments } : {}),
       content: state.content,
       thought: state.thought,
       cards: state.cards,
@@ -160,6 +168,7 @@ export class TurnPersistence {
         id: this.opts.turnId,
         sessionId: this.opts.sessionId,
         prompt: state.prompt,
+        ...(state.attachments?.length ? { attachments: state.attachments } : {}),
         content: state.content || `⚠️ 执行过程中发生错误: ${state.errorMessage}`,
         thought: state.thought,
         cards: state.cards,

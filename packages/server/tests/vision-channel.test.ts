@@ -301,3 +301,53 @@ describe("视觉通道：检查点回放（TASK-044）", () => {
     expect(history[history.length - 1]).toEqual({ role: "user", content: "第三轮提问" });
   });
 });
+
+describe("附件元数据落库（TASK-050）", () => {
+  it("带附件轮次的 TurnEntity 持久化轻量元数据（不含 base64）", async () => {
+    const { MemoryStorageDriver } = await import("../src/storage/drivers/memory.driver.js");
+    const { WorkspaceRepository } = await import("../src/storage/repositories/workspace.repository.js");
+    const { SessionRepository } = await import("../src/storage/repositories/session.repository.js");
+    const { SettingsRepository } = await import("../src/storage/repositories/settings.repository.js");
+    const { ToolRegistry } = await import("../src/core/tool-registry.js");
+    const { ActionHub } = await import("../src/core/action-hub.js");
+    const { AgentLoop } = await import("../src/core/agent-loop.js");
+    const { ToolConfigRepository } = await import("../src/storage/repositories/tool-config.repository.js");
+
+    const driver = new MemoryStorageDriver();
+    const workspaceRepo = new WorkspaceRepository(driver);
+    const sessionRepo = new SessionRepository(driver);
+    const settingsRepo = new SettingsRepository(driver);
+    const ws = await workspaceRepo.create({ name: "W", rootPath: "/tmp", permission: "read-write" });
+    const session = await sessionRepo.create({ workspaceId: ws.id, title: "T" });
+    await settingsRepo.createProfile({
+      id: "m-att", name: "M", provider: "custom", model: "m", isDefault: true,
+      capabilities: { inputModalities: ["text", "image"] },
+    });
+
+    const capturing = new CapturingDriver();
+    const loop = new AgentLoop({
+      workspaceRepo, sessionRepo, settingsRepo,
+      toolConfigRepo: new ToolConfigRepository(driver),
+      toolRegistry: new ToolRegistry(), actionHub: new ActionHub(), modelDriver: capturing,
+    });
+    for await (const _evt of loop.runTurn({
+      sessionId: session.id, workspaceId: ws.id, prompt: "带附件",
+      images: [{ name: "a.png", mediaType: "image/png", data: PNG_B64 }],
+      attachments: [
+        { name: "a.png", kind: "image", size: 67 },
+        { name: "note.md", kind: "file", size: 300 },
+      ],
+    })) {
+      void _evt;
+    }
+
+    const reloaded = await sessionRepo.get(session.id);
+    const turn = reloaded!.turns[0];
+    expect(turn.attachments).toEqual([
+      { name: "a.png", kind: "image", size: 67 },
+      { name: "note.md", kind: "file", size: 300 },
+    ]);
+    // 元数据不得携带 base64 / dataUrl（会话文档防膨胀的关键约束）
+    expect(JSON.stringify(turn.attachments)).not.toContain(PNG_B64);
+  });
+});

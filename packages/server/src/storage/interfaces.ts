@@ -92,6 +92,12 @@ export interface TurnEntity {
   id: string;
   sessionId: string;
   prompt: string;
+  /**
+   * 本轮附件元数据（回显用，TASK-050）：只存 {name, kind, size}，不存内容——
+   * sessions 是单文档内嵌 turns 的存储形态，base64 落库会把会话文档撑到不可用。
+   * 图片内容经 /api/chat images 字段进 content parts；文本附件内联进 prompt。
+   */
+  attachments?: Array<{ name: string; kind: "image" | "file"; size: number }>;
   content?: string; // 助手回答正文 Markdown
   thought?: string; // 思考过程
   cards?: Array<{
