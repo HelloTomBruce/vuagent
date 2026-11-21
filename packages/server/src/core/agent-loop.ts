@@ -15,6 +15,7 @@ import { TelemetryLedger, clipTrajectoryEvent } from "./telemetry.js";
 import { runSandboxDemoTurn } from "./sandbox-demo.js";
 import { buildSystemPrompt } from "./system-prompt.js";
 import { resolveEffectivePermissionMode } from "./permissions.js";
+import { defaultBaseUrlFor } from "./provider-defaults.js";
 import { defaultNamespaceValues, getNamespaceSchema } from "./config-schema.js";
 import { resolveContextWindow } from "./model-catalog.js";
 import {
@@ -351,8 +352,6 @@ export class AgentLoop {
     // 模型驱动解析（每轮一次，自 while 内联提升）：注入驱动直接信任；
     // 否则主档案 + 按序降级链——仅「流开始前」的限流/服务端/网络类失败触发切换
     //（诚实重试边界，见 FallbackChainDriver）；auth/请求非法/窗口溢出不降级。
-    const defaultBaseUrl = (provider: string) =>
-      provider === "ollama" ? "http://localhost:11434/v1" : "https://api.openai.com/v1";
     const hasProfileCreds = (profile: ModelProfileEntity) =>
       Boolean(
         this.services.driverFactory ||
@@ -368,7 +367,9 @@ export class AgentLoop {
       if (profile.provider === "anthropic" && !profile.baseUrl) {
         return new AnthropicDriver(profile.apiKey || process.env.ANTHROPIC_API_KEY);
       }
-      return new OpenAICompatibleDriver(profile.apiKey || process.env.OPENAI_API_KEY, profile.baseUrl || defaultBaseUrl(profile.provider), {
+      // 默认端点取共享映射（provider-defaults）：anthropic 原生档案已在上方
+      // 路由到 AnthropicDriver，走到这里的 anthropic 一定是显式网关或兜底
+      return new OpenAICompatibleDriver(profile.apiKey || process.env.OPENAI_API_KEY, profile.baseUrl || defaultBaseUrlFor(profile.provider), {
         // TASK-051：TASK-048 韧性层的重试遥测接缝 → model_retry 运维事件
         onRetry: (info) => ops.modelRetry(info),
       });

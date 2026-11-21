@@ -77,6 +77,16 @@ pnpm --filter @vuagent/server verify:redis redis://127.0.0.1:6379  # Redis 形�
 - 手动压缩注入摘要占位消息，被折叠轮次彻底退出上下文；历史重建按逐轮 checkpoint 快照回放**本提问之后**的消息，避免逐轮全量重放导致内容成倍重复；
 - 单条工具结果超长截断，`usage` 事件按「系统提示 / 历史 / 工具」三段下发水位估算，前端上下文仪表直接消费。
 
+### 模型配置：供应商 1:N 模型分层
+
+模型配置是两层结构：**ProviderEntity**（端点 / 凭证 / 协议，配一次）──1:N──**ModelProfileEntity**（模型标识 / 能力元数据）。凭证唯一事实源在供应商层——设置页改一次 Key，其下所有模型立即生效；模型自身不落 baseUrl/apiKey。
+
+- **级联解析**：`resolveEffectiveSettings` 经 `hydrateProfile` 把供应商的端点 / 凭证 / 默认参数合并进模型（供应商字段优先、参数模型级覆盖），下游 ReAct 循环拿到的仍是自洽的扁平配置，无需感知分层；
+- **存量迁移**：旧单层配置按（provider 类型 + baseUrl + apiKey）三元组惰性归组（幂等 + 进程内锁），自动收敛成「1 个供应商 + N 个模型」，迁移保留模型上的原值以便回滚；
+- **模型发现与能力探测**：`GET /api/settings/providers/:id/models/discover` 由服务端代发 `{baseUrl}/models`（端点取自已存配置，凭证明文不出服务端），把 OpenAI / Kimi / OpenRouter / models.dev / Ollama 五种方言统一归一化为 `ModelCapabilities`（上下文窗口 / 输入模态 / 推理档位 / 支持参数）——**保守探测**，取不到就留空，绝不按模型名猜能力；
+- **默认端点映射**：`core/provider-defaults.ts` 是 provider 类型 → 官方 baseUrl 的唯一事实源（agent-loop 与 discover 共用），未显式配置端点时按类型路由到正确的官方端点；
+- **默认档案播种**：全新数据库首次读取时播种 4 条演示档案（一次性，`settings_meta` 打标记）；用户删空配置后不会复活。
+
 ### 模型层：诚实重试边界 + 按序降级链
 
 韧性层对请求失败分类（鉴权 / 限流 / 服务端 / 网络 / 上下文溢出等）并按分类决定指数退避重试（尊重 `Retry-After`）。关键边界：**只重试「HTTP 响应返回之前」的失败**——流已开始吐字后的中断不做透明重跑，因为调用方已消费增量，重跑会重复输出。这类失败按已分类错误上抛，由上层决定策略。
@@ -138,7 +148,7 @@ pnpm --filter @vuagent/server verify:redis redis://127.0.0.1:6379  # Redis 形�
 | --- | --- |
 | Origin 白名单 | 仅放行本地前端 Origin；其余 Origin 的请求服务端直接 403（不只是不下发 CORS 头）；无 Origin 头的请求（同源 / 非浏览器客户端）放行 |
 | Bearer 鉴权 | 默认关闭（本地白名单已够用）；设置 `VUAGENT_TOKEN` 后 `/api/*` 全部要求令牌（健康检查免检）；启用后 CORS 放开，访问由令牌把守 |
-| apiKey 脱敏 | 模型配置的一切响应不含明文密钥，只回显掩码（末 4 位）；明文仅存服务端；PATCH 掩码值视为「保持原密钥」 |
+| apiKey 脱敏 | 模型与供应商配置的一切响应不含明文密钥，只回显掩码（末 4 位）；明文仅存服务端；PATCH 掩码值或空值视为「保持原密钥」 |
 | providerConfig 边界 | 默认拒绝前端自带供应商配置（任意 baseUrl 转发 = SSRF + 凭据外带面），仅允许切换服务端已登记的模型档案；显式开启 BYO 模式后风险自担 |
 | 私网访问 | web_fetch 默认拒绝私网 / 本机地址（SSRF 防护），env 显式放行且锁定配置项 |
 
@@ -201,13 +211,13 @@ pnpm --filter @vuagent/server start
 
 ### 分层：领域仓库 → 可替换驱动
 
-服务端的数据访问统一收敛在**领域仓库层**（六个 Repository：工作区 / 会话 / 模型档案 / 工具配置 / 服务端配置 / 成本记录），仓储层之上是引擎与路由，之下是 `IStorageDriver` 可替换驱动——引擎与路由**只经仓储说话**，不感知物理介质：
+服务端的数据访问统一收敛在**领域仓库层**（七个 Repository：工作区 / 会话 / 模型档案 / 供应商 / 工具配置 / 服务端配置 / 成本记录），仓储层之上是引擎与路由，之下是 `IStorageDriver` 可替换驱动——引擎与路由**只经仓储说话**，不感知物理介质：
 
 ```
  引擎 / 路由（AgentLoop · Hub · ActionHub · Hono）
     │  只依赖仓储接口（fail-open，落库失败不阻断主链路）
     ▼
- 领域仓库层（6 个 Repository，读写唯一入口；get→mutate→set 域语义）
+ 领域仓库层（7 个 Repository，读写唯一入口；get→mutate→set 域语义）
     │  get / set / list / delete（collection + id 抽象）
     ▼
  IStorageDriver 可替换驱动
@@ -218,13 +228,14 @@ pnpm --filter @vuagent/server start
 
 ### 存了什么：持久化实体与派生数据
 
-六个 collection（Redis 形态下即 `vuagent:<collection>:<id>` 键空间）：
+七个 collection（Redis 形态下即 `vuagent:<collection>:<id>` 键空间）：
 
 | collection | 实体 | 说明 |
 |---|---|---|
 | `workspaces` | 工作区 | rootPath / 权限档 / 忽略规则 / 工作区级指令 |
 | `sessions` | 会话 + 轮次 + 检查点 | 一条会话文档内嵌全部 turns（含逐轮 checkpoints 快照与轨迹明细） |
-| `model_profiles` | 模型档案 | 含服务端保管的 apiKey（一切对外响应只回显掩码） |
+| `providers` | 供应商 | 端点 / apiKey / 协议类型 / 供应商级默认参数（一切对外响应只回显掩码） |
+| `model_profiles` | 模型档案 | 模型标识 / 能力元数据 / 模型级参数；凭证经 `providerId` 继承供应商（遗留内联配置由迁移归并） |
 | `tool_configs` | 工具策略 | 启停 / 超时覆盖 / 审批覆盖（deny-wins） |
 | `harness_config` | 服务端配置 | 配置中心各命名空间的存储覆盖集（env 锁定项不受存储影响） |
 | `cost_records` | 成本台账 | 每轮 token 与 USD 记账，滚动窗口配额的数据源 |
@@ -249,7 +260,7 @@ pnpm --filter @vuagent/server start
 
 ### 驱动形态与键空间（Redis）
 
-Redis 驱动统一键名 `vuagent:<collection>:<id>`（id 经 URL 编码，`*` 补编码防 SCAN glob 污染）；租约使用独立键空间 `vuagent:lease:<sessionId>`（值 = `{instanceId, turnId, acquiredAt}` JSON）。TTL 语义：仅租约带 TTL（心跳续期），持久化实体不过期（与 SQLite 形态对齐）；`list/clear` 基于 SCAN 游标（不用 KEYS）。一致性边界：单键操作原子，仓储层读-改-写非原子（轮次租约互斥后主执行路径无竞态，管理类接口跨副本需注意），无跨键事务；`model_profiles` 明文入 Redis 的访问控制与加密是部署方责任。
+Redis 驱动统一键名 `vuagent:<collection>:<id>`（id 经 URL 编码，`*` 补编码防 SCAN glob 污染）；租约使用独立键空间 `vuagent:lease:<sessionId>`（值 = `{instanceId, turnId, acquiredAt}` JSON）。TTL 语义：仅租约带 TTL（心跳续期），持久化实体不过期（与 SQLite 形态对齐）；`list/clear` 基于 SCAN 游标（不用 KEYS）。一致性边界：单键操作原子，仓储层读-改-写非原子（轮次租约互斥后主执行路径无竞态，管理类接口跨副本需注意），无跨键事务；`providers` / `model_profiles` 明文入 Redis 的访问控制与加密是部署方责任。
 
 驱动替换不改任何上层代码：宿主经 `ServerOptions.storageDriver` 注入，或生产直跑时设 `REDIS_URL` 自动启用（形态对比与部署验证见「启动与部署」）。
 

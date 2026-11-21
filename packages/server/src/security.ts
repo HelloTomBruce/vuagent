@@ -13,7 +13,7 @@
 import type { Hono } from "hono";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { cors } from "hono/cors";
-import type { ModelProfileEntity } from "./storage/interfaces.js";
+import type { ModelProfileEntity, ProviderEntity } from "./storage/interfaces.js";
 
 /** 默认本地前端白名单（vite dev 5173 / vite preview 4173） */
 export const DEFAULT_LOCAL_ORIGINS = [
@@ -134,6 +134,17 @@ export function sanitizeModelProfile<T extends ModelProfileEntity>(
   profile: T
 ): Omit<T, "apiKey"> & { maskedApiKey?: string } {
   const { apiKey, ...rest } = profile;
+  const masked = maskApiKey(apiKey);
+  return masked ? { ...rest, maskedApiKey: masked } : { ...rest };
+}
+
+/**
+ * 脱敏供应商：凭证只存在供应商层，回显同样只给掩码。
+ */
+export function sanitizeProvider<T extends ProviderEntity>(
+  provider: T
+): Omit<T, "apiKey"> & { maskedApiKey?: string } {
+  const { apiKey, ...rest } = provider;
   const masked = maskApiKey(apiKey);
   return masked ? { ...rest, maskedApiKey: masked } : { ...rest };
 }

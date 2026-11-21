@@ -7,12 +7,16 @@ import type { IStorageDriver } from "./storage/drivers/base.driver.js";
 import type { RedisLike } from "./storage/drivers/redis.driver.js";
 import { TurnLeaseManager } from "./core/turn-lease.js";
 import type { LeaseOptions } from "./core/session-execution-hub.js";
-import { applySecurityBaseline, BYO_FORBIDDEN_MESSAGE, isProfileSelectionOnly, resolveSecurityConfig, sanitizeModelProfile, secureEqual } from "./security.js";
+import { applySecurityBaseline, BYO_FORBIDDEN_MESSAGE, isProfileSelectionOnly, resolveSecurityConfig, sanitizeModelProfile, sanitizeProvider, secureEqual } from "./security.js";
 import { MetricsRegistry, createOpsMetricsSink } from "./core/metrics-registry.js";
 import { createOtlpSink } from "./core/otlp-sink.js";
 import { createAdmissionPipeline } from "./core/admission.js";
 import { buildFileTree } from "./core/workspace-files.js";
 import type { ModelProfileEntity } from "./storage/interfaces.js";
+import { isProviderKind } from "./storage/interfaces.js";
+import type { ModelCapabilities, ProviderEntity, ProviderKind } from "./storage/interfaces.js";
+import { detectModels } from "./core/model-probe.js";
+import { defaultBaseUrlFor, isAnthropicNativeEndpoint } from "./core/provider-defaults.js";
 
 const execAsync = promisify(exec);
 import { SQLiteStorageDriver } from "./storage/drivers/sqlite.driver.js";
@@ -909,6 +913,235 @@ export function createHarnessServer(options: ServerOptions = {}) {
     });
   });
 
+  // 供应商层（P0 模型设置重构）：端点/凭证在此存一份，1:N 挂载多个模型
+
+  /**
+   * 供应商入参白名单（**部分更新语义**：只返回 body 里实际出现的键）。
+   *
+   * 不能直接 {...body} 透传：createProvider 的签名允许传入 id，前端若传一个
+   * 已存在的 id 就会静默覆盖另一个供应商（含其凭证）。
+   *
+   * 也不能用「未传字段填默认值」的做法：PATCH 只改 baseUrl 时会把 name 填成空串，
+   * 等于顺手清空名称。所以这里只 pick 出现过的字段，由调用方决定新建时的默认值。
+   */
+  const pickProviderPatch = (body: Record<string, unknown>) => {
+    const out: Record<string, unknown> = {};
+    if ("name" in body) out.name = typeof body.name === "string" ? body.name.trim() : "";
+    if ("provider" in body) out.provider = isProviderKind(body.provider) ? body.provider : "custom";
+    if ("baseUrl" in body) {
+      out.baseUrl = typeof body.baseUrl === "string" ? body.baseUrl.trim() || undefined : undefined;
+    }
+    if ("apiKey" in body) out.apiKey = typeof body.apiKey === "string" ? body.apiKey || undefined : undefined;
+    if ("parameters" in body) {
+      out.parameters =
+        body.parameters && typeof body.parameters === "object"
+          ? (body.parameters as Record<string, unknown>)
+          : undefined;
+    }
+    return out;
+  };
+
+  /** 模型入参白名单（同理：不允许前端指定 id / 时间戳；providerId 由路径决定） */
+  const pickModelPatch = (body: Record<string, unknown>) => {
+    const out: Record<string, unknown> = {};
+    if ("name" in body) out.name = typeof body.name === "string" ? body.name.trim() : "";
+    if ("model" in body) out.model = typeof body.model === "string" ? body.model.trim() : "";
+    // baseUrl/apiKey 仅在「旧路由改遗留内联配置」时可用；
+    // 在供应商下建模型时由调用方显式丢弃，凭证始终继承 provider。
+    if ("baseUrl" in body) {
+      out.baseUrl = typeof body.baseUrl === "string" ? body.baseUrl.trim() || undefined : undefined;
+    }
+    if ("apiKey" in body) out.apiKey = typeof body.apiKey === "string" ? body.apiKey || undefined : undefined;
+    if ("contextWindow" in body) {
+      out.contextWindow = typeof body.contextWindow === "number" ? body.contextWindow : undefined;
+    }
+    if ("capabilities" in body) {
+      out.capabilities =
+        body.capabilities && typeof body.capabilities === "object"
+          ? (body.capabilities as Record<string, unknown>)
+          : undefined;
+    }
+    if ("parameters" in body) {
+      out.parameters =
+        body.parameters && typeof body.parameters === "object"
+          ? (body.parameters as Record<string, unknown>)
+          : undefined;
+    }
+    // 兼容旧前端：顶层 temperature 由 repository 归一到 parameters.temperature
+    if ("temperature" in body) {
+      out.temperature = typeof body.temperature === "number" ? body.temperature : undefined;
+    }
+    if ("isDefault" in body) out.isDefault = body.isDefault === true;
+    return out;
+  };
+
+  /** 只接受 http(s)：provider.baseUrl 会被服务端拿去发请求，file:// 等协议须挡在门外 */
+  const isHttpUrl = (raw: string): boolean => {
+    try {
+      const u = new URL(raw);
+      return u.protocol === "http:" || u.protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
+
+  app.get("/api/settings/providers", async (c) => {
+    const providers = await settingsRepo.providers.listProviders();
+    const models = await settingsRepo.listProfiles();
+    return c.json(
+      providers.map((p) => ({
+        ...sanitizeProvider(p),
+        models: models
+          .filter((m) => m.providerId === p.id)
+          .map((m) => sanitizeModelProfile(m)),
+      }))
+    );
+  });
+
+  app.post("/api/settings/providers", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    const fields = pickProviderPatch(body);
+    if (!fields.name) return c.json({ error: "供应商名称不能为空" }, 400);
+    if (typeof fields.baseUrl === "string" && !isHttpUrl(fields.baseUrl)) {
+      return c.json({ error: "API 基础地址只支持 http(s) 协议" }, 400);
+    }
+    const provider = await settingsRepo.providers.createProvider({
+      name: fields.name as string,
+      provider: (fields.provider as ProviderKind) ?? "custom",
+      baseUrl: fields.baseUrl as string | undefined,
+      apiKey: fields.apiKey as string | undefined,
+      parameters: fields.parameters as ProviderEntity["parameters"],
+    });
+    return c.json(sanitizeProvider(provider), 201);
+  });
+
+  app.patch("/api/settings/providers/:id", async (c) => {
+    const id = c.req.param("id");
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    const fields = pickProviderPatch(body);
+    // 与 POST 同规：显式传了 name 就必须是非空字符串（防 number 等脏类型被
+    // pick 归一成 "" 后静默清空名称）
+    if ("name" in body && !fields.name) {
+      return c.json({ error: "供应商名称不能为空" }, 400);
+    }
+    if (typeof fields.baseUrl === "string" && !isHttpUrl(fields.baseUrl)) {
+      return c.json({ error: "API 基础地址只支持 http(s) 协议" }, 400);
+    }
+    const updated = await settingsRepo.providers.updateProvider(id, fields);
+    if (!updated) return c.json({ error: "Provider not found" }, 404);
+    return c.json(sanitizeProvider(updated));
+  });
+
+  app.delete("/api/settings/providers/:id", async (c) => {
+    const id = c.req.param("id");
+    const cascade = c.req.query("cascade") === "true";
+    const result = await settingsRepo.providers.deleteProvider(id, { cascade });
+    if (!result.deleted) {
+      if (result.reason === "not_found") return c.json({ error: "Provider not found" }, 404);
+      // 仍挂着模型：提示前端确认后再带 cascade 重试，避免静默级联删除
+      return c.json(
+        {
+          success: false,
+          reason: result.reason,
+          boundModels: result.boundModels,
+          error: `该供应商下仍有 ${result.boundModels ?? "若干"} 个模型，请先迁移或显式级联删除`,
+        },
+        409
+      );
+    }
+    return c.json({ success: true, removedModels: result.removedModels });
+  });
+
+  /**
+   * 在指定供应商下新增模型：provider 类型与端点一律取自供应商，
+   * 前端无法借建模型绕过凭证归层（也避免同一 provider 下模型各自带 baseUrl 的漂移）。
+   */
+  app.post("/api/settings/providers/:id/models", async (c) => {
+    const providerId = c.req.param("id");
+    const provider = await settingsRepo.providers.getProvider(providerId);
+    if (!provider) return c.json({ error: "Provider not found" }, 404);
+
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    const fields = pickModelPatch(body);
+    if (!fields.name || !fields.model) {
+      return c.json({ error: "模型名称与模型标识不能为空" }, 400);
+    }
+    const model = await settingsRepo.createProfile({
+      name: fields.name as string,
+      model: fields.model as string,
+      providerId,
+      provider: provider.provider,
+      contextWindow: fields.contextWindow as number | undefined,
+      capabilities: fields.capabilities as ModelCapabilities | undefined,
+      parameters: fields.parameters as ModelProfileEntity["parameters"],
+      isDefault: fields.isDefault as boolean | undefined,
+    });
+    return c.json(sanitizeModelProfile(model), 201);
+  });
+
+  /**
+   * 拉取供应商可用模型列表（GET {baseUrl}/models）。
+   *
+   * 安全：端点取自服务端已存的 provider（不接受前端传入的 URL），凭证明文不出服务端；
+   * 仅允许 http(s) 协议，避免被用作 file:// 或非 HTTP 协议的探测器。
+   */
+  app.get("/api/settings/providers/:id/models/discover", async (c) => {
+    const providerId = c.req.param("id");
+    const provider = await settingsRepo.providers.getProvider(providerId);
+    if (!provider) return c.json({ error: "Provider not found" }, 404);
+
+    // 默认端点取共享映射（provider-defaults）：完整覆盖各家官方端点，
+    // 不再把 anthropic/deepseek/qwen 兜到 OpenAI 上
+    const baseUrl = (provider.baseUrl || defaultBaseUrlFor(provider.provider)).replace(/\/+$/, "");
+
+    if (!isHttpUrl(baseUrl)) {
+      return c.json({ ok: false, endpoint: baseUrl, error: "API 基础地址只支持 http(s) 协议" }, 200);
+    }
+    const endpoint = `${baseUrl}/models`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (provider.apiKey) {
+        // Anthropic 官方端点（默认或显式指向 anthropic.com）用 x-api-key；
+        // 走自定义网关的 anthropic 兼容端点仍用 Bearer
+        if (isAnthropicNativeEndpoint(baseUrl)) {
+          headers["x-api-key"] = provider.apiKey;
+          headers["anthropic-version"] = "2023-06-01";
+        } else {
+          headers.Authorization = `Bearer ${provider.apiKey}`;
+        }
+      }
+      const res = await fetch(endpoint, { headers, signal: controller.signal });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        return c.json(
+          { ok: false, endpoint, error: `HTTP ${res.status} ${text.slice(0, 200)}` },
+          200
+        );
+      }
+      const json = await res.json();
+      // 能力探测：不同供应商的 /models 信息量差异极大（智谱只有 id，Kimi 带
+      // context_length/supports_image_in/think_efforts），统一归一化后一并回传，
+      // 前端选中模型即可自动填充能力标记，不必让用户手抄上下文窗口。
+      const detected = detectModels(json);
+      return c.json({
+        ok: true,
+        endpoint,
+        /** 兼容字段：纯 id 列表（旧前端/脚本用） */
+        models: detected.map((d) => d.id),
+        /** 详细条目：含 displayName 与探测到的 capabilities */
+        items: detected,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return c.json({ ok: false, endpoint, error: msg }, 200);
+    } finally {
+      clearTimeout(timeout);
+    }
+  });
+
   // 模型配置接口（TASK-011：apiKey 脱敏回显，任何响应不包含明文密钥）
   app.get("/api/settings/models", async (c) => {
     const list = await settingsRepo.listProfiles();
@@ -919,13 +1152,31 @@ export function createHarnessServer(options: ServerOptions = {}) {
   // TASK-011：支持 profileId 兜底——编辑已保存配置且未重新输入密钥时，探测走服务端存储的凭据
   app.post("/api/settings/models/test", async (c) => {
     const body = await c.req.json().catch(() => ({}));
-    const storedProfile = body.profileId
+
+    // 模型层探测：profileId 指向的模型可能把凭证存在所属供应商上，
+    // 因此必须先 hydrate 再取 baseUrl/apiKey，否则从 provider 新建的模型一定探测失败。
+    const rawProfile = body.profileId
       ? await settingsRepo.getProfile(String(body.profileId))
       : null;
+    const storedProfile = rawProfile ? await settingsRepo.hydrateProfile(rawProfile) : null;
+
+    // 供应商层探测：直接测该端点连通性（未指定模型时用列表首个模型或探测默认）
+    const storedProvider = body.providerId
+      ? await settingsRepo.providers.getProvider(String(body.providerId))
+      : null;
+
     const endpoint = String(
-      body.baseUrl || storedProfile?.baseUrl || process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
+      body.baseUrl ||
+        storedProfile?.baseUrl ||
+        storedProvider?.baseUrl ||
+        process.env.OPENAI_BASE_URL ||
+        "https://api.openai.com/v1"
     );
-    const apiKey = body.apiKey || storedProfile?.apiKey || process.env.OPENAI_API_KEY;
+    const apiKey =
+      body.apiKey ||
+      storedProfile?.apiKey ||
+      storedProvider?.apiKey ||
+      process.env.OPENAI_API_KEY;
     const model = String(body.model || storedProfile?.model || "gpt-4o-mini");
 
     const startedAt = Date.now();
@@ -974,8 +1225,13 @@ export function createHarnessServer(options: ServerOptions = {}) {
 
   app.patch("/api/settings/models/:id", async (c) => {
     const id = c.req.param("id");
-    const body = await c.req.json();
-    const updated = await settingsRepo.updateProfile(id, body);
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    const fields = pickModelPatch(body);
+    // 显式传了 name/model 就必须非空（与 POST /providers/:id/models 同规）
+    if (("name" in body && !fields.name) || ("model" in body && !fields.model)) {
+      return c.json({ error: "模型名称与模型标识不能为空" }, 400);
+    }
+    const updated = await settingsRepo.updateProfile(id, fields);
     if (!updated) return c.json({ error: "Profile not found" }, 404);
     return c.json(sanitizeModelProfile(updated));
   });

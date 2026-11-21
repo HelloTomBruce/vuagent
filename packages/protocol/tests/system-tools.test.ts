@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { Value } from "@sinclair/typebox/value";
 import {
   VuagentSystemToolSchemas,
+  VuagentToolSchemas,
   AllToolSchemas,
   type VuagentAllToolName,
 } from "../src/index.js";
@@ -14,7 +15,14 @@ describe("系统工具入参 Schema（TASK-055 契约收口）", () => {
   });
 
   it("AllToolSchemas = ui 全集 ∪ 系统全集", () => {
-    expect(Object.keys(AllToolSchemas)).toHaveLength(14);
+    // 结构性断言而非硬编码个数：ui 工具随组件库演进会增减，
+    // 卡死数量会让每次新增工具都误报（曾在 6→10 时碎过一次）
+    expect(Object.keys(AllToolSchemas).sort()).toEqual(
+      [...Object.keys(VuagentToolSchemas), ...Object.keys(VuagentSystemToolSchemas)].sort()
+    );
+    expect(new Set(Object.keys(AllToolSchemas)).size).toBe(
+      Object.keys(VuagentToolSchemas).length + Object.keys(VuagentSystemToolSchemas).length
+    );
   });
 
   it.each([

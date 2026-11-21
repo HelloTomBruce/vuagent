@@ -23,7 +23,7 @@ Agent 产品的前后端一致性问题是系统性风险：模型流式输出�
 ├── stream         事件流域：HarnessStreamEvent（18 事件判别联合）
 │                  谁在用：server（SSE 推送）+ console 前端（流式消费）
 │
-├── tools          UI 工具域：6 个 ui_* 工具 Schema + AllToolSchemas 聚合
+├── tools          UI 工具域：10 个 ui_* 工具 Schema + AllToolSchemas 聚合
 │                  谁在用：server（模型 parameters + 卡片名联合类型）
 │
 ├── system-tools   系统工具域：fs / bash / glob / grep / web_fetch + finish_task 显式终态声明，共 8 个入参 Schema
