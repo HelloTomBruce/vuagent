@@ -50,6 +50,8 @@ const BASE_PROPS = {
   testStatus: null,
   discoveredModels: [] as string[],
   discoveredItems: [],
+  isVerifyingCapabilities: false,
+  capabilityVerdicts: [] as Array<{ capability: string; ok: boolean | null; detail: string }>,
 };
 
 function mountPanel(overrides: Record<string, unknown> = {}) {

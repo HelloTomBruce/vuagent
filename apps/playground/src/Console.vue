@@ -185,6 +185,9 @@ const {
   showApiKey,
   isTestingConnection,
   isDiscovering,
+  isVerifyingCapabilities,
+  capabilityVerdicts,
+  verifyCapabilities,
   testStatus,
   discoveredModels,
   discoveredItems,
@@ -1427,6 +1430,8 @@ function quickFillPrompt(text: string) {
           :test-status="testStatus"
           :discovered-models="discoveredModels"
           :discovered-items="discoveredItems"
+          :is-verifying-capabilities="isVerifyingCapabilities"
+          :capability-verdicts="capabilityVerdicts"
           @close="closeModelSettings"
           @select-provider="selectProvider"
           @create-provider="startCreateProvider"
@@ -1445,6 +1450,7 @@ function quickFillPrompt(text: string) {
           @toggle-modality="toggleModality"
           @toggle-reasoning="toggleReasoning"
           @toggle-tool-use="toggleToolUse"
+          @verify-capabilities="verifyCapabilities"
         />
       </template>
       <template #interaction>

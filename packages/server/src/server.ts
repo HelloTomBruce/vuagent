@@ -1243,6 +1243,95 @@ export function createHarnessServer(options: ServerOptions = {}) {
     }
   });
 
+  /**
+   * 能力验证（TASK-057）：对档案勾选的能力逐项发最小探测请求，实测声明与
+   * 端点真实行为是否一致（防手勾漂移）。信任边界与 discover/models-test 同源：
+   * 服务端代发、端点取自已存配置、凭据不出服务端；用户显式点击才触发
+   * （探测产生真实 API 费用，请求均带 max_tokens=1 压成本）。串行、单项 15s。
+   */
+  app.post("/api/settings/models/:id/verify-capabilities", async (c) => {
+    const id = c.req.param("id");
+    const raw = await settingsRepo.getProfile(id);
+    if (!raw) return c.json({ error: "Profile not found" }, 404);
+    const profile = await settingsRepo.hydrateProfile(raw);
+
+    const baseUrl = (profile.baseUrl || defaultBaseUrlFor(profile.provider)).replace(/\/+$/, "");
+    const isAnthropic = isAnthropicNativeEndpoint(baseUrl);
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...(profile.apiKey
+        ? isAnthropic
+          ? { "x-api-key": profile.apiKey, "anthropic-version": "2023-06-01" }
+          : { Authorization: `Bearer ${profile.apiKey}` }
+        : {}),
+    };
+    const chatBody = (extra: Record<string, unknown>) =>
+      isAnthropic
+        ? { model: profile.model, max_tokens: 1, messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }], ...extra }
+        : { model: profile.model, max_tokens: 1, messages: [{ role: "user", content: "hi" }], ...extra };
+
+    /** 单项探测：ok（端点接受）/ fail（4xx 参数类拒绝 → 声明与实际不符）/ inconclusive（鉴权/网络，不代表能力） */
+    const probe = async (
+      capability: string,
+      extra: Record<string, unknown>,
+      rejectHint: RegExp
+    ): Promise<{ capability: string; ok: boolean | null; detail: string }> => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15_000);
+      try {
+        const res = await fetch(`${baseUrl}${isAnthropic ? "/v1/messages" : "/chat/completions"}`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(chatBody(extra)),
+          signal: controller.signal,
+        });
+        if (res.ok) return { capability, ok: true, detail: "端点接受该能力参数" };
+        const text = (await res.text().catch(() => "")).slice(0, 200);
+        if (res.status === 401 || res.status === 403) {
+          return { capability, ok: null, detail: `鉴权失败（${res.status}），无法判定能力：${text}` };
+        }
+        if (res.status >= 400 && res.status < 500 && rejectHint.test(text)) {
+          return { capability, ok: false, detail: `端点拒绝该能力参数（HTTP ${res.status}）：建议取消勾选。${text}` };
+        }
+        return { capability, ok: null, detail: `HTTP ${res.status}：${text || "无响应体"}` };
+      } catch (err: unknown) {
+        return { capability, ok: null, detail: `探测失败：${err instanceof Error ? err.message : String(err)}` };
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+
+    const results: Array<{ capability: string; ok: boolean | null; detail: string }> = [];
+    // 图片：发 1×1 PNG（OpenAI image_url / Anthropic image base64）
+    if (profile.capabilities?.inputModalities?.includes("image")) {
+      const png =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+      results.push(
+        await probe(
+          "image",
+          isAnthropic
+            ? { messages: [{ role: "user", content: [{ type: "text", text: "hi" }, { type: "image", source: { type: "base64", media_type: "image/png", data: png } }] }] }
+            : { messages: [{ role: "user", content: [{ type: "text", text: "hi" }, { type: "image_url", image_url: { url: `data:image/png;base64,${png}` } }] }] },
+          /image|vision|modalit|multimodal|content.*type/i
+        )
+      );
+    }
+    // 推理档位：最低档 effort（effort 关键词被拒 → 声明与实际不符）
+    const efforts = profile.capabilities?.reasoning?.supported
+      ? profile.capabilities.reasoning.supportedEfforts
+      : undefined;
+    if (efforts?.length) {
+      results.push(
+        await probe("reasoning", isAnthropic ? { thinking: { type: "enabled", budget_tokens: 1024 } } : { reasoning_effort: efforts[0] }, /effort|reasoning|thinking|unsupported.*param|unknown.*parameter/i)
+      );
+    }
+    if (results.length === 0) {
+      return c.json({ results, note: "未勾选可探测能力（输出上限无法低成本验证），未发起请求" });
+    }
+    return c.json({ results });
+  });
+
   // 模型配置接口（TASK-011：apiKey 脱敏回显，任何响应不包含明文密钥）
   app.get("/api/settings/models", async (c) => {
     const list = await settingsRepo.listProfiles();

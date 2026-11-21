@@ -15,6 +15,7 @@
 import { computed, reactive, ref } from "vue";
 import {
   createModelUnderProvider,
+  verifyModelCapabilities,
   createProviderApi,
   deleteModelProfileById,
   deleteProviderApi,
@@ -28,6 +29,9 @@ import {
 import type { DetectedModelInfo, ProviderPayload } from "../api/client";
 import { vaConfirm, vaToaster } from "@vuagent/ui";
 import { AVAILABLE_MODELS, DEFAULT_MODEL_FORM, PROVIDER_PRESETS } from "../types";
+import type {
+  CapabilityVerdict,
+} from "../api/client";
 import type {
   ModelCapabilities,
   ModelOption,
@@ -390,6 +394,7 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
   /** 开始编辑已有模型 */
   function editModel(m: ModelProfileItem) {
     isCreatingModel.value = false;
+    capabilityVerdicts.value = [];
     discoveredModels.value = [];
     discoveredItems.value = [];
     testStatus.value = null;
@@ -412,6 +417,7 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
   function cancelModelEdit() {
     modelDraft.value = null;
     isCreatingModel.value = false;
+    capabilityVerdicts.value = [];
     discoveredModels.value = [];
     discoveredItems.value = [];
     testStatus.value = null;
@@ -530,6 +536,48 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
       contextWindow: detectedCap?.contextWindow || draft.contextWindow,
       capabilities: merged,
     };
+  }
+
+  /* ==================== 能力验证（TASK-058） ==================== */
+
+  const isVerifyingCapabilities = ref(false);
+  /** 当前模型编辑器对应的验证结果；换模型/收起草稿时清空 */
+  const capabilityVerdicts = ref<CapabilityVerdict[]>([]);
+
+  async function verifyCapabilities() {
+    const draft = modelDraft.value;
+    if (!draft?.id || isVerifyingCapabilities.value) return;
+    const probeCount =
+      (draft.capabilities?.inputModalities?.includes("image") ? 1 : 0) +
+      (draft.capabilities?.reasoning?.supported ? 1 : 0);
+    if (probeCount === 0) {
+      vaToaster.add({ title: "未勾选可探测能力", kind: "info" });
+      return;
+    }
+    const ok = await vaConfirm({
+      title: `发起 ${probeCount} 次最小探测请求？`,
+      description: "将按勾选能力逐项实测端点行为（max_tokens=1 压成本），产生少量真实 API 费用。",
+      confirmText: "开始验证",
+      tone: "default",
+      icon: true,
+    });
+    if (!ok) return;
+
+    isVerifyingCapabilities.value = true;
+    capabilityVerdicts.value = [];
+    try {
+      const res = await verifyModelCapabilities(draft.id);
+      if (res) {
+        capabilityVerdicts.value = res.results ?? [];
+        if (capabilityVerdicts.value.length === 0) {
+          vaToaster.add({ title: res.note || "未勾选可探测能力", kind: "info" });
+        }
+      }
+    } catch (e: any) {
+      vaToaster.add({ title: `验证失败: ${e.message || String(e)}`, kind: "danger" });
+    } finally {
+      isVerifyingCapabilities.value = false;
+    }
   }
 
   /* ==================== 连通性测试 ==================== */
@@ -651,6 +699,9 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
     saveModel,
     deleteModel,
     /* 辅助 */
+    isVerifyingCapabilities,
+    capabilityVerdicts,
+    verifyCapabilities,
     discoverModels,
     applyDetected,
     testModelConnection,

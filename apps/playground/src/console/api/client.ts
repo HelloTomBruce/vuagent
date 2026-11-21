@@ -282,6 +282,20 @@ export function createModelUnderProvider(
   return httpSend<ModelProfileItem>(`/api/settings/providers/${providerId}/models`, "POST", body);
 }
 
+/** 能力验证三态结果（TASK-058）：ok=true 通过 / false 不符 / null 无法判定 */
+export interface CapabilityVerdict {
+  capability: string;
+  ok: boolean | null;
+  detail: string;
+}
+
+/** 对模型勾选能力逐项最小探测（服务端代发，产生真实 API 费用，显式触发） */
+export function verifyModelCapabilities(
+  id: string
+): Promise<{ results: CapabilityVerdict[]; note?: string } | null> {
+  return httpSend(`/api/settings/models/${id}/verify-capabilities`, "POST", {});
+}
+
 /** 供应商返回的单个模型及其可探测到的能力 */
 export interface DetectedModelInfo {
   id: string;

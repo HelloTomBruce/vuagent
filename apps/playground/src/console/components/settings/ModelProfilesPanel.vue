@@ -53,6 +53,8 @@ const props = defineProps<{
   testStatus: { ok: boolean; message: string } | null;
   discoveredModels: string[];
   discoveredItems: DetectedModelInfo[];
+  isVerifyingCapabilities: boolean;
+  capabilityVerdicts: Array<{ capability: string; ok: boolean | null; detail: string }>;
 }>();
 
 const emit = defineEmits<{
@@ -74,6 +76,7 @@ const emit = defineEmits<{
   (e: "toggle-modality", modality: string): void;
   (e: "toggle-reasoning"): void;
   (e: "toggle-tool-use"): void;
+  (e: "verify-capabilities"): void;
 }>();
 
 /** 模型层输入模态候选（文本恒选中且不可取消） */
@@ -349,7 +352,35 @@ const editingModelId = computed(() => props.modelDraft?.id || "");
               <div class="va-cap-block__title">
                 <Sparkles :size="12" /> 能力标记
                 <span class="va-cap-block__hint">决定附件入口、上下文仪表等行为</span>
+                <button
+                  v-if="modelDraft.id"
+                  class="va-console__btn-ghost va-cap-block__verify"
+                  type="button"
+                  :disabled="isVerifyingCapabilities"
+                  title="按勾选能力逐项实测端点行为（产生少量真实 API 费用）"
+                  @click="emit('verify-capabilities')"
+                >
+                  <Loader2 v-if="isVerifyingCapabilities" :size="12" class="va-console__spin" />
+                  <CheckCircle2 v-else :size="12" />
+                  验证能力
+                </button>
               </div>
+
+              <!-- 验证结果三态（TASK-058） -->
+              <ul v-if="capabilityVerdicts.length" class="va-cap-verdicts">
+                <li
+                  v-for="v in capabilityVerdicts"
+                  :key="v.capability"
+                  class="va-cap-verdict"
+                  :data-ok="v.ok === true || undefined"
+                  :data-fail="v.ok === false || undefined"
+                  :title="v.detail"
+                >
+                  <span class="va-cap-verdict__mark">{{ v.ok === true ? "✓" : v.ok === false ? "✗" : "?" }}</span>
+                  <span class="va-cap-verdict__name">{{ v.capability === "image" ? "图片输入" : v.capability === "reasoning" ? "推理档位" : v.capability }}</span>
+                  <span class="va-cap-verdict__detail">{{ v.ok === false ? "端点拒绝，建议取消勾选" : v.ok === null ? "无法判定（鉴权/网络）" : "通过" }}</span>
+                </li>
+              </ul>
 
               <div class="va-console__form-row">
                 <div class="va-console__form-group flex-1">
