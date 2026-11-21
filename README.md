@@ -44,7 +44,7 @@ AI agent 产品缺的不是又一个聊天壳，而是完整的**运行时操作
 
 **一次对话的数据流**：宿主应用经 ui 的流式状态机发起请求 → server 的 ReAct 循环驱动模型与工具，执行过程以 `HarnessStreamEvent`（18 事件）经 SSE 推送 → ui 的渲染分发器把事件收敛为「文本块 + 组件块」混排流渐进渲染；高风险工具挂起等待审批，用户决策经 `/api/action` 回传唤醒执行链路。链路上的每一个字段都出自 protocol——三端永远对着同一份 Schema 说话。
 
-[`apps/playground`](./apps/playground) 是三包集成的参考宿主：以 ui 组件 + protocol 契约构建，运行时经 HTTP/SSE 与 server 进程通信（本地 `pnpm console` 同时拉起两进程）——「界面与执行解耦」架构的活示例。内置的模型设置面板演示**供应商 1:N 模型分层**：端点与凭证在供应商层配置一次，其下挂载任意多模型；`/models/discover` 从供应商端点拉取模型列表并自动探测能力元数据（上下文窗口 / 输入模态 / 推理档位），附件入口等 UI 行为随能力声明联动。
+[`apps/playground`](./apps/playground) 是三包集成的参考宿主：以 ui 组件 + protocol 契约构建，运行时经 HTTP/SSE 与 server 进程通信（本地 `pnpm console` 同时拉起两进程）——「界面与执行解耦」架构的活示例。内置的模型设置面板演示**供应商 1:N 模型分层**：端点与凭证在供应商层配置一次，其下挂载任意多模型；`/models/discover` 从供应商端点拉取模型列表并自动探测能力元数据（上下文窗口 / 输入模态 / 推理档位）。能力声明同时驱动运行时行为（保守策略，未声明不发）：推理档位选择器 → `reasoning_effort` / thinking budget、图片附件 → 多模态 content parts、输出上限 → `max_tokens`，推理与缓存 token 分档计价。
 
 ## 组件速览
 
