@@ -238,7 +238,8 @@ const {
 } = sessionsApi;
 
 // 成本用量数据域（TASK-075）：右栏用量 tab 与消息区迷你占比条共享单实例
-const usage = useUsage();
+// TASK-056：会话级成本展示；sessionsApi 已声明（见上），惰性求值
+const usage = useUsage({ getSessionId: () => sessionsApi?.activeSessionId?.value ?? "" });
 
 /* ==========================================================================
    全局命令面板与通知堆叠（TASK-076 F3）

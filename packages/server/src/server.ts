@@ -353,39 +353,12 @@ export function createHarnessServer(options: ServerOptions = {}) {
   });
 
   // 核心对话流式接口 (SSE，委托 SessionExecutionHub 独立生命周期)
-  /* ---------- 成本查询（TASK-054）：只读聚合，复用既有仓储；配额口径与 admission 同源 ---------- */
-
-  /** windowMs 钳制：默认 24h，下限 1min，上限 30d */
-  const clampCostWindow = (raw: string | undefined): number => {
-    const n = Number(raw);
-    if (!Number.isFinite(n) || n <= 0) return 86_400_000;
-    return Math.min(Math.max(Math.floor(n), 60_000), 30 * 24 * 3_600_000);
-  };
-
-  app.get("/api/costs/summary", async (c) => {
-    const windowMs = clampCostWindow(c.req.query("windowMs"));
-    const [usage, byModel, finops] = await Promise.all([
-      costRepo.sumWindow(windowMs),
-      costRepo.sumWindowByModel(windowMs),
-      configResolver.resolve("finops"),
-    ]);
-    // 配额进度用配额自己的窗口口径（与 admission 判定同源），不用查询窗口
-    const windowTokenLimit = Number(finops?.windowTokenLimit) || 0;
-    const windowUsdLimit = Number(finops?.windowUsdLimit) || 0;
-    const quota =
-      windowTokenLimit > 0 || windowUsdLimit > 0
-        ? {
-            windowMs: Number(finops?.windowMs) || 86_400_000,
-            windowTokenLimit,
-            windowUsdLimit,
-            usage: await costRepo.sumWindow(Number(finops?.windowMs) || 86_400_000),
-          }
-        : null;
-    return c.json({ windowMs, usage, byModel, quota });
-  });
-
-  app.get("/api/costs/by-session", async (c) => {
-    const windowMs = clampCostWindow(c.req.query("windowMs"));
+  // 会话级成本聚合（TASK-056 会话徽标数据源，一次批量避免逐会话 N+1）。
+  // 与 summary 同域挂 finops 命名空间；窗口钳制 [1min, 30d]，默认 24h
+  app.get("/api/finops/by-session", async (c) => {
+    const raw = Number(c.req.query("windowMs"));
+    const windowMs =
+      Number.isFinite(raw) && raw > 0 ? Math.min(Math.max(Math.floor(raw), 60_000), 30 * 24 * 3_600_000) : 86_400_000;
     return c.json({ windowMs, bySession: await costRepo.sumWindowBySession(windowMs) });
   });
 

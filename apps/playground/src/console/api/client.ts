@@ -530,6 +530,16 @@ export interface FinopsLimits {
 }
 
 /** 从配置中心取 finops 配额生效值；结构异常回退 0（不限，配额条隐藏） */
+/** 会话级成本聚合（TASK-056；窗口默认 30d 覆盖活跃会话） */
+export interface FinopsBySession {
+  windowMs: number;
+  bySession: Record<string, { tokens: number; costUsd: number; recordCount: number }>;
+}
+
+export async function fetchFinopsBySession(windowMs = 30 * 24 * 3_600_000): Promise<FinopsBySession | null> {
+  return httpGet<FinopsBySession>(`/api/finops/by-session?windowMs=${windowMs}`);
+}
+
 export async function fetchFinopsLimits(): Promise<FinopsLimits> {
   const cfg = await getConfig();
   const ns = cfg?.namespaces.find((n) => n.id === "finops");

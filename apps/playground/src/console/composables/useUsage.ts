@@ -7,6 +7,7 @@
  */
 import { computed, ref } from "vue";
 import {
+  fetchFinopsBySession,
   fetchFinopsSummary,
   fetchFinopsLimits,
   type FinopsLimits,
@@ -26,8 +27,21 @@ function dayEnd(dayStart: number): number {
   return dayStart + 86_400_000;
 }
 
-export function useUsage() {
+export interface UsageOptions {
+  /** 当前会话 id getter（TASK-056：会话级成本展示；缺省时跳过该部分） */
+  getSessionId?: () => string;
+}
+
+export function useUsage(options: UsageOptions = {}) {
   const preset = ref<UsageWindowPreset>("24h");
+  /** 会话级成本（30d 窗口批量拉取；当前会话徽标数据源） */
+  const sessionCosts = ref<Awaited<ReturnType<typeof fetchFinopsBySession>> | null>(null);
+  const currentSessionCost = computed(
+    () => {
+      const sid = options.getSessionId?.() ?? "";
+      return sid ? (sessionCosts.value?.bySession[sid] ?? null) : null;
+    }
+  );
   /** 自定义区间（当日 00:00 时间戳；非空即视为自定义模式） */
   const customStart = ref<number | null>(null);
   const customEnd = ref<number | null>(null);
@@ -62,11 +76,17 @@ export function useUsage() {
             until: dayEnd(customEnd.value!),
           })
         : await fetchFinopsSummary({ windowMs: PRESET_WINDOW_MS[preset.value] });
-      // 配额水位同步刷新（准入口径窗口 ≠ 分析窗口）
+      // 配额水位与会话级成本同步刷新（均不阻塞主数据加载态）
       void refreshQuotaUsage();
+      void refreshSessionCosts();
     } finally {
       loading.value = false;
     }
+  }
+
+  /** 会话级成本批量刷新（TASK-056；fail-open） */
+  async function refreshSessionCosts() {
+    sessionCosts.value = await fetchFinopsBySession().catch(() => null);
   }
 
   /** 按配置配额窗口拉取准入口径用量；未设配额则清空 */
@@ -107,6 +127,8 @@ export function useUsage() {
     quotaUsage,
     loading,
     byModelTokens,
+    sessionCosts,
+    currentSessionCost,
     refresh,
     setPreset,
     setCustomRange,

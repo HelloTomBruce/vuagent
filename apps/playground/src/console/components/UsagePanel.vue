@@ -37,6 +37,12 @@ function onCustomRange(range: { start: number; end: number }) {
   props.usage.setCustomRange(range.start, range.end);
 }
 
+/** 当前会话成本（TASK-056）：有记账才显示（无计价配置时隐藏，不误导 0 美元） */
+const sessionCost = computed(() => {
+  const c = props.usage.currentSessionCost.value;
+  return c && c.costUsd > 0 ? c : null;
+});
+
 const tokensTotal = computed(() => props.usage.summary.value?.tokens ?? 0);
 const costTotal = computed(() => props.usage.summary.value?.costUsd ?? 0);
 const recordCount = computed(() => props.usage.summary.value?.recordCount ?? 0);
@@ -92,6 +98,11 @@ const usdQuota = computed(() => {
     </div>
 
     <template v-else>
+      <!-- 当前会话成本（TASK-056；近 30 天窗口内该会话累计，无记账时隐藏） -->
+      <p v-if="sessionCost" class="va-usage__session-cost" :title="`近 30 天 · ${sessionCost.recordCount} 轮`">
+        当前会话 · {{ formatTokens(sessionCost.tokens) }} tokens · ${{ sessionCost.costUsd.toFixed(4) }}
+      </p>
+
       <!-- KPI：token / 费用 -->
       <div class="va-usage__kpis">
         <div class="va-usage__kpi">
@@ -169,6 +180,16 @@ const usdQuota = computed(() => {
   flex-direction: column;
   gap: 8px;
 }
+.va-usage__session-cost {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-radius: var(--va-radius-s, 8px);
+  background: var(--va-bg-2, #f5f5f4);
+  color: var(--va-ink-2, #43413c);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 .va-usage__kpis {
   display: grid;
   grid-template-columns: 1fr 1fr;

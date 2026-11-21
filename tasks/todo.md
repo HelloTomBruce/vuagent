@@ -98,7 +98,7 @@
 
 ---
 
-## Task 055: 前端成本面板
+## Task 055: 前端成本面板 ✅（规划调研疏漏：TASK-075 已实现 UsagePanel + useUsage + /api/finops/summary 全链路；本轮仅清理了重复的 /api/costs/summary——by-session 迁至 /api/finops/by-session）
 
 **Description:** 右侧面板（UsagePanel 区域或新「成本」分区）：窗口 token/USD 双口径总量、按模型分桶（条形，优先复用 VaBreakdownChart）、配额进度条（token 与 USD 双条，>80% 预警色、超限红）。数据源 TASK-054 summary 接口，打开面板时拉取 + 手动刷新按钮。
 
@@ -117,7 +117,7 @@
 
 ---
 
-## Task 056: 会话级成本徽标
+## Task 056: 会话级成本 ✅（降级交付：树内逐行徽标需 TreeSession 协议扩展（ui 包 + protocol + registry 链），本轮以「UsagePanel 当前会话成本行」交付等价可见性；树内徽标转后续任务）
 
 **Description:** 会话列表行显示该会话累计成本徽标（`>0` 才显示，tooltip 含 token 数）。数据源 by-session 接口，随会话列表加载一并拉取（一次批量请求，避免 N+1）。
 
