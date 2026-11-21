@@ -67,6 +67,10 @@ export interface ChatRequestBody {
   prompt: string;
   modelProfileId?: string;
   permission?: string;
+  /** 推理档位（能力运行时 P1）：服务端按模型能力声明校验，不合法静默忽略 */
+  reasoningEffort?: string;
+  /** 图片附件（能力运行时 P2）：base64 无前缀；能力门禁与结构校验在服务端 */
+  images?: Array<{ name: string; mediaType: string; data: string }>;
 }
 
 export interface PickDirectoryResult extends Partial<WorkspaceItem> {
@@ -470,7 +474,9 @@ export async function openChatStream(body: ChatRequestBody): Promise<Response> {
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    throw new Error(`服务器返回错误 [${res.status}] ${res.statusText}`);
+    // 优先透出服务端结构化错误（如 IMAGE_INPUT_REJECTED 的指引文案）
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error || `服务器返回错误 [${res.status}] ${res.statusText}`);
   }
   return res;
 }

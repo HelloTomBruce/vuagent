@@ -2188,3 +2188,41 @@
   min-width: 0;
   max-width: 100%;
 }
+
+/* ============ 推理档位菜单（能力运行时 P1；VaPopover 内容） ============ */
+.va-console__effort-menu {
+  min-width: 132px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.va-console__effort-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: none;
+  border-radius: var(--va-radius-s, 8px);
+  background: transparent;
+  color: var(--va-ink-2, #43413c);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background var(--va-dur-1, 120ms) ease, color var(--va-dur-1, 120ms) ease;
+}
+
+.va-console__effort-item:hover {
+  background: var(--va-bg-2, #f5f5f4);
+  color: var(--va-ink-1, #1c1917);
+}
+
+.va-console__effort-item[data-active] {
+  color: var(--va-accent, #c2410c);
+  font-weight: 500;
+}
+
+.va-console__effort-gap {
+  width: 13px;
+  flex: none;
+}

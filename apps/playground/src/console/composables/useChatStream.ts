@@ -25,6 +25,10 @@ export interface SendPromptOptions {
   workspaceId: string;
   modelProfileId?: string;
   permission: string;
+  /** 推理档位（能力运行时 P1）：透传 /api/chat，服务端按能力声明裁决 */
+  reasoningEffort?: string;
+  /** 图片附件（能力运行时 P2）：base64，服务端组装为 content parts */
+  images?: Array<{ name: string; mediaType: string; data: string }>;
 }
 
 export function useChatStream(options: ChatStreamOptions) {
@@ -247,6 +251,8 @@ export function useChatStream(options: ChatStreamOptions) {
       prompt,
       modelProfileId: opts.modelProfileId,
       permission: opts.permission,
+      reasoningEffort: opts.reasoningEffort,
+      images: opts.images,
     });
   }
 

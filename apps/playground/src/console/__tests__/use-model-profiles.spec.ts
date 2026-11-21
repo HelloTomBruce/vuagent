@@ -8,6 +8,7 @@
  *      服务端 resolveEffectiveSettings 自有兜底。
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { nextTick } from "vue";
 import { useModelProfiles } from "../composables/useModelProfiles";
 import { deleteModelProfileById, listProviders } from "../api/client";
 import { vaToaster } from "@vuagent/ui";
@@ -87,5 +88,71 @@ describe("useModelProfiles：修复回归", () => {
     // 删除后重新拉取，空模型供应商合法存在，选择器回落内置列表
     expect(m.modelProfiles.value).toEqual([]);
     expect(m.availableModels.value[0].id).toBe("deepseek-v3");
+  });
+});
+
+describe("useModelProfiles：推理档位（能力运行时 P1）", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const CAPS_MODEL = {
+    id: "m-r",
+    providerId: "p1",
+    name: "Reasoner",
+    provider: "custom",
+    model: "reasoner",
+    isDefault: true,
+    capabilities: {
+      reasoning: { supported: true, supportedEfforts: ["low", "medium", "max"], defaultEffort: "max" },
+    },
+  };
+  const PLAIN_MODEL = {
+    id: "m-plain",
+    providerId: "p1",
+    name: "Plain",
+    provider: "custom",
+    model: "plain",
+  };
+
+  it("声明档位的模型：选项 = supportedEfforts，默认选中 defaultEffort", async () => {
+    vi.mocked(listProviders).mockResolvedValue([
+      { id: "p1", name: "P", provider: "custom", models: [{ ...CAPS_MODEL }] },
+    ]);
+    const m = useModelProfiles();
+    await m.loadProviders();
+
+    expect(m.reasoningEffortOptions.value).toEqual(["low", "medium", "max"]);
+    expect(m.reasoningEffort.value).toBe("max");
+  });
+
+  it("切换到未声明模型：选项清空、档位归零（请求不带 effort）", async () => {
+    vi.mocked(listProviders).mockResolvedValue([
+      { id: "p1", name: "P", provider: "custom", models: [{ ...CAPS_MODEL }, { ...PLAIN_MODEL }] },
+    ]);
+    const m = useModelProfiles();
+    await m.loadProviders();
+    expect(m.reasoningEffort.value).toBe("max");
+
+    m.activeModel.value = "m-plain";
+    await nextTick();
+    expect(m.reasoningEffortOptions.value).toEqual([]);
+    expect(m.reasoningEffort.value).toBe("");
+  });
+
+  it("supported 但无集合 / 未声明：选项为空（保守，无法校验不发送）", async () => {
+    const supportedNoList = {
+      ...PLAIN_MODEL,
+      id: "m-nolist",
+      capabilities: { reasoning: { supported: true } },
+    };
+    vi.mocked(listProviders).mockResolvedValue([
+      { id: "p1", name: "P", provider: "custom", models: [supportedNoList] },
+    ]);
+    const m = useModelProfiles();
+    await m.loadProviders();
+
+    expect(m.reasoningEffortOptions.value).toEqual([]);
+    expect(m.reasoningEffort.value).toBe("");
   });
 });

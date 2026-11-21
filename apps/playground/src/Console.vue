@@ -9,7 +9,7 @@
  * 本文件只保留：组合式装配、欢迎页 hero 文案与用户动作编排。
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
-import { ArrowDown, Bell, ChevronDown, History, PanelRight, Route } from "lucide-vue-next";
+import { ArrowDown, Bell, Check, ChevronDown, History, PanelRight, Route, Sparkles } from "lucide-vue-next";
 import { formatTokens, useStickToBottom, VaCommandMenu, VaCompactBreakdown, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaNotificationStack, VaPopover, VaQueueDock, VaSegmentedControl, VaSkeleton, VaThinkingLoader, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
 import type { CommandItem, NotificationItem, QueueItem, ComposerAttachment } from "@vuagent/ui";
 import type { ContextPart } from "@vuagent/ui";
@@ -185,6 +185,8 @@ const {
   discoveredItems,
   activeModelObj,
   supportsImageInput,
+  reasoningEffort,
+  reasoningEffortOptions,
   fetchModelProfiles,
   resetModelToDefault,
   openModelSettings,
@@ -573,7 +575,33 @@ function onMentionKeydown(e: KeyboardEvent) {
 const attachments = ref<ComposerAttachment[]>([]);
 /** 附件文本缓存（filesSelected 时即读；发送时内联进 prompt） */
 const attachmentTexts = new Map<string, string>();
+/** 图片附件 base64 缓存（能力运行时 P2 视觉通道；发送时经 images 字段进 content parts） */
+const imageDatas = new Map<string, { name: string; mediaType: string; data: string }>();
+/** 尚未读完 base64 的图片 File 引用：发送瞬间补读，杜绝「chip 清了、图没发」的静默丢失 */
+const imageFiles = new Map<string, File>();
+
+/** 读单张图为 base64 存入 imageDatas；读完即释放 File 引用 */
+function readImageToBase64(id: string, file: File): Promise<void> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const m = /^data:([^;]+);base64,(.+)$/.exec(String(reader.result ?? ""));
+      if (m) imageDatas.set(id, { name: file.name, mediaType: m[1], data: m[2] });
+      imageFiles.delete(id);
+      resolve();
+    };
+    reader.onerror = () => {
+      imageFiles.delete(id); // 读取失败：不留死引用，发送侧按缺图处理
+      resolve();
+    };
+    reader.readAsDataURL(file);
+  });
+}
 const ATTACH_INLINE_CAP = 48 * 1024;
+/** 与服务端 /api/chat 校验同口径：类型白名单 / 单张 5MB / 单轮 4 张 */
+const IMAGE_MEDIA_WHITELIST = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const IMAGE_MAX_PER_TURN = 4;
 
 function onFilesSelected(files: File[]) {
   for (const f of files.slice(0, 6)) {
@@ -591,6 +619,22 @@ function onFilesSelected(files: File[]) {
       continue;
     }
 
+    // 视觉通道（P2）：类型/大小预检与服务端同口径，服务端兜底校验
+    if (isImage) {
+      if (!IMAGE_MEDIA_WHITELIST.has(f.type)) {
+        vaToaster.add({ title: `不支持的图片类型 ${f.type || "(未知)"}`, description: "支持 png / jpeg / webp / gif", kind: "warning" });
+        continue;
+      }
+      if (f.size > IMAGE_MAX_BYTES) {
+        vaToaster.add({ title: `图片「${f.name}」超过 5MB 上限`, kind: "warning" });
+        continue;
+      }
+      if ([...attachments.value.filter((a) => a.kind === "image")].length >= IMAGE_MAX_PER_TURN) {
+        vaToaster.add({ title: `单轮最多 ${IMAGE_MAX_PER_TURN} 张图片`, kind: "warning" });
+        continue;
+      }
+    }
+
     attachments.value.push({
       id,
       name: f.name,
@@ -598,7 +642,12 @@ function onFilesSelected(files: File[]) {
       kind: isImage ? "image" : "file",
       previewUrl: isImage ? URL.createObjectURL(f) : undefined,
     });
-    if (isImage) continue; // 图片仅登记名（视觉通道由模型能力决定，不假装内联）
+    if (isImage) {
+      // 读为 base64（视觉通道：随请求 images 字段发送）；发送时若仍未读完会补读
+      imageFiles.set(id, f);
+      void readImageToBase64(id, f);
+      continue;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       let content = String(reader.result ?? "");
@@ -612,19 +661,42 @@ function onFilesSelected(files: File[]) {
 }
 
 function buildAttachmentPrefix(): string {
-  if (attachments.value.length === 0) return "";
+  // 图片附件不进 prompt 前缀（视觉通道：经 images 字段组装 content parts）
+  const fileLikes = attachments.value.filter((a) => a.kind !== "image");
+  if (fileLikes.length === 0) return "";
   const parts: string[] = [];
-  for (const a of attachments.value) {
+  for (const a of fileLikes) {
     const text = attachmentTexts.get(a.id);
-    parts.push(text ? `---\n[${a.name}]\n${text}\n---` : `[附件] ${a.name}（${a.kind === "image" ? "图片" : "文件"}）`);
+    parts.push(text ? `---\n[${a.name}]\n${text}\n---` : `[附件] ${a.name}（文件）`);
   }
   return parts.join("\n\n") + "\n\n";
+}
+
+/**
+ * 收集本轮图片附件（视觉通道 P2）；无图返回 undefined（请求不带 images 字段）。
+ * 发送瞬间仍在读取的图片先补读（handleSend 本就是 async）——否则用户
+ * 「选完图立刻发送」会遇到 chip 已清而请求不带图的静默丢失。
+ */
+async function collectTurnImages(): Promise<{ name: string; mediaType: string; data: string }[] | undefined> {
+  const imageAtts = attachments.value.filter((a) => a.kind === "image");
+  if (imageAtts.length === 0) return undefined;
+  await Promise.all(
+    imageAtts
+      .filter((a) => !imageDatas.has(a.id) && imageFiles.has(a.id))
+      .map((a) => readImageToBase64(a.id, imageFiles.get(a.id)!))
+  );
+  const images = imageAtts
+    .map((a) => imageDatas.get(a.id))
+    .filter((x): x is { name: string; mediaType: string; data: string } => !!x);
+  return images.length > 0 ? images : undefined;
 }
 
 function clearAttachments() {
   for (const a of attachments.value) {
     if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
     attachmentTexts.delete(a.id);
+    imageDatas.delete(a.id);
+    imageFiles.delete(a.id);
   }
   attachments.value = [];
 }
@@ -633,6 +705,8 @@ function onRemoveAttachment(id: string) {
   const a = attachments.value.find((x) => x.id === id);
   if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl);
   attachmentTexts.delete(id);
+  imageDatas.delete(id);
+  imageFiles.delete(id);
   attachments.value = attachments.value.filter((x) => x.id !== id);
 }
 
@@ -770,6 +844,7 @@ function regenerateTurn(turnId: string) {
     workspaceId: activeWorkspaceId.value,
     modelProfileId: activeModel.value,
     permission: activePermission.value,
+    reasoningEffort: reasoningEffort.value || undefined,
   });
 }
 
@@ -851,6 +926,8 @@ async function handleSend(promptOverride?: string) {
     prompt += mentionBlocks.map((fp) => `\n\n[@引用文件] ${fp}`).join("");
     for (const fp of mentionBlocks) referencedFiles.delete(fp);
   }
+  // 图片先收集再清（视觉通道 P2：随请求 images 字段发送；含未读完的补读）
+  const turnImages = promptOverride ? undefined : await collectTurnImages();
   if (!promptOverride && attachments.value.length > 0) {
     const prefix = buildAttachmentPrefix();
     prompt = prompt ? `${prefix}${prompt}` : prefix.trim();
@@ -884,6 +961,8 @@ async function handleSend(promptOverride?: string) {
     workspaceId: activeWorkspaceId.value,
     modelProfileId: activeModel.value,
     permission: activePermission.value,
+    reasoningEffort: reasoningEffort.value || undefined,
+    images: turnImages,
   });
 }
 
@@ -1008,7 +1087,7 @@ function quickFillPrompt(text: string) {
               attachable
               :attachments="attachments"
               :mention-paths="mentionFiles"
-              @send="(t) => handleSend(t)"
+              @send="() => handleSend()"
               @update:model="onSelectModel"
               @update:permission="onSelectPermission"
               @files-selected="onFilesSelected"
@@ -1034,6 +1113,34 @@ function quickFillPrompt(text: string) {
                       @compact="onCompactSession"
                     />
                   </div>
+                </VaPopover>
+
+                <!-- 推理档位（能力运行时 P1）：仅当模型声明 supportedEfforts 时渲染；切模型自动回落 defaultEffort -->
+                <VaPopover v-if="reasoningEffortOptions.length" placement="top-start" :offset="8">
+                  <template #trigger>
+                    <button class="va-console__seat-btn" type="button" :aria-label="`推理档位（当前 ${reasoningEffort}）`">
+                      <Sparkles :size="12" aria-hidden="true" />
+                      <span class="va-console__seat-text">思考: {{ reasoningEffort }}</span>
+                      <ChevronDown :size="11" aria-hidden="true" />
+                    </button>
+                  </template>
+                  <template #default="{ close }">
+                    <div class="va-console__effort-menu" role="menu" aria-label="推理档位">
+                      <button
+                        v-for="opt in reasoningEffortOptions"
+                        :key="opt"
+                        class="va-console__effort-item"
+                        type="button"
+                        role="menuitem"
+                        :data-active="opt === reasoningEffort || undefined"
+                        @click="reasoningEffort = opt; close()"
+                      >
+                        <Check v-if="opt === reasoningEffort" :size="13" aria-hidden="true" />
+                        <span v-else class="va-console__effort-gap" aria-hidden="true" />
+                        <span>{{ opt }}</span>
+                      </button>
+                    </div>
+                  </template>
                 </VaPopover>
               </template>
               <template #trailing>
@@ -1177,7 +1284,7 @@ function quickFillPrompt(text: string) {
             attachable
             :attachments="attachments"
             :mention-paths="mentionFiles"
-            @send="(t) => handleSend(t)"
+            @send="() => handleSend()"
             @stop="stopExecution"
             @update:model="onSelectModel"
             @update:permission="onSelectPermission"
@@ -1204,6 +1311,34 @@ function quickFillPrompt(text: string) {
                     @compact="onCompactSession"
                   />
                 </div>
+              </VaPopover>
+
+              <!-- 推理档位（能力运行时 P1）：仅当模型声明 supportedEfforts 时渲染；切模型自动回落 defaultEffort -->
+              <VaPopover v-if="reasoningEffortOptions.length" placement="top-start" :offset="8">
+                <template #trigger>
+                  <button class="va-console__seat-btn" type="button" :aria-label="`推理档位（当前 ${reasoningEffort}）`">
+                    <Sparkles :size="12" aria-hidden="true" />
+                    <span class="va-console__seat-text">思考: {{ reasoningEffort }}</span>
+                    <ChevronDown :size="11" aria-hidden="true" />
+                  </button>
+                </template>
+                <template #default="{ close }">
+                  <div class="va-console__effort-menu" role="menu" aria-label="推理档位">
+                    <button
+                      v-for="opt in reasoningEffortOptions"
+                      :key="opt"
+                      class="va-console__effort-item"
+                      type="button"
+                      role="menuitem"
+                      :data-active="opt === reasoningEffort || undefined"
+                      @click="reasoningEffort = opt; close()"
+                    >
+                      <Check v-if="opt === reasoningEffort" :size="13" aria-hidden="true" />
+                      <span v-else class="va-console__effort-gap" aria-hidden="true" />
+                      <span>{{ opt }}</span>
+                    </button>
+                  </div>
+                </template>
               </VaPopover>
             </template>
             <template #trailing>

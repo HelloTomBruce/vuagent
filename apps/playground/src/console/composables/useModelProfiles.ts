@@ -12,7 +12,7 @@
  * 兼容：会话级 activeModel 仍然绑定 model id（会话选的是模型不是供应商），
  * 因此 Composer / 会话恢复逻辑无需感知分层。
  */
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import {
   createModelUnderProvider,
   createProviderApi,
@@ -96,6 +96,43 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
     const mods = activeModelCapabilities.value?.inputModalities;
     return Array.isArray(mods) && mods.includes("image");
   });
+
+  /* ==================== 推理档位（能力运行时 P1） ==================== */
+
+  /** 当前模型的推理能力声明（未声明返回 undefined） */
+  const activeModelReasoning = computed(
+    () => activeModelCapabilities.value?.reasoning
+  );
+
+  /**
+   * 可选档位：仅当声明 supported 且 supportedEfforts 非空时给出，
+   * 否则空数组（UI 不渲染选择器，请求不带档位——保守策略）。
+   */
+  const reasoningEffortOptions = computed(() => {
+    const r = activeModelReasoning.value;
+    return r?.supported && Array.isArray(r.supportedEfforts) && r.supportedEfforts.length
+      ? r.supportedEfforts
+      : [];
+  });
+
+  /** 会话级档位选择；空串 = 不发送（未声明能力的模型恒为空串） */
+  const reasoningEffort = ref("");
+
+  // 模型切换/删除导致 activeModel 变化时，档位回落新模型的 defaultEffort
+  //（不在声明集合内则取首档）；无声明 → 空串
+  watch(
+    [activeModel, reasoningEffortOptions],
+    () => {
+      const opts = reasoningEffortOptions.value;
+      if (opts.length === 0) {
+        reasoningEffort.value = "";
+        return;
+      }
+      const def = activeModelReasoning.value?.defaultEffort;
+      reasoningEffort.value = def && opts.includes(def) ? def : opts[0];
+    },
+    { immediate: true }
+  );
 
   /** 当前选中的供应商 */
   const currentProvider = computed<ProviderItem | undefined>(() =>
@@ -563,6 +600,9 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
     activeModelObj,
     activeModelCapabilities,
     supportsImageInput,
+    /* 推理档位（能力运行时 P1） */
+    reasoningEffort,
+    reasoningEffortOptions,
     defaultModelId,
     resetModelToDefault,
     /* 设置面板 */
