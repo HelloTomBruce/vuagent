@@ -214,7 +214,7 @@ describe("ContextCompactor.manualCompact 手动压缩 (TASK-008)", () => {
     expect(messages[0].role).toBe("system");
     // 摘要占位消息紧跟 system,以固定标记开头
     expect(messages[1].role).toBe("user");
-    expect(messages[1].content!.startsWith(COMPACT_SUMMARY_MARKER)).toBe(true);
+    expect(String(messages[1].content).startsWith(COMPACT_SUMMARY_MARKER)).toBe(true);
     // 摘要含被折叠轮次的要点(行裁剪在 120 字符内,提问序号保留)
     expect(messages[1].content).toContain("提问 1");
     expect(messages[1].content).toContain("提问 4");
@@ -292,7 +292,7 @@ describe("ContextCompactor.manualCompact 手动压缩 (TASK-008)", () => {
   it("压缩产出的摘要块以固定标记起始,二次压缩可识别", () => {
     const compactor = new ContextCompactor();
     const out = compactor.manualCompact(buildTurns(5), { keepTokens: 800 });
-    const summaryMsg = out.messages.find((m) => m.content?.startsWith(COMPACT_SUMMARY_MARKER));
+    const summaryMsg = out.messages.find((m) => String(m.content ?? "").startsWith(COMPACT_SUMMARY_MARKER));
     expect(summaryMsg).toBeDefined();
     expect(summaryMsg?.role).toBe("user");
   });
@@ -357,7 +357,7 @@ describe("ContextCompactor.compact 纯投影不可变性", () => {
     expect(outTool.content!.length).toBeLessThan(2000);
     expect(outTool.content).toContain("自动截断超长历史输出");
     // 未变更的普通消息同样以新对象呈现:写返回值不会写穿入参
-    const outUser = out.find((m) => m.content?.startsWith("提问 1"))!;
+    const outUser = out.find((m) => String(m.content ?? "").startsWith("提问 1"))!;
     expect(outUser).not.toBe(messages[1]);
     outUser.content = "写穿探针";
     expect(messages[1].content).not.toBe("写穿探针");
@@ -382,9 +382,9 @@ describe("ContextCompactor.compact 纯投影不可变性", () => {
     expect(out).not.toBe(messages);
     assertValidPairing(out);
     // 块1 整块被裁剪(输入原文仍在),块2 照常保留
-    expect(out.some((m) => m.content?.startsWith("块1"))).toBe(false);
+    expect(out.some((m) => String(m.content ?? "").startsWith("块1"))).toBe(false);
     expect(out.some((m) => m.role === "tool")).toBe(false);
-    expect(out.some((m) => m.content?.startsWith("块2"))).toBe(true);
+    expect(out.some((m) => String(m.content ?? "").startsWith("块2"))).toBe(true);
   });
 });
 
@@ -410,7 +410,7 @@ describe("ContextCompactor.compact 消息保护钩子 isProtectedMessage", () =>
       ...GUARD_OPTIONS,
       isProtectedMessage: (msg, index, total) => {
         seen.push({ index, total, role: msg.role });
-        return (msg.role === "user" && msg.content!.startsWith("保护提问")) || msg.role === "tool";
+        return (msg.role === "user" && String(msg.content ?? "").startsWith("保护提问")) || msg.role === "tool";
       },
     });
     const messages = buildGuardedSession();
@@ -424,7 +424,7 @@ describe("ContextCompactor.compact 消息保护钩子 isProtectedMessage", () =>
 
     // 未触发滑动窗口裁剪:受保护消息所在块截停裁剪,消息序列原样保留
     expect(out).toHaveLength(messages.length);
-    const keptProtectedUser = out.find((m) => m.role === "user" && m.content!.startsWith("保护提问"));
+    const keptProtectedUser = out.find((m) => m.role === "user" && String(m.content ?? "").startsWith("保护提问"));
     expect(keptProtectedUser).toBeDefined();
     expect(keptProtectedUser!.content).toBe(messages[1].content); // 内容逐字保留
     // 超长 tool 结果未被截断
@@ -447,7 +447,7 @@ describe("ContextCompactor.compact 消息保护钩子 isProtectedMessage", () =>
       expect(clippedTool.content!.length).toBeLessThan(2000);
     }
     // 受保护场景外的 user(旧块起点)所在轮次块被滑动窗口折叠掉
-    expect(out.some((m) => m.content?.startsWith("保护提问"))).toBe(false);
+    expect(out.some((m) => String(m.content ?? "").startsWith("保护提问"))).toBe(false);
     expect(out.some((m) => m.content === "最近提问")).toBe(true);
     // 入参依旧未被写改
     expect(JSON.stringify(messages)).toBe(before);

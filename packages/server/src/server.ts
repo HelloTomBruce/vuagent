@@ -17,6 +17,7 @@ import { isProviderKind } from "./storage/interfaces.js";
 import type { ModelCapabilities, ProviderEntity, ProviderKind } from "./storage/interfaces.js";
 import { detectModels } from "./core/model-probe.js";
 import { defaultBaseUrlFor, isAnthropicNativeEndpoint } from "./core/provider-defaults.js";
+import type { TurnImageInput } from "./core/types.js";
 
 const execAsync = promisify(exec);
 import { SQLiteStorageDriver } from "./storage/drivers/sqlite.driver.js";
@@ -152,8 +153,12 @@ export function createHarnessServer(options: ServerOptions = {}) {
     // TASK-052 成本记账：turn 收尾按计价表折算 USD 后落账（fail-open）
     costRecorder: async (entry) => {
       const pricing = pricingTable.priceFor(entry.model);
+      // 分档计价（能力运行时 P1）：缓存命中与推理 token 按各自单价折算
       const costUsd = pricing
-        ? computeCostUsd(pricing, entry.promptTokens, entry.completionTokens)
+        ? computeCostUsd(pricing, entry.promptTokens, entry.completionTokens, {
+            cachedPromptTokens: entry.cachedTokens,
+            reasoningTokens: entry.reasoningTokens,
+          })
         : undefined;
       await costRepo.record({ ...entry, costUsd });
     },
@@ -400,6 +405,39 @@ export function createHarnessServer(options: ServerOptions = {}) {
       }
     }
 
+    // 视觉通道（能力运行时 P2）：结构硬校验 + 能力门禁。
+    // 保守策略：生效档案未声明 inputModalities 含 image → 400 带指引文案，
+    // 不猜能力（宁可拒收，不传图后吃 provider 400）。
+    let turnImages: TurnImageInput[] | undefined;
+    if (body.images !== undefined && body.images !== null) {
+      const structCheck = pickTurnImages(body.images);
+      if ("error" in structCheck) {
+        return c.json({ error: structCheck.error, code: "IMAGE_INPUT_REJECTED" }, 400);
+      }
+      if (structCheck.images.length > 0) {
+        const sessionForModel = body.sessionId
+          ? await sessionRepo.get(String(body.sessionId))
+          : null;
+        // 与 agent-loop 的 resolve 同参（含 BYO override），保证门禁判断的就是
+        // 实际执行的档案——否则 BYO 模式下门禁按默认档案误判放行/拒绝
+        const effProfile = await settingsRepo.resolveEffectiveSettings(
+          modelProfileId || sessionForModel?.activeModelProfileId,
+          modelOverride
+        );
+        const mods = effProfile.capabilities?.inputModalities;
+        if (!Array.isArray(mods) || !mods.includes("image")) {
+          return c.json(
+            {
+              error: `当前模型「${effProfile.name}」未声明支持图片输入：请在「模型设置 → 能力标记」勾选图片后重试`,
+              code: "IMAGE_INPUT_REJECTED",
+            },
+            400
+          );
+        }
+        turnImages = structCheck.images;
+      }
+    }
+
     const preempt = body.preempt === true;
 
     // 准入洋葱管线（TASK-071 自内联提取为可组合中间件，拒绝口径逐字节一致）：
@@ -459,6 +497,11 @@ export function createHarnessServer(options: ServerOptions = {}) {
           modelOverride,
           maxSteps: body.maxSteps,
           timeoutMs: body.timeoutMs,
+          // 能力运行时 P1：推理档位（字符串档名；合法性由 agent-loop 按能力声明裁决）
+          reasoningEffort:
+            typeof body.reasoningEffort === "string" ? body.reasoningEffort.trim() || undefined : undefined,
+          // 能力运行时 P2：图片附件（路由层已完成结构与能力校验）
+          images: turnImages,
         },
         { preempt }
       );
@@ -973,6 +1016,36 @@ export function createHarnessServer(options: ServerOptions = {}) {
     }
     if ("isDefault" in body) out.isDefault = body.isDefault === true;
     return out;
+  };
+
+  /* ---------- 视觉通道入参校验（能力运行时 P2） ---------- */
+  const MAX_TURN_IMAGES = 4;
+  /** base64 字符数上限：解码后 ≈5MB（×3/4） */
+  const MAX_IMAGE_BASE64_LENGTH = Math.ceil((5 * 1024 * 1024 * 3) / 4);
+  const IMAGE_MEDIA_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+
+  /** 结构校验：张数 / 大小 / 类型白名单；能力门禁在路由内按生效档案另行判断 */
+  const pickTurnImages = (raw: unknown): { images: TurnImageInput[] } | { error: string } => {
+    if (!Array.isArray(raw)) return { error: "images 必须是数组" };
+    if (raw.length === 0) return { images: [] };
+    if (raw.length > MAX_TURN_IMAGES) return { error: `单轮最多携带 ${MAX_TURN_IMAGES} 张图片` };
+    const images: TurnImageInput[] = [];
+    for (const item of raw) {
+      const o = (item ?? {}) as Record<string, unknown>;
+      const name = typeof o.name === "string" ? o.name : "";
+      const mediaType = typeof o.mediaType === "string" ? o.mediaType : "";
+      const data = typeof o.data === "string" ? o.data : "";
+      if (!IMAGE_MEDIA_TYPES.has(mediaType)) {
+        return { error: `不支持的图片类型：${mediaType || "(空)"}（支持 png/jpeg/webp/gif）` };
+      }
+      if (!data) return { error: `图片「${name || mediaType}」缺少 base64 数据` };
+      if (!/^[A-Za-z0-9+/]+={0,2}$/.test(data)) {
+        return { error: `图片「${name}」的 base64 数据不合法` };
+      }
+      if (data.length > MAX_IMAGE_BASE64_LENGTH) return { error: `图片「${name}」超过 5MB 上限` };
+      images.push({ name, mediaType: mediaType as TurnImageInput["mediaType"], data });
+    }
+    return { images };
   };
 
   /** 只接受 http(s)：provider.baseUrl 会被服务端拿去发请求，file:// 等协议须挡在门外 */

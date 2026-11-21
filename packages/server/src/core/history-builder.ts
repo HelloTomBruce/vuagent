@@ -43,7 +43,14 @@ export function buildHistoryMessages(input: {
       let start = 0;
       for (let i = snapshot.length - 1; i >= 0; i--) {
         const item = snapshot[i];
-        if (item.role === "user" && item.content === pastTurn.prompt) {
+        // 图片轮的 user 消息是 content parts（首块 = 提问文本），同样可作回放起点锚
+        const isTurnAnchor =
+          item.role === "user" &&
+          (item.content === pastTurn.prompt ||
+            (Array.isArray(item.content) &&
+              item.content[0]?.type === "text" &&
+              item.content[0].text === pastTurn.prompt));
+        if (isTurnAnchor) {
           start = i + 1;
           break;
         }

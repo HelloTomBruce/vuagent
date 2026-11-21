@@ -24,6 +24,10 @@ export interface TelemetrySummary {
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
+    /** 思考/推理 token 累计（分档计价数据源；端点不提供时为 0） */
+    reasoningTokens: number;
+    /** Prompt Cache 命中读取累计（分档计价数据源；端点不提供时为 0） */
+    cachedTokens: number;
   };
   events: TrajectoryEvent[];
 }
@@ -38,6 +42,8 @@ export class TelemetryLedger {
   private firstTokenTime?: number;
   private promptTokens = 0;
   private completionTokens = 0;
+  private reasoningTokens = 0;
+  private cachedTokens = 0;
 
   constructor(private turnId: string, private turnNumber: number = 1) {}
 
@@ -53,9 +59,11 @@ export class TelemetryLedger {
   /**
    * 累加 Token 统计
    */
-  addTokens(prompt: number, completion: number) {
+  addTokens(prompt: number, completion: number, segments?: { reasoningTokens?: number; cachedTokens?: number }) {
     this.promptTokens += prompt;
     this.completionTokens += completion;
+    this.reasoningTokens += segments?.reasoningTokens ?? 0;
+    this.cachedTokens += segments?.cachedTokens ?? 0;
   }
 
   /**
@@ -87,6 +95,8 @@ export class TelemetryLedger {
         promptTokens: this.promptTokens,
         completionTokens: this.completionTokens,
         totalTokens: this.promptTokens + this.completionTokens,
+        reasoningTokens: this.reasoningTokens,
+        cachedTokens: this.cachedTokens,
       },
       events: [...this.events],
     };

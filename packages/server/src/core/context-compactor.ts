@@ -1,8 +1,40 @@
 import { encode } from "gpt-tokenizer";
 
+/**
+ * 多模态内容块（能力运行时 P2 视觉通道）。内部规范形态取 OpenAI 风格
+ * （与 ChatMessage 其余字段的 OpenAI 语义一致），Anthropic 原生驱动负责转换。
+ * 纯文本消息保持 content: string 不变——parts 只在携带图片时出现。
+ */
+export type ChatContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+/**
+ * 单张图片的上下文预算估值（token）。视觉 token 依分辨率与端点实现差异极大，
+ * 取常见端点中等分辨率图的保守中位；真实用量以 usage 事件的 promptTokens 为准
+ * （该值来自端点，含真实图片 token），估值只用于压缩触发与仪表分段。
+ */
+export const IMAGE_TOKEN_ESTIMATE = 1024;
+
+/**
+ * 消息正文的纯文本视图：string 原样返回；parts 消息取 text 块拼接、
+ * 图片块降级为 `[图片]` 占位（压缩折叠后的文本形态，原始 parts 仍留在检查点）。
+ * 仅用于「是否为空」与摘要标记探测等文本判断，不用于请求构造。
+ */
+export function contentAsText(msg: { content?: string | ChatContentPart[] }): string {
+  if (typeof msg.content === "string") return msg.content;
+  if (Array.isArray(msg.content)) {
+    return msg.content
+      .map((part) => (part.type === "text" ? part.text : "[图片]"))
+      .join("\n");
+  }
+  return "";
+}
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content?: string;
+  /** 纯文本，或多模态内容块数组（仅携带图片的 user 消息会出现数组形态） */
+  content?: string | ChatContentPart[];
   name?: string;
   tool_call_id?: string;
   tool_calls?: Array<{
@@ -124,7 +156,15 @@ export class ContextCompactor {
   /** 单条消息 token 计数：4 token 包裹开销 + 正文 + 工具调用声明；tool 响应 +1 定界 */
   #messageTokens(msg: ChatMessage): number {
     let n = 4;
-    if (msg.content) n += encode(msg.content).length;
+    if (typeof msg.content === "string") {
+      if (msg.content) n += encode(msg.content).length;
+    } else if (Array.isArray(msg.content)) {
+      // 多模态：文本块按实计量，图片块按固定估值（见 IMAGE_TOKEN_ESTIMATE 注释）
+      for (const part of msg.content) {
+        if (part.type === "text") n += encode(part.text).length;
+        else n += IMAGE_TOKEN_ESTIMATE;
+      }
+    }
     if (msg.tool_calls) {
       for (const tc of msg.tool_calls) {
         n += encode(tc.function.name).length;
@@ -245,9 +285,10 @@ export class ContextCompactor {
         const copy = this.#cloneMessage(m);
         // 剥离无响应声明：过滤基于已克隆的数组，产出与入参零共享
         const calls = copy.tool_calls?.filter((tc) => answered.has(tc.id));
-        const content = m.content || "";
+        const content = contentAsText(m);
         if (calls && calls.length > 0) {
           copy.tool_calls = calls;
+          // parts 形态的 assistant 消息不存在（多模态只在 user 轮次），此处恒为 string
           copy.content = content || undefined;
           result.push(copy);
         } else if (content.trim()) {
@@ -256,10 +297,10 @@ export class ContextCompactor {
         // 无有效调用且无正文：整条丢弃
         continue;
       }
-      // user / system：空内容占位
-      if (!(m.content || "").trim()) {
+      // user / system：空内容占位（parts 消息恒非空——至少有图片块）
+      if (!contentAsText(m).trim()) {
         const copy = this.#cloneMessage(m);
-        copy.content = m.content || "(empty)";
+        copy.content = "(empty)";
         result.push(copy);
         continue;
       }
@@ -301,7 +342,7 @@ export class ContextCompactor {
     }
 
     const isSummaryBlock = (block: ChatMessage[] | undefined) =>
-      Boolean(block?.length && (block[0].content || "").startsWith(COMPACT_SUMMARY_MARKER));
+      Boolean(block?.length && contentAsText(block[0]).startsWith(COMPACT_SUMMARY_MARKER));
 
     // 2. 从尾部按 token 预算圈定保留区：整块纳入，块级累计超预算即停。
     //    最后一个块（当前对话尾部）无论如何保留，保证压缩后上下文非空。
@@ -325,7 +366,7 @@ export class ContextCompactor {
     if (folded.length === 0 || (folded.length === 1 && isSummaryBlock(folded[0]))) {
       return {
         messages: this.sanitize(messages),
-        summary: isSummaryBlock(blocks[0]) ? blocks[0][0].content || "" : "",
+        summary: isSummaryBlock(blocks[0]) ? contentAsText(blocks[0][0]) : "",
         foldedTurnCount: 0,
         totalCompactedTurns: previousCompacted,
       };
@@ -334,7 +375,7 @@ export class ContextCompactor {
     // 3. 折叠区摘要：旧摘要块的要点行继承合并 + 新折叠块的要点行
     const carriedLines: string[] = [];
     if (isSummaryBlock(folded[0])) {
-      carriedLines.push(...(folded[0][0].content || "").split("\n").slice(1));
+      carriedLines.push(...contentAsText(folded[0][0]).split("\n").slice(1));
     }
 
     const digestLines: string[] = [];
@@ -345,9 +386,9 @@ export class ContextCompactor {
       const parts: string[] = [];
       for (const msg of block) {
         if (msg.role === "user" && msg.content) {
-          parts.push(`用户:${ContextCompactor.#clipDigest(msg.content, 120)}`);
+          parts.push(`用户:${ContextCompactor.#clipDigest(contentAsText(msg), 120)}`);
         } else if (msg.role === "assistant" && msg.content) {
-          parts.push(`助手:${ContextCompactor.#clipDigest(msg.content, 120)}`);
+          parts.push(`助手:${ContextCompactor.#clipDigest(contentAsText(msg), 120)}`);
         } else if (msg.role === "assistant" && msg.tool_calls?.length) {
           const names = Array.from(new Set(msg.tool_calls.map((tc) => tc.function.name))).join("、");
           parts.push(`调用工具 ${names}×${msg.tool_calls.length}`);
@@ -383,7 +424,7 @@ export class ContextCompactor {
         if (!isLastBlock && msg.role === "tool" && (msg.content?.length ?? 0) > this.maxToolChars) {
           keptMessages.push({
             ...msg,
-            content: `${msg.content!.slice(0, 800)}\n\n... [压缩截断超长工具输出 (原长度 ${msg.content!.length} 字符)] ...\n\n${msg.content!.slice(-400)}`,
+            content: `${String(msg.content ?? "").slice(0, 800)}\n\n... [压缩截断超长工具输出 (原长度 ${msg.content!.length} 字符)] ...\n\n${String(msg.content ?? "").slice(-400)}`,
           });
         } else {
           keptMessages.push(msg);
@@ -464,8 +505,8 @@ export class ContextCompactor {
         msg.role === "tool" && !!msg.content && msg.content.length > this.maxToolChars;
 
       if (needsClip) {
-        const head = msg.content!.slice(0, 800);
-        const tail = msg.content!.slice(-400);
+        const head = String(msg.content ?? "").slice(0, 800);
+        const tail = String(msg.content ?? "").slice(-400);
         result.push({
           ...this.#cloneMessage(msg),
           content: `${head}\n\n... [Harness 自动截断超长历史输出 (原长度 ${msg.content!.length} 字符)] ...\n\n${tail}`,

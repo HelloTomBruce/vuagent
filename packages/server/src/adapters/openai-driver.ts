@@ -143,12 +143,27 @@ export class OpenAICompatibleDriver implements IModelDriver {
             const choice = parsed.choices?.[0];
 
             if (parsed.usage) {
+              // 能力运行时 P1：分档计价数据源——缓存命中与推理 token 明细
+              //（较新的 usage 细分字段，旧端点缺省 = 分段缺省，计价回落整段单价）
+              const usageDetails = parsed.usage as {
+                prompt_tokens?: number;
+                completion_tokens?: number;
+                total_tokens?: number;
+                prompt_tokens_details?: { cached_tokens?: unknown };
+                completion_tokens_details?: { reasoning_tokens?: unknown };
+              };
               yield {
                 type: "usage",
                 usage: {
-                  promptTokens: parsed.usage.prompt_tokens ?? 0,
-                  completionTokens: parsed.usage.completion_tokens ?? 0,
-                  totalTokens: parsed.usage.total_tokens ?? 0,
+                  promptTokens: usageDetails.prompt_tokens ?? 0,
+                  completionTokens: usageDetails.completion_tokens ?? 0,
+                  totalTokens: usageDetails.total_tokens ?? 0,
+                  ...(typeof usageDetails.prompt_tokens_details?.cached_tokens === "number"
+                    ? { cachedTokens: usageDetails.prompt_tokens_details.cached_tokens }
+                    : {}),
+                  ...(typeof usageDetails.completion_tokens_details?.reasoning_tokens === "number"
+                    ? { reasoningTokens: usageDetails.completion_tokens_details.reasoning_tokens }
+                    : {}),
                 },
               };
             }

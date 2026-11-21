@@ -330,3 +330,45 @@ describe("mapOpenAIMessagesToAnthropic 边界", () => {
     expect(messages).toEqual([{ role: "user", content: [{ type: "text", text: "hi" }] }]);
   });
 });
+
+describe("推理档位 → extended thinking 映射（能力运行时 P1）", () => {
+  function payloadOf(body: BodyInit | null | undefined): Record<string, unknown> {
+    return JSON.parse(String(body)) as Record<string, unknown>;
+  }
+
+  it("reasoning_effort=high → thinking budget 32K，max_tokens 抬到预算之上，剔除原字段", async () => {
+    const fetchImpl = anthropicSseFetch([{ type: "message_stop" }]);
+    const driver = new AnthropicDriver("k", "http://x", { fetchImpl, resilience: false });
+    await collect(driver, {
+      parameters: { reasoning_effort: "high", temperature: 0.7, max_tokens: 8192 },
+    });
+
+    const payload = payloadOf(fetchImpl.captured.init?.body);
+    expect(payload.thinking).toEqual({ type: "enabled", budget_tokens: 32768 });
+    expect(payload.max_tokens).toBeGreaterThanOrEqual(32768 * 1.5);
+    // reasoning_effort 原字段与互斥的 temperature 都不得透传（Anthropic 必 400）
+    expect(payload.reasoning_effort).toBeUndefined();
+    expect(payload.temperature).toBeUndefined();
+  });
+
+  it("low/medium 档与未知名：按换算表映射，未知名回落 medium", async () => {
+    for (const [effort, budget] of [["low", 4096], ["medium", 16384], ["ultra", 16384]] as const) {
+      const fetchImpl = anthropicSseFetch([{ type: "message_stop" }]);
+      const driver = new AnthropicDriver("k", "http://x", { fetchImpl, resilience: false });
+      await collect(driver, { parameters: { reasoning_effort: effort } });
+      const payload = payloadOf(fetchImpl.captured.init?.body);
+      expect(payload.thinking).toEqual({ type: "enabled", budget_tokens: budget });
+    }
+  });
+
+  it("无档位时 temperature 正常透传，thinking 不出现", async () => {
+    const fetchImpl = anthropicSseFetch([{ type: "message_stop" }]);
+    const driver = new AnthropicDriver("k", "http://x", { fetchImpl, resilience: false });
+    await collect(driver, { parameters: { temperature: 0.4, max_tokens: 1024 } });
+
+    const payload = payloadOf(fetchImpl.captured.init?.body);
+    expect(payload.temperature).toBe(0.4);
+    expect(payload.max_tokens).toBe(1024);
+    expect(payload.thinking).toBeUndefined();
+  });
+});

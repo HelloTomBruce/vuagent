@@ -142,7 +142,7 @@ describe("POST /api/sessions/:id/compact 手动压缩 (TASK-008)", () => {
     expect(messages[0].role).toBe("system");
     // 摘要占位消息紧随 system
     expect(messages[1].role).toBe("user");
-    expect(messages[1].content?.startsWith(COMPACT_SUMMARY_MARKER)).toBe(true);
+    expect(String(messages[1].content ?? "").startsWith(COMPACT_SUMMARY_MARKER)).toBe(true);
     const joined = messages.map((m) => m.content || "").join("\n");
     // 被折叠轮次(第 1 轮)的完整原文不再进入上下文(摘要行只保留前 120 字符)
     expect(joined).not.toContain(`提问 1：${"背景说明".repeat(100)}`);

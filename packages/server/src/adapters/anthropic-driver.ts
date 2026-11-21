@@ -37,6 +37,7 @@ export interface AnthropicDriverOptions {
 /** Anthropic content block：本驱动只产出文本 / 工具调用 / 工具结果三类 */
 type AnthropicContentBlock =
   | { type: "text"; text: string }
+  | { type: "image"; source: { type: "base64"; media_type: string; data: string } }
   | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
   | { type: "tool_result"; tool_use_id: string; content: string };
 
@@ -44,6 +45,18 @@ interface AnthropicMessage {
   role: "user" | "assistant";
   content: AnthropicContentBlock[];
 }
+
+/**
+ * 推理档位 → extended thinking 预算（tokens）。能力运行时 P1 的内置换算表：
+ * Anthropic 无 effort 档位概念，只有绝对预算；按常见端点的中位输出规模取
+ * low 4K / medium 16K / high 32K。未知名回落 medium（预算错选是可逆的用户操作，
+ * API 会按实际预算执行）。后续需要精细化时迁移到 harness_config。
+ */
+const EFFORT_BUDGET_TOKENS: Record<string, number> = {
+  low: 4096,
+  medium: 16384,
+  high: 32768,
+};
 
 /**
  * OpenAI 风格 ChatMessage[] → Anthropic Messages API 参数。
@@ -66,7 +79,8 @@ export function mapOpenAIMessagesToAnthropic(messages: ChatMessage[]): {
 
   for (const msg of messages) {
     if (msg.role === "system") {
-      if (msg.content) systemParts.push(msg.content);
+      // system 约定为纯文本（多模态只出现在 user 轮次），显式收窄防 parts 误入
+      if (typeof msg.content === "string" && msg.content) systemParts.push(msg.content);
       continue;
     }
 
@@ -74,7 +88,8 @@ export function mapOpenAIMessagesToAnthropic(messages: ChatMessage[]): {
       const block: AnthropicContentBlock = {
         type: "tool_result",
         tool_use_id: msg.tool_call_id ?? "",
-        content: msg.content ?? "",
+        // tool 响应按约定为纯文本（多模态只出现在 user 轮次）
+        content: typeof msg.content === "string" ? msg.content : "",
       };
       const last = mapped[mapped.length - 1];
       // 仅并入「纯 tool_result」的相邻 user 消息，避免污染带文本的 user 轮次
@@ -93,7 +108,9 @@ export function mapOpenAIMessagesToAnthropic(messages: ChatMessage[]): {
 
     if (msg.role === "assistant") {
       const content: AnthropicContentBlock[] = [];
-      if (msg.content) content.push({ type: "text", text: msg.content });
+      if (typeof msg.content === "string" && msg.content) {
+        content.push({ type: "text", text: msg.content });
+      }
       for (const tc of msg.tool_calls ?? []) {
         let input: Record<string, unknown> = {};
         try {
@@ -112,7 +129,22 @@ export function mapOpenAIMessagesToAnthropic(messages: ChatMessage[]): {
     }
 
     // role:"user"
-    if (msg.content) {
+    if (Array.isArray(msg.content)) {
+      // 多模态（能力运行时 P2）：text 块平移；image_url（内部 OpenAI 风格 data URL）
+      // → Anthropic image base64 source 块
+      const blocks: AnthropicContentBlock[] = [];
+      for (const part of msg.content) {
+        if (part.type === "text") {
+          blocks.push({ type: "text", text: part.text });
+        } else {
+          const m = /^data:([^;]+);base64,(.+)$/.exec(part.image_url.url);
+          if (m) {
+            blocks.push({ type: "image", source: { type: "base64", media_type: m[1], data: m[2] } });
+          }
+        }
+      }
+      if (blocks.length > 0) mapped.push({ role: "user", content: blocks });
+    } else if (msg.content) {
       mapped.push({ role: "user", content: [{ type: "text", text: msg.content }] });
     }
   }
@@ -126,6 +158,8 @@ interface StreamState {
   toolBlocks: Map<number, { id: string; name: string }>;
   /** message_start.usage.input_tokens：message_delta 的 usage 通常只带 output_tokens，输入侧由此补齐 */
   inputTokens?: number;
+  /** message_start.usage.cache_read_input_tokens：缓存命中读取（计价分档数据源，能力运行时 P1） */
+  cachedTokens?: number;
 }
 
 export class AnthropicDriver implements IModelDriver {
@@ -160,14 +194,33 @@ export class AnthropicDriver implements IModelDriver {
 
     const { system, messages } = mapOpenAIMessagesToAnthropic(req.messages);
 
+    // 能力运行时 P1：OpenAI 风格 reasoning_effort → Anthropic extended thinking。
+    // Anthropic 不认 reasoning_effort 字段（原样透传必 400），这里翻译成
+    // thinking budget 并剔除原字段；extended thinking 与 temperature 互斥，一并剔除。
+    const {
+      reasoning_effort: reasoningEffort,
+      temperature: _thinkingIncompatibleTemperature,
+      ...restParams
+    } = (req.parameters ?? {}) as Record<string, unknown>;
+
     const payload: Record<string, unknown> = {
       model: req.model,
       max_tokens: this.maxTokens,
       stream: true,
       messages,
       // parameters 放最后展开：调用方可按次覆盖 max_tokens 等原生参数
-      ...req.parameters,
+      ...restParams,
     };
+    if (typeof reasoningEffort === "string" && reasoningEffort.trim()) {
+      const budget = EFFORT_BUDGET_TOKENS[reasoningEffort.trim()] ?? EFFORT_BUDGET_TOKENS.medium;
+      payload.thinking = { type: "enabled", budget_tokens: budget };
+      // API 约束：max_tokens 必须大于 budget_tokens；不足时抬到 budget 的 1.5 倍（千位取整）
+      const currentMax = typeof payload.max_tokens === "number" ? payload.max_tokens : this.maxTokens;
+      payload.max_tokens = Math.max(currentMax, Math.ceil((budget * 1.5) / 1000) * 1000);
+    } else if (_thinkingIncompatibleTemperature !== undefined) {
+      // 无 thinking 时 temperature 正常透传
+      payload.temperature = _thinkingIncompatibleTemperature;
+    }
     if (system) {
       payload.system = system;
     }
@@ -271,9 +324,13 @@ function toStreamChunk(parsed: Record<string, unknown>, state: StreamState): Mod
     case "message_start": {
       // message_start 携带输入 token 计数；此处只记忆不产 chunk——
       // usage 统一在 message_delta 汇总产出，避免同一轮多次 usage 事件
-      const message = parsed.message as { usage?: { input_tokens?: unknown } } | undefined;
+      const message = parsed.message as {
+        usage?: { input_tokens?: unknown; cache_read_input_tokens?: unknown };
+      } | undefined;
       const inputTokens = message?.usage?.input_tokens;
       if (typeof inputTokens === "number") state.inputTokens = inputTokens;
+      const cached = message?.usage?.cache_read_input_tokens;
+      if (typeof cached === "number" && cached > 0) state.cachedTokens = cached;
       return undefined;
     }
 
@@ -320,12 +377,20 @@ function toStreamChunk(parsed: Record<string, unknown>, state: StreamState): Mod
       const promptTokens =
         typeof usage.input_tokens === "number" ? usage.input_tokens : (state.inputTokens ?? 0);
       const completionTokens = typeof usage.output_tokens === "number" ? usage.output_tokens : 0;
+      // Anthropic 的 thinking token 计入 output_tokens（无独立计数），推理分档不单列；
+      // 缓存命中读取经 message_start 记忆补齐（部分网关也会在 message_delta 重复下发）
+      const deltaCached = parsed.usage as { cache_read_input_tokens?: unknown } | undefined;
+      const cachedTokens =
+        typeof deltaCached?.cache_read_input_tokens === "number"
+          ? deltaCached.cache_read_input_tokens
+          : state.cachedTokens;
       return {
         type: "usage",
         usage: {
           promptTokens,
           completionTokens,
           totalTokens: promptTokens + completionTokens,
+          ...(cachedTokens && cachedTokens > 0 ? { cachedTokens } : {}),
         },
       };
     }

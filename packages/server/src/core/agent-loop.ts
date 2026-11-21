@@ -53,6 +53,29 @@ const EXECUTION_NS = getNamespaceSchema("execution")!;
 const TOOLS_NS = getNamespaceSchema("tools")!;
 const PROMPT_NS = getNamespaceSchema("prompt")!;
 
+/**
+ * 能力驱动的推理档位解析（保守策略，能力运行时 P1）。
+ *
+ * 三个条件全满足才返回档位，任一不满足返回 undefined（不发送）：
+ *   1. 请求显式携带档位（前端档位选择器只在模型声明时渲染，这里是服务端二次防线）；
+ *   2. 生效档案声明 capabilities.reasoning.supported = true；
+ *   3. 档位在声明的 supportedEfforts 集合内（集合缺失视为无法校验，同样不发送）。
+ *
+ * 注意：档位并入 parameters 后随降级链共用——不支持该参数的备用端点会按
+ * 「请求非法」类错误上抛（不触发降级重试），错误文案直达用户，不静默吞掉。
+ */
+function resolveReasoningEffort(
+  profile: ModelProfileEntity,
+  requested?: string
+): string | undefined {
+  const effort = typeof requested === "string" ? requested.trim() : "";
+  if (!effort) return undefined;
+  const reasoning = profile.capabilities?.reasoning;
+  if (!reasoning?.supported) return undefined;
+  if (!reasoning.supportedEfforts?.includes(effort)) return undefined;
+  return effort;
+}
+
 export interface AgentLoopServices {
   workspaceRepo: WorkspaceRepository;
   sessionRepo: SessionRepository;
@@ -171,6 +194,14 @@ export class AgentLoop {
       req.modelProfileId || session.activeModelProfileId,
       req.modelOverride
     );
+    // 能力驱动的推理档位（保守）：声明校验不通过 = 不发送，与未携带时逐字节一致
+    const reasoningEffort = resolveReasoningEffort(modelProfile, req.reasoningEffort);
+    // 输出上限（能力运行时 P3）：仅声明 capabilities.maxOutputTokens 时注入请求。
+    // 只发 max_tokens（兼容面最广：OpenAI 兼容端点/DeepSeek/Kimi 均认；
+    // OpenAI 官方不允许 max_tokens 与 max_completion_tokens 同发，故不同发）。
+    // Anthropic 驱动经 parameters 展开覆盖其默认 max_tokens；thinking 启用时
+    // 驱动内还有「max_tokens 必须 > budget」的抬升保护。
+    const declaredMaxOutput = modelProfile.capabilities?.maxOutputTokens;
 
     // 上下文窗口动态解析：档案显式值 > 模型名前缀查表 > 默认兜底，恒钳制 [8k, 2M]
     //（修正档案漏填/错填导致的过早压缩或滑动窗口失效）
@@ -234,6 +265,22 @@ export class AgentLoop {
     messages.push(
       ...buildHistoryMessages({ session, currentPrompt: req.prompt })
     );
+
+    // 视觉通道（能力运行时 P2）：本轮携带图片时，把「本轮 user 消息」升级为
+    // 多模态 content parts（buildHistoryMessages 追加的最后一条即本轮输入）。
+    // 历史轮次的图片消息以快照原样回放（parts 形态可 JSON 序列化，天然兼容）。
+    if (req.images && req.images.length > 0 && messages.length > 0) {
+      const last = messages[messages.length - 1];
+      if (last.role === "user") {
+        last.content = [
+          { type: "text", text: req.prompt },
+          ...req.images.map((img) => ({
+            type: "image_url" as const,
+            image_url: { url: `data:${img.mediaType};base64,${img.data}` },
+          })),
+        ];
+      }
+    }
 
     {
       const ev = telemetry.recordEvent({
@@ -455,11 +502,19 @@ export class AgentLoop {
         > = new Map();
 
         // 调用模型流式输出（effectiveDriver 已在轮次开始前装配：注入驱动或主档案+降级链）
+        // 推理档位并入 parameters：OpenAI 兼容端点经 ...parameters 展开自然到达
+        // reasoning_effort；Anthropic 原生驱动在请求构造时映射为 thinking budget
         const stream = effectiveDriver.generateStream({
           model: modelProfile.model,
           messages: compactedMessages,
           tools: toolsDefinition,
-          parameters: modelProfile.parameters,
+          parameters: {
+            ...modelProfile.parameters,
+            ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
+            ...(typeof declaredMaxOutput === "number" && declaredMaxOutput > 0
+              ? { max_tokens: declaredMaxOutput }
+              : {}),
+          },
           abortSignal: runSignal,
         });
 
@@ -467,7 +522,10 @@ export class AgentLoop {
           if (runSignal.aborted) break;
 
           if (chunk.type === "usage" && chunk.usage) {
-            telemetry.addTokens(chunk.usage.promptTokens, chunk.usage.completionTokens);
+            telemetry.addTokens(chunk.usage.promptTokens, chunk.usage.completionTokens, {
+              reasoningTokens: chunk.usage.reasoningTokens,
+              cachedTokens: chunk.usage.cachedTokens,
+            });
             // 单轮 token 预算熔断：计费口径（输入+输出）跨步累计，超限即经看门狗通道中止
             //（mapAbortCause 按 tokenBudgetFired 优先分流成因，保留已完成进度落库）
             runTokensUsed += chunk.usage.promptTokens + chunk.usage.completionTokens;
@@ -503,6 +561,9 @@ export class AgentLoop {
               totalTokens: lastContextTokens,
               contextWindow: effectiveContextWindow,
               parts,
+              // 分档计价数据源（能力运行时 P1）：端点不提供时字段缺省，前端旧版本兼容
+              ...(chunk.usage.reasoningTokens !== undefined ? { reasoningTokens: chunk.usage.reasoningTokens } : {}),
+              ...(chunk.usage.cachedTokens !== undefined ? { cachedTokens: chunk.usage.cachedTokens } : {}),
             };
           }
 

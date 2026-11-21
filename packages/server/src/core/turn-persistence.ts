@@ -201,6 +201,10 @@ export class TurnPersistence {
       promptTokens: summary.tokens.promptTokens,
       completionTokens: summary.tokens.completionTokens,
       finishedAt: Date.now(),
+      // 分档计价数据源（能力运行时 P1）：累计为 0（端点不提供）时省略，
+      // computeCostUsd 对缺省值按整段单价回落
+      ...(summary.tokens.reasoningTokens > 0 ? { reasoningTokens: summary.tokens.reasoningTokens } : {}),
+      ...(summary.tokens.cachedTokens > 0 ? { cachedTokens: summary.tokens.cachedTokens } : {}),
     }).catch(() => {
       this.opts.ops.costRecordFailed();
     });

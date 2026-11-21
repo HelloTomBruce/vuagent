@@ -29,6 +29,10 @@ export interface CostRecordInput {
   promptTokens: number;
   completionTokens: number;
   finishedAt: number;
+  /** 思考/推理 token 累计（分档计价；端点不提供时缺省，按整段 output 价计） */
+  reasoningTokens?: number;
+  /** Prompt Cache 命中读取累计（分档计价；端点不提供时缺省） */
+  cachedTokens?: number;
 }
 
 /** 记账器契约：实现方负责持久化与计价；失败由调用方 fail-open 捕获 */

@@ -175,6 +175,10 @@ export const UsageEventSchema = Type.Object({
   contextWindow: Type.Optional(Type.Number()),
   /** 协议级分段估算（system/history/tools），前端仪表据此渲染分段格子；旧版本服务端可缺省 */
   parts: Type.Optional(Type.Array(UsageContextPartSchema)),
+  /** 思考/推理 token（分档计价数据源；端点不提供可缺省，能力运行时 P1） */
+  reasoningTokens: Type.Optional(Type.Number()),
+  /** Prompt Cache 命中读取 token（同上） */
+  cachedTokens: Type.Optional(Type.Number()),
 });
 
 export const SuspendedEventSchema = Type.Object({

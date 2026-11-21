@@ -13,6 +13,10 @@ export interface ModelStreamChunk {
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
+    /** 思考/推理 token（OpenAI 兼容 reasoning_tokens；Anthropic thinking 计入 output 不单列） */
+    reasoningTokens?: number;
+    /** Prompt Cache 命中读取的输入 token（OpenAI cached_tokens / Anthropic cache_read_input_tokens） */
+    cachedTokens?: number;
   };
 }
 

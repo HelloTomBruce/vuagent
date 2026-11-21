@@ -34,7 +34,7 @@ export type DeliverableAssertion = (input: DeliverableAssertionInput) => Deliver
  * 默认断言：本轮必须存在非空正文输出或至少一张卡片——防空跑的最小守卫。
  */
 export const defaultDeliverableAssertion: DeliverableAssertion = (input) => {
-  const hasContent = input.content.trim().length > 0;
+  const hasContent = String(input.content ?? "").trim().length > 0;
   const hasCards = input.cardCount > 0;
   if (hasContent || hasCards) return { ok: true };
   return {

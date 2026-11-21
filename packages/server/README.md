@@ -87,6 +87,15 @@ pnpm --filter @vuagent/server verify:redis redis://127.0.0.1:6379  # Redis 形�
 - **默认端点映射**：`core/provider-defaults.ts` 是 provider 类型 → 官方 baseUrl 的唯一事实源（agent-loop 与 discover 共用），未显式配置端点时按类型路由到正确的官方端点；
 - **默认档案播种**：全新数据库首次读取时播种 4 条演示档案（一次性，`settings_meta` 打标记）；用户删空配置后不会复活。
 
+### 能力驱动运行时：声明 → 真实请求行为
+
+模型档案的 `capabilities`（探测或人工声明）不止用于展示——运行时按**保守策略**消费：一切能力驱动行为仅在明确声明时启用，未声明 = 与历史行为逐字节一致，绝不按模型名猜能力。
+
+- **推理档位**：`/api/chat` 顶层可选字段 `reasoningEffort`；仅当档案声明 `reasoning.supported` 且档位在 `supportedEfforts` 集合内时生效——OpenAI 兼容端点经参数展开自然到达 `reasoning_effort`，Anthropic 原生驱动映射为 `thinking.budget_tokens`（内置换算表 low 4K / medium 16K / high 32K，未知名回落 medium；thinking 启用时自动剔除互斥的 `temperature` 并保证 `max_tokens > budget`）。校验不通过静默忽略，不产生错误轮次；
+- **视觉通道**：`/api/chat` 可选 `images[]`（base64 无前缀；单张 ≤5MB、单轮 ≤4 张、png/jpeg/webp/gif 白名单，路由层硬校验）。未声明 `inputModalities` 含 `image` 的模型直接 400 带指引文案。声明的模型：本轮 user 消息升级为 `ChatMessage` content parts（内部规范取 OpenAI 风格，Anthropic 驱动转换为 image base64 source 块）；纯文本消息恒为 string，零改动。上下文压缩按每图 1K token 估值计量，折叠后降级为 `[图片]` 文本占位；原始 parts 保留在逐轮检查点，历史重建经 parts 感知的轮次锚点回放不重复；
+- **输出上限**：声明 `maxOutputTokens` 时注入请求 `max_tokens`（只发此一个字段——OpenAI 官方不允许与 `max_completion_tokens` 同发），Anthropic 经参数展开覆盖默认值；
+- **分档计价**：驱动解析 usage 明细（OpenAI `cached_tokens`/`reasoning_tokens`、Anthropic `cache_read_input_tokens`），经 `usage` 事件可选分段字段（`reasoningTokens`/`cachedTokens`）透出，成本台账按计价表 `cacheRead`/`reasoning` 分档单价折算；端点不提供明细时分段缺省，按整段单价回落。
+
 ### 模型层：诚实重试边界 + 按序降级链
 
 韧性层对请求失败分类（鉴权 / 限流 / 服务端 / 网络 / 上下文溢出等）并按分类决定指数退避重试（尊重 `Retry-After`）。关键边界：**只重试「HTTP 响应返回之前」的失败**——流已开始吐字后的中断不做透明重跑，因为调用方已消费增量，重跑会重复输出。这类失败按已分类错误上抛，由上层决定策略。

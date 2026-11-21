@@ -63,4 +63,25 @@ export interface AgentTurnRequest {
    * 缺省（直接调用 runTurn）时 agent-loop 回落自生成，兼容旧调用方。
    */
   turnId?: string;
+  /**
+   * 能力驱动的推理档位（能力运行时 P1）：请求级用户选择。
+   * 保守策略——仅当生效档案声明 capabilities.reasoning.supported 且档位
+   * 在 supportedEfforts 集合内时注入请求（reasoning_effort / thinking budget），
+   * 否则静默忽略，行为与未携带时完全一致。
+   */
+  reasoningEffort?: string;
+  /**
+   * 本轮图片附件（能力运行时 P2 视觉通道）：base64（无 data: 前缀）。
+   * 路由层已做结构校验与能力门禁（未声明图片输入的模型直接 400）；
+   * agent-loop 将其组装为本轮 user 消息的 content parts。
+   */
+  images?: TurnImageInput[];
+}
+
+/** 图片附件入参：结构校验见 /api/chat 路由（张数/大小/类型白名单） */
+export interface TurnImageInput {
+  name: string;
+  mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+  /** base64 编码内容（不带 data: 前缀），解码后 ≤5MB */
+  data: string;
 }
