@@ -12,7 +12,7 @@
  * 兼容：会话级 activeModel 仍然绑定 model id（会话选的是模型不是供应商），
  * 因此 Composer / 会话恢复逻辑无需感知分层。
  */
-import { computed, ref, watch } from "vue";
+import { computed, reactive, ref } from "vue";
 import {
   createModelUnderProvider,
   createProviderApi,
@@ -37,6 +37,8 @@ import type {
 
 export interface ModelProfilesOptions {
   closeMenus?: () => void;
+  /** 当前会话 id getter（TASK-052：推理档位按会话隔离，新建态返回空串） */
+  getSessionId?: () => string;
 }
 
 const EMPTY_PROVIDER_FORM = (): ProviderPayload & { id?: string; maskedApiKey?: string } => ({
@@ -115,24 +117,32 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
       : [];
   });
 
-  /** 会话级档位选择；空串 = 不发送（未声明能力的模型恒为空串） */
-  const reasoningEffort = ref("");
+  /**
+   * 档位选择（TASK-052 会话级隔离）：每会话独立记忆，空串 = 不发送。
+   * 无会话（新建态）落在 "" 键槽位。
+   */
+  // reactive Map：computed 依赖集合变更（Vue3 响应式集合，set 即触发失效）
+  const sessionEfforts = reactive(new Map<string, string>());
+  /**
+   * 读取侧兜底（取代写入侧重置的 watch）：会话切换 / 模型切换 / 声明变化的
+   * 一切组合在此收敛，不存在「watch 触发时刻会话 id 与模型未对齐」的竞态——
+   *   会话未写过 → defaultEffort（模型有声明时的合理缺省）
+   *   存值对当前模型非法（切模型后）→ 同样回落 defaultEffort
+   *   模型无声明 → 空串（不发送）
+   */
+  const reasoningEffort = computed(() => {
+    const opts = reasoningEffortOptions.value;
+    if (opts.length === 0) return "";
+    const stored = sessionEfforts.get(options.getSessionId?.() ?? "");
+    if (stored && opts.includes(stored)) return stored;
+    const def = activeModelReasoning.value?.defaultEffort;
+    return def && opts.includes(def) ? def : opts[0];
+  });
 
-  // 模型切换/删除导致 activeModel 变化时，档位回落新模型的 defaultEffort
-  //（不在声明集合内则取首档）；无声明 → 空串
-  watch(
-    [activeModel, reasoningEffortOptions],
-    () => {
-      const opts = reasoningEffortOptions.value;
-      if (opts.length === 0) {
-        reasoningEffort.value = "";
-        return;
-      }
-      const def = activeModelReasoning.value?.defaultEffort;
-      reasoningEffort.value = def && opts.includes(def) ? def : opts[0];
-    },
-    { immediate: true }
-  );
+  function setReasoningEffort(effort: string): void {
+    sessionEfforts.set(options.getSessionId?.() ?? "", effort);
+  }
+
 
   /** 当前选中的供应商 */
   const currentProvider = computed<ProviderItem | undefined>(() =>
@@ -600,8 +610,9 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
     activeModelObj,
     activeModelCapabilities,
     supportsImageInput,
-    /* 推理档位（能力运行时 P1） */
+    /* 推理档位（能力运行时 P1，TASK-052 会话级隔离） */
     reasoningEffort,
+    setReasoningEffort,
     reasoningEffortOptions,
     defaultModelId,
     resetModelToDefault,

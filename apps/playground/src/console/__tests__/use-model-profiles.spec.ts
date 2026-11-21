@@ -8,7 +8,7 @@
  *      服务端 resolveEffectiveSettings 自有兜底。
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { nextTick } from "vue";
+import { nextTick, ref } from "vue";
 import { useModelProfiles } from "../composables/useModelProfiles";
 import { deleteModelProfileById, listProviders } from "../api/client";
 import { vaToaster } from "@vuagent/ui";
@@ -153,6 +153,64 @@ describe("useModelProfiles：推理档位（能力运行时 P1）", () => {
     await m.loadProviders();
 
     expect(m.reasoningEffortOptions.value).toEqual([]);
+    expect(m.reasoningEffort.value).toBe("");
+  });
+});
+
+describe("useModelProfiles：档位会话级隔离（TASK-052）", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const CAPS = {
+    reasoning: { supported: true, supportedEfforts: ["low", "high"], defaultEffort: "low" },
+  };
+
+  function loadWithCaps() {
+    vi.mocked(listProviders).mockResolvedValue([
+      {
+        id: "p1", name: "P", provider: "custom",
+        models: [{ id: "m-r", providerId: "p1", name: "R", provider: "custom", model: "r", isDefault: true, capabilities: CAPS }],
+      },
+    ]);
+  }
+
+  it("两会话独立记忆：A 选 high 不影响 B 的默认 low，切回 A 恢复 high", async () => {
+    loadWithCaps();
+    // ref 模拟真实会话切换（activeSessionId 是响应式 ref，computed 才能追踪失效）
+    const currentSession = ref("sA");
+    const m = useModelProfiles({ getSessionId: () => currentSession.value });
+    await m.loadProviders();
+    expect(m.reasoningEffort.value).toBe("low"); // A 会话默认
+
+    m.setReasoningEffort("high");
+    expect(m.reasoningEffort.value).toBe("high");
+
+    currentSession.value = "sB"; // 切到会话 B：未写过 → 读取侧兜底 defaultEffort
+    expect(m.reasoningEffort.value).toBe("low");
+
+    currentSession.value = "sA";
+    expect(m.reasoningEffort.value).toBe("high"); // 恢复 A 的选择
+  });
+
+  it("模型切换重置只写当前会话槽位", async () => {
+    loadWithCaps();
+    let currentSession = "sA";
+    const m = useModelProfiles({ getSessionId: () => currentSession });
+    await m.loadProviders();
+    m.setReasoningEffort("high");
+
+    // 切到无声明模型 → 当前会话（sA）归零；B 不受影响（未被写）
+    const plain = { id: "m-plain", providerId: "p1", name: "Plain", provider: "custom", model: "p" };
+    vi.mocked(listProviders).mockResolvedValue([
+      { id: "p1", name: "P", provider: "custom", models: [
+        { id: "m-r", providerId: "p1", name: "R", provider: "custom", model: "r", isDefault: true, capabilities: CAPS },
+        plain,
+      ] },
+    ]);
+    await m.loadProviders();
+    m.activeModel.value = "m-plain";
+    await nextTick();
     expect(m.reasoningEffort.value).toBe("");
   });
 });

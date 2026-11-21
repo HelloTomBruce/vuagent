@@ -23,6 +23,26 @@ defineEmits<{
     <div v-if="turn.role === 'user'" class="va-console__turn-row">
       <div class="va-console__user-bubble-container">
         <div class="va-console__user-bubble">
+          <!-- 附件回显（TASK-050）：当日真图 / 历史占位 / 文本附件 chip -->
+          <div v-if="turn.attachments?.length" class="va-console__user-atts">
+            <template v-for="att in turn.attachments" :key="att.name + att.size">
+              <a
+                v-if="att.kind === 'image' && att.dataUrl"
+                :href="att.dataUrl"
+                target="_blank"
+                rel="noopener"
+                class="va-console__user-att-img-link"
+                :title="`${att.name}（点击新窗口查看原图）`"
+              >
+                <img :src="att.dataUrl" :alt="att.name" class="va-console__user-att-img" />
+              </a>
+              <span
+                v-else
+                class="va-console__user-att-chip"
+                :title="att.size ? `${att.name} · ${att.size} B` : att.name"
+              >{{ att.kind === "image" ? `[图] ${att.name}` : `[附件] ${att.name}` }}</span>
+            </template>
+          </div>
           <p class="va-console__user-text">{{ turn.content }}</p>
         </div>
         <div class="va-console__user-avatar">

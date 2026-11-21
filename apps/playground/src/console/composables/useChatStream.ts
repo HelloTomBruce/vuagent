@@ -29,6 +29,8 @@ export interface SendPromptOptions {
   reasoningEffort?: string;
   /** 图片附件（能力运行时 P2）：base64，服务端组装为 content parts */
   images?: Array<{ name: string; mediaType: string; data: string }>;
+  /** 附件回显元数据（TASK-050）：user turn 渲染用；dataUrl 仅存在于当日会话内存态 */
+  attachments?: Array<{ name: string; kind: "image" | "file"; size: number; dataUrl?: string }>;
 }
 
 export function useChatStream(options: ChatStreamOptions) {
@@ -219,6 +221,7 @@ export function useChatStream(options: ChatStreamOptions) {
       id: `turn-user-${Date.now()}`,
       role: "user",
       content: prompt,
+      ...(opts.attachments?.length ? { attachments: opts.attachments } : {}),
       timestamp: Date.now(),
     };
     chatTurns.value.push(userTurn);
@@ -253,6 +256,16 @@ export function useChatStream(options: ChatStreamOptions) {
       permission: opts.permission,
       reasoningEffort: opts.reasoningEffort,
       images: opts.images,
+      // 落库元数据剥离 dataUrl（服务端不存内容）
+      ...(opts.attachments?.length
+        ? {
+            attachments: opts.attachments.map(({ name, kind, size }) => ({
+              name,
+              kind,
+              size,
+            })),
+          }
+        : {}),
     });
   }
 

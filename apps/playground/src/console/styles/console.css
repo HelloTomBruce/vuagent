@@ -2226,3 +2226,46 @@
   width: 13px;
   flex: none;
 }
+
+/* ============ 用户消息附件回显（TASK-050） ============ */
+.va-console__user-atts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.va-console__user-att-img-link {
+  display: block;
+  border-radius: var(--va-radius-s, 8px);
+  overflow: hidden;
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  line-height: 0;
+  transition: border-color var(--va-dur-1, 120ms) ease;
+}
+
+.va-console__user-att-img-link:hover {
+  border-color: color-mix(in srgb, var(--va-accent, #c2410c) 45%, var(--va-edge, rgba(26, 25, 23, 0.12)));
+}
+
+.va-console__user-att-img {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  display: block;
+}
+
+.va-console__user-att-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: var(--va-radius-s, 8px);
+  background: var(--va-bg-2, #f5f5f4);
+  color: var(--va-ink-2, #43413c);
+  font-size: 11.5px;
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

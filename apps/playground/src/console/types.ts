@@ -97,6 +97,8 @@ export interface MessageTurn {
   id: string;
   role: "user" | "assistant";
   content: string;
+  /** 附件回显（TASK-050）：当日会话图片带 dataUrl 显示真图；历史恢复只有元数据显示占位 */
+  attachments?: Array<{ name: string; kind: "image" | "file"; size: number; dataUrl?: string }>;
   thought?: string;
   thoughtExpanded?: boolean;
   thoughtDuration?: number;

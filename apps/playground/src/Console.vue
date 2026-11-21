@@ -95,9 +95,14 @@ const ws = useWorkspaces({
   onWorkspaceActivated: () => startNewChat(),
 });
 
-const models = useModelProfiles();
-
+// 先声明后使用：useModelProfiles 的档位 watch（immediate）构造期即调
+// getSessionId，声明必须在其前（赋值仍在下方 useSessions 之后）
 let sessionsApi!: SessionsApi;
+const models = useModelProfiles({
+  // TASK-052：推理档位按会话隔离；未赋值阶段（构造期）回落空串
+  getSessionId: () => sessionsApi?.activeSessionId?.value ?? "",
+});
+
 const chat = useChatStream({
   getActiveSessionId: () => sessionsApi.activeSessionId.value,
   refreshSessions: () => sessionsApi.fetchSessions(),
@@ -186,6 +191,7 @@ const {
   activeModelObj,
   supportsImageInput,
   reasoningEffort,
+  setReasoningEffort,
   reasoningEffortOptions,
   fetchModelProfiles,
   resetModelToDefault,
@@ -677,6 +683,21 @@ function buildAttachmentPrefix(): string {
  * 发送瞬间仍在读取的图片先补读（handleSend 本就是 async）——否则用户
  * 「选完图立刻发送」会遇到 chip 已清而请求不带图的静默丢失。
  */
+/** 本轮附件回显元数据（TASK-050）：图片带 dataUrl（当日真图），文本附件带名字 */
+function collectTurnAttachments(): { name: string; kind: "image" | "file"; size: number; dataUrl?: string }[] {
+  return attachments.value.map((a) => {
+    const size = a.size ?? 0;
+    if (a.kind !== "image") return { name: a.name, kind: "file" as const, size };
+    const d = imageDatas.get(a.id);
+    return {
+      name: a.name,
+      kind: "image" as const,
+      size,
+      ...(d ? { dataUrl: `data:${d.mediaType};base64,${d.data}` } : {}),
+    };
+  });
+}
+
 async function collectTurnImages(): Promise<{ name: string; mediaType: string; data: string }[] | undefined> {
   const imageAtts = attachments.value.filter((a) => a.kind === "image");
   if (imageAtts.length === 0) return undefined;
@@ -928,6 +949,7 @@ async function handleSend(promptOverride?: string) {
   }
   // 图片先收集再清（视觉通道 P2：随请求 images 字段发送；含未读完的补读）
   const turnImages = promptOverride ? undefined : await collectTurnImages();
+  const turnAttachments = promptOverride ? undefined : collectTurnAttachments();
   if (!promptOverride && attachments.value.length > 0) {
     const prefix = buildAttachmentPrefix();
     prompt = prompt ? `${prefix}${prompt}` : prefix.trim();
@@ -963,6 +985,7 @@ async function handleSend(promptOverride?: string) {
     permission: activePermission.value,
     reasoningEffort: reasoningEffort.value || undefined,
     images: turnImages,
+    attachments: turnAttachments,
   });
 }
 
@@ -1133,7 +1156,7 @@ function quickFillPrompt(text: string) {
                         type="button"
                         role="menuitem"
                         :data-active="opt === reasoningEffort || undefined"
-                        @click="reasoningEffort = opt; close()"
+                        @click="setReasoningEffort(opt); close()"
                       >
                         <Check v-if="opt === reasoningEffort" :size="13" aria-hidden="true" />
                         <span v-else class="va-console__effort-gap" aria-hidden="true" />
@@ -1331,7 +1354,7 @@ function quickFillPrompt(text: string) {
                       type="button"
                       role="menuitem"
                       :data-active="opt === reasoningEffort || undefined"
-                      @click="reasoningEffort = opt; close()"
+                      @click="setReasoningEffort(opt); close()"
                     >
                       <Check v-if="opt === reasoningEffort" :size="13" aria-hidden="true" />
                       <span v-else class="va-console__effort-gap" aria-hidden="true" />

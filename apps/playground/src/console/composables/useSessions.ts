@@ -154,6 +154,10 @@ export function useSessions(options: SessionsOptions) {
                   id: `turn-user-${t.id}`,
                   role: "user",
                   content: t.prompt,
+                  // 附件元数据（TASK-050）：历史恢复无 dataUrl，渲染占位形态
+                  ...(Array.isArray(t.attachments) && t.attachments.length
+                    ? { attachments: t.attachments as MessageTurn["attachments"] }
+                    : {}),
                   timestamp: t.createdAt || Date.now(),
                 });
               }
