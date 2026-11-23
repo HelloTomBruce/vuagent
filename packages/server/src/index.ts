@@ -38,7 +38,7 @@ const isDirectRun =
   process.argv[1]?.endsWith("src/index.ts") || process.argv[1]?.endsWith("dist/index.js");
 
 if (isDirectRun) {
-  const port = Number(process.env.PORT) || 3001;
+  const port = Number(process.env.PORT) || 6880;
   const dbPath = process.env.DB_PATH || ".vuagent/harness.db";
 
   // Redis 分布式形态（可选）：REDIS_URL 配置后存储实体共享 + 跨副本轮次租约
