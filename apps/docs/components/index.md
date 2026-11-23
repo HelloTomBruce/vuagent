@@ -20,7 +20,10 @@ const cats = ["Agent-Ops", "Chat", "基础", "表单", "反馈", "图表", "Scre
 | **Agent-Ops 旗舰** | 任务计划追踪、高风险审批门、工具调用链、代码差异与上下文仪表 | `VaApprovalCard` · `VaAgentPlan` · `VaToolCallCard` · `VaContextWindow` · `VaCodeDiff` | [查看实际效果 ➔](/components/agent-ops) |
 | **Chat 对话交互** | 思考链轮播加载、流式逐字打字机、消息操作栏与对话输入框 | `VaThinkingLoader` · `VaStreamAnswer` · `VaMessageActions` · `VaComposer` | [查看实际效果 ➔](/components/chat) |
 | **基础与浮层原语** | 按钮变体、基于 `useFloating` 的气泡浮层、无障碍下拉选择与文字提示 | `VaButton` · `VaPopover` · `VaTooltip` · `VaSelect` · `VaDialog` | [查看实际效果 ➔](/components/overlays) |
+| **表单与集成** | 分步表单、日期区间、提示词资产、配置引导与第三方集成 | `VaStepperForm` · `VaDateRangePicker` · `VaPromptLibrary` · `VaSetupGuide` · `VaIntegrationPicker` | [查看实际效果 ➔](/components/forms) |
 | **反馈与图表可视化** | 零重型库依赖、纯手写 SVG 迷你趋势卡、时序折线图与 AI 智能建议 | `VaKpiChart` · `VaMetricChart` · `VaSmartRecommendation` | [查看实际效果 ➔](/components/charts) |
+| **Screens 与工作区块** | 开箱即用的全屏级界面与工作区块，适合直接嵌入业务系统 | `VaAgentChat` · `VaAgentRun` · `VaAppShell` · `VaTaskBoard` · `VaAIWorkspace` | [查看实际效果 ➔](/components/screens) |
+| **动效与插画** | 文字浮现、渐变光效、网格背景、3D 倾斜与纯 CSS/SVG 插画 | `VaTextReveal` · `VaGradientText` · `VaTiltCard` · `VaVoiceOrb` | [查看实际效果 ➔](/components/effects) |
 
 ---
 

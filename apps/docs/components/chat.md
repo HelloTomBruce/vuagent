@@ -13,6 +13,18 @@ import {
   VaSessionManager,
   VaSessionTree,
   VaCommentThread,
+  VaUserBubble,
+  VaThoughtBox,
+  VaAssistantTurn,
+  VaTurnList,
+  VaMarkdown,
+  VaToolCallCard,
+} from "@vuagent/ui";
+import type {
+  TurnItem,
+  UserAttachment,
+  TurnBlockItem,
+  ActionCardItem,
 } from "@vuagent/ui";
 
 const sampleAnswer = "Vue 3.5 引入了全新的响应式重构，内存占用降低了 56%，并在大型 SSR 场景下提升了 10% 的水合速度。同时推出了稳定的 useTemplateRef() 与 ReactivePropsDestructure 语法。";
@@ -282,6 +294,176 @@ function handleThreadRewrite(id: string) {
 function handleThreadDiscard(id: string) {
   threadComments.value = threadComments.value.filter((item) => item.id !== id);
 }
+
+/* ---------- 13. VaUserBubble ---------- */
+const ubTrendSvg =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='100%25' height='100%25' fill='%23eef2ff'/%3E%3Crect x='36' y='96' width='40' height='56' rx='6' fill='%23a5b4fc'/%3E%3Crect x='96' y='64' width='40' height='88' rx='6' fill='%23818cf8'/%3E%3Crect x='156' y='84' width='40' height='68' rx='6' fill='%236366f1'/%3E%3Crect x='216' y='40' width='40' height='112' rx='6' fill='%234f46e5'/%3E%3C/svg%3E";
+const ubAttachments = ref<UserAttachment[]>([
+  { kind: "image", name: "上周订单量趋势.png", size: 86_400, dataUrl: ubTrendSvg },
+  { kind: "file", name: "订单导出接口-v1.pdf", size: 1_862_415 },
+]);
+
+/* ---------- 14. VaThoughtBox ---------- */
+const tbThoughtText =
+  "用户想优化订单导出的内存峰值：先确认当前实现是一次性拼接完整 CSV 字符串（50 万行约 400MB），再核对依赖里是否已有流式写出能力，最后决定按「分批刷写 + 背压监听」重构导出链路。";
+const tbLiveExpanded = ref(true);
+const tbDoneExpanded = ref(false);
+const tbSummaryOn = ref(true);
+
+/* ---------- 15. VaAssistantTurn ---------- */
+const atThoughtExpanded = ref(true);
+const atProcessCollapsed = ref(false);
+const atContent =
+  "改造结论：导出接口改为流式响应，单批 5,000 行刷写一次缓冲区，峰值内存预计从约 400MB 降至 30MB 以内。";
+const atCards: ActionCardItem[] = [
+  {
+    id: "tc-search",
+    type: "tool_call",
+    data: {
+      name: "search_web",
+      summary: "检索流式 CSV 导出的成熟方案",
+      status: "success",
+      args: { query: "nodejs http chunked csv export", limit: 5 },
+      result: { pattern: "res.write(chunk) + backpressure", refs: 5 },
+      duration: 842,
+    },
+  },
+];
+const atBlocks: TurnBlockItem[] = [
+  { kind: "text", content: "看完现有实现了：接口把整个 CSV 拼成一个大字符串再返回，这正是内存峰值的元凶。检索到的社区方案与改造步骤如下：" },
+  { kind: "card", cardId: "tc-search" },
+  { kind: "text", content: "## 改造方案\n\n- 导出接口改为 **chunked 流式响应**，边生成边推送\n- 单批 `5,000` 行刷写一次缓冲区，峰值内存从约 400MB 降到 30MB 以内\n- 前端通过 ReadableStream 分块接收，边下边存并触发浏览器保存" },
+];
+const atLastAction = ref("（尚未触发操作，试试复制 / 重新生成 / 点赞点踩）");
+
+function handleAtRegenerate() {
+  atLastAction.value = "已请求重新生成这一轮回答";
+}
+function handleAtCopy(text: string) {
+  atLastAction.value = `已复制正文（${text.length} 字符）`;
+}
+function handleAtFeedback(kind: "up" | "down" | null, reason?: string) {
+  atLastAction.value =
+    kind === "up"
+      ? "已点赞本条回答"
+      : kind === "down"
+        ? `已点踩${reason ? `（原因：${reason}）` : ""}`
+        : "已取消反馈";
+}
+
+/* ---------- 16. VaTurnList ---------- */
+const tlTurns = ref<TurnItem[]>([
+  {
+    id: "turn-1",
+    role: "user",
+    content: "帮我把订单导出改成流式下载，单次要撑住 50 万行，接口文档附在下面。",
+    attachments: [{ kind: "file", name: "订单导出接口-v1.pdf", size: 1_862_415 }],
+    avatar: "北",
+  },
+  {
+    id: "turn-2",
+    role: "assistant",
+    thought: "先看接口文档确认响应结构，再调研 Node 流式写出的成熟方案，最后评估前端分块下载的兼容性。",
+    thoughtDuration: 2.4,
+    thoughtExpanded: true,
+    processCollapsed: false,
+    toolCount: 2,
+    avatar: "bot",
+    blocks: [
+      { kind: "text", content: "看完文档了：当前接口把整个 CSV 拼成一个大字符串再返回，这正是内存峰值的元凶。改造方向如下：" },
+      { kind: "card", cardId: "tc-stream" },
+      { kind: "text", content: "接口改为 `Transfer-Encoding: chunked` 的流式响应，前端用 fetch 的 ReadableStream 边收边存，预计峰值内存下降 90% 以上。" },
+    ],
+    cards: [
+      {
+        id: "tc-stream",
+        type: "tool_call",
+        data: {
+          name: "search_web",
+          summary: "检索 Node 流式 CSV 导出方案",
+          status: "success",
+          args: { query: "nodejs http chunked csv export", limit: 5 },
+          result: { pattern: "res.write(chunk) + backpressure", refs: 5 },
+          duration: 690,
+        },
+      },
+    ],
+  },
+  {
+    id: "turn-3",
+    role: "user",
+    content: "进度条能边下载边更新吗？用户最好能实时看到已导出行数。",
+    avatar: "北",
+  },
+  {
+    id: "turn-4",
+    role: "assistant",
+    content: "可以。流式响应拿不到总行数，所以用自定义响应头 `X-Exported-Rows` 每批刷新已导出行数，前端监听并更新进度条，完成后自动触发浏览器保存。",
+    thought: "进度条的关键是总行数未知场景下的展示策略：改为展示「已导出 N 行」而非百分比，避免服务端预扫描全表。",
+    thoughtDuration: 1.6,
+    thoughtExpanded: false,
+    processCollapsed: true,
+    toolCount: 4,
+    avatar: "bot",
+  },
+]);
+const tlStatus = ref("（点击回答的操作条、思考详情或摘要条试试）");
+
+function handleTlRegenerate(turnId: string) {
+  tlStatus.value = `已对轮次 ${turnId} 触发重新生成`;
+}
+function handleTlCopy(text: string, turnId: string) {
+  tlStatus.value = `已复制轮次 ${turnId} 正文（${text.length} 字符）`;
+}
+function handleTlFeedback(turnId: string, kind: "up" | "down" | null, reason?: string) {
+  const label =
+    kind === "up"
+      ? "点赞"
+      : kind === "down"
+        ? `点踩${reason ? `（原因：${reason}）` : ""}`
+        : "取消反馈";
+  tlStatus.value = `轮次 ${turnId} 收到反馈：${label}`;
+}
+function handleTlThoughtExpanded(turnId: string, expanded: boolean) {
+  const target = tlTurns.value.find((item) => item.id === turnId);
+  if (target) target.thoughtExpanded = expanded;
+  tlStatus.value = `轮次 ${turnId} 思考详情${expanded ? "已展开" : "已收起"}`;
+}
+function handleTlProcessCollapsed(turnId: string, collapsed: boolean) {
+  const target = tlTurns.value.find((item) => item.id === turnId);
+  if (target) target.processCollapsed = collapsed;
+  tlStatus.value = `轮次 ${turnId} 过程${collapsed ? "已收拢为摘要条" : "已展开完整过程"}`;
+}
+
+/* ---------- 17. VaMarkdown ---------- */
+const mdRichContent = [
+  "## 订单导出改造评审结论",
+  "",
+  "整体方案可行，落地前重点关注以下三点：",
+  "",
+  "- **流式写出**：服务端逐批 `write()`，避免一次性拼接大字符串",
+  "- **背压处理**：监听 `drain` 事件，防止内存缓冲反弹",
+  "- **断点续传**：支持 `Range` 请求，弱网重试不从头再来",
+  "",
+  "> 评审提醒：灰度期间先放量 5% 观察 P99 耗时，稳定后再全量切换。",
+  "",
+  "```ts",
+  "export function createExportStream(rows: OrderRow[]) {",
+  "  const stream = new TransformStream<OrderRow, Uint8Array>();",
+  "  // 每批 5000 行刷写一次，控制峰值内存",
+  "  return stream.readable.pipeThrough(batch(rows, 5000));",
+  "}",
+  "```",
+  "",
+  "| 指标 | 改造前 | 改造后 |",
+  "| --- | --- | --- |",
+  "| 峰值内存 | ~400 MB | < 30 MB |",
+  "| 首字节时间 | 8.2s | 0.4s |",
+  "| 单次上限 | 5 万行 | 50 万行 |",
+  "",
+  "详细协议见 https://vuagent.example.com/docs/export-stream",
+].join("\n");
+const mdStreamingContent = "正在生成评审结论：核心改造点已确认，正在计算改造前后的指标对比……";
 </script>
 
 # Chat 对话交互组件
@@ -579,5 +761,156 @@ Agent 运行期间继续接收新任务的排队消息停靠栏：支持插队�
       @rewrite="handleThreadRewrite"
       @discard="handleThreadDiscard"
     />
+  </div>
+</div>
+
+---
+
+## 13. VaUserBubble — 用户消息气泡
+
+用户提问气泡：右对齐展示提问正文，支持头像（文字 / `icon` / 图片链接）与多模态附件——图片走 `dataUrl`/`url` 即时缩略预览，通用文件以胶囊标签列出，`attachments` 接收 `UserAttachment[]`。
+
+### 交互效果预览
+
+<div class="demo-preview vp-raw">
+  <div class="demo-title">用户消息气泡：多模态附件预览与头像形态</div>
+  <div style="display: flex; flex-direction: column; gap: 18px;">
+    <VaUserBubble
+      content="帮我把订单导出改成流式下载，单次要撑住 50 万行，趋势图和接口文档都附上了。"
+      :attachments="ubAttachments"
+      avatar="北"
+    />
+    <VaUserBubble
+      content="对比这两张数据，先出一版灰度放量方案吧。"
+      avatar="icon"
+    />
+  </div>
+</div>
+
+---
+
+## 14. VaThoughtBox — 思考过程折叠盒
+
+思考链折叠盒：思考中呈现脉冲动效与「正在深度思考」状态，完成后展示「思考过程 · 耗时 Ns」可展开详情；`summaryMode` 下收拢为单行摘要条（已完成 · 耗时 · 工具调用次数），点击摘要条即可还原完整过程。
+
+### 交互效果预览
+
+<div class="demo-preview vp-raw">
+  <div class="demo-title">思考过程折叠盒：流式思考 / 已完成详情 / 摘要条三态</div>
+  <div style="display: flex; flex-direction: column; gap: 14px;">
+    <VaThoughtBox
+      v-model:expanded="tbLiveExpanded"
+      :thought="tbThoughtText"
+      streaming
+    />
+    <VaThoughtBox
+      v-model:expanded="tbDoneExpanded"
+      :thought="tbThoughtText"
+      :duration="2.4"
+      :tool-count="3"
+    />
+    <VaThoughtBox
+      v-model:summary-mode="tbSummaryOn"
+      :thought="tbThoughtText"
+      :duration="2.4"
+      :tool-count="3"
+    />
+    <p style="margin: 0; font-size: 12px;">
+      摘要条形态：{{ tbSummaryOn ? "已收拢（点击摘要条可展开完整过程）" : "已展开完整思考过程" }} · 完成态详情{{ tbDoneExpanded ? "展开中" : "已收起" }}
+    </p>
+  </div>
+</div>
+
+---
+
+## 15. VaAssistantTurn — 助手单轮回复
+
+助手单轮回复复合组件：头像 + 思考盒（可折叠为摘要条）+ Markdown 正文 + 工具卡片时序穿插（`blocks` + `cards`，经 `#card` 作用域插槽透传给 VaToolCallCard 渲染）+ 底部操作条（复制 / 重新生成 / 点赞点踩）。
+
+### 交互效果预览
+
+<div class="demo-preview vp-raw">
+  <div class="demo-title">助手单轮回复：思考盒 + 卡片穿插正文 + 操作条</div>
+  <div style="padding: 12px; background: var(--va-color-surface-soft, #f8fafc); border-radius: 10px;">
+    <VaAssistantTurn
+      v-model:thought-expanded="atThoughtExpanded"
+      v-model:process-collapsed="atProcessCollapsed"
+      :content="atContent"
+      thought="先确认现有导出实现是一次性拼接完整 CSV，再检索流式写出的成熟方案，最后给出分批落盘与前端分块接收的改造建议。"
+      :thought-duration="2.4"
+      :tool-count="2"
+      can-collapse-process
+      avatar="bot"
+      :blocks="atBlocks"
+      :cards="atCards"
+      @regenerate="handleAtRegenerate"
+      @copy="handleAtCopy"
+      @feedback="handleAtFeedback"
+    >
+      <template #card="{ card }">
+        <VaToolCallCard
+          v-if="card"
+          :name="card.data.name"
+          :summary="card.data.summary"
+          :status="card.data.status"
+          :args="card.data.args"
+          :result="card.data.result"
+          :duration="card.data.duration"
+          default-open
+        />
+      </template>
+    </VaAssistantTurn>
+    <p style="margin: 10px 2px 0; font-size: 12px;">最近操作：{{ atLastAction }}</p>
+  </div>
+</div>
+
+---
+
+## 16. VaTurnList — 轮次列表
+
+对话轮次瀑布流：按 `role` 自动路由给 VaUserBubble 与 VaAssistantTurn，事件以轮次 `id` 透传（camelCase emit，模板用 kebab 监听）；`#card` 插槽穿透到每一轮的卡片位，这里用 VaToolCallCard 渲染工具调用。
+
+### 交互效果预览
+
+<div class="demo-preview vp-raw">
+  <div class="demo-title">对话轮次列表：用户气泡 + 思考盒/摘要条 + 卡片穿插</div>
+  <div style="padding: 14px; background: var(--va-color-surface-soft, #f8fafc); border-radius: 10px;">
+    <VaTurnList
+      :turns="tlTurns"
+      @regenerate="handleTlRegenerate"
+      @copy="handleTlCopy"
+      @feedback="handleTlFeedback"
+      @update-thought-expanded="handleTlThoughtExpanded"
+      @update-process-collapsed="handleTlProcessCollapsed"
+    >
+      <template #card="{ card }">
+        <VaToolCallCard
+          v-if="card"
+          :name="card.data.name"
+          :summary="card.data.summary"
+          :status="card.data.status"
+          :args="card.data.args"
+          :result="card.data.result"
+          :duration="card.data.duration"
+        />
+      </template>
+    </VaTurnList>
+    <p style="margin: 10px 2px 0; font-size: 12px;">最近交互：{{ tlStatus }}</p>
+  </div>
+</div>
+
+---
+
+## 17. VaMarkdown — Markdown 渲染器
+
+轻量高质量 Markdown 渲染器（基于 markdown-it）：完整排版标题/列表/代码块/表格/引用，默认开启 `linkify`（URL 自动成链）与 `breaks`（软换行转 `<br>`）；`streaming` 时文末显示呼吸跳动光标。
+
+### 交互效果预览
+
+<div class="demo-preview vp-raw">
+  <div class="demo-title">Markdown 富文本渲染 + 流式光标形态</div>
+  <VaMarkdown :content="mdRichContent" />
+  <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--va-color-border, #e5e7eb);">
+    <VaMarkdown :content="mdStreamingContent" streaming />
   </div>
 </div>
