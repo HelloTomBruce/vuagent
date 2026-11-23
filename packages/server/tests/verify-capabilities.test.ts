@@ -20,11 +20,20 @@ function makeHarness(): Harness {
 }
 
 async function createModel(app: Harness["app"], caps: Record<string, unknown>) {
+  return createModelAt(app, caps, { name: "P", provider: "custom", baseUrl: "http://probe.test/v1", apiKey: "sk-1" });
+}
+
+/** 指定供应商形态建模型（Anthropic 原生端点路径用） */
+async function createModelAt(
+  app: Harness["app"],
+  caps: Record<string, unknown>,
+  provider: Record<string, unknown>
+) {
   const prov = await (
     await app.request("/api/settings/providers", {
       method: "POST",
       headers: H,
-      body: JSON.stringify({ name: "P", provider: "custom", baseUrl: "http://probe.test/v1", apiKey: "sk-1" }),
+      body: JSON.stringify(provider),
     })
   ).json();
   return (
@@ -116,5 +125,104 @@ describe("verify-capabilities", () => {
     const { app } = makeHarness();
     const res = await app.request("/api/settings/models/ghost/verify-capabilities", { method: "POST", headers: H });
     expect(res.status).toBe(404);
+  });
+
+  it("TASK-080 Anthropic 路径：thinking 探测 max_tokens > budget_tokens，鉴权走 x-api-key", async () => {
+    const { app } = makeHarness();
+    const model = await createModelAt(
+      app,
+      { reasoning: { supported: true, supportedEfforts: ["low", "high"] } },
+      { name: "A", provider: "anthropic", baseUrl: "https://api.anthropic.com/v1", apiKey: "sk-ant-1" }
+    );
+    const calls: Array<{ url: string; headers: Record<string, string>; body: Record<string, unknown> }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: unknown, init?: { headers?: Record<string, string>; body?: string }) => {
+        calls.push({
+          url: String(url),
+          headers: (init?.headers ?? {}) as Record<string, string>,
+          body: JSON.parse(String(init?.body ?? "{}")),
+        });
+        return new Response("{}", { status: 200 });
+      })
+    );
+
+    const res = await app.request(`/api/settings/models/${model.id}/verify-capabilities`, { method: "POST", headers: H });
+    const json = await res.json();
+    expect(json.results).toHaveLength(1);
+    expect(json.results[0].capability).toBe("reasoning");
+    expect(json.results[0].ok).toBe(true);
+    // 请求形态：Messages 协议端点 + x-api-key + budget 1024 / max_tokens 2048（> budget，防恒 400 误报）
+    expect(calls[0].url).toBe("https://api.anthropic.com/v1/messages");
+    expect(calls[0].headers["x-api-key"]).toBe("sk-ant-1");
+    expect(calls[0].headers.Authorization).toBeUndefined();
+    expect((calls[0].body.thinking as { budget_tokens: number }).budget_tokens).toBe(1024);
+    expect(calls[0].body.max_tokens).toBe(2048);
+  });
+
+  it("TASK-080 报错只提 max_tokens（未指向被测参数）→ inconclusive 而非 fail", async () => {
+    const { app } = makeHarness();
+    const model = await createModel(app, { reasoning: { supported: true, supportedEfforts: ["low"] } });
+    // 模拟 o 系端点：拒 max_tokens 而非拒 reasoning_effort —— 不能据此判能力不符
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            error: { message: "Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead." },
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        )
+      )
+    );
+
+    const res = await app.request(`/api/settings/models/${model.id}/verify-capabilities`, { method: "POST", headers: H });
+    const json = await res.json();
+    expect(json.results[0].capability).toBe("reasoning");
+    expect(json.results[0].ok).toBeNull();
+    expect(json.results[0].detail).toContain("无法判定");
+    expect(json.results[0].detail).not.toContain("建议取消勾选");
+  });
+
+  it("TASK-080 报错指向被测参数本身 → 仍判 fail（建议取消勾选）", async () => {
+    const { app } = makeHarness();
+    const model = await createModel(app, { reasoning: { supported: true, supportedEfforts: ["low"] } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({ error: { message: "Unsupported parameter: 'reasoning_effort' is not supported with this model." } }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        )
+      )
+    );
+
+    const res = await app.request(`/api/settings/models/${model.id}/verify-capabilities`, { method: "POST", headers: H });
+    const json = await res.json();
+    expect(json.results[0].ok).toBe(false);
+    expect(json.results[0].detail).toContain("建议取消勾选");
+  });
+
+  it("TASK-080 Anthropic 报错只提 max_tokens 上限 → inconclusive，不误判 thinking 能力", async () => {
+    const { app } = makeHarness();
+    const model = await createModelAt(
+      app,
+      { reasoning: { supported: true, supportedEfforts: ["low"] } },
+      { name: "A", provider: "anthropic", baseUrl: "https://api.anthropic.com/v1", apiKey: "sk-ant-1" }
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({ error: { type: "invalid_request_error", message: "max_tokens: 2048 exceeds the gateway limit for this model" } }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        )
+      )
+    );
+
+    const res = await app.request(`/api/settings/models/${model.id}/verify-capabilities`, { method: "POST", headers: H });
+    const json = await res.json();
+    expect(json.results[0].ok).toBeNull();
+    expect(json.results[0].detail).not.toContain("建议取消勾选");
   });
 });
