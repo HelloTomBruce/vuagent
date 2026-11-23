@@ -9,7 +9,11 @@ import type { ActionHub } from "./action-hub.js";
 import type { IModelDriver } from "../adapters/model-driver.js";
 import { OpenAICompatibleDriver } from "../adapters/openai-driver.js";
 import { AnthropicDriver } from "../adapters/anthropic-driver.js";
-import { ContextCompactor, type ChatMessage } from "./context-compactor.js";
+import {
+  ContextCompactor,
+  sanitizeMessagesForCheckpoint,
+  type ChatMessage,
+} from "./context-compactor.js";
 import { parsePartialJson } from "./stream-orchestrator.js";
 import { TelemetryLedger, clipTrajectoryEvent } from "./telemetry.js";
 import { runSandboxDemoTurn } from "./sandbox-demo.js";
@@ -268,7 +272,9 @@ export class AgentLoop {
 
     // 视觉通道（能力运行时 P2）：本轮携带图片时，把「本轮 user 消息」升级为
     // 多模态 content parts（buildHistoryMessages 追加的最后一条即本轮输入）。
-    // 历史轮次的图片消息以快照原样回放（parts 形态可 JSON 序列化，天然兼容）。
+    // 历史轮次的图片不进上下文：checkpoint 落库前已把 base64 降级为 [图片] 占位
+    // （TASK-083，见 sanitizeMessagesForCheckpoint），history-builder 对历史图片轮的
+    // user 消息注入同款占位文本，明示模型该轮曾有图。
     if (req.images && req.images.length > 0 && messages.length > 0) {
       const last = messages[messages.length - 1];
       if (last.role === "user") {
@@ -322,7 +328,7 @@ export class AgentLoop {
           messageId: currentMsgId,
           turnId,
           startAt,
-          messagesSnapshot: JSON.parse(JSON.stringify(messages)),
+          messagesSnapshot: sanitizeMessagesForCheckpoint(messages),
           usage: {
             promptTokens: this.compactor.estimateTokens(messages),
             parts: this.compactor.estimateParts(messages),
@@ -694,7 +700,7 @@ export class AgentLoop {
             id: `cp-${turnId}-${currentStep}`,
             turnId,
             stepIndex: currentStep,
-            messagesSnapshot: JSON.parse(JSON.stringify(messages)),
+            messagesSnapshot: sanitizeMessagesForCheckpoint(messages),
             snapshotAt: Date.now(),
           });
           await persistProgress();
@@ -794,7 +800,7 @@ export class AgentLoop {
             id: `cp-${turnId}-${currentStep}`,
             turnId,
             stepIndex: currentStep,
-            messagesSnapshot: JSON.parse(JSON.stringify(messages)),
+            messagesSnapshot: sanitizeMessagesForCheckpoint(messages),
             snapshotAt: Date.now(),
           });
           await persistProgress();
@@ -842,7 +848,7 @@ export class AgentLoop {
           id: `cp-${turnId}-${currentStep}`,
           turnId,
           stepIndex: currentStep,
-          messagesSnapshot: JSON.parse(JSON.stringify(messages)),
+          messagesSnapshot: sanitizeMessagesForCheckpoint(messages),
           snapshotAt: Date.now(),
         };
         checkpoints.push(cp);

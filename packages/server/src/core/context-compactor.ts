@@ -16,19 +16,43 @@ export type ChatContentPart =
  */
 export const IMAGE_TOKEN_ESTIMATE = 1024;
 
+/** 图片的文本占位标记：contentAsText 降级、checkpoint 落库降级、历史回放占位共用同一词汇 */
+export const IMAGE_PLACEHOLDER = "[图片]";
+
 /**
  * 消息正文的纯文本视图：string 原样返回；parts 消息取 text 块拼接、
- * 图片块降级为 `[图片]` 占位（压缩折叠后的文本形态，原始 parts 仍留在检查点）。
+ * 图片块降级为 `[图片]` 占位（压缩折叠与持久化快照共用的文本形态）。
  * 仅用于「是否为空」与摘要标记探测等文本判断，不用于请求构造。
  */
 export function contentAsText(msg: { content?: string | ChatContentPart[] }): string {
   if (typeof msg.content === "string") return msg.content;
   if (Array.isArray(msg.content)) {
     return msg.content
-      .map((part) => (part.type === "text" ? part.text : "[图片]"))
+      .map((part) => (part.type === "text" ? part.text : IMAGE_PLACEHOLDER))
       .join("\n");
   }
   return "";
+}
+
+/**
+ * checkpoint 落库前的持久化降级（TASK-083）：深拷贝消息列表，并把图片 parts 的
+ * base64 替换为 `[图片]` 文本占位块——消除会话文档体积膨胀（4 图 ×5MB ×N 步
+ * 会把 session 单文档撑到数十 MB，每次 sessionRepo.get 全量读写）。
+ *
+ * 仅用于持久化快照；发往驱动的内存 messages 不受影响（调用方先构造请求再快照）。
+ * 占位形态保留首个 text 块原文，历史重建的 parts 锚点比对（首 text 块 = 提问文本）
+ * 与「该轮曾有图」的占位语义均不受影响。
+ */
+export function sanitizeMessagesForCheckpoint(messages: ChatMessage[]): ChatMessage[] {
+  return messages.map((m) => {
+    if (!Array.isArray(m.content)) return { ...m };
+    return {
+      ...m,
+      content: (m.content as ChatContentPart[]).map((part) =>
+        part.type === "image_url" ? { type: "text" as const, text: IMAGE_PLACEHOLDER } : { ...part }
+      ),
+    };
+  });
 }
 
 export interface ChatMessage {

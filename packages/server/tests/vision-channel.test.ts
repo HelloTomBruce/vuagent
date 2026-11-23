@@ -296,9 +296,182 @@ describe("视觉通道：检查点回放（TASK-044）", () => {
     // 锚点修复前：轮 2 的 parts 锚比对失败 → 快照全量回放 → 轮 1 的 user/assistant 重复
     expect(texts.filter((t) => t === "图里是一只猫")).toHaveLength(1);
     expect(texts.filter((t) => t === "第二答")).toHaveLength(1);
-    expect(texts.filter((t) => t === "第一轮看图")).toHaveLength(1); // 作为轮 1 prompt 文本重放
+    // TASK-083：轮 1 是图片轮（旧快照 parts 形态判定），回放文本带 [图片] 占位
+    expect(texts.filter((t) => t === "第一轮看图\n[图片]")).toHaveLength(1);
     expect(texts.filter((t) => t === "第二轮提问")).toHaveLength(1);
     expect(history[history.length - 1]).toEqual({ role: "user", content: "第三轮提问" });
+  });
+});
+
+describe("TASK-083：checkpoint 图片占位降级", () => {
+  it("sanitizeMessagesForCheckpoint：图片块降级为 [图片] 文本块，文本块原样保留", async () => {
+    const { sanitizeMessagesForCheckpoint, IMAGE_PLACEHOLDER } = await import(
+      "../src/core/context-compactor.js"
+    );
+    const messages: ChatMessage[] = [
+      { role: "system", content: "sys" },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "看图" },
+          { type: "image_url", image_url: { url: `data:image/png;base64,${PNG_B64}` } },
+          { type: "image_url", image_url: { url: `data:image/png;base64,${PNG_B64}` } },
+        ],
+      },
+      { role: "assistant", content: "是一只猫" },
+    ];
+    const out = sanitizeMessagesForCheckpoint(messages);
+    expect(JSON.stringify(out)).not.toContain("base64");
+    expect(out[1].content).toEqual([
+      { type: "text", text: "看图" },
+      { type: "text", text: IMAGE_PLACEHOLDER },
+      { type: "text", text: IMAGE_PLACEHOLDER },
+    ]);
+    // 纯文本消息不动；入参不被修改（不可变）
+    expect(out[0]).toEqual({ role: "system", content: "sys" });
+    expect(Array.isArray(messages[1].content)).toBe(true);
+  });
+
+  it("图片轮落库的 checkpoint 快照不含 base64，含 [图片] 占位；发往驱动的内存消息不受影响", async () => {
+    const { MemoryStorageDriver } = await import("../src/storage/drivers/memory.driver.js");
+    const { WorkspaceRepository } = await import("../src/storage/repositories/workspace.repository.js");
+    const { SessionRepository } = await import("../src/storage/repositories/session.repository.js");
+    const { SettingsRepository } = await import("../src/storage/repositories/settings.repository.js");
+    const { ToolRegistry } = await import("../src/core/tool-registry.js");
+    const { ActionHub } = await import("../src/core/action-hub.js");
+    const { AgentLoop } = await import("../src/core/agent-loop.js");
+    const { ToolConfigRepository } = await import("../src/storage/repositories/tool-config.repository.js");
+
+    const driver = new MemoryStorageDriver();
+    const workspaceRepo = new WorkspaceRepository(driver);
+    const sessionRepo = new SessionRepository(driver);
+    const settingsRepo = new SettingsRepository(driver);
+    const ws = await workspaceRepo.create({ name: "W", rootPath: "/tmp", permission: "read-write" });
+    const session = await sessionRepo.create({ workspaceId: ws.id, title: "T" });
+    await settingsRepo.createProfile({
+      id: "m-vision-cp",
+      name: "Vision",
+      provider: "custom",
+      model: "vision-model",
+      isDefault: true,
+      capabilities: { inputModalities: ["text", "image"] },
+    });
+
+    const capturing = new CapturingDriver();
+    const loop = new AgentLoop({
+      workspaceRepo,
+      sessionRepo,
+      settingsRepo,
+      toolConfigRepo: new ToolConfigRepository(driver),
+      toolRegistry: new ToolRegistry(),
+      actionHub: new ActionHub(),
+      modelDriver: capturing,
+    });
+
+    for await (const _evt of loop.runTurn({
+      sessionId: session.id,
+      workspaceId: ws.id,
+      prompt: "看图说话",
+      images: [{ name: "a.png", mediaType: "image/png", data: PNG_B64 }],
+    })) {
+      void _evt;
+    }
+
+    // 落库的 checkpoint：无 base64，有占位；parts 锚点首块仍是提问文本（回放兼容）
+    const persisted = await sessionRepo.get(session.id);
+    const cps = persisted!.turns.flatMap((t) => t.checkpoints ?? []);
+    expect(cps.length).toBeGreaterThan(0);
+    const snapText = JSON.stringify(cps.map((c) => c.messagesSnapshot));
+    expect(snapText).not.toContain("base64");
+    expect(snapText).toContain("[图片]");
+    expect(snapText).toContain("看图说话");
+
+    // 发往驱动的内存消息仍是完整 base64 parts（降级只发生在持久化侧）
+    const lastUser = [...capturing.requests[0].messages].reverse().find((m) => m.role === "user");
+    expect(JSON.stringify(lastUser?.content)).toContain("base64");
+  });
+
+  it("历史图片轮回放：attachments 元数据判定 → user 消息注入 [图片] 占位文本", async () => {
+    const { MemoryStorageDriver } = await import("../src/storage/drivers/memory.driver.js");
+    const { SessionRepository } = await import("../src/storage/repositories/session.repository.js");
+    const { WorkspaceRepository } = await import("../src/storage/repositories/workspace.repository.js");
+    const { buildHistoryMessages } = await import("../src/core/history-builder.js");
+
+    const driver = new MemoryStorageDriver();
+    const workspaceRepo = new WorkspaceRepository(driver);
+    const sessionRepo = new SessionRepository(driver);
+    const ws = await workspaceRepo.create({ name: "W", rootPath: "/tmp", permission: "read-write" });
+    const session = await sessionRepo.create({ workspaceId: ws.id, title: "T" });
+
+    // 降级后形态：快照 user 消息为 text 占位块，attachments 元数据标记图片轮
+    const snap: ChatMessage[] = [
+      { role: "system", content: "sys" },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "这两张图有什么区别" },
+          { type: "text", text: "[图片]" },
+          { type: "text", text: "[图片]" },
+        ],
+      },
+      { role: "assistant", content: "左边是猫，右边是狗" },
+    ];
+    await sessionRepo.appendTurn(session.id, {
+      id: "turn-img",
+      sessionId: session.id,
+      prompt: "这两张图有什么区别",
+      status: "done",
+      startedAt: 1,
+      completedAt: 2,
+      attachments: [
+        { name: "a.png", kind: "image", size: 100 },
+        { name: "b.png", kind: "image", size: 100 },
+      ],
+      checkpoints: [
+        {
+          id: "cp-turn-img",
+          turnId: "turn-img",
+          stepIndex: 0,
+          messagesSnapshot: JSON.parse(JSON.stringify(snap)),
+          snapshotAt: Date.now(),
+        },
+      ],
+    } as never);
+
+    const reloaded = await sessionRepo.get(session.id);
+    const history = buildHistoryMessages({ session: reloaded!, currentPrompt: "猫是什么品种" });
+    // 图片轮回放带占位（多图 ×2），assistant 回复正常回放
+    expect(history[0]).toEqual({ role: "user", content: "这两张图有什么区别\n[图片]×2" });
+    expect(history.some((m) => m.role === "assistant" && m.content === "左边是猫，右边是狗")).toBe(true);
+    // 全量上下文无 base64（降级快照天然保证）
+    expect(JSON.stringify(history)).not.toContain("base64");
+  });
+
+  it("纯文本历史轮不注入占位（回归守卫）", async () => {
+    const { MemoryStorageDriver } = await import("../src/storage/drivers/memory.driver.js");
+    const { SessionRepository } = await import("../src/storage/repositories/session.repository.js");
+    const { WorkspaceRepository } = await import("../src/storage/repositories/workspace.repository.js");
+    const { buildHistoryMessages } = await import("../src/core/history-builder.js");
+
+    const driver = new MemoryStorageDriver();
+    const workspaceRepo = new WorkspaceRepository(driver);
+    const sessionRepo = new SessionRepository(driver);
+    const ws = await workspaceRepo.create({ name: "W", rootPath: "/tmp", permission: "read-write" });
+    const session = await sessionRepo.create({ workspaceId: ws.id, title: "T" });
+    await sessionRepo.appendTurn(session.id, {
+      id: "turn-txt",
+      sessionId: session.id,
+      prompt: "普通问题",
+      status: "done",
+      startedAt: 1,
+      completedAt: 2,
+      checkpoints: [],
+    } as never);
+
+    const reloaded = await sessionRepo.get(session.id);
+    const history = buildHistoryMessages({ session: reloaded!, currentPrompt: "再问" });
+    expect(history.some((m) => typeof m.content === "string" && m.content === "普通问题")).toBe(true);
+    expect(JSON.stringify(history)).not.toContain("[图片]");
   });
 });
 

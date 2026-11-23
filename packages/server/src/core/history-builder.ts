@@ -1,4 +1,4 @@
-import type { ChatMessage } from "./context-compactor.js";
+import { IMAGE_PLACEHOLDER, type ChatContentPart, type ChatMessage } from "./context-compactor.js";
 import type { SessionEntity } from "../storage/interfaces.js";
 
 /**
@@ -32,10 +32,37 @@ export function buildHistoryMessages(input: {
     const pastTurn = session.turns[turnIndex];
     // 压缩覆盖的轮次：正文已折叠进摘要，跳过原始内容
     if (compaction && turnIndex < compaction.compactedTurnCount) continue;
-    messages.push({ role: "user", content: pastTurn.prompt });
     // 提取最新检查点的消息状态（旧数据 errorTurn 可能无 checkpoints 字段，需防御）
     const cps = pastTurn.checkpoints;
     const lastCp = cps && cps.length > 0 ? cps[cps.length - 1] : undefined;
+
+    // TASK-083 历史图片轮占位：图片本体不进上下文（checkpoint 落库前已把 base64
+    // 降级为 [图片] 占位，见 sanitizeMessagesForCheckpoint），但必须在回放文本里
+    // 显式标注「该轮曾有图」——否则多轮追问（"它是什么品种？"）时模型不知图的存在。
+    // 判定来源：① 轮次 attachments 元数据（TASK-050 起）；② 旧数据无元数据时，
+    // 看快照锚点消息是否 parts 形态且含图片块（降级前的旧快照）/ [图片] 占位块（降级后）。
+    const imageAttCount = pastTurn.attachments?.filter((a) => a.kind === "image").length ?? 0;
+    let hadImages = imageAttCount > 0;
+    if (!hadImages && lastCp && Array.isArray(lastCp.messagesSnapshot)) {
+      const anchor = (lastCp.messagesSnapshot as ChatMessage[]).find(
+        (item) =>
+          item.role === "user" &&
+          Array.isArray(item.content) &&
+          (item.content as ChatContentPart[])[0]?.type === "text" &&
+          ((item.content as ChatContentPart[])[0] as { text?: string }).text === pastTurn.prompt
+      );
+      hadImages =
+        Array.isArray(anchor?.content) &&
+        (anchor.content as ChatContentPart[]).some(
+          (p) => p.type === "image_url" || (p.type === "text" && p.text === IMAGE_PLACEHOLDER)
+        );
+    }
+    const imageNote = imageAttCount > 1 ? `[图片]×${imageAttCount}` : IMAGE_PLACEHOLDER;
+    messages.push({
+      role: "user",
+      content: hadImages ? `${pastTurn.prompt}\n${imageNote}` : pastTurn.prompt,
+    });
+
     if (lastCp && Array.isArray(lastCp.messagesSnapshot)) {
       const snapshot = lastCp.messagesSnapshot as ChatMessage[];
       // 快照是「截至本步的完整历史」（含此前轮次），只回放本 turn 提问之后的消息；

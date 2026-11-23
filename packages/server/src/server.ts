@@ -32,7 +32,11 @@ import { ConfigResolver, isEnvLocked, resolveNamespaceValues, validateNamespaceP
 import { ToolRegistry } from "./core/tool-registry.js";
 import { ActionHub } from "./core/action-hub.js";
 import { AgentLoop } from "./core/agent-loop.js";
-import { ContextCompactor, type ChatMessage } from "./core/context-compactor.js";
+import {
+  ContextCompactor,
+  sanitizeMessagesForCheckpoint,
+  type ChatMessage,
+} from "./core/context-compactor.js";
 import { StreamOrchestrator } from "./core/stream-orchestrator.js";
 import { SessionExecutionHub } from "./core/session-execution-hub.js";
 import type { CheckpointEntity, TurnEntity } from "./storage/interfaces.js";
@@ -928,7 +932,7 @@ export function createHarnessServer(options: ServerOptions = {}) {
       id: checkpointId,
       turnId: snapshotTurn.id,
       stepIndex: (snapshotCp?.stepIndex ?? 0) + 1,
-      messagesSnapshot: JSON.parse(JSON.stringify(afterMessages)),
+      messagesSnapshot: sanitizeMessagesForCheckpoint(afterMessages),
       snapshotAt: Date.now(),
     });
 
