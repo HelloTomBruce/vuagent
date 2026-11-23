@@ -9,12 +9,20 @@
   font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif);
 }
 
-.va-plan__head { display: flex; align-items: baseline; gap: var(--va-s3, 8px); margin-bottom: var(--va-s3, 8px); }
-.va-plan__title { margin: 0; font-size: var(--va-fs-lg, 14px); font-weight: var(--va-fw-semibold, 600); color: var(--_ink); }
-.va-plan__progress { font-size: var(--va-fs-sm, 12px); color: var(--_muted); }
-.va-plan__progress[data-error] { color: var(--_danger); }
+.va-plan .va-plan__head { display: flex; align-items: baseline; gap: var(--va-s3, 8px); margin-bottom: var(--va-s3, 8px); }
+.va-plan .va-plan__title {
+  margin: 0;
+  font-size: var(--va-fs-lg, 14px);
+  line-height: var(--va-lh-tight, 1.3);
+  letter-spacing: normal;
+  font-weight: var(--va-fw-semibold, 600);
+  color: var(--_ink);
+  position: static; /* 防宿主 heading 样式（如 .vp-doc h4）注入 margin/line-height */
+}
+.va-plan .va-plan__progress { font-size: var(--va-fs-sm, 12px); color: var(--_muted); }
+.va-plan .va-plan__progress[data-error] { color: var(--_danger); }
 
-.va-plan__list {
+.va-plan .va-plan__list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -24,7 +32,7 @@
 }
 
 /* 运行模式：时间线 */
-.va-plan__item { display: flex; align-items: flex-start; gap: var(--va-s3, 8px); position: relative; padding: 2px 0; }
+.va-plan .va-plan__item { display: flex; align-items: flex-start; gap: var(--va-s3, 8px); position: relative; padding: 2px 0; margin: 0; /* 防宿主 li 规则（如 .vp-doc li + li）注入间距 */ }
 .va-plan:not(.va-plan--edit) .va-plan__item::before {
   content: "";
   position: absolute;
@@ -34,10 +42,10 @@
   width: 1.5px;
   background: var(--_edge);
 }
-.va-plan__item:last-child::before { display: none; }
-.va-plan__item[data-status="done"]::before { background: color-mix(in srgb, var(--_success) 40%, transparent); }
+.va-plan .va-plan__item:last-child::before { display: none; }
+.va-plan .va-plan__item[data-status="done"]::before { background: color-mix(in srgb, var(--_success) 40%, transparent); }
 
-.va-plan__node {
+.va-plan .va-plan__node {
   position: relative;
   z-index: 1;
   display: inline-flex;
@@ -51,14 +59,14 @@
   border: 1.5px solid var(--_edge);
   color: var(--va-card, #ffffff);
 }
-.va-plan__item[data-status="done"] .va-plan__node { background: var(--_success); border-color: var(--_success); }
-.va-plan__item[data-status="error"] .va-plan__node { background: var(--_danger); border-color: var(--_danger); }
-.va-plan__item[data-status="running"] .va-plan__node { border-color: var(--_accent); }
-.va-plan__node svg { width: 12px; height: 12px; }
+.va-plan .va-plan__item[data-status="done"] .va-plan__node { background: var(--_success); border-color: var(--_success); }
+.va-plan .va-plan__item[data-status="error"] .va-plan__node { background: var(--_danger); border-color: var(--_danger); }
+.va-plan .va-plan__item[data-status="running"] .va-plan__node { border-color: var(--_accent); }
+.va-plan .va-plan__node svg { width: 12px; height: 12px; }
 
-.va-plan__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--_edge); }
+.va-plan .va-plan__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--_edge); }
 
-.va-plan__spin {
+.va-plan .va-plan__spin {
   width: 11px;
   height: 11px;
   border-radius: 50%;
@@ -68,19 +76,19 @@
 }
 @keyframes va-spin { to { transform: rotate(360deg); } }
 
-.va-plan__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; padding-top: 2px; }
-.va-plan__step-title { font-size: var(--va-fs-md, 13px); color: var(--_ink); }
-.va-plan__step-title[data-done] { color: var(--_muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--_muted) 50%, transparent); }
-.va-plan__step-detail { font-size: var(--va-fs-sm, 12px); color: var(--_muted); }
+.va-plan .va-plan__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; padding-top: 2px; }
+.va-plan .va-plan__step-title { font-size: var(--va-fs-md, 13px); color: var(--_ink); }
+.va-plan .va-plan__step-title[data-done] { color: var(--_muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--_muted) 50%, transparent); }
+.va-plan .va-plan__step-detail { font-size: var(--va-fs-sm, 12px); color: var(--_muted); }
 
-.va-plan__side { display: flex; align-items: center; gap: var(--va-s2, 4px); padding-top: 2px; flex: none; }
-.va-plan__time { font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); font-size: var(--va-fs-xs, 11px); color: var(--_muted); font-variant-numeric: tabular-nums; }
+.va-plan .va-plan__side { display: flex; align-items: center; gap: var(--va-s2, 4px); padding-top: 2px; flex: none; }
+.va-plan .va-plan__time { font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); font-size: var(--va-fs-xs, 11px); color: var(--_muted); font-variant-numeric: tabular-nums; }
 /* va-act danger 基类兜底，仅保留危险 pill 形态 */
-.va-plan__retry {
+.va-plan .va-plan__retry {
   border-radius: var(--va-radius-pill, 999px);
   border-color: color-mix(in srgb, var(--_danger) 40%, transparent);
 }
-.va-plan__retry:hover:not(:disabled) { background: color-mix(in srgb, var(--_danger) 10%, transparent); }
+.va-plan .va-plan__retry:hover:not(:disabled) { background: color-mix(in srgb, var(--_danger) 10%, transparent); }
 
 /* 编辑模式 */
 .va-plan--edit .va-plan__item {
@@ -89,8 +97,8 @@
   border-radius: var(--va-radius-m, 10px);
   padding: var(--va-s2, 4px) var(--va-s3, 8px);
 }
-.va-plan__edit-row { display: flex; align-items: center; gap: var(--va-s3, 8px); width: 100%; }
-.va-plan__idx {
+.va-plan .va-plan__edit-row { display: flex; align-items: center; gap: var(--va-s3, 8px); width: 100%; }
+.va-plan .va-plan__idx {
   flex: none;
   width: 18px;
   height: 18px;
@@ -102,7 +110,7 @@
   font-size: var(--va-fs-xs, 11px);
   color: var(--_muted);
 }
-.va-plan__rename {
+.va-plan .va-plan__rename {
   flex: 1;
   min-width: 0;
   text-align: left;
@@ -118,9 +126,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.va-plan__rename:hover { background: var(--va-bg-subtle, #efede7); }
-.va-plan__rename:focus-visible { outline: 2px solid var(--_accent); }
-.va-plan__input {
+.va-plan .va-plan__rename:hover { background: var(--va-bg-subtle, #efede7); }
+.va-plan .va-plan__rename:focus-visible { outline: 2px solid var(--_accent); }
+.va-plan .va-plan__input {
   flex: 1;
   min-width: 0;
   border: 1.5px solid var(--_accent);
@@ -131,15 +139,15 @@
   background: var(--va-card, #ffffff);
   color: var(--_ink);
 }
-.va-plan__input:focus { outline: none; }
-.va-plan__ops { display: inline-flex; gap: 2px; flex: none; }
+.va-plan .va-plan__input:focus { outline: none; }
+.va-plan .va-plan__ops { display: inline-flex; gap: 2px; flex: none; }
 /* va-act ghost 基类兜底，仅保留 22px 图标方钮形态 */
-.va-plan__op { width: 22px; height: 22px; padding: 0; font-size: var(--va-fs-sm, 12px); color: var(--_muted); }
-.va-plan__op:hover:not(:disabled) { color: var(--_ink); }
-.va-plan__op--danger:hover { color: var(--_danger); }
+.va-plan .va-plan__op { width: 22px; height: 22px; padding: 0; font-size: var(--va-fs-sm, 12px); color: var(--_muted); }
+.va-plan .va-plan__op:hover:not(:disabled) { color: var(--_ink); }
+.va-plan .va-plan__op--danger:hover { color: var(--_danger); }
 
-.va-plan__add { display: flex; gap: var(--va-s2, 4px); margin-top: var(--va-s3, 8px); }
-.va-plan__add-btn {
+.va-plan .va-plan__add { display: flex; gap: var(--va-s2, 4px); margin-top: var(--va-s3, 8px); }
+.va-plan .va-plan__add-btn {
   flex: none;
   border: 1px solid var(--_edge);
   background: var(--va-card, #ffffff);
@@ -150,8 +158,8 @@
   cursor: pointer;
   font-family: inherit;
 }
-.va-plan__add-btn:disabled { opacity: 0.4; cursor: default; }
-.va-plan__add-btn:focus-visible { outline: 2px solid var(--_accent); outline-offset: 1px; }
+.va-plan .va-plan__add-btn:disabled { opacity: 0.4; cursor: default; }
+.va-plan .va-plan__add-btn:focus-visible { outline: 2px solid var(--_accent); outline-offset: 1px; }
 
 /* FLIP 与离场 */
 .va-plan-move { transition: transform var(--va-dur-3, 300ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)); }
@@ -162,5 +170,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .va-plan-move, .va-plan-leave-active, .va-plan-enter-active { transition: none; }
-  .va-plan__spin { animation-duration: 2s; }
+  .va-plan .va-plan__spin { animation-duration: 2s; }
 }

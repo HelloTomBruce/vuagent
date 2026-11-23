@@ -19,7 +19,7 @@
 .va-acd--low { --_risk: var(--va-success, #1a7f4b); }
 .va-acd:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: 2px; }
 
-.va-acd__timer {
+.va-acd .va-acd__timer {
   margin-left: auto;
   flex: none;
   font-size: var(--va-fs-xs, 11px);
@@ -28,7 +28,7 @@
   opacity: 0.9;
 }
 
-.va-acd__count {
+.va-acd .va-acd__count {
   position: absolute;
   top: 0;
   left: 0;
@@ -36,7 +36,7 @@
   height: 3px;
   background: color-mix(in srgb, var(--_risk) 15%, transparent);
 }
-.va-acd__count-fill {
+.va-acd .va-acd__count-fill {
   display: block;
   height: 100%;
   margin-left: auto; /* 剩余时间从右向左消退，更符合直觉 */
@@ -45,9 +45,9 @@
   transition: width var(--va-dur-1, 120ms) linear;
 }
 
-.va-acd__main { padding: var(--va-s3, 8px) var(--va-s4, 12px) var(--va-s4, 12px); }
+.va-acd .va-acd__main { padding: var(--va-s3, 8px) var(--va-s4, 12px) var(--va-s4, 12px); }
 
-.va-acd__head {
+.va-acd .va-acd__head {
   display: flex;
   align-items: center;
   gap: var(--va-s3, 8px);
@@ -59,15 +59,15 @@
   border-bottom: 1px solid color-mix(in srgb, var(--_edge) 60%, transparent);
 }
 
-.va-acd__head--clickable {
+.va-acd .va-acd__head--clickable {
   cursor: pointer;
   user-select: none;
 }
-.va-acd__head--clickable:hover {
+.va-acd .va-acd__head--clickable:hover {
   background: color-mix(in srgb, var(--va-bg-subtle, #efede7) 50%, transparent);
 }
 
-.va-acd__status-badge {
+.va-acd .va-acd__status-badge {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
@@ -77,17 +77,17 @@
   padding: 2px 8px;
   border-radius: var(--va-radius-pill, 999px);
 }
-.va-acd__status-badge svg { width: 12px; height: 12px; }
-.va-acd__status-badge--approved {
+.va-acd .va-acd__status-badge svg { width: 12px; height: 12px; }
+.va-acd .va-acd__status-badge--approved {
   color: var(--va-success, #1a7f4b);
   background: color-mix(in srgb, var(--va-success, #1a7f4b) 12%, transparent);
 }
-.va-acd__status-badge--denied {
+.va-acd .va-acd__status-badge--denied {
   color: var(--_danger);
   background: color-mix(in srgb, var(--_danger) 12%, transparent);
 }
 
-.va-acd__collapse-btn {
+.va-acd .va-acd__collapse-btn {
   background: none;
   border: none;
   padding: 3px;
@@ -98,12 +98,12 @@
   align-items: center;
   justify-content: center;
 }
-.va-acd__collapse-btn:hover {
+.va-acd .va-acd__collapse-btn:hover {
   background: var(--va-bg-subtle, #efede7);
   color: var(--_ink);
 }
-.va-acd__collapse-btn svg { width: 14px; height: 14px; }
-.va-acd__risk {
+.va-acd .va-acd__collapse-btn svg { width: 14px; height: 14px; }
+.va-acd .va-acd__risk {
   flex: none;
   font-size: var(--va-fs-xs, 11px);
   font-weight: var(--va-fw-bold, 700);
@@ -113,10 +113,18 @@
   border-radius: var(--va-radius-pill, 999px);
   padding: 2px 8px;
 }
-.va-acd__title { margin: 0; font-size: var(--va-fs-lg, 14px); font-weight: var(--va-fw-semibold, 600); color: var(--_ink); }
-.va-acd__detail { margin: var(--va-s2, 4px) 0 0; font-size: var(--va-fs-md, 13px); color: var(--_muted); }
+.va-acd .va-acd__title {
+  margin: 0;
+  font-size: var(--va-fs-lg, 14px);
+  line-height: var(--va-lh-tight, 1.3);
+  letter-spacing: normal;
+  font-weight: var(--va-fw-semibold, 600);
+  color: var(--_ink);
+  position: static; /* 防宿主 heading 样式（如 .vp-doc h4）注入 margin/line-height */
+}
+.va-acd .va-acd__detail { margin: var(--va-s2, 4px) 0 0; font-size: var(--va-fs-md, 13px); color: var(--_muted); }
 
-.va-acd__preview {
+.va-acd .va-acd__preview {
   margin: var(--va-s3, 8px) 0 0;
   padding: var(--va-s3, 8px) var(--va-s4, 12px);
   background: var(--va-bg-subtle, #efede7);
@@ -129,13 +137,13 @@
   word-break: break-all;
 }
 
-.va-acd__actions { display: flex; align-items: center; gap: var(--va-s2, 4px); margin-top: var(--va-s4, 12px); }
+.va-acd .va-acd__actions { display: flex; align-items: center; gap: var(--va-s2, 4px); margin-top: var(--va-s4, 12px); }
 /* va-act / va-act--ink 基类兜底，仅保留 30px 定高形态 */
-.va-acd__btn { height: 30px; padding: 0 var(--va-s5, 16px); border-radius: var(--va-radius-m, 10px); }
-.va-acd__btn:active { transform: scale(0.97); }
+.va-acd .va-acd__btn { height: 30px; padding: 0 var(--va-s5, 16px); border-radius: var(--va-radius-m, 10px); }
+.va-acd .va-acd__btn:active { transform: scale(0.97); }
 
-.va-acd__kbd-hint { margin-left: auto; font-size: var(--va-fs-xs, 11px); color: var(--_muted); }
-.va-acd__kbd-hint kbd {
+.va-acd .va-acd__kbd-hint { margin-left: auto; font-size: var(--va-fs-xs, 11px); color: var(--_muted); }
+.va-acd .va-acd__kbd-hint kbd {
   font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   font-size: var(--va-fs-xs, 11px);
   border: 1px solid var(--_edge);
@@ -146,7 +154,7 @@
 }
 
 /* 决策后的结果行 */
-.va-acd__done {
+.va-acd .va-acd__done {
   display: flex;
   align-items: center;
   gap: var(--va-s2, 4px);
@@ -156,8 +164,8 @@
 }
 .va-acd--approved .va-acd__done { color: var(--va-success, #1a7f4b); }
 .va-acd--denied .va-acd__done { color: var(--_danger); }
-.va-acd__done svg { width: 14px; height: 14px; flex: none; }
-.va-acd__done-detail { color: var(--_muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.va-acd .va-acd__done svg { width: 14px; height: 14px; flex: none; }
+.va-acd .va-acd__done-detail { color: var(--_muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @keyframes va-acd-in {
   from { opacity: 0; transform: translateY(2px); }
@@ -165,6 +173,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .va-acd__done { animation: none; }
-  .va-acd__btn:active { transform: none; }
+  .va-acd .va-acd__done { animation: none; }
+  .va-acd .va-acd__btn:active { transform: none; }
 }

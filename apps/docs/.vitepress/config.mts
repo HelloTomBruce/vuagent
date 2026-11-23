@@ -1,4 +1,4 @@
-import { defineConfig } from "vitepress";
+import { defineConfig, postcssIsolateStyles } from "vitepress";
 
 export default defineConfig({
   lang: "zh-CN",
@@ -8,6 +8,20 @@ export default defineConfig({
   head: [
     ["link", { rel: "icon", href: "/favicon.ico" }],
   ],
+  vite: {
+    css: {
+      postcss: {
+        plugins: [
+          // 根因修复：VitePress 文档排版样式（.vp-doc h4/p/ol/code…，特异性 0,1,1）
+          // 会泄漏进 markdown 页内直接渲染的组件，压过组件自身 BEM 样式（0,1,0），
+          // 导致 VaApprovalCard 标题 h4 被加上 margin: 24px / font-size: 18px 等而错位。
+          // 给 vp-doc.css 全部选择器追加 :not(:where(.vp-raw, .vp-raw *)) 豁免前缀，
+          // 演示容器标注 .vp-raw 后，组件不再被文档排版污染（base.css 的 reset 保留，无害）。
+          postcssIsolateStyles({ includeFiles: [/vp-doc\.css/] }),
+        ],
+      },
+    },
+  },
   themeConfig: {
     siteTitle: "Vuagent",
     nav: [

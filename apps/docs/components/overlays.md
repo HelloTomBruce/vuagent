@@ -27,7 +27,7 @@ const selectOptions = [
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">不同形态按钮（可点击交互）</div>
   <div class="demo-row">
     <VaButton variant="primary">主要操作</VaButton>
@@ -64,7 +64,7 @@ const selectOptions = [
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">浮层效果预览（点击按钮打开）</div>
   <VaPopover placement="bottom-start">
     <template #trigger="{ open }">
@@ -85,7 +85,7 @@ const selectOptions = [
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">文字提示预览（鼠标悬停查看效果）</div>
   <div class="demo-row">
     <VaTooltip content="点击将代码变更提交至暂存区" placement="top">
@@ -105,7 +105,7 @@ const selectOptions = [
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">下拉选择预览</div>
   <div style="width: 260px;">
     <VaSelect

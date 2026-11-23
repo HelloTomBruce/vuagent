@@ -19,7 +19,7 @@
 .va-tcl[data-status="running"] { border-color: color-mix(in srgb, var(--_accent) 40%, transparent); }
 
 /* 头部 */
-.va-tcl__head {
+.va-tcl .va-tcl__head {
   display: flex;
   align-items: center;
   gap: var(--va-s3, 8px);
@@ -31,9 +31,9 @@
   text-align: left;
   font-family: inherit;
 }
-.va-tcl__head:focus-visible { outline: 2px solid var(--_accent); outline-offset: -2px; }
+.va-tcl .va-tcl__head:focus-visible { outline: 2px solid var(--_accent); outline-offset: -2px; }
 
-.va-tcl__tile {
+.va-tcl .va-tcl__tile {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -45,11 +45,11 @@
   background: var(--va-bg-subtle, #efede7);
   color: var(--va-ink-2, #43413c);
 }
-.va-tcl__tile svg { width: 15px; height: 15px; }
-.va-tcl__tile[data-status="success"] { background: color-mix(in srgb, var(--_success) 12%, transparent); color: var(--_success); }
-.va-tcl__tile[data-status="error"] { background: color-mix(in srgb, var(--_danger) 12%, transparent); color: var(--_danger); }
+.va-tcl .va-tcl__tile svg { width: 15px; height: 15px; }
+.va-tcl .va-tcl__tile[data-status="success"] { background: color-mix(in srgb, var(--_success) 12%, transparent); color: var(--_success); }
+.va-tcl .va-tcl__tile[data-status="error"] { background: color-mix(in srgb, var(--_danger) 12%, transparent); color: var(--_danger); }
 
-.va-tcl__spin {
+.va-tcl .va-tcl__spin {
   position: absolute;
   inset: -3px;
   /* 50% 真圆环；inherit 会拿到方角 tile 的 radius，变成"方框在转" */
@@ -60,14 +60,18 @@
 }
 @keyframes va-spin { to { transform: rotate(360deg); } }
 
-.va-tcl__meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-.va-tcl__name {
+.va-tcl .va-tcl__meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.va-tcl .va-tcl__name {
+  /* code 元素防宿主行内代码样式（如 .vp-doc :not(pre) > code）注入 padding/背景 */
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
   font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   font-size: var(--va-fs-md, 13px);
   font-weight: var(--va-fw-semibold, 600);
   color: var(--va-ink, #1a1917);
 }
-.va-tcl__summary {
+.va-tcl .va-tcl__summary {
   font-size: var(--va-fs-sm, 12px);
   color: var(--_muted);
   overflow: hidden;
@@ -75,17 +79,17 @@
   white-space: nowrap;
 }
 
-.va-tcl__side { display: flex; align-items: center; gap: var(--va-s2, 4px); flex: none; }
-.va-tcl__time {
+.va-tcl .va-tcl__side { display: flex; align-items: center; gap: var(--va-s2, 4px); flex: none; }
+.va-tcl .va-tcl__time {
   font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   font-size: var(--va-fs-xs, 11px);
   color: var(--_muted);
   font-variant-numeric: tabular-nums;
 }
-.va-tcl__glyph { width: 14px; height: 14px; color: var(--_success); }
+.va-tcl .va-tcl__glyph { width: 14px; height: 14px; color: var(--_success); }
 .va-tcl[data-status="error"] .va-tcl__glyph { color: var(--_danger); }
 
-.va-tcl__chevron {
+.va-tcl .va-tcl__chevron {
   width: 14px;
   height: 14px;
   color: var(--_muted);
@@ -94,16 +98,16 @@
 .va-tcl--open .va-tcl__chevron { transform: rotate(90deg); }
 
 /* 主体展开（grid-rows 技巧，免 JS 测高） */
-.va-tcl__body {
+.va-tcl .va-tcl__body {
   display: grid;
   grid-template-rows: 0fr;
   transition: grid-template-rows var(--va-dur-3, 300ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 .va-tcl--open .va-tcl__body { grid-template-rows: 1fr; }
-.va-tcl__inner { overflow: hidden; min-height: 0; border-top: 1px solid transparent; }
+.va-tcl .va-tcl__inner { overflow: hidden; min-height: 0; border-top: 1px solid transparent; }
 .va-tcl--open .va-tcl__inner { border-top-color: var(--_edge); }
 
-.va-tcl__error {
+.va-tcl .va-tcl__error {
   display: flex;
   align-items: center;
   gap: var(--va-s3, 8px);
@@ -112,24 +116,26 @@
   color: var(--_danger);
   font-size: var(--va-fs-md, 13px);
 }
-.va-tcl__error-text { flex: 1; min-width: 0; }
+.va-tcl .va-tcl__error-text { flex: 1; min-width: 0; }
 /* va-act 基类兜底，仅保留危险 pill 形态 */
-.va-tcl__retry {
+.va-tcl .va-tcl__retry {
   border-radius: var(--va-radius-pill, 999px);
   border-color: color-mix(in srgb, var(--_danger) 40%, transparent);
 }
-.va-tcl__retry:hover:not(:disabled) { background: color-mix(in srgb, var(--_danger) 10%, transparent); }
+.va-tcl .va-tcl__retry:hover:not(:disabled) { background: color-mix(in srgb, var(--_danger) 10%, transparent); }
 
-.va-tcl__sec { padding: var(--va-s3, 8px) var(--va-s4, 12px) 0; }
-.va-tcl__sec:last-child { padding-bottom: var(--va-s4, 12px); }
-.va-tcl__sec-title {
+.va-tcl .va-tcl__sec { padding: var(--va-s3, 8px) var(--va-s4, 12px) 0; }
+.va-tcl .va-tcl__sec:last-child { padding-bottom: var(--va-s4, 12px); }
+.va-tcl .va-tcl__sec-title {
   margin: 0 0 var(--va-s2, 4px);
   font-size: var(--va-fs-xs, 11px);
+  line-height: var(--va-lh-tight, 1.3);
   font-weight: var(--va-fw-semibold, 600);
   letter-spacing: 0.08em;
   color: var(--_muted);
+  position: static; /* 防宿主 heading 样式（如 .vp-doc h4）注入 margin/line-height */
 }
-.va-tcl__code {
+.va-tcl .va-tcl__code {
   margin: 0;
   padding: var(--va-s3, 8px);
   border-radius: var(--va-radius-s, 8px);
@@ -143,9 +149,9 @@
   word-break: break-word;
   position: relative;
 }
-.va-tcl__code--capped { overflow: hidden; }
+.va-tcl .va-tcl__code--capped { overflow: hidden; }
 
-.va-tcl__more {
+.va-tcl .va-tcl__more {
   margin-top: var(--va-s2, 4px);
   border: 0;
   background: none;
@@ -155,9 +161,9 @@
   padding: 2px 0;
   font-family: inherit;
 }
-.va-tcl__more:focus-visible { outline: 2px solid var(--_accent); outline-offset: 1px; border-radius: 2px; }
+.va-tcl .va-tcl__more:focus-visible { outline: 2px solid var(--_accent); outline-offset: 1px; border-radius: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .va-tcl__body, .va-tcl__chevron { transition: none; }
-  .va-tcl__spin { animation-duration: 2s; }
+  .va-tcl .va-tcl__body, .va-tcl__chevron { transition: none; }
+  .va-tcl .va-tcl__spin { animation-duration: 2s; }
 }

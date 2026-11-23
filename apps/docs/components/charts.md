@@ -32,7 +32,7 @@ function handleAction(id: string) {
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">核心 KPI 指标卡效果</div>
   <div class="demo-row">
     <div style="width: 280px;">
@@ -65,7 +65,7 @@ function handleAction(id: string) {
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">时序折线走势图</div>
   <VaMetricChart
     title="Agent 每分钟 Token 吞吐速率 (TPM)"
@@ -83,7 +83,7 @@ function handleAction(id: string) {
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">AI 智能建议卡片</div>
   <VaSmartRecommendation
     title="检测到历史会话存在大量冗余工具返回"

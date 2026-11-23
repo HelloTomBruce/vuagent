@@ -767,8 +767,8 @@ watch(
    生命周期
    ========================================================================== */
 onMounted(async () => {
-  // 清理从画廊或组件走查页面遗留的全局 duration: 0 静态测试通知
-  vaToaster.state.toasts = vaToaster.state.toasts.filter((t) => t.duration !== 0);
+  // 清理全局 toaster 遗留通知，确保控制台无静态/演示消息污染，仅承载真实运行时反馈
+  vaToaster.state.toasts = [];
 
   // ⌘K / Ctrl+K 全局命令面板（TASK-076）
   window.addEventListener("keydown", onGlobalKeydown);
@@ -1159,11 +1159,11 @@ function quickFillPrompt(text: string) {
                 生成自动化测试用例
               </button>
               <button
-                class="va-console__chip va-console__chip--scene"
+                class="va-console__chip"
                 type="button"
-                @click="quickFillPrompt('调用微服务部署工具 ui_deploy_status，生成展示 auth-service 在 production 生产环境的部署与健康巡检状态卡片')"
+                @click="quickFillPrompt('请分析当前项目的架构设计、核心模块划分与潜在代码风险')"
               >
-                🎨 体验微服务部署场景组件
+                分析项目架构与潜在风险
               </button>
             </div>
           </div>

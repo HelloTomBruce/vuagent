@@ -70,7 +70,7 @@ const terminalLines = [
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">实时交互预览（点击【批准】或【拒绝】查看效果）</div>
   <VaApprovalCard
     title="Agent 申请执行系统级 Shell 命令"
@@ -127,7 +127,7 @@ function onDeny(reason?: string) {
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">实时执行中效果预览</div>
   <VaAgentPlan
     title="依赖升级与自动化发版流水线"
@@ -162,7 +162,7 @@ const steps = ref([
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">工具调用执行成功卡片</div>
   <VaToolCallCard
     name="search_web"
@@ -198,7 +198,7 @@ const steps = ref([
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">Token 水位进度仪表</div>
   <VaContextWindow
     :prompt-tokens="13200"
@@ -216,7 +216,7 @@ const steps = ref([
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">代码 Diff 差异高亮效果</div>
   <VaCodeDiff
     file-name="src/utils/calculator.ts"
@@ -233,7 +233,7 @@ const steps = ref([
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">终端命令行日志效果</div>
   <VaTerminalLog
     title="pnpm build 执行日志"

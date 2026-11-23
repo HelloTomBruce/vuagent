@@ -29,7 +29,7 @@ function handleComposerSend(content: string) {
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">思考中状态预览</div>
   <VaThinkingLoader
     :phases="['正在分析用户意图...', '检索相关知识库与 Schema...', '规划工具执行链路...']"
@@ -58,7 +58,7 @@ function handleComposerSend(content: string) {
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">流式文本渲染预览</div>
   <VaStreamAnswer
     :source="sampleAnswer"
@@ -87,7 +87,7 @@ function handleComposerSend(content: string) {
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">消息反馈操作条</div>
   <div style="padding: 12px; background: var(--va-color-surface-soft, #f8fafc); border-radius: 8px;">
     <p style="margin: 0 0 12px 0;">这是助手的一条回复内容示例...</p>
@@ -108,7 +108,7 @@ function handleComposerSend(content: string) {
 
 ### 交互效果预览
 
-<div class="demo-preview">
+<div class="demo-preview vp-raw">
   <div class="demo-title">输入框效果预览</div>
   <VaComposer
     v-model="composerText"
