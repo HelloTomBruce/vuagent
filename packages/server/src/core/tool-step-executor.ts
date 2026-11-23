@@ -89,6 +89,7 @@ export async function* executeToolCallStep(
       parsedArgs = parsePartialJson(call.argumentsStr) || {};
     }
 
+    console.log(`[Vuagent Tool] Executing tool [${call.name}] args:`, parsedArgs);
     yield {
       type: "tool_call_executing",
       toolCallId: call.id,
@@ -203,6 +204,7 @@ export async function* executeToolCallStep(
         sessionId,
       });
 
+      console.log(`[Vuagent Tool] Suspended for approval: [${call.name}], actionId=${call.id}`);
       yield {
         type: "suspended",
         actionId: call.id,
@@ -276,6 +278,7 @@ export async function* executeToolCallStep(
       error: isError ? errorMessage : undefined,
     });
 
+    console.log(`[Vuagent Tool] Tool [${call.name}] result (error=${isError})`);
     yield {
       type: "tool_call_result",
       toolCallId: call.id,

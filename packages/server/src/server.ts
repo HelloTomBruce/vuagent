@@ -153,6 +153,17 @@ export function createHarnessServer(options: ServerOptions = {}) {
   const security = resolveSecurityConfig(options.security);
   applySecurityBaseline(app, security);
 
+  // 统一请求日志中间件 (TASK: 服务端日志增强)
+  app.use("/api/*", async (c, next) => {
+    const start = Date.now();
+    const method = c.req.method;
+    const path = c.req.path;
+    await next();
+    const duration = Date.now() - start;
+    const status = c.res.status;
+    console.log(`[Vuagent Server] ${method} ${path} -> ${status} (${duration}ms)`);
+  });
+
   // 1. 初始化存储层
   const driver: IStorageDriver =
     options.storageDriver ||
@@ -575,7 +586,7 @@ export function createHarnessServer(options: ServerOptions = {}) {
       return c.json(rejection.body, rejection.status);
     }
 
-    // 默认工作区兜底
+    // 默认工作区兜底（若前端传入但不存在于库中，则自动初始化持久化）
     let workspaceId = body.workspaceId;
     if (!workspaceId) {
       const list = await workspaceRepo.list();
@@ -589,9 +600,20 @@ export function createHarnessServer(options: ServerOptions = {}) {
         });
         workspaceId = defaultWs.id;
       }
+    } else {
+      const existingWs = await workspaceRepo.get(workspaceId);
+      if (!existingWs) {
+        const defaultWs = await workspaceRepo.create({
+          id: workspaceId,
+          name: "Default Workspace",
+          rootPath: process.cwd(),
+          permission: "read-write",
+        });
+        workspaceId = defaultWs.id;
+      }
     }
 
-    // 默认会话兜底
+    // 默认会话兜底（若前端指定了自定义 sessionId 但尚未入库，自动补充建档）
     let sessionId = body.sessionId;
     if (!sessionId) {
       const newSess = await sessionRepo.create({
@@ -599,7 +621,21 @@ export function createHarnessServer(options: ServerOptions = {}) {
         title: prompt.slice(0, 30),
       });
       sessionId = newSess.id;
+    } else {
+      const existingSess = await sessionRepo.get(sessionId);
+      if (!existingSess) {
+        const newSess = await sessionRepo.create({
+          id: sessionId,
+          workspaceId,
+          title: prompt.slice(0, 30),
+        });
+        sessionId = newSess.id;
+      }
     }
+
+    console.log(
+      `[Vuagent Server] /api/chat: prompt="${prompt.slice(0, 60)}" | session=${sessionId} | workspace=${workspaceId}`
+    );
 
     // TASK-050 并发语义：先做原子开轮声明——会话运行中默认 409 拒绝
     // （错误文案引导停止后重发）；body.preempt:true 顶替语义 = 中止旧轮
@@ -760,10 +796,11 @@ export function createHarnessServer(options: ServerOptions = {}) {
     });
   });
 
-  // HITL 交互提交回调
-  app.post("/api/action/:actionId", async (c) => {
+  // HITL 交互提交回调（同时支持 /api/action/:actionId 与 /api/actions/:actionId/approval 别名）
+  const handleResolveAction = async (c: any) => {
     const actionId = c.req.param("actionId");
     const payload = await c.req.json().catch(() => ({}));
+    console.log(`[Vuagent Server] Resolving action [${actionId}], payload:`, payload);
     // TASK-005：命中挂起索引时按 sessionId 直达目标会话，免除全库 O(N) 扫描
     const indexedSessionId = actionHub.getSessionIdForAction(actionId);
     const ok = actionHub.resolveAction(actionId, payload);
@@ -803,7 +840,10 @@ export function createHarnessServer(options: ServerOptions = {}) {
     }
 
     return c.json({ success: ok }, ok ? 200 : 404);
-  });
+  };
+
+  app.post("/api/action/:actionId", handleResolveAction);
+  app.post("/api/actions/:actionId/approval", handleResolveAction);
 
   // 查询当前挂起的动作列表
   app.get("/api/action/suspended", (c) => {

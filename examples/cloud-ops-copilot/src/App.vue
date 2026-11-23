@@ -15,11 +15,11 @@ import {
   RefreshCw,
   Sparkles,
   ArrowRight,
+  ChevronDown,
 } from "lucide-vue-next";
 import {
   VaComposer,
   VaApprovalCard,
-  VaSkeleton,
   useStickToBottom,
   getCardComponent,
 } from "@vuagent/ui";
@@ -76,7 +76,7 @@ const services = ref([
 const isCopilotOpen = ref(true);
 const composerText = ref("");
 const isStreaming = ref(false);
-const sessionId = ref(`ops-session-${Date.now()}`);
+const sessionId = ref(`ops-sess-${Date.now()}`);
 
 interface MessageCard {
   id: string;
@@ -96,6 +96,7 @@ interface ChatTurn {
   role: "user" | "assistant";
   text: string;
   thought?: string;
+  showThought?: boolean;
   cards: MessageCard[];
   approval?: PendingApproval;
   approvalDecided?: "approved" | "denied";
@@ -105,12 +106,12 @@ const turns = ref<ChatTurn[]>([]);
 const chatScrollRef = useTemplateRef<HTMLElement>("chatScrollRef");
 const { scrollToBottom } = useStickToBottom(chatScrollRef);
 
-// 提取当前已注册的场景卡片（用于组件分发）
+// 获取已注册的卡片组件
 function resolveCardComponent(name: string) {
   return getCardComponent(name);
 }
 
-// 发送 Prompt 驱动后端真实 Harness Server
+// 发送 Prompt 驱动真实 Harness Server
 async function handleSend(customPrompt?: string) {
   const prompt = (customPrompt || composerText.value).trim();
   if (!prompt || isStreaming.value) return;
@@ -132,6 +133,7 @@ async function handleSend(customPrompt?: string) {
     role: "assistant",
     text: "",
     thought: "",
+    showThought: true,
     cards: [],
   };
   turns.value.push(assistantTurn);
@@ -158,7 +160,7 @@ async function handleSend(customPrompt?: string) {
     const reader = res.body?.getReader();
     if (!reader) throw new Error("无法读取服务端 SSE 流");
 
-    const decoder = new TextDecoder();
+    const decoder = new TextDecoder("utf-8");
     let buffer = "";
 
     while (true) {
@@ -166,19 +168,23 @@ async function handleSend(customPrompt?: string) {
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n\n");
-      buffer = lines.pop() || "";
+      const normalized = buffer.replace(/\r\n|\r/g, "\n");
+      const parts = normalized.split("\n\n");
+      buffer = parts.pop() ?? "";
 
-      for (const line of lines) {
-        if (!line.startsWith("data:")) continue;
-        const jsonStr = line.slice(5).trim();
-        if (!jsonStr || jsonStr === "[DONE]") continue;
+      for (const block of parts) {
+        for (const line of block.split("\n")) {
+          if (!line.startsWith("data:")) continue;
+          const jsonStr = line.replace(/^data:\s*/, "").trim();
+          if (!jsonStr || jsonStr === "[DONE]") continue;
 
-        try {
-          const event = JSON.parse(jsonStr);
-          handleSSEEvent(event, assistantTurn);
-        } catch {
-          // 忽略非法 JSON 片段
+          try {
+            const event = JSON.parse(jsonStr);
+            console.log("[CloudOps Copilot SSE Event]", event);
+            handleSSEEvent(event, assistantTurn);
+          } catch (e) {
+            console.warn("解析 SSE JSON 片段失败:", jsonStr, e);
+          }
         }
       }
     }
@@ -191,7 +197,7 @@ async function handleSend(customPrompt?: string) {
   }
 }
 
-// 统一消费 18 类协议流事件
+// 消费各类服务端事件
 function handleSSEEvent(event: any, turn: ChatTurn) {
   switch (event.type) {
     case "text_delta":
@@ -202,27 +208,48 @@ function handleSSEEvent(event: any, turn: ChatTurn) {
       turn.thought = (turn.thought || "") + (event.delta || "");
       break;
 
+    case "tool_call_executing":
+      // 可以记录正在执行的工具名称
+      break;
+
+    case "tool_call_result":
     case "tool_result": {
-      // 捕获具备 Generative UI 组件元数据的结构化结果
-      const output = event.output || event.result;
-      if (output && typeof output === "object" && output.rendered && output.component) {
-        turn.cards.push({
-          id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-          component: output.component,
-          props: output.props || {},
-        });
+      // 捕获带有 Generative UI component 声明的执行结果
+      const raw = event.data || event.result || event.output;
+      if (raw && typeof raw === "object" && raw.rendered && raw.component) {
+        // 去重判断
+        const exists = turn.cards.some((c) => c.component === raw.component);
+        if (!exists) {
+          turn.cards.push({
+            id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            component: raw.component,
+            props: raw.props || {},
+          });
+        }
       }
       break;
     }
 
+    case "suspended":
     case "action_suspended": {
-      // 服务端安全引擎判定高危，触发审批阻断
+      // 服务端安全拦截：高危写操作挂起，呼出人工审批卡片
       turn.approval = {
         id: event.actionId,
-        title: `安全审批：${event.toolName || "生产操作"} 申请执行`,
-        detail: JSON.stringify(event.payload || {}, null, 2),
+        title: `生产变更安全审批：${event.toolName || "操作"} 申请执行`,
+        detail: JSON.stringify(event.args || event.payload || {}, null, 2),
         risk: "high",
       };
+      break;
+    }
+
+    case "resumed":
+    case "action_resumed": {
+      turn.approvalDecided = "approved";
+      break;
+    }
+
+    case "error": {
+      turn.text += `\n\n❌ 执行失败：${event.message || "未知错误"}`;
       break;
     }
 
@@ -232,28 +259,28 @@ function handleSSEEvent(event: any, turn: ChatTurn) {
   }
 }
 
-// 提交审批结果（批准或拒绝）
+// 提交审批决策
 async function handleApproval(turn: ChatTurn, approved: boolean, reason?: string) {
   if (!turn.approval) return;
   const actionId = turn.approval.id;
   turn.approvalDecided = approved ? "approved" : "denied";
 
   try {
-    const res = await fetch(`/api/actions/${actionId}/approval`, {
+    const res = await fetch(`/api/action/${actionId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         approved,
         reason: reason || (approved ? "人工审批确认放行" : "高危操作拒绝"),
+        note: reason || (approved ? "人工审批确认放行" : "高危操作拒绝"),
       }),
     });
 
     if (res.ok && approved) {
-      // 审批通过后，若包含后续执行结果可直接拉取或提示
       turns.value.push({
         id: `asst-after-${Date.now()}`,
         role: "assistant",
-        text: "已批准操作，服务端继续执行扩容并完成探针就绪检查。",
+        text: "✅ 已批准操作，服务端继续执行扩容并完成探针就绪检查。",
         cards: [],
       });
     }
@@ -274,11 +301,10 @@ function runQuickPrompt(type: "inspect" | "scale" | "security") {
 }
 
 onMounted(() => {
-  // 初始引导消息
   turns.value.push({
     id: "init-1",
     role: "assistant",
-    text: "你好！我是你的云原生运维副驾驶 (CloudOps Copilot)。\n你可以随时向我提问微服务运行状态、下发集群巡检指令，或对高负载微服务触发弹性伸缩。\n\n试着点击上方的快捷场景体验：",
+    text: "你好！我是你的云原生微服务智能副驾驶 (CloudOps Copilot)。\n你可以随时向我提问微服务运行状态、下发集群健康巡检，或针对高负载微服务触发弹性扩容。\n\n试着点击上方的场景演练按钮开始体验：",
     cards: [],
   });
 });
@@ -375,7 +401,7 @@ onMounted(() => {
         <div class="copilot-title">
           <Bot :size="18" style="color: #2563eb" />
           <span>CloudOps Copilot</span>
-          <span class="copilot-badge">已连接 Server (:3001)</span>
+          <span class="copilot-badge">Server 连接正常</span>
         </div>
         <button
           type="button"
@@ -389,7 +415,7 @@ onMounted(() => {
 
       <!-- 快捷场景动作 Chip 条 -->
       <div class="copilot-quick-chips">
-        <span class="chips-label">场景演练：</span>
+        <span class="chips-label">演练快捷指令：</span>
         <button
           type="button"
           class="chip-btn"
@@ -421,7 +447,26 @@ onMounted(() => {
           </div>
 
           <div class="turn-content">
-            <!-- 文本主体 -->
+            <!-- 模型思考折叠框 -->
+            <div v-if="turn.thought" class="turn-thought-wrap">
+              <button
+                type="button"
+                class="turn-thought-toggle"
+                @click="turn.showThought = !turn.showThought"
+              >
+                <Sparkles :size="12" />
+                <span>思考过程</span>
+                <ChevronDown
+                  :size="12"
+                  :style="{ transform: turn.showThought ? 'rotate(180deg)' : 'none' }"
+                />
+              </button>
+              <div v-show="turn.showThought" class="turn-thought-body">
+                {{ turn.thought }}
+              </div>
+            </div>
+
+            <!-- 文本回复主体 -->
             <div v-if="turn.text" class="turn-text">{{ turn.text }}</div>
 
             <!-- 动态场景组件渲染 (Generative UI) -->
@@ -473,7 +518,7 @@ onMounted(() => {
   position: fixed;
   top: 0;
   right: 0;
-  width: 520px;
+  width: 540px;
   max-width: 90vw;
   height: 100vh;
   background: #ffffff;
@@ -625,7 +670,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-width: 88%;
+  max-width: 90%;
 }
 
 .turn-text {
@@ -634,6 +679,36 @@ onMounted(() => {
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.turn-thought-wrap {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  font-size: 11px;
+}
+
+.turn-thought-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.turn-thought-body {
+  padding: 6px 8px;
+  border-top: 1px dashed #e2e8f0;
+  color: #475569;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  background: #ffffff;
 }
 
 .turn-cards {

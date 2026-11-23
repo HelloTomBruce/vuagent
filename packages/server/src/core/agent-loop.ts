@@ -247,6 +247,9 @@ export class AgentLoop {
     // TASK-014：生效权限模式（请求级∩会话级，更严者生效）在轮次开始时解析一次，
     // 系统提示词的「模式声明」与下方工具仲裁的「模式执行」共用同一解析结果，口径不漂移
     const effectiveMode = resolveEffectivePermissionMode(req.permission, session.permission);
+    console.log(
+      `[Vuagent AgentLoop] Turn start: session=${session.id} | model=${modelProfile.model} | permission=${effectiveMode}`
+    );
 
     // 系统提示词（TASK-014 重构）：运行环境披露（平台/OS/shell/日期/git）
     // + 权限模式声明 + 操作纪律 + 工作区/会话自定义指令，对标 Codex ## Environment 机制
