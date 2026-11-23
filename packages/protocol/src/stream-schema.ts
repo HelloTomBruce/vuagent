@@ -179,6 +179,8 @@ export const UsageEventSchema = Type.Object({
   reasoningTokens: Type.Optional(Type.Number()),
   /** Prompt Cache 命中读取 token（同上） */
   cachedTokens: Type.Optional(Type.Number()),
+  /** Prompt Cache 写入 token（Anthropic cache_creation；端点不提供可缺省） */
+  cacheCreationTokens: Type.Optional(Type.Number()),
 });
 
 export const SuspendedEventSchema = Type.Object({

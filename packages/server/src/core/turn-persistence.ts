@@ -214,6 +214,9 @@ export class TurnPersistence {
       // computeCostUsd 对缺省值按整段单价回落
       ...(summary.tokens.reasoningTokens > 0 ? { reasoningTokens: summary.tokens.reasoningTokens } : {}),
       ...(summary.tokens.cachedTokens > 0 ? { cachedTokens: summary.tokens.cachedTokens } : {}),
+      ...(summary.tokens.cacheCreationTokens > 0
+        ? { cacheCreationTokens: summary.tokens.cacheCreationTokens }
+        : {}),
     }).catch(() => {
       this.opts.ops.costRecordFailed();
     });

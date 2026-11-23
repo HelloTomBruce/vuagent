@@ -160,6 +160,8 @@ interface StreamState {
   inputTokens?: number;
   /** message_start.usage.cache_read_input_tokens：缓存命中读取（计价分档数据源，能力运行时 P1） */
   cachedTokens?: number;
+  /** message_start.usage.cache_creation_input_tokens：缓存写入（计价分档数据源，TASK-079） */
+  cacheCreationTokens?: number;
 }
 
 export class AnthropicDriver implements IModelDriver {
@@ -325,12 +327,18 @@ function toStreamChunk(parsed: Record<string, unknown>, state: StreamState): Mod
       // message_start 携带输入 token 计数；此处只记忆不产 chunk——
       // usage 统一在 message_delta 汇总产出，避免同一轮多次 usage 事件
       const message = parsed.message as {
-        usage?: { input_tokens?: unknown; cache_read_input_tokens?: unknown };
+        usage?: {
+          input_tokens?: unknown;
+          cache_read_input_tokens?: unknown;
+          cache_creation_input_tokens?: unknown;
+        };
       } | undefined;
       const inputTokens = message?.usage?.input_tokens;
       if (typeof inputTokens === "number") state.inputTokens = inputTokens;
       const cached = message?.usage?.cache_read_input_tokens;
       if (typeof cached === "number" && cached > 0) state.cachedTokens = cached;
+      const cacheCreation = message?.usage?.cache_creation_input_tokens;
+      if (typeof cacheCreation === "number" && cacheCreation > 0) state.cacheCreationTokens = cacheCreation;
       return undefined;
     }
 
@@ -371,19 +379,32 @@ function toStreamChunk(parsed: Record<string, unknown>, state: StreamState): Mod
     }
 
     case "message_delta": {
-      const usage = parsed.usage as { input_tokens?: unknown; output_tokens?: unknown } | undefined;
+      const usage = parsed.usage as {
+        input_tokens?: unknown;
+        output_tokens?: unknown;
+        cache_read_input_tokens?: unknown;
+        cache_creation_input_tokens?: unknown;
+      } | undefined;
       if (!usage) return undefined;
       // 输入 token 优先取本事件的值（部分网关会在此重复下发），缺省回落 message_start 记忆
-      const promptTokens =
+      const rawInputTokens =
         typeof usage.input_tokens === "number" ? usage.input_tokens : (state.inputTokens ?? 0);
       const completionTokens = typeof usage.output_tokens === "number" ? usage.output_tokens : 0;
       // Anthropic 的 thinking token 计入 output_tokens（无独立计数），推理分档不单列；
-      // 缓存命中读取经 message_start 记忆补齐（部分网关也会在 message_delta 重复下发）
-      const deltaCached = parsed.usage as { cache_read_input_tokens?: unknown } | undefined;
+      // 缓存读取/写入经 message_start 记忆补齐（部分网关也会在 message_delta 重复下发）
       const cachedTokens =
-        typeof deltaCached?.cache_read_input_tokens === "number"
-          ? deltaCached.cache_read_input_tokens
+        typeof usage.cache_read_input_tokens === "number"
+          ? usage.cache_read_input_tokens
           : state.cachedTokens;
+      const cacheCreationTokens =
+        typeof usage.cache_creation_input_tokens === "number"
+          ? usage.cache_creation_input_tokens
+          : state.cacheCreationTokens;
+      // TASK-079 口径修正：Anthropic 的 input_tokens 本就不含 cache_read / cache_creation
+      // （三者并列上报），而下游计价器按 OpenAI 语义「promptTokens 为总输入、cached 是其中
+      // 命中部分」做减法拆分。这里统一为 OpenAI 语义——总输入 = 常规 + 读取 + 写入，
+      // 否则常规段会被重复扣减（少计费），totalTokens 也少计上下文占用。
+      const promptTokens = rawInputTokens + (cachedTokens ?? 0) + (cacheCreationTokens ?? 0);
       return {
         type: "usage",
         usage: {
@@ -391,6 +412,7 @@ function toStreamChunk(parsed: Record<string, unknown>, state: StreamState): Mod
           completionTokens,
           totalTokens: promptTokens + completionTokens,
           ...(cachedTokens && cachedTokens > 0 ? { cachedTokens } : {}),
+          ...(cacheCreationTokens && cacheCreationTokens > 0 ? { cacheCreationTokens } : {}),
         },
       };
     }

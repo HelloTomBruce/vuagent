@@ -526,6 +526,7 @@ export class AgentLoop {
             telemetry.addTokens(chunk.usage.promptTokens, chunk.usage.completionTokens, {
               reasoningTokens: chunk.usage.reasoningTokens,
               cachedTokens: chunk.usage.cachedTokens,
+              cacheCreationTokens: chunk.usage.cacheCreationTokens,
             });
             // 单轮 token 预算熔断：计费口径（输入+输出）跨步累计，超限即经看门狗通道中止
             //（mapAbortCause 按 tokenBudgetFired 优先分流成因，保留已完成进度落库）
@@ -565,6 +566,9 @@ export class AgentLoop {
               // 分档计价数据源（能力运行时 P1）：端点不提供时字段缺省，前端旧版本兼容
               ...(chunk.usage.reasoningTokens !== undefined ? { reasoningTokens: chunk.usage.reasoningTokens } : {}),
               ...(chunk.usage.cachedTokens !== undefined ? { cachedTokens: chunk.usage.cachedTokens } : {}),
+              ...(chunk.usage.cacheCreationTokens !== undefined
+                ? { cacheCreationTokens: chunk.usage.cacheCreationTokens }
+                : {}),
             };
           }
 

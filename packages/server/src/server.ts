@@ -153,10 +153,11 @@ export function createHarnessServer(options: ServerOptions = {}) {
     // TASK-052 成本记账：turn 收尾按计价表折算 USD 后落账（fail-open）
     costRecorder: async (entry) => {
       const pricing = pricingTable.priceFor(entry.model);
-      // 分档计价（能力运行时 P1）：缓存命中与推理 token 按各自单价折算
+      // 分档计价（能力运行时 P1）：缓存读取/写入与推理 token 按各自单价折算
       const costUsd = pricing
         ? computeCostUsd(pricing, entry.promptTokens, entry.completionTokens, {
             cachedPromptTokens: entry.cachedTokens,
+            cacheCreationTokens: entry.cacheCreationTokens,
             reasoningTokens: entry.reasoningTokens,
           })
         : undefined;

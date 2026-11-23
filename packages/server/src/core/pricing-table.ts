@@ -14,6 +14,8 @@ export interface ModelPricing {
   output: number;
   /** Prompt Cache 命中读取单价；缺省按 input * 0.5 计算 */
   cacheRead?: number;
+  /** Prompt Cache 写入单价（Anthropic cache_creation）；缺省按 input 计算 */
+  cacheWrite?: number;
   /** 思考/推理 token 单价；缺省按 output 计算 */
   reasoning?: number;
 }
@@ -33,6 +35,8 @@ export interface CostRecordInput {
   reasoningTokens?: number;
   /** Prompt Cache 命中读取累计（分档计价；端点不提供时缺省） */
   cachedTokens?: number;
+  /** Prompt Cache 写入累计（Anthropic cache_creation；端点不提供时缺省，按整段 input 价计） */
+  cacheCreationTokens?: number;
 }
 
 /** 记账器契约：实现方负责持久化与计价；失败由调用方 fail-open 捕获 */
@@ -108,25 +112,36 @@ export class ModelPricingTable {
 
 /**
  * USD 计价：6 位小数（微美元级），避免浮点累加误差进账本。
- * 缓存读取按 cacheRate（缺省 input*0.5）、推理 token 按 reasoningRate（缺省 output）分档。
+ * 缓存读取按 cacheRate（缺省 input*0.5）、缓存写入按 cacheWriteRate（缺省 input）、
+ * 推理 token 按 reasoningRate（缺省 output）分档。
+ *
+ * 口径约定（TASK-079）：promptTokens 为总输入（OpenAI 语义），cached/cacheCreation
+ * 是其中的子集——各驱动已统一为该语义（Anthropic 驱动把并列上报的 cache_read /
+ * cache_creation 加回 input_tokens），这里按子集扣减拆出常规段。
  */
 export function computeCostUsd(
   pricing: ModelPricing,
   promptTokens: number,
   completionTokens: number,
-  options?: { cachedPromptTokens?: number; reasoningTokens?: number }
+  options?: { cachedPromptTokens?: number; cacheCreationTokens?: number; reasoningTokens?: number }
 ): number {
   const cachedTokens = Math.min(promptTokens, Math.max(0, options?.cachedPromptTokens ?? 0));
-  const regularPromptTokens = Math.max(0, promptTokens - cachedTokens);
-  // TASK-060 O4：可选费率字段（cacheRead/reasoning）不做非数字即 NaN——
+  // 写入段从「总输入减读取」的余量里钳取，防端点脏数据把常规段扣成负数
+  const cacheWriteTokens = Math.min(
+    Math.max(0, promptTokens - cachedTokens),
+    Math.max(0, options?.cacheCreationTokens ?? 0)
+  );
+  const regularPromptTokens = Math.max(0, promptTokens - cachedTokens - cacheWriteTokens);
+  // TASK-060 O4：可选费率字段（cacheRead/cacheWrite/reasoning）不做非数字即 NaN——
   // loader 只校验 input/output 为 number，可选费率混入字符串/NaN 时
   // `??` 不触发（仅拦 null/undefined），算术产出 NaN 账本。此处按字段缺省
-  // 推导语义兜底：非法值回落缺省费率（cacheRead→input*0.5，reasoning→output）。
+  // 推导语义兜底：非法值回落缺省费率（cacheRead→input*0.5，cacheWrite→input，reasoning→output）。
   const defaultCacheRate = pricing.input * 0.5;
   const defaultReasoningRate = pricing.output;
   const asFiniteRate = (v: number | undefined, fallback: number): number =>
     typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : fallback;
   const cacheRate = asFiniteRate(pricing.cacheRead, defaultCacheRate);
+  const cacheWriteRate = asFiniteRate(pricing.cacheWrite, pricing.input);
   const reasoningRate = asFiniteRate(pricing.reasoning, defaultReasoningRate);
 
   const reasoningTokens = Math.min(completionTokens, Math.max(0, options?.reasoningTokens ?? 0));
@@ -135,6 +150,7 @@ export function computeCostUsd(
   const usd =
     (regularPromptTokens / 1e6) * pricing.input +
     (cachedTokens / 1e6) * cacheRate +
+    (cacheWriteTokens / 1e6) * cacheWriteRate +
     (regularOutputTokens / 1e6) * pricing.output +
     (reasoningTokens / 1e6) * reasoningRate;
 

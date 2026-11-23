@@ -17,6 +17,11 @@ export interface ModelStreamChunk {
     reasoningTokens?: number;
     /** Prompt Cache 命中读取的输入 token（OpenAI cached_tokens / Anthropic cache_read_input_tokens） */
     cachedTokens?: number;
+    /**
+     * Prompt Cache 写入的输入 token（Anthropic cache_creation_input_tokens）。
+     * OpenAI 无缓存写入概念（写入与常规输入同价），此字段恒缺省。
+     */
+    cacheCreationTokens?: number;
   };
 }
 
