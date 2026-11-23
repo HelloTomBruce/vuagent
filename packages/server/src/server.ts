@@ -50,6 +50,7 @@ import { GlobTool, GrepTool } from "./tools/system/search-tools.js";
 import { FinishTaskTool } from "./tools/system/finish-task-tool.js";
 import { createWebFetchTool } from "./tools/web/web-tools.js";
 import { AllBuiltinTools } from "./tools/ui/protocol-tools.js";
+import { OpsSceneTools } from "./tools/ops/ops-tools.js";
 import { recoverInterruptedTurns } from "./core/recovery.js";
 import {
   createConsoleNdjsonSink,
@@ -190,6 +191,9 @@ export function createHarnessServer(options: ServerOptions = {}) {
     })
   );
   for (const t of AllBuiltinTools) {
+    toolRegistry.register(t);
+  }
+  for (const t of OpsSceneTools) {
     toolRegistry.register(t);
   }
 

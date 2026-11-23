@@ -50,7 +50,7 @@ const newCode = `function calculateTotal(price, count, discount = 1) {
 
 // 终端日志
 const terminalLines = [
-  { text: "$ pnpm build", kind: "cmd" },
+  { text: "pnpm build", kind: "cmd" },
   { text: "vite v5.4.0 building for production...", kind: "stdout" },
   { text: "transforming (42) src/index.ts", kind: "stdout" },
   { text: "warning: chunk size exceeds 500 kB", kind: "warn" },

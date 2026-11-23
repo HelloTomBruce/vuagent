@@ -16,7 +16,8 @@
     "docs:dev": "pnpm --filter @vuagent/docs dev",
     "docs:build": "pnpm --filter @vuagent/docs build",
     "dev": "pnpm --filter @vuagent/playground dev",
-    "console": "concurrently -k -n server,web -c yellow,cyan \"pnpm --filter @vuagent/server dev\" \"pnpm --filter @vuagent/playground dev\""
+    "console": "concurrently -k -n server,web -c yellow,cyan \"pnpm --filter @vuagent/server dev\" \"pnpm --filter @vuagent/playground dev\"",
+    "example:ops": "concurrently -k -n server,example -c yellow,green \"pnpm --filter @vuagent/server dev\" \"pnpm --filter cloud-ops-copilot dev\""
   },
   "repository": {
     "type": "git",

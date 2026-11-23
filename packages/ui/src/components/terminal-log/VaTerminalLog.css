@@ -90,7 +90,13 @@
 
 /* 语义行：kind 由数据侧标注 */
 .va-term .va-term__row[data-kind="cmd"] .va-term__code { color: #f0eee9; }
-.va-term .va-term__row[data-kind="cmd"]::before { content: "$ "; color: #e8925e; }
+.va-term .va-term__row[data-kind="cmd"]::before {
+  content: "$";
+  color: #e8925e;
+  /* flex 行内 text 节点的尾随空格会被折叠，用 margin 而非 content 里的空格 */
+  margin-right: var(--va-s3h, 6px);
+  flex: none;
+}
 .va-term .va-term__row[data-kind="err"] .va-term__code { color: #f07168; }
 .va-term .va-term__row[data-kind="warn"] .va-term__code { color: #e5a53a; }
 .va-term .va-term__row[data-kind="ok"] .va-term__code { color: #4cc38a; }

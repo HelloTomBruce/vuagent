@@ -31,6 +31,7 @@ export * from "./storage/repositories/tool-config.repository.js";
 export * from "./storage/repositories/harness-config.repository.js";
 export * from "./security.js";
 export * from "./server.js";
+export * from "./tools/ops/ops-tools.js";
 
 // 如果直接通过 node 执行本文件，启动 HTTP 监听
 const isDirectRun =
