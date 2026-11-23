@@ -8,10 +8,9 @@
  * 「已完成 · 耗时 Ns」摘要条（文本结果保持可见），点击摘要条随时展开回过程区。
  */
 import { computed, onMounted, ref, watch } from "vue";
-import { Bot, Brain, CheckCircle2, ChevronDown, ChevronUp } from "lucide-vue-next";
-import { VaMessageActions } from "@vuagent/ui";
+import { Bot } from "lucide-vue-next";
+import { VaMessageActions, VaMarkdown, VaThoughtBox } from "@vuagent/ui";
 import CardRenderer from "./CardRenderer.vue";
-import { createCachedBlockRenderer } from "../utils/markdown";
 import {
   shouldCollapseProcessOnFinish,
   shouldCollapseThoughtOnFinish,
@@ -38,9 +37,6 @@ const abortReasonLabel = computed(() => {
       return "";
   }
 });
-
-/** 块级渲染缓存：流式期间只有尾块在增长，稳定块零重解析、零 DOM 写入 */
-const renderBlockHtml = createCachedBlockRenderer();
 
 const { settings } = useInteractionSettings();
 
@@ -117,51 +113,25 @@ const displayBlocks = computed<TurnBlock[]>(() => {
     </div>
 
     <div class="va-console__turn-body">
-      <!-- 0. 过程摘要条：完成后把思考+工具调用收进一行，点击展开回过程区 -->
-      <button
-        v-if="processCollapsed"
-        class="va-console__process-summary"
-        type="button"
-        title="展开思考过程与工具调用"
-        @click="processCollapsed = false"
-      >
-        <CheckCircle2 :size="14" />
-        <span>
-          已完成<template v-if="finishDurationSec != null"> · 耗时 {{ finishDurationSec }}s</template><template v-if="processToolCount"> · {{ processToolCount }} 次工具调用</template>
-        </span>
-        <ChevronDown :size="13" class="va-console__process-summary-chevron" />
-      </button>
-
-      <!-- 1. 思考过程 (折叠/展开)：统一摘要条激活时整体隐藏 -->
-      <div
-        v-if="!processCollapsed && (turn.thought || (turn.isStreaming && !turn.content))"
-        class="va-console__thought-box"
-      >
-        <div class="va-console__thought-header" @click="turn.thoughtExpanded = !turn.thoughtExpanded">
-          <div class="va-console__thought-title">
-            <Brain :size="14" class="va-console__pulse-icon" />
-            <span>思考过程</span>
-            <small v-if="turn.thoughtDuration">· 耗时 {{ turn.thoughtDuration }}s</small>
-            <small v-else-if="turn.isStreaming">· 正在深度思考…</small>
-          </div>
-          <button class="va-console__thought-toggle-btn" type="button">
-            {{ turn.thoughtExpanded ? "收起" : "展开" }}
-            <ChevronUp v-if="turn.thoughtExpanded" :size="13" />
-            <ChevronDown v-else :size="13" />
-          </button>
-        </div>
-
-        <div v-if="turn.thoughtExpanded" class="va-console__thought-content">
-          <pre>{{ turn.thought || "正在拆解任务意图，规划工具调用序列与沙箱执行路径…" }}</pre>
-        </div>
-      </div>
+      <!-- 0 & 1. 思考过程 / 过程摘要条（统一使用 @vuagent/ui 的 VaThoughtBox） -->
+      <VaThoughtBox
+        v-if="hasHideableProcess || (turn.isStreaming && !turn.content)"
+        :thought="turn.thought"
+        :expanded="turn.thoughtExpanded"
+        :duration="finishDurationSec ?? turn.thoughtDuration"
+        :streaming="turn.isStreaming && !turn.content"
+        :summary-mode="processCollapsed"
+        :tool-count="processToolCount"
+        @update:expanded="(val) => turn.thoughtExpanded = val"
+        @update:summary-mode="(val) => processCollapsed = val"
+      />
 
       <!-- 2. 输出时序块：文本(Markdown)与卡片按真实输出顺序交错，审批卡不再堆在消息末尾 -->
       <template v-for="(block, bi) in displayBlocks" :key="`${block.kind}-${bi}`">
         <div v-if="block.kind === 'text' && block.content" class="va-console__markdown-content">
-          <div
-            class="va-console__text-body va-console__markdown-body"
-            v-html="renderBlockHtml(block)"
+          <VaMarkdown
+            :content="block.content"
+            :streaming="turn.isStreaming && bi === displayBlocks.length - 1"
           />
         </div>
 
