@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import {
   VaAgentInbox,
   VaAgentPlan,
@@ -26,12 +26,18 @@ import {
   vaToaster,
 } from "@vuagent/ui";
 
-/* 静态通知（duration 0 不自动消失，便于走查） */
+/* 静态通知（duration 0 不自动消失，离开页面时自动卸载清理，避免污染全局 Console 页面） */
 onMounted(() => {
-  vaToaster.add({ title: "组件已安装", description: "approval-card → components/ui", kind: "success", duration: 0 });
-  vaToaster.add({ title: "需要审批", description: "pnpm add -D vitest", kind: "warning", duration: 0 });
-  vaToaster.add({ title: "构建失败", kind: "danger", duration: 0 });
-  vaToaster.add({ title: "普通信息通知", kind: "info", duration: 0 });
+  const ids = [
+    vaToaster.add({ title: "组件已安装", description: "approval-card → components/ui", kind: "success", duration: 0 }),
+    vaToaster.add({ title: "需要审批", description: "pnpm add -D vitest", kind: "warning", duration: 0 }),
+    vaToaster.add({ title: "构建失败", kind: "danger", duration: 0 }),
+    vaToaster.add({ title: "普通信息通知", kind: "info", duration: 0 }),
+  ];
+
+  onUnmounted(() => {
+    ids.forEach((id) => vaToaster.dismiss(id));
+  });
 });
 
 /* 分段控件 */

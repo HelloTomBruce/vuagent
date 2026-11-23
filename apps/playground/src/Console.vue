@@ -767,6 +767,9 @@ watch(
    生命周期
    ========================================================================== */
 onMounted(async () => {
+  // 清理从画廊或组件走查页面遗留的全局 duration: 0 静态测试通知
+  vaToaster.state.toasts = vaToaster.state.toasts.filter((t) => t.duration !== 0);
+
   // ⌘K / Ctrl+K 全局命令面板（TASK-076）
   window.addEventListener("keydown", onGlobalKeydown);
   window.addEventListener("keydown", onMentionKeydown, true);
