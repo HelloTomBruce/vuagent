@@ -1,0 +1,23 @@
+{
+  "name": "@examples/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.8",
+    "@sinclair/typebox": "^0.34.48",
+    "@vuagent/protocol": "workspace:*",
+    "@vuagent/server": "workspace:*",
+    "hono": "^4.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "tsx": "^4.19.3",
+    "typescript": "~5.9.2"
+  }
+}

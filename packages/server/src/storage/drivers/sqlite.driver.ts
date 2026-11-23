@@ -15,6 +15,9 @@ export class SQLiteStorageDriver implements IStorageDriver {
       fs.mkdirSync(path.dirname(path.resolve(dbPath)), { recursive: true });
     }
     this.db = new DatabaseSync(dbPath);
+    if (dbPath !== ":memory:") {
+      this.db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
+    }
     this.initSchema();
   }
 

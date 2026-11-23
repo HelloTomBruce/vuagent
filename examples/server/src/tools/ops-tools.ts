@@ -1,5 +1,5 @@
 import { Type } from "@sinclair/typebox";
-import type { HarnessTool } from "../../core/types.js";
+import type { HarnessTool } from "@vuagent/server";
 
 /**
  * 云原生运维场景工具：集群健康巡检（只读操作，模拟数据源）
@@ -127,4 +127,4 @@ export const OpsScaleReplicasTool: HarnessTool = {
   },
 };
 
-export const OpsSceneTools = [OpsInspectClusterTool, OpsScaleReplicasTool];
+export const opsTools = [OpsInspectClusterTool, OpsScaleReplicasTool];

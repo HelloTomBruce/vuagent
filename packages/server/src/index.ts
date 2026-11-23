@@ -31,11 +31,12 @@ export * from "./storage/repositories/tool-config.repository.js";
 export * from "./storage/repositories/harness-config.repository.js";
 export * from "./security.js";
 export * from "./server.js";
-export * from "./tools/ops/ops-tools.js";
 
 // 如果直接通过 node 执行本文件，启动 HTTP 监听
+const entryFile = process.argv[1]?.replace(/\\/g, "/") || "";
 const isDirectRun =
-  process.argv[1]?.endsWith("src/index.ts") || process.argv[1]?.endsWith("dist/index.js");
+  entryFile.endsWith("packages/server/src/index.ts") ||
+  entryFile.endsWith("packages/server/dist/index.js");
 
 if (isDirectRun) {
   const port = Number(process.env.PORT) || 6880;
