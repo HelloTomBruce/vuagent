@@ -10,7 +10,7 @@
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
 import { ArrowDown, Bell, ChevronDown, History, PanelRight, Route } from "lucide-vue-next";
-import { formatTokens, useStickToBottom, VaCommandMenu, VaCompactBreakdown, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaNotificationStack, VaPopover, VaQueueDock, VaSegmentedControl, VaSkeleton, VaThinkingLoader, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
+import { formatTokens, useStickToBottom, VaCommandMenu, VaCompactBreakdown, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaNotificationStack, VaPopover, VaQueueDock, VaSegmentedControl, VaSkeleton, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
 import type { CommandItem, NotificationItem, QueueItem, ComposerAttachment } from "@vuagent/ui";
 import type { ContextPart } from "@vuagent/ui";
 import type { Decision } from "@vuagent/ui";
@@ -431,18 +431,8 @@ const usageCompactSegments = computed(() =>
   usage.byModelTokens.value.filter((seg) => seg.value > 0).slice(0, 4)
 );
 
-/** 流式间隙：已发车（running + assistant turn streaming）但首段内容/卡片未到 */
-const awaitingFirstContent = computed(() => {
-  if (!isRunning.value) return false;
-  const last = chatTurns.value[chatTurns.value.length - 1];
-  return (
-    !!last &&
-    last.role === "assistant" &&
-    last.isStreaming === true &&
-    !last.content &&
-    !(last.cards && last.cards.length > 0)
-  );
-});
+/** 流式间隙指示已移除（原 TASK-075 的 VaThinkingLoader）：与 AssistantTurn 轮内的
+ *  思考折叠框占位 + 「正在分析中」光标重复——三重指示并存且观感差，轮内指示位置更准确 */
 
 /* ---------- 运行中入队（TASK-076 F2：VaQueueDock；composer busy 不拦截 send，宿主自排队） ---------- */
 const messageQueue = ref<QueueItem[]>([]);
@@ -1212,15 +1202,8 @@ function quickFillPrompt(text: string) {
               @regenerate="regenerateTurn"
               @feedback="onFeedback"
             />
-            <!-- 流式间隙思考指示（TASK-075）：已发车但首段内容未到；
-                 loop——首 token 等待时长不确定，轮播不能停在末段文案 -->
-            <VaThinkingLoader
-              v-if="awaitingFirstContent"
-              class="va-console__thinking"
-              size="sm"
-              loop
-              :phases="['连接模型', '读取上下文', '规划步骤']"
-            />
+            <!-- 流式间隙指示由 AssistantTurn 轮内承担（思考折叠框占位 + 「正在分析中」光标），
+                 此处不再叠加 VaThinkingLoader——三重指示并存且胶囊被 flex 拉伸成通栏长条 -->
           </div>
 
           <!-- 上翻解除钉底后出现；点击强制回底并恢复流式跟随 -->

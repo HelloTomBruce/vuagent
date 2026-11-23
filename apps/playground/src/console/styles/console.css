@@ -1664,11 +1664,7 @@
   margin: 0 0 8px;
   padding: 0 4px;
 }
-.va-console__thinking {
-  display: flex;
-  justify-content: flex-start;
-  padding: 10px 4px 0;
-}
+/* 流式间隙加载胶囊已从控制台移除（与 AssistantTurn 轮内指示重复） */
 /* 左栏会话列表首拉骨架 */
 .va-console__stree-skeleton {
   display: flex;
