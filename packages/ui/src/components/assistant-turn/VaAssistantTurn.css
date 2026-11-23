@@ -71,6 +71,10 @@
   50% { transform: scale(1.4); opacity: 1; }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .va-assistant-turn__cursor-dot { animation: none; opacity: 0.8; }
+}
+
 /* 中止状态 */
 .va-assistant-turn__aborted {
   display: inline-flex;

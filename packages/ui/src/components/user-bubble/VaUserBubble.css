@@ -23,8 +23,9 @@
   line-height: 1.6;
 }
 
-.va-user-bubble__text {
+.va-user-bubble .va-user-bubble__text {
   margin: 0;
+  line-height: inherit; /* 防宿主 p 规则（如 .vp-doc p）注入 margin/行高 */
   white-space: pre-wrap;
   word-break: break-word;
 }

@@ -9,55 +9,57 @@
   word-break: break-word;
 }
 
-.va-md__body {
+.va-md .va-md__body {
   overflow-wrap: break-word;
 }
 
 /* 段落与标题 */
-.va-md__body p {
+.va-md .va-md__body p {
   margin: 0 0 var(--va-s3, 8px) 0;
+  line-height: inherit; /* 防宿主 p 规则（如 .vp-doc p{line-height:28px}）注入行高 */
 }
-.va-md__body p:last-child {
+.va-md .va-md__body p:last-child {
   margin-bottom: 0;
 }
 
-.va-md__body h1,
-.va-md__body h2,
-.va-md__body h3,
-.va-md__body h4,
-.va-md__body h5,
-.va-md__body h6 {
+.va-md .va-md__body h1,
+.va-md .va-md__body h2,
+.va-md .va-md__body h3,
+.va-md .va-md__body h4,
+.va-md .va-md__body h5,
+.va-md .va-md__body h6 {
   margin: var(--va-s4, 12px) 0 var(--va-s2, 4px) 0;
   font-weight: var(--va-fw-semibold, 600);
   line-height: 1.35;
+  letter-spacing: normal; /* 防宿主 heading 规则注入紧缩字距 */
   color: var(--va-ink, #0f172a);
 }
 
-.va-md__body h1 { font-size: 16px; }
-.va-md__body h2 { font-size: 15px; }
-.va-md__body h3 { font-size: 14px; }
-.va-md__body h4 { font-size: 13px; }
+.va-md .va-md__body h1 { font-size: 16px; }
+.va-md .va-md__body h2 { font-size: 15px; }
+.va-md .va-md__body h3 { font-size: 14px; }
+.va-md .va-md__body h4 { font-size: 13px; }
 
 /* 列表 */
-.va-md__body ul,
-.va-md__body ol {
+.va-md .va-md__body ul,
+.va-md .va-md__body ol {
   margin: 0 0 var(--va-s3, 8px) 0;
   padding-left: 20px;
 }
-.va-md__body ul:last-child,
-.va-md__body ol:last-child {
+.va-md .va-md__body ul:last-child,
+.va-md .va-md__body ol:last-child {
   margin-bottom: 0;
 }
 
-.va-md__body li {
+.va-md .va-md__body li {
   margin: 2px 0;
 }
-.va-md__body li > p {
+.va-md .va-md__body li > p {
   margin: 0;
 }
 
 /* 行内代码与代码块 */
-.va-md__body code {
+.va-md .va-md__body code {
   font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
   font-size: 0.9em;
   padding: 1px 5px;
@@ -67,7 +69,7 @@
   border: 1px solid var(--va-edge-subtle, rgba(26, 25, 23, 0.08));
 }
 
-.va-md__body pre {
+.va-md .va-md__body pre {
   margin: var(--va-s3, 8px) 0;
   padding: 10px 12px;
   border-radius: var(--va-radius-s, 8px);
@@ -76,11 +78,11 @@
   overflow-x: auto;
   line-height: 1.5;
 }
-.va-md__body pre:last-child {
+.va-md .va-md__body pre:last-child {
   margin-bottom: 0;
 }
 
-.va-md__body pre code {
+.va-md .va-md__body pre code {
   padding: 0;
   background: none;
   border: none;
@@ -90,7 +92,7 @@
 }
 
 /* 引用块 */
-.va-md__body blockquote {
+.va-md .va-md__body blockquote {
   margin: var(--va-s3, 8px) 0;
   padding: 4px 12px;
   border-left: 3px solid var(--va-accent, #2563eb);
@@ -98,48 +100,58 @@
   border-radius: 0 var(--va-radius-xs, 4px) var(--va-radius-xs, 4px) 0;
   color: var(--va-muted, #64748b);
 }
-.va-md__body blockquote p:last-child {
+.va-md .va-md__body blockquote p:last-child {
   margin-bottom: 0;
+}
+.va-md .va-md__body blockquote > p {
+  font-size: inherit; /* 防宿主 blockquote>p 规则放大字号 */
 }
 
 /* 表格 */
-.va-md__body table {
+.va-md .va-md__body table {
   width: 100%;
   border-collapse: collapse;
   margin: var(--va-s3, 8px) 0;
   font-size: 12px;
 }
-.va-md__body table:last-child {
+.va-md .va-md__body table:last-child {
   margin-bottom: 0;
 }
 
-.va-md__body th,
-.va-md__body td {
+.va-md .va-md__body th,
+.va-md .va-md__body td {
   padding: 6px 10px;
   border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  background: transparent; /* 防宿主 table 斑马纹渗入 */
   text-align: left;
 }
 
-.va-md__body th {
+.va-md .va-md__body th {
   background: var(--va-bg-subtle, #f1f5f9);
   font-weight: 600;
   color: var(--va-ink, #0f172a);
 }
 
 /* 超链接 */
-.va-md__body a {
+.va-md .va-md__body a {
   color: var(--va-accent, #2563eb);
+  font-weight: inherit; /* 防宿主链接规则加粗 */
   text-decoration: none;
 }
-.va-md__body a:hover {
+.va-md .va-md__body a:hover {
   text-decoration: underline;
 }
 
 /* 分割线 */
-.va-md__body hr {
+.va-md .va-md__body hr {
   border: none;
   border-top: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
   margin: var(--va-s4, 12px) 0;
+}
+
+/* 粗体：锁定字重，不随宿主 strong 规则漂移 */
+.va-md .va-md__body strong {
+  font-weight: var(--va-fw-bold, 700);
 }
 
 /* 流式光标指示器 */

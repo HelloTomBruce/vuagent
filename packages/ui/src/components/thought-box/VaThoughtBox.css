@@ -41,6 +41,10 @@
   50% { opacity: 0.5; transform: scale(0.92); }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .va-thought-box__pulse-icon { animation: none; }
+}
+
 .va-thought-box__duration {
   font-size: 12px;
   color: var(--va-ink-muted, #78716c);
