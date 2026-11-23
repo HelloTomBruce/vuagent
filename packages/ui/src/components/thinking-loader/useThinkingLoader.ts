@@ -45,5 +45,13 @@ export function useThinkingLoader(props: ThinkingLoaderProps) {
   // reduced-motion / 无 JS 环境（SSR）直接停在第一阶段文案
   const current = computed(() => phases.value[Math.min(step.value, phases.value.length - 1)] ?? "");
 
-  return { current, stop };
+  /**
+   * 最长阶段文案字符数（含 doneLabel）：模板据此设 label min-width，
+   * 文案长短不一的轮播不再引起胶囊宽度抖动（CJK 1 字 ≈ 1em）。
+   */
+  const maxPhaseChars = computed(() =>
+    Math.max(1, ...phases.value.map((p) => p.length), props.doneLabel?.length ?? 0),
+  );
+
+  return { current, maxPhaseChars, stop };
 }

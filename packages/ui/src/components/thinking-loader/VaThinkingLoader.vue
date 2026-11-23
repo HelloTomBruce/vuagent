@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import type { ThinkingLoaderProps } from "./types";
 import { useThinkingLoader } from "./useThinkingLoader";
 
@@ -11,7 +12,13 @@ const props = withDefaults(defineProps<ThinkingLoaderProps>(), {
   size: "md",
 });
 
-const { current } = useThinkingLoader(props);
+const { current, maxPhaseChars } = useThinkingLoader(props);
+
+const labelText = computed(() => (props.done ? props.doneLabel : current.value));
+/** key 驱动阶段切换过渡；done 与轮播文案共用一条切换通道 */
+const labelKey = computed(() => (props.done ? "__done" : current.value));
+/** 最长文案定宽：轮播不再因文案长短变化引起胶囊宽度抖动（CJK 1 字 ≈ 1em） */
+const labelStyle = computed(() => ({ minWidth: `${maxPhaseChars.value}em` }));
 </script>
 
 <template>
@@ -22,8 +29,12 @@ const { current } = useThinkingLoader(props);
       </svg>
       <span v-else class="va-think__spin" />
     </span>
-    <span class="va-think__label" :data-shine="!props.done || undefined">
-      {{ props.done ? props.doneLabel : current }}
+    <span class="va-think__label" :style="labelStyle" aria-live="polite">
+      <!-- 显式 duration：label-text 上有 shine 无限动画，Vue 按 computed
+           时长等待 animationend（永不触发），旧节点会滞留——显式时长跳过探测 -->
+      <Transition name="va-think-phase" mode="out-in" :duration="{ enter: 120, leave: 120 }">
+        <span :key="labelKey" class="va-think__label-text" :data-shine="!props.done || undefined">{{ labelText }}</span>
+      </Transition>
     </span>
   </div>
 </template>

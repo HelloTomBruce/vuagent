@@ -12,6 +12,11 @@
   border-radius: var(--va-radius-pill, 999px);
   background: var(--va-card, #ffffff);
   font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif);
+  /* 挂载入场：轻微上浮淡入（v-if 出现时跑一遍；首 token 到达即消失不做退场） */
+  animation: va-think-in var(--va-dur-2, 200ms) ease-out;
+}
+@keyframes va-think-in {
+  from { opacity: 0; transform: translateY(3px); }
 }
 .va-think--sm { padding: 3px var(--va-s4h, 10px); }
 .va-think--sm .va-think__label { font-size: var(--va-fs-sm, 12px); }
@@ -38,10 +43,27 @@
 }
 @keyframes va-spin { to { transform: rotate(360deg); } }
 
-.va-think__label { font-size: var(--va-fs-md, 13px); color: var(--va-ink-2, #43413c); white-space: nowrap; }
+/* label 定宽（min-width 由模板按最长阶段文案注入），轮播不再引起宽度抖动 */
+.va-think__label {
+  font-size: var(--va-fs-md, 13px);
+  color: var(--va-ink-2, #43413c);
+  line-height: 1.5;
+}
+.va-think__label-text {
+  display: inline-block;
+  white-space: nowrap;
+}
 .va-think--done .va-think__label { color: var(--_success); font-weight: var(--va-fw-semibold, 600); }
 
-.va-think__label[data-shine] {
+/* 阶段切换过渡：旧文案上浮淡出、新文案下浮淡入（mode=out-in 串行，不叠字） */
+.va-think-phase-enter-active,
+.va-think-phase-leave-active {
+  transition: opacity var(--va-dur-1, 120ms) ease, transform var(--va-dur-1, 120ms) ease;
+}
+.va-think-phase-enter-from { opacity: 0; transform: translateY(3px); }
+.va-think-phase-leave-to { opacity: 0; transform: translateY(-3px); }
+
+.va-think__label-text[data-shine] {
   background: linear-gradient(100deg, var(--_muted) 40%, var(--va-ink, #1a1917) 50%, var(--_muted) 60%);
   background-size: 200% 100%;
   background-position: 200% 0;
@@ -56,6 +78,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .va-think { animation: none; }
   .va-think__spin { animation-duration: 2s; }
-  .va-think__label[data-shine] { animation: none; color: var(--_muted); background: none; }
+  .va-think-phase-enter-active,
+  .va-think-phase-leave-active { transition: none; }
+  .va-think__label-text[data-shine] { animation: none; color: var(--_muted); background: none; }
 }

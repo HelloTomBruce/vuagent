@@ -1212,11 +1212,13 @@ function quickFillPrompt(text: string) {
               @regenerate="regenerateTurn"
               @feedback="onFeedback"
             />
-            <!-- 流式间隙思考指示（TASK-075）：已发车但首段内容未到 -->
+            <!-- 流式间隙思考指示（TASK-075）：已发车但首段内容未到；
+                 loop——首 token 等待时长不确定，轮播不能停在末段文案 -->
             <VaThinkingLoader
               v-if="awaitingFirstContent"
               class="va-console__thinking"
               size="sm"
+              loop
               :phases="['连接模型', '读取上下文', '规划步骤']"
             />
           </div>
