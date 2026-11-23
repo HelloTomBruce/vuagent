@@ -4,6 +4,27 @@
   "description": "Shared contract, TypeBox schemas, and stream event protocols for Vuagent",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HelloTomBruce/vuagent.git",
+    "directory": "packages/protocol"
+  },
+  "homepage": "https://hellotombruce.github.io/vuagent",
+  "bugs": {
+    "url": "https://github.com/HelloTomBruce/vuagent/issues"
+  },
+  "keywords": [
+    "vuagent",
+    "agent",
+    "protocol",
+    "typebox",
+    "schema",
+    "stream-events",
+    "sse",
+    "hitl"
+  ],
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
       "types": "./src/index.ts",
@@ -26,12 +47,39 @@
       "default": "./src/lifecycle.ts"
     }
   },
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
   "files": [
-    "src"
+    "dist"
   ],
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./stream": {
+        "types": "./dist/stream.d.ts",
+        "default": "./dist/stream.js"
+      },
+      "./tools": {
+        "types": "./dist/tools.d.ts",
+        "default": "./dist/tools.js"
+      },
+      "./system-tools": {
+        "types": "./dist/system-tools.d.ts",
+        "default": "./dist/system-tools.js"
+      },
+      "./lifecycle": {
+        "types": "./dist/lifecycle.d.ts",
+        "default": "./dist/lifecycle.js"
+      }
+    }
+  },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

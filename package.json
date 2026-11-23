@@ -3,7 +3,8 @@
   "private": true,
   "version": "0.2.0",
   "scripts": {
-    "build": "pnpm --filter @vuagent/ui build && pnpm --filter @vuagent/playground build",
+    "build": "pnpm --filter @vuagent/protocol build && pnpm --filter @vuagent/server build && pnpm --filter @vuagent/ui build && pnpm --filter @vuagent/playground build",
+    "prepublish:check": "pnpm typecheck && pnpm test && pnpm build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm --filter @vuagent/protocol test && pnpm --filter @vuagent/ui test && pnpm --filter @vuagent/server test && pnpm --filter @vuagent/playground test",
     "protocol:sync-check": "node scripts/check-protocol-sync.mjs",
