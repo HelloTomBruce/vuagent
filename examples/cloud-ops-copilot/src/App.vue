@@ -20,6 +20,9 @@ import {
 import {
   VaComposer,
   VaApprovalCard,
+  VaMarkdown,
+  VaUserBubble,
+  VaAssistantTurn,
   useStickToBottom,
   getCardComponent,
 } from "@vuagent/ui";
@@ -436,39 +439,23 @@ onMounted(() => {
 
       <!-- 消息瀑布流区 -->
       <div ref="chatScrollRef" class="copilot-messages">
-        <div
-          v-for="turn in turns"
-          :key="turn.id"
-          class="turn-bubble"
-          :class="turn.role === 'user' ? 'turn-user' : 'turn-asst'"
-        >
-          <div class="turn-avatar">
-            {{ turn.role === 'user' ? '你' : 'AI' }}
-          </div>
+        <template v-for="turn in turns" :key="turn.id">
+          <!-- 用户提问气泡组件 -->
+          <VaUserBubble
+            v-if="turn.role === 'user'"
+            :content="turn.text"
+            avatar="你"
+          />
 
-          <div class="turn-content">
-            <!-- 模型思考折叠框 -->
-            <div v-if="turn.thought" class="turn-thought-wrap">
-              <button
-                type="button"
-                class="turn-thought-toggle"
-                @click="turn.showThought = !turn.showThought"
-              >
-                <Sparkles :size="12" />
-                <span>思考过程</span>
-                <ChevronDown
-                  :size="12"
-                  :style="{ transform: turn.showThought ? 'rotate(180deg)' : 'none' }"
-                />
-              </button>
-              <div v-show="turn.showThought" class="turn-thought-body">
-                {{ turn.thought }}
-              </div>
-            </div>
-
-            <!-- 文本回复主体 -->
-            <div v-if="turn.text" class="turn-text">{{ turn.text }}</div>
-
+          <!-- 助手回复时序轮次组件（内嵌思考链与 Markdown 正文渲染） -->
+          <VaAssistantTurn
+            v-else
+            :content="turn.text"
+            :thought="turn.thought"
+            :thought-expanded="turn.showThought"
+            :streaming="isStreaming && turn === turns[turns.length - 1]"
+            @update:thought-expanded="(val) => turn.showThought = val"
+          >
             <!-- 动态场景组件渲染 (Generative UI) -->
             <div v-if="turn.cards && turn.cards.length > 0" class="turn-cards">
               <component
@@ -490,8 +477,8 @@ onMounted(() => {
                 @deny="(reason) => handleApproval(turn, false, reason)"
               />
             </div>
-          </div>
-        </div>
+          </VaAssistantTurn>
+        </template>
 
         <!-- 流式加载中指示 -->
         <div v-if="isStreaming" class="turn-streaming">
@@ -653,6 +640,7 @@ onMounted(() => {
   background: #2563eb;
   color: #ffffff;
   border-radius: 12px 2px 12px 12px;
+  white-space: pre-wrap;
 }
 
 .turn-asst .turn-avatar {
@@ -677,7 +665,6 @@ onMounted(() => {
   padding: 8px 12px;
   font-size: 13px;
   line-height: 1.6;
-  white-space: pre-wrap;
   word-break: break-word;
 }
 

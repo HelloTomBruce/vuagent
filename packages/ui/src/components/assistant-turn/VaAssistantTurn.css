@@ -1,0 +1,86 @@
+.va-assistant-turn-row {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.va-assistant-turn {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 92%;
+  width: 100%;
+}
+
+.va-assistant-turn__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.12));
+  color: var(--va-accent, #c2410c);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid var(--va-accent-subtle, rgba(194, 65, 12, 0.2));
+}
+
+.va-assistant-turn__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.va-assistant-turn__body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 时序卡片容器 */
+.va-assistant-turn__card-container {
+  margin: 10px 0;
+}
+
+/* 消息操作栏 */
+.va-assistant-turn__actions {
+  margin-top: 8px;
+}
+
+/* 流式指示器 */
+.va-assistant-turn__streaming {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--va-ink-muted, #78716c);
+  margin-top: 8px;
+}
+
+.va-assistant-turn__cursor-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--va-accent, #c2410c);
+  animation: va-dot-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes va-dot-pulse {
+  0%, 100% { transform: scale(0.8); opacity: 0.5; }
+  50% { transform: scale(1.4); opacity: 1; }
+}
+
+/* 中止状态 */
+.va-assistant-turn__aborted {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 3px 8px;
+  font-size: 11.5px;
+  border-radius: var(--va-radius-s, 6px);
+  background: var(--va-warn-soft, rgba(234, 88, 12, 0.1));
+  color: var(--va-warn, #c2410c);
+  border: 1px solid var(--va-warn-subtle, rgba(234, 88, 12, 0.2));
+}

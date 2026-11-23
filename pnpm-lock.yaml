@@ -143,7 +143,17 @@ importers:
         version: 3.2.7(@types/node@22.20.5)(happy-dom@21.0.4)(supports-color@8.1.1)(tsx@4.23.15)(yaml@2.9.1)
 
   packages/ui:
+    dependencies:
+      lucide-vue-next:
+        specifier: ^1.0.0
+        version: 1.0.0(vue@3.5.45(typescript@5.9.3))
+      markdown-it:
+        specifier: ^15.0.3
+        version: 15.0.3
     devDependencies:
+      '@types/markdown-it':
+        specifier: ^14.2.0
+        version: 14.2.0
       '@vitejs/plugin-vue':
         specifier: ^6.0.1
         version: 6.0.10(vite@7.3.7(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(vue@3.5.45(typescript@5.9.3))
@@ -156,9 +166,6 @@ importers:
       happy-dom:
         specifier: ^21.0.4
         version: 21.0.4
-      lucide-vue-next:
-        specifier: ^1.0.0
-        version: 1.0.0(vue@3.5.45(typescript@5.9.3))
       typescript:
         specifier: ~5.9.2
         version: 5.9.3

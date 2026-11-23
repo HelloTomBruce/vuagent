@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { MetricChartProps } from "./types.js";
+import type { MetricChartProps } from "./types";
 
 const props = withDefaults(defineProps<MetricChartProps>(), {
   chartType: "bar",

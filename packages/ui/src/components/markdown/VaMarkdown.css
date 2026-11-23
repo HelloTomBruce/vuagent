@@ -1,0 +1,164 @@
+/* VaMarkdown — Agent 消息 Markdown 排版渲染器 */
+
+.va-md {
+  font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif);
+  font-size: var(--va-fs-md, 13px);
+  line-height: 1.65;
+  color: var(--va-ink, #1a1917);
+  position: relative;
+  word-break: break-word;
+}
+
+.va-md__body {
+  overflow-wrap: break-word;
+}
+
+/* 段落与标题 */
+.va-md__body p {
+  margin: 0 0 var(--va-s3, 8px) 0;
+}
+.va-md__body p:last-child {
+  margin-bottom: 0;
+}
+
+.va-md__body h1,
+.va-md__body h2,
+.va-md__body h3,
+.va-md__body h4,
+.va-md__body h5,
+.va-md__body h6 {
+  margin: var(--va-s4, 12px) 0 var(--va-s2, 4px) 0;
+  font-weight: var(--va-fw-semibold, 600);
+  line-height: 1.35;
+  color: var(--va-ink, #0f172a);
+}
+
+.va-md__body h1 { font-size: 16px; }
+.va-md__body h2 { font-size: 15px; }
+.va-md__body h3 { font-size: 14px; }
+.va-md__body h4 { font-size: 13px; }
+
+/* 列表 */
+.va-md__body ul,
+.va-md__body ol {
+  margin: 0 0 var(--va-s3, 8px) 0;
+  padding-left: 20px;
+}
+.va-md__body ul:last-child,
+.va-md__body ol:last-child {
+  margin-bottom: 0;
+}
+
+.va-md__body li {
+  margin: 2px 0;
+}
+.va-md__body li > p {
+  margin: 0;
+}
+
+/* 行内代码与代码块 */
+.va-md__body code {
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-size: 0.9em;
+  padding: 1px 5px;
+  border-radius: var(--va-radius-xs, 4px);
+  background: var(--va-bg-subtle, rgba(26, 25, 23, 0.06));
+  color: var(--va-ink, #1a1917);
+  border: 1px solid var(--va-edge-subtle, rgba(26, 25, 23, 0.08));
+}
+
+.va-md__body pre {
+  margin: var(--va-s3, 8px) 0;
+  padding: 10px 12px;
+  border-radius: var(--va-radius-s, 8px);
+  background: var(--va-bg-subtle, #f8fafc);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  overflow-x: auto;
+  line-height: 1.5;
+}
+.va-md__body pre:last-child {
+  margin-bottom: 0;
+}
+
+.va-md__body pre code {
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  font-size: 12px;
+  color: var(--va-ink, #1e293b);
+}
+
+/* 引用块 */
+.va-md__body blockquote {
+  margin: var(--va-s3, 8px) 0;
+  padding: 4px 12px;
+  border-left: 3px solid var(--va-accent, #2563eb);
+  background: var(--va-bg-subtle, rgba(26, 25, 23, 0.03));
+  border-radius: 0 var(--va-radius-xs, 4px) var(--va-radius-xs, 4px) 0;
+  color: var(--va-muted, #64748b);
+}
+.va-md__body blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* 表格 */
+.va-md__body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--va-s3, 8px) 0;
+  font-size: 12px;
+}
+.va-md__body table:last-child {
+  margin-bottom: 0;
+}
+
+.va-md__body th,
+.va-md__body td {
+  padding: 6px 10px;
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  text-align: left;
+}
+
+.va-md__body th {
+  background: var(--va-bg-subtle, #f1f5f9);
+  font-weight: 600;
+  color: var(--va-ink, #0f172a);
+}
+
+/* 超链接 */
+.va-md__body a {
+  color: var(--va-accent, #2563eb);
+  text-decoration: none;
+}
+.va-md__body a:hover {
+  text-decoration: underline;
+}
+
+/* 分割线 */
+.va-md__body hr {
+  border: none;
+  border-top: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  margin: var(--va-s4, 12px) 0;
+}
+
+/* 流式光标指示器 */
+.va-md__caret {
+  display: inline-block;
+  width: 6px;
+  height: 14px;
+  vertical-align: -2px;
+  margin-left: 2px;
+  background: var(--va-accent, #2563eb);
+  border-radius: 1px;
+  animation: va-md-blink 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes va-md-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-md__caret { animation: none; opacity: 0.8; }
+}

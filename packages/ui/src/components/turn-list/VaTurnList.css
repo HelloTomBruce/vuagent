@@ -1,0 +1,16 @@
+.va-turn-list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 16px 0;
+}
+
+.va-turn-list__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  color: var(--va-ink-muted, #a8a29e);
+  font-size: 13.5px;
+  text-align: center;
+}

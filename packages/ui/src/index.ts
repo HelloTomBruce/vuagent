@@ -411,4 +411,27 @@ export {
   clearCardComponents,
 } from "./composables/useCardRegistry";
 
+// Markdown 消息正文排版渲染器
+export { VaMarkdown } from "./components/markdown";
+export type { MarkdownProps } from "./components/markdown";
+
+// Agent 对话与时序消息体系组件
+export { VaThoughtBox } from "./components/thought-box";
+export type { ThoughtBoxProps, ThoughtBoxEvents } from "./components/thought-box";
+
+export { VaUserBubble } from "./components/user-bubble";
+export type { UserBubbleProps, UserAttachment } from "./components/user-bubble";
+
+export { VaAssistantTurn } from "./components/assistant-turn";
+export type {
+  AssistantTurnProps,
+  AssistantTurnEvents,
+  TurnBlockItem,
+  ActionCardItem,
+} from "./components/assistant-turn";
+
+export { VaTurnList } from "./components/turn-list";
+export type { TurnListProps, TurnListEvents, TurnItem } from "./components/turn-list";
+
+
 

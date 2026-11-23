@@ -48,7 +48,7 @@
   box-shadow: var(--va-shadow-2, 0 4px 12px rgba(26, 25, 23, 0.08));
 }
 
-/* 进出淡入由 .va-pop 容器的 va-pop-enter-*/leave-* 过渡类承担；此处按组件冗余声明关闭，
+/* 进出淡入由 .va-pop 容器的 va-pop-enter-* 与 leave-* 过渡类承担；此处按组件冗余声明关闭，
    保证 tooltip 样式单独分发时同样尊重 prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   .va-pop:has(> .va-tip) {

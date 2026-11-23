@@ -203,6 +203,57 @@ export const components = [
     ],
   },
   {
+    dir: "markdown", slug: "markdown", title: "Markdown", category: "Chat", components: ["VaMarkdown"],
+    desc: "轻量高质量 Markdown 渲染器：基于 markdown-it，支持流式光标、代码块、表格、列表及排版样式。",
+    props: [
+      { name: "content", type: "string", default: `""`, desc: "Markdown 原文" },
+      { name: "streaming", type: "boolean", default: "false", desc: "流式输出中（在文末显示呼吸跳动光标）" },
+      { name: "linkify", type: "boolean", default: "true", desc: "自动将 URL 识别为可点击超链接" },
+      { name: "breaks", type: "boolean", default: "true", desc: "软换行转换为 <br>" },
+    ],
+  },
+  {
+    dir: "thought-box", slug: "thought-box", title: "Thought Box", category: "Chat", components: ["VaThoughtBox"],
+    desc: "思考过程与摘要折叠：支持脑电波脉冲动效、流式思考态，以及回答结束收拢的「已完成·耗时·工具调用」单行摘要条。",
+    props: [
+      { name: "thought", type: "string", default: `""`, desc: "思考过程正文" },
+      { name: "expanded", type: "boolean", default: "true", desc: "展开详细思考内容" },
+      { name: "duration", type: "number", default: "-", desc: "思考耗时（秒）" },
+      { name: "streaming", type: "boolean", default: "false", desc: "正在深度思考中" },
+      { name: "summaryMode", type: "boolean", default: "false", desc: "过程摘要条模式" },
+      { name: "toolCount", type: "number", default: "0", desc: "工具调用次数" },
+    ],
+  },
+  {
+    dir: "user-bubble", slug: "user-bubble", title: "User Bubble", category: "Chat", components: ["VaUserBubble"],
+    desc: "用户提问气泡：支持头像、文本排版，以及多模态图片和文档附件的即时预览。",
+    props: [
+      { name: "content", type: "string", default: `""`, desc: "提问文本内容" },
+      { name: "attachments", type: "UserAttachment[]", default: "[]", desc: "多模态附件列表" },
+      { name: "avatar", type: "string", default: `"你"`, desc: "用户头像文字/图片链接" },
+    ],
+  },
+  {
+    dir: "assistant-turn", slug: "assistant-turn", title: "Assistant Turn", category: "Chat", components: ["VaAssistantTurn"], deps: ["markdown", "thought-box", "message-actions"],
+    desc: "助手消息轮次复合组件：整合思考链（ThoughtBox）、Markdown 正文排版、工具卡片时序穿插插槽、操作栏及流式中止状态。",
+    props: [
+      { name: "content", type: "string", default: `""`, desc: "正文回答" },
+      { name: "thought", type: "string", default: `""`, desc: "思考链过程" },
+      { name: "streaming", type: "boolean", default: "false", desc: "流式生成中" },
+      { name: "blocks", type: "TurnBlockItem[]", default: "[]", desc: "时序交错分块（文本/卡片）" },
+      { name: "cards", type: "ActionCardItem[]", default: "[]", desc: "卡片数据列表" },
+      { name: "aborted", type: "boolean", default: "false", desc: "任务是否中止" },
+    ],
+  },
+  {
+    dir: "turn-list", slug: "turn-list", title: "Turn List", category: "Chat", components: ["VaTurnList"], deps: ["user-bubble", "assistant-turn"],
+    desc: "消息时序瀑布流：按角色自动将对话轮次路由给 UserBubble 与 AssistantTurn，提供穿透卡片插槽与空状态。",
+    props: [
+      { name: "turns", type: "TurnItem[]", default: "[]", desc: "对话轮次列表" },
+      { name: "emptyText", type: "string", default: "-", desc: "列表为空时的占位文案" },
+    ],
+  },
+  {
     dir: "message-actions", slug: "message-actions", title: "Message Actions / Text", category: "Chat", components: ["VaMessageActions", "VaMessageText"],
     desc: "AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输入）、版本切换；MessageText 提供版本交叉淡入。",
     props: [
@@ -626,6 +677,16 @@ export const components = [
       { name: "segments", type: "CompactSegment[]", default: "-", desc: "label/value/color" },
       { name: "total / height", type: "number / number", default: "求和 / 8", desc: "分母与条高 px" },
       { name: "legend", type: "boolean", default: "true", desc: "内联图例开关" },
+    ],
+  },
+  {
+    dir: "metric-chart", slug: "metric-chart", title: "Metric Chart", category: "图表", components: ["VaMetricChart"],
+    desc: "时序指标图：纯 SVG 折线/柱状两种形态，标题与单位内联展示，适合埋点/业务指标的趋势呈现。",
+    props: [
+      { name: "title", type: "string", default: "-", desc: "图表标题" },
+      { name: "chartType", type: `"line" | "bar"`, default: `"line"`, desc: "图表形态" },
+      { name: "unit", type: "string", default: "-", desc: "数值单位" },
+      { name: "series", type: "MetricSeriesItem[]", default: "-", desc: "数据序列（label/value）" },
     ],
   },
   {

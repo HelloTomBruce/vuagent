@@ -1,0 +1,33 @@
+{
+  "$schema": "https://shadcn-vue.com/schema/registry-item.json",
+  "name": "turn-list",
+  "title": "Turn List",
+  "description": "消息时序瀑布流：按角色自动将对话轮次路由给 UserBubble 与 AssistantTurn，提供穿透卡片插槽与空状态。",
+  "type": "registry:ui",
+  "dependencies": [],
+  "registryDependencies": [
+    "@vuagent/user-bubble",
+    "@vuagent/assistant-turn"
+  ],
+  "docs": "- `turns` (TurnItem[]，默认 [])：对话轮次列表\n- `emptyText` (string，默认 -)：列表为空时的占位文案",
+  "files": [
+    {
+      "path": "components/ui/turn-list/VaTurnList.vue",
+      "type": "registry:ui",
+      "target": "components/ui/turn-list/VaTurnList.vue",
+      "content": "<script setup lang=\"ts\">\nimport { VaUserBubble } from \"../user-bubble\";\nimport { VaAssistantTurn } from \"../assistant-turn\";\nimport type { ActionCardItem } from \"../assistant-turn/types\";\nimport type { TurnItem, TurnListEvents, TurnListProps } from \"./types\";\n\nconst props = withDefaults(defineProps<TurnListProps>(), {\n  turns: () => [],\n  emptyText: \"给 Agent 发送一条消息开始交互\",\n});\n\nconst emit = defineEmits<TurnListEvents>();\n</script>\n\n<template>\n  <div class=\"va-turn-list\">\n    <div v-if=\"!props.turns.length\" class=\"va-turn-list__empty\">\n      <slot name=\"empty\">{{ props.emptyText }}</slot>\n    </div>\n\n    <template v-for=\"turn in props.turns\" :key=\"turn.id\">\n      <!-- 用户消息轮次 -->\n      <slot v-if=\"turn.role === 'user'\" name=\"user-turn\" :turn=\"turn\">\n        <VaUserBubble\n          :content=\"turn.content\"\n          :attachments=\"turn.attachments\"\n          :avatar=\"turn.avatar\"\n        />\n      </slot>\n\n      <!-- 助手消息轮次 -->\n      <slot v-else-if=\"turn.role === 'assistant'\" name=\"assistant-turn\" :turn=\"turn\">\n        <VaAssistantTurn\n          :content=\"turn.content\"\n          :thought=\"turn.thought\"\n          :thought-expanded=\"turn.thoughtExpanded\"\n          :thought-duration=\"turn.thoughtDuration\"\n          :process-collapsed=\"turn.processCollapsed\"\n          :tool-count=\"turn.toolCount\"\n          :streaming=\"turn.streaming\"\n          :avatar=\"turn.avatar\"\n          :aborted=\"turn.aborted\"\n          :abort-reason=\"turn.abortReason\"\n          :blocks=\"turn.blocks\"\n          :cards=\"turn.cards\"\n          @regenerate=\"emit('regenerate', turn.id)\"\n          @copy=\"(t) => emit('copy', t, turn.id)\"\n          @feedback=\"(k, r) => emit('feedback', turn.id, k, r)\"\n          @update:thought-expanded=\"(val) => emit('updateThoughtExpanded', turn.id, val)\"\n          @update:process-collapsed=\"(val) => emit('updateProcessCollapsed', turn.id, val)\"\n        >\n          <!-- 穿透卡片插槽 -->\n          <template #card=\"{ cardId, card, streaming }\">\n            <slot\n              name=\"card\"\n              :turn-id=\"turn.id\"\n              :card-id=\"cardId\"\n              :card=\"(card as ActionCardItem | undefined)\"\n              :streaming=\"streaming\"\n            />\n          </template>\n        </VaAssistantTurn>\n      </slot>\n    </template>\n  </div>\n</template>\n\n<style>\n.va-turn-list {\n  display: flex;\n  flex-direction: column;\n  width: 100%;\n  padding: 16px 0;\n}\n\n.va-turn-list__empty {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 48px 16px;\n  color: var(--va-ink-muted, #a8a29e);\n  font-size: 13.5px;\n  text-align: center;\n}\n</style>\n"
+    },
+    {
+      "path": "components/ui/turn-list/index.ts",
+      "type": "registry:ui",
+      "target": "components/ui/turn-list/index.ts",
+      "content": "export { default as VaTurnList } from \"./VaTurnList.vue\";\nexport type { TurnListProps, TurnListEvents, TurnItem } from \"./types\";\n"
+    },
+    {
+      "path": "components/ui/turn-list/types.ts",
+      "type": "registry:ui",
+      "target": "components/ui/turn-list/types.ts",
+      "content": "import type { ActionCardItem, TurnBlockItem } from \"../assistant-turn/types\";\nimport type { UserAttachment } from \"../user-bubble/types\";\n\nexport interface TurnItem {\n  id: string;\n  role: \"user\" | \"assistant\" | \"system\";\n  content?: string;\n  attachments?: UserAttachment[];\n  thought?: string;\n  thoughtDuration?: number;\n  thoughtExpanded?: boolean;\n  processCollapsed?: boolean;\n  streaming?: boolean;\n  aborted?: boolean;\n  abortReason?: string;\n  blocks?: TurnBlockItem[];\n  cards?: ActionCardItem[];\n  avatar?: string;\n  toolCount?: number;\n}\n\nexport interface TurnListProps {\n  /** 消息轮次列表 */\n  turns: TurnItem[];\n  /** 空状态提示文案 */\n  emptyText?: string;\n}\n\nexport interface TurnListEvents {\n  (e: \"regenerate\", turnId: string): void;\n  (e: \"copy\", text: string, turnId: string): void;\n  (e: \"feedback\", turnId: string, kind: \"up\" | \"down\" | null, reason?: string): void;\n  (e: \"updateThoughtExpanded\", turnId: string, expanded: boolean): void;\n  (e: \"updateProcessCollapsed\", turnId: string, collapsed: boolean): void;\n}\n"
+    }
+  ]
+}
