@@ -4,7 +4,7 @@
 
 ---
 
-## Task 050: 对话流图片回显（当日真图 + 历史占位）
+## Task 050: 对话流图片回显（当日真图 + 历史占位）✅（已交付：f7507e1 前端三形态回显 + f2c8e3a 服务端附件元数据落库）
 
 **Description:** 发送带图消息后，user turn 在对话流中显示图片缩略图（当日会话，dataUrl 直引）；跨刷新的历史轮次显示「[图] 名字」占位。`MessageTurn` 增加 `attachments?: { name; kind: "image" | "file"; size; dataUrl?: string }[]`——发送时由 `collectTurnImages` 的结果构造（dataUrl 复用已读的 base64 拼前缀，不重复读取）；历史恢复路径（useSessions 按 turns[].prompt 重建）拿不到图片，占位渲染。服务端 TurnEntity 增加轻量 `attachments?: { name; kind; size }[]` 元数据落库（不含 base64）。
 
@@ -43,7 +43,7 @@
 
 ---
 
-## Task 052: 推理档位会话级隔离
+## Task 052: 推理档位会话级隔离 ✅（已交付：f7507e1 会话槽位 Map + 读取侧兜底）
 
 **Description:** `reasoningEffort` 从全局 ref 迁移为 `Map<sessionId, string>`（composable 内部维护，由 Console 注入当前会话 id getter）。当前会话读取 map 值；切换会话恢复该会话的档位；模型切换重置语义保留（重置写入当前会话槽位）。
 
@@ -62,7 +62,7 @@
 
 ---
 
-## Task 053: 真实端点验收 ✅（清单与执行模板已落盘 docs/verification.md；本地无 anthropic/视觉模型账号，五项均标「待执行」，需真实账号后回填）
+## Task 053: 真实端点验收 ⏳ 待账号回填（清单与执行模板已落盘 docs/verification.md；本地无 anthropic/视觉模型账号，五项真实验收均未执行，待真实账号后按模板回填记录——非完成态）
 
 **Description:** 上一轮 review 遗留的真实验证项，自动化（stub）已覆盖的部分不重复。产出 `docs/verification.md` 验收清单 + 执行记录模板，覆盖：① Anthropic 原生端点 thinking + 工具调用组合（真实 key）；② 真实视觉模型（如 glm-4v / qwen-vl / gpt-4o）发图获得描述性回答；③ DeepSeek/Kimi 端点的 cached_tokens / reasoning_tokens 明细落账；④ max_tokens 声明在真实端点生效（响应被截断可观察）。本地无对应账号的项标注「待执行」并留记录位。
 
@@ -80,7 +80,9 @@
 
 ---
 
-## Task 054: 成本查询 API
+## Task 054: 成本查询 API ✅（已交付：f2c8e3a；端点后经 731ebbc 归并至 /api/finops/*，见下）
+
+> ⚠️ **归并说明（731ebbc）**：下文端点描述为交付时点原始口径。`/api/costs/summary` 与 TASK-075 已落地的 `/api/finops/summary` 重复，已删除；会话级聚合迁至 `GET /api/finops/by-session`。现行端点以 `/api/finops/*` 为准。
 
 **Description:** 新增 `GET /api/costs/summary?windowMs=`（默认 24h，上限 30d）：返回 `{ windowUsage: { tokens, costUsd }, byModel: Record<model, { tokens, costUsd }>, quota?: { windowTokenLimit, windowUsdLimit } }`。配额从 finops admission 同源的配置读取（configResolver 对应命名空间）。会话级：`GET /api/costs/by-session?windowMs=`（sessionId → usage）供 056 使用。仓储层零改动（sumWindow / sumWindowByModel 已存在）。
 
@@ -134,7 +136,7 @@
 
 ---
 
-## Task 057: 服务端 verify-capabilities 探测端点
+## Task 057: 服务端 verify-capabilities 探测端点 ✅（已交付：40d0c4f）
 
 **Description:** `POST /api/settings/models/:id/verify-capabilities`：对档案勾选的能力逐项发最小探测（服务端代发，凭据不出服务端，复用 models/test 信任边界）——图片：1×1 PNG + `max_tokens=1` 最小 chat；推理档位：最低档 effort 同最小 chat；输出上限：跳过（无法低成本验证）。串行探测，单项 15s 超时。返回 `[{ capability, ok, detail }]`（4xx 参数类拒绝 → ok:false + 建议文案；网络/鉴权失败 → inconclusive 标注）。
 
@@ -152,7 +154,7 @@
 
 ---
 
-## Task 058: 设置面板「验证能力」交互
+## Task 058: 设置面板「验证能力」交互 ✅（已交付：40d0c4f 三态结果渲染 + 费用确认交互）
 
 **Description:** 模型编辑器能力区块加「验证能力」按钮（有勾选能力才可用）：点击先 toast「将发起 N 次最小探测请求（约 N×最小 token 费用）」，确认后调用 057 端点，结果以逐能力角标呈现（✓ 通过 / ✗ 不符 + 建议改声明 / ? 无法判定 + 重试）。✗ 时提供「按探测结果修正声明」快捷操作。
 
@@ -170,7 +172,7 @@
 
 ---
 
-## Task 059: guide/harness.md 宿主接入指南
+## Task 059: guide/harness.md 宿主接入指南 ✅（已交付：5025ad7）
 
 **Description:** docs 站新增面向宿主接入者的指南：安装与启动（pnpm console / 独立部署 env 表）、/api/chat 完整契约（含 images / reasoningEffort / preempt 与 SSE 事件流消费示例 curl）、模型配置（Provider 1:N + 能力探测 + 保守策略行为表）、安全模型（Origin/token/BYO）、存储与 env 兜底。单机 SQLite 规模；Redis 一句话链接 server README。
 
@@ -188,7 +190,7 @@
 
 ---
 
-## Task 060: docs 导航配置 + MCP 标注处理
+## Task 060: docs 导航配置 + MCP 标注处理 ✅（已交付：5025ad7；MCP「规划中」标注实际执行为直接移除，plan.md 决策记录已同步该口径）
 
 **Description:** `.vitepress/config.mts` 侧栏加「Agent Harness」分组（harness.md 入口）；getting-started 的「MCP server（规划中）」改为 roadmap 说明或移除，不再挂未立项承诺。
 
@@ -205,7 +207,7 @@
 
 ---
 
-## Task 061: 全量回归 + 发布检查
+## Task 061: 全量回归 + 发布检查 ✅（已交付：5025ad7——全量测试 + typecheck/tokens/registry/protocol-sync/llms/docs:build 卡口全绿）
 
 **Description:** 四 Phase 收尾：全仓 test/typecheck、tokens/registry/llms/protocol-sync 卡口、docs:build、浏览器回归按四个 Checkpoint 清单执行、README（如需）与 tasks 归档。
 

@@ -17,7 +17,7 @@ Phase 1 与 Phase 2 无相互依赖，可并行推进；Phase 3 弱依赖 Phase 
 - **档位会话级隔离**：`reasoningEffort` 从全局 ref 迁移为 `Map<sessionId, string>`（composable 内部），读取侧 computed 取当前会话值；模型切换重置语义保留（watch 依赖不变，写入目标改为 map）。会话维度与 `activeModel` 的会话级选择对齐。
 - **成本 API 只读、复用既有仓储聚合**：`costRepo.sumWindow/sumWindowByModel` 已存在，Phase 2 服务端只加路由与配额余量拼装（finops admission 的限额配置同源读取），仓储层零改动。
 - **能力验证 = 服务端代发最小探测**（复用 discover/models-test 的信任边界模式：凭据不出服务端、端点取自已存配置）：图片能力发 1×1 PNG 最小 chat；推理档位发最低档 effort 请求；按响应类别（成功 / 4xx 参数拒绝 / 网络失败）返回逐能力 verdict。**用户显式点击才触发**——探测产生真实 API 费用，不做自动后台验证。
-- **文档站定位切分**：packages README 面向贡献者（架构决策、内部机制），docs 站 `guide/harness.md` 面向**宿主接入者**（怎么装、怎么调 /api/chat、事件流怎么消费、安全模型怎么配）——同一事实两个视角，互不搬运。MCP server 本期不立项（getting-started 的「规划中」标注改为 roadmap 链接）。
+- **文档站定位切分**：packages README 面向贡献者（架构决策、内部机制），docs 站 `guide/harness.md` 面向**宿主接入者**（怎么装、怎么调 /api/chat、事件流怎么消费、安全模型怎么配）——同一事实两个视角，互不搬运。MCP server 本期不立项（getting-started 的「规划中」未立项承诺已直接移除——TASK-060 实际执行口径，未改挂 roadmap 链接）。
 - **验收文化延续**：每个 Checkpoint 含浏览器端到端（隔离栈模式已成型：PORT=3111 + vite VITE_API_TARGET + 临时 DB）；Phase 1 的真实端点验收单独成任务（不可自动化的部分明确标注手动步骤）。
 
 ## Task List

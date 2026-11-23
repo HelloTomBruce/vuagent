@@ -17,7 +17,7 @@ pnpm --filter @vuagent/server dev        # 默认 http://localhost:3001
 | `PORT` | 监听端口 | `3001` |
 | `DB_PATH` | SQLite 数据库文件 | `.vuagent/harness.db` |
 | `OPENAI_API_KEY` / `OPENAI_BASE_URL` | 未登记任何模型档案时的兜底凭据 | — |
-| `VUAGENT_TOKEN` | 启用后 `/api/*` 全部要求 Bearer 令牌（默认关闭，本地 Origin 白名单已够用） | — |
+| `VUAGENT_TOKEN` | 启用后 `/api/*` 要求 Bearer 令牌（豁免 `/api/health` 存活探针；默认关闭，本地 Origin 白名单已够用） | — |
 | `VUAGENT_CORS_ORIGINS` | Origin 白名单追加（逗号分隔） | 本地 5173/4173 |
 | `VUAGENT_ALLOW_BYO_PROVIDER` | 允许前端自带供应商配置（默认拒绝） | `false` |
 
@@ -85,7 +85,7 @@ turn_start → thought_delta* → text_delta* → [tool_call_start → tool_call
 | `GET /api/finops/summary?windowMs=` | 成本聚合（token/USD + 按模型分桶） |
 | `GET /api/finops/by-session?windowMs=` | 会话级成本 |
 
-轮次中途崩溃后重启：每步工具执行后都保存检查点，重开会话按快照回放，不重跑模型。
+轮次中途崩溃后重启：中断的 `running` 轮次被诚实标记为 `error/process_restart`——不续跑、不重放模型；崩溃前已落库的检查点与内容原样保留，可在会话详情中查看已完成步骤，下一轮提问按已落库历史正常重建上下文。
 
 ## 安全模型（本地优先）
 
