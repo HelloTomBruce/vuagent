@@ -5,8 +5,9 @@
  * （confirm-mode="none"：树直接发 remove/removeWorkspace，宿主走 TASK-038 的模态确认）。
  */
 import { computed } from "vue";
-import { Settings } from "lucide-vue-next";
-import { VaButton, VaSessionTree, VaSkeleton } from "@vuagent/ui";
+import { Bell, Settings } from "lucide-vue-next";
+import { VaButton, VaNotificationStack, VaPopover, VaSessionTree, VaSkeleton } from "@vuagent/ui";
+import type { NotificationItem } from "@vuagent/ui";
 import type { SessionItem, WorkspaceItem } from "../types";
 
 const props = defineProps<{
@@ -19,6 +20,9 @@ const props = defineProps<{
   activeSessionId: string;
   isNewChat: boolean;
   sessionRunningMap: Map<string, boolean>;
+  /** 通知铃铛（footer，设置按钮左侧）：数据与面板开关仍由 Console 持有 */
+  notifications?: NotificationItem[];
+  notifOpen?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -31,7 +35,14 @@ const emit = defineEmits<{
   (e: "toggle-pin", id: string): void;
   (e: "delete-session", id: string): void;
   (e: "open-settings"): void;
+  (e: "update:notifOpen", open: boolean): void;
+  (e: "open-notification", item: NotificationItem): void;
+  (e: "read-notification", id: string): void;
+  (e: "all-read"): void;
 }>();
+
+/** 未读数（徽标；>9 折叠为 9+） */
+const unreadCount = computed(() => (props.notifications ?? []).filter((n) => n.unread).length);
 
 const activeSessions = computed(() => {
   const list = props.sessions.filter((s) => !s.archived && s.status !== "archived");
@@ -105,12 +116,39 @@ function sessionById(id: string) {
       @remove="(id: string) => emit('delete-session', id)"
     >
       <template #footer>
-        <VaButton variant="ghost" size="sm" block @click="emit('open-settings')">
-          <template #icon>
-            <Settings :size="15" />
-          </template>
-          设置
-        </VaButton>
+        <div class="va-sidebar__foot">
+          <!-- 通知铃铛（TASK-076 F3 迁移：右上角 → footer 设置左侧）；面板向上弹 -->
+          <VaPopover
+            :open="props.notifOpen ?? false"
+            placement="top-start"
+            :offset="8"
+            @update:open="(open: boolean) => emit('update:notifOpen', open)"
+          >
+            <template #trigger>
+              <button class="va-console__bell" type="button" aria-label="通知">
+                <Bell :size="15" />
+                <span v-if="unreadCount > 0" class="va-console__bell-badge">{{ unreadCount > 9 ? "9+" : unreadCount }}</span>
+              </button>
+            </template>
+            <div class="va-console__notif-panel">
+              <VaNotificationStack
+                :notifications="props.notifications ?? []"
+                title="通知"
+                relative-time
+                empty-label="暂无通知；审批到达与后台任务结束会出现在这里"
+                @open="(item: NotificationItem) => emit('open-notification', item)"
+                @read="(id: string) => emit('read-notification', id)"
+                @all-read="emit('all-read')"
+              />
+            </div>
+          </VaPopover>
+          <VaButton variant="ghost" size="sm" block @click="emit('open-settings')">
+            <template #icon>
+              <Settings :size="15" />
+            </template>
+            设置
+          </VaButton>
+        </div>
       </template>
     </VaSessionTree>
   </aside>

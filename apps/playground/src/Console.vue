@@ -9,8 +9,8 @@
  * 本文件只保留：组合式装配、欢迎页 hero 文案与用户动作编排。
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
-import { ArrowDown, Bell, ChevronDown, History, PanelRight, Route } from "lucide-vue-next";
-import { formatTokens, useStickToBottom, VaCommandMenu, VaCompactBreakdown, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaNotificationStack, VaPopover, VaQueueDock, VaSegmentedControl, VaSkeleton, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
+import { ArrowDown, ChevronDown, History, PanelRight, Route } from "lucide-vue-next";
+import { formatTokens, useStickToBottom, VaCommandMenu, VaCompactBreakdown, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaPopover, VaQueueDock, VaSegmentedControl, VaSkeleton, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
 import type { CommandItem, NotificationItem, QueueItem, ComposerAttachment } from "@vuagent/ui";
 import type { ContextPart } from "@vuagent/ui";
 import type { Decision } from "@vuagent/ui";
@@ -319,14 +319,13 @@ function onCommandSelect(item: CommandItem) {
 /** 通知堆叠：需关注事件（审批到达 / 后台任务结束）为主，toast 留给即时反馈 */
 const notifications = ref<NotificationItem[]>([]);
 const notifOpen = ref(false);
-const unreadCount = computed(() => notifications.value.filter((n) => n.unread).length);
 
 function pushNotification(item: NotificationItem) {
   notifications.value.unshift(item);
   if (notifications.value.length > 20) notifications.value.length = 20;
 }
 
-/** 新审批到达：右上角自动弹出通知（可点击跳转右栏审批） */
+/** 新审批到达：左下角自动弹出通知面板（可点击跳转右栏审批） */
 const seenApprovalIds = new Set<string>();
 watch(
   pendingDecisions,
@@ -1000,6 +999,12 @@ function quickFillPrompt(text: string) {
       @toggle-pin="togglePinSession"
       @delete-session="askDeleteSession"
       @open-settings="openSettings"
+      :notifications="notifications"
+      :notif-open="notifOpen"
+      @update:notif-open="notifOpen = $event"
+      @open-notification="onNotificationOpen"
+      @read-notification="onNotifRead"
+      @all-read="onNotifAllRead"
     />
 
     <!-- 中间交互区域 -->
@@ -1038,36 +1043,16 @@ function quickFillPrompt(text: string) {
         </div>
       </VaPopover>
 
-      <!-- 共享操作行（TASK-076 F3）：⌘K 命令面板 + 通知铃铛（两场景常驻） -->
-      <div class="va-console__viewhead">
-        <VaCommandMenu
-          v-model:open="cmdOpen"
-          :commands="commands"
-          trigger-label="命令"
-          hotkey="⌘K"
-          hide-trigger
-          @select="onCommandSelect"
-        />
-        <VaPopover v-model:open="notifOpen" placement="bottom-end" :offset="8">
-          <template #trigger>
-            <button class="va-console__bell" type="button" aria-label="通知">
-              <Bell :size="15" />
-              <span v-if="unreadCount > 0" class="va-console__bell-badge">{{ unreadCount > 9 ? "9+" : unreadCount }}</span>
-            </button>
-          </template>
-          <div class="va-console__notif-panel">
-            <VaNotificationStack
-              :notifications="notifications"
-              title="通知"
-              relative-time
-              empty-label="暂无通知；审批到达与后台任务结束会出现在这里"
-              @open="onNotificationOpen"
-              @read="onNotifRead"
-              @all-read="onNotifAllRead"
-            />
-          </div>
-        </VaPopover>
-      </div>
+      <!-- ⌘K 命令面板（TASK-076 F3；hide-trigger 无可见入口，hotkey 全局监听）；
+           通知铃铛已迁移至左侧边栏 footer（设置按钮左侧） -->
+      <VaCommandMenu
+        v-model:open="cmdOpen"
+        :commands="commands"
+        trigger-label="命令"
+        hotkey="⌘K"
+        hide-trigger
+        @select="onCommandSelect"
+      />
       <!-- 场景 A：新建会话 / 欢迎界面（VaEmptyHero 空态引导） -->
       <section v-if="isNewChat" class="va-console__welcome-view">
         <div class="va-console__welcome-hero">

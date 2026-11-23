@@ -1673,13 +1673,16 @@
   padding: 10px;
 }
 
-/* TASK-076 F3：共享操作行（命令入口 + 通知铃铛）与通知面板 */
-.va-console__viewhead {
+/* TASK-076 F3：通知铃铛（已迁移至侧栏 footer 设置左侧）与通知面板；
+   footer 行布局：铃铛固宽 + 设置按钮吃满剩余 */
+.va-sidebar__foot {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 0 0 8px;
+  gap: 6px;
+}
+.va-sidebar__foot .va-btn {
+  flex: 1;
+  min-width: 0;
 }
 .va-console__bell {
   position: relative;
