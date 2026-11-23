@@ -371,4 +371,37 @@ describe("推理档位 → extended thinking 映射（能力运行时 P1）", ()
     expect(payload.max_tokens).toBe(1024);
     expect(payload.thinking).toBeUndefined();
   });
+
+  it("TASK-084：thinking 启用时 top_p/top_k 与 temperature 一并剔除；无档位时三者透传", async () => {
+    // thinking 启用：三个采样参数都不得透传（与 extended thinking 互斥，同发必 400）
+    const onFetch = anthropicSseFetch([{ type: "message_stop" }]);
+    const onDriver = new AnthropicDriver("k", "http://x", { fetchImpl: onFetch, resilience: false });
+    await collect(onDriver, {
+      parameters: { reasoning_effort: "low", temperature: 0.7, top_p: 0.9, top_k: 40 },
+    });
+    const onPayload = payloadOf(onFetch.captured.init?.body);
+    expect(onPayload.thinking).toEqual({ type: "enabled", budget_tokens: 4096 });
+    expect(onPayload.temperature).toBeUndefined();
+    expect(onPayload.top_p).toBeUndefined();
+    expect(onPayload.top_k).toBeUndefined();
+
+    // 无 thinking：三个采样参数全部正常透传
+    const offFetch = anthropicSseFetch([{ type: "message_stop" }]);
+    const offDriver = new AnthropicDriver("k", "http://x", { fetchImpl: offFetch, resilience: false });
+    await collect(offDriver, { parameters: { temperature: 0.7, top_p: 0.9, top_k: 40 } });
+    const offPayload = payloadOf(offFetch.captured.init?.body);
+    expect(offPayload.thinking).toBeUndefined();
+    expect(offPayload.temperature).toBe(0.7);
+    expect(offPayload.top_p).toBe(0.9);
+    expect(offPayload.top_k).toBe(40);
+  });
+
+  it("TASK-084：档名撞原型成员（constructor）回落 medium，不产出非法 budget", async () => {
+    const fetchImpl = anthropicSseFetch([{ type: "message_stop" }]);
+    const driver = new AnthropicDriver("k", "http://x", { fetchImpl, resilience: false });
+    await collect(driver, { parameters: { reasoning_effort: "constructor" } });
+    const payload = payloadOf(fetchImpl.captured.init?.body);
+    // Object.hasOwn 守卫：取不到原型上的函数，按未知名回落 medium
+    expect(payload.thinking).toEqual({ type: "enabled", budget_tokens: 16384 });
+  });
 });

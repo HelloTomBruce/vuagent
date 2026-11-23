@@ -198,10 +198,13 @@ export class AnthropicDriver implements IModelDriver {
 
     // 能力运行时 P1：OpenAI 风格 reasoning_effort → Anthropic extended thinking。
     // Anthropic 不认 reasoning_effort 字段（原样透传必 400），这里翻译成
-    // thinking budget 并剔除原字段；extended thinking 与 temperature 互斥，一并剔除。
+    // thinking budget 并剔除原字段；extended thinking 与 temperature/top_p/top_k
+    // 采样参数互斥（同发必 400），thinking 启用时一并剔除（TASK-084）。
     const {
       reasoning_effort: reasoningEffort,
-      temperature: _thinkingIncompatibleTemperature,
+      temperature: _samplingTemperature,
+      top_p: _samplingTopP,
+      top_k: _samplingTopK,
       ...restParams
     } = (req.parameters ?? {}) as Record<string, unknown>;
 
@@ -214,14 +217,21 @@ export class AnthropicDriver implements IModelDriver {
       ...restParams,
     };
     if (typeof reasoningEffort === "string" && reasoningEffort.trim()) {
-      const budget = EFFORT_BUDGET_TOKENS[reasoningEffort.trim()] ?? EFFORT_BUDGET_TOKENS.medium;
+      // TASK-084：Object.hasOwn 守卫原型链——档名取 "constructor"/"toString" 等
+      // 原型成员时会拿到函数而非预算数字（budget 被 JSON 序列化丢弃致 400）
+      const effortKey = reasoningEffort.trim();
+      const budget = Object.hasOwn(EFFORT_BUDGET_TOKENS, effortKey)
+        ? EFFORT_BUDGET_TOKENS[effortKey]
+        : EFFORT_BUDGET_TOKENS.medium;
       payload.thinking = { type: "enabled", budget_tokens: budget };
       // API 约束：max_tokens 必须大于 budget_tokens；不足时抬到 budget 的 1.5 倍（千位取整）
       const currentMax = typeof payload.max_tokens === "number" ? payload.max_tokens : this.maxTokens;
       payload.max_tokens = Math.max(currentMax, Math.ceil((budget * 1.5) / 1000) * 1000);
-    } else if (_thinkingIncompatibleTemperature !== undefined) {
-      // 无 thinking 时 temperature 正常透传
-      payload.temperature = _thinkingIncompatibleTemperature;
+    } else {
+      // 无 thinking 时采样参数正常透传
+      if (_samplingTemperature !== undefined) payload.temperature = _samplingTemperature;
+      if (_samplingTopP !== undefined) payload.top_p = _samplingTopP;
+      if (_samplingTopK !== undefined) payload.top_k = _samplingTopK;
     }
     if (system) {
       payload.system = system;

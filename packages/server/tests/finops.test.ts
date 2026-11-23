@@ -390,6 +390,24 @@ describe("路由级准入与 summary（TASK-052）", () => {
     expect(fallback.tokens).toBe(2163);
     expect(fallback.since).toBeUndefined();
   });
+
+  it("GET /api/finops/summary 滚动窗口钳制 [1min, 30d]（TASK-084 补上界）", async () => {
+    const { app } = createHarnessServer({ dbPath: ":memory:", modelDriver: new MockDriver() });
+    // 超上界（>30d）→ 钳到 30d
+    const over = await (
+      await app.request(`/api/finops/summary?windowMs=${365 * 24 * 3_600_000}`)
+    ).json();
+    expect(over.windowMs).toBe(30 * 24 * 3_600_000);
+    // 超下界（<1min）→ 钳到 1min
+    const under = await (await app.request("/api/finops/summary?windowMs=1000")).json();
+    expect(under.windowMs).toBe(60_000);
+    // 非法值 → 默认 24h
+    const invalid = await (await app.request("/api/finops/summary?windowMs=abc")).json();
+    expect(invalid.windowMs).toBe(86_400_000);
+    // 合法值原样通过（含取整）
+    const ok = await (await app.request("/api/finops/summary?windowMs=120000.9")).json();
+    expect(ok.windowMs).toBe(120_000);
+  });
 });
 
 afterEach(() => {

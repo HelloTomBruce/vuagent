@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import os from "node:os";
 import path from "node:path";
 import { exec } from "node:child_process";
@@ -356,6 +357,21 @@ export function createHarnessServer(options: ServerOptions = {}) {
       isDefault: true,
     });
   });
+
+  // TASK-084：/api/chat 请求体硬上限（解析前拦截）。视觉通道让多 MB base64 载荷
+  // 常态化（4 张 ×5MB 解码 ≈ base64 26.7MB + prompt/JSON 开销），32MB 兼容满载图片
+  // 请求，同时挡住无界 body 全量进内存的 DoS 面。
+  app.use(
+    "/api/chat",
+    bodyLimit({
+      maxSize: 32 * 1024 * 1024,
+      onError: (c) =>
+        c.json(
+          { error: "请求体过大（上限 32MB）：请压缩图片或减少单次附件数量", code: "PAYLOAD_TOO_LARGE" },
+          413
+        ),
+    })
+  );
 
   // 核心对话流式接口 (SSE，委托 SessionExecutionHub 独立生命周期)
   // 会话级成本聚合（TASK-056 会话徽标数据源，一次批量避免逐会话 N+1）。
@@ -720,8 +736,13 @@ export function createHarnessServer(options: ServerOptions = {}) {
       return c.json({ windowMs: untilQ - sinceQ, since: sinceQ, until: untilQ, ...usage, byModel });
     }
 
+    // TASK-084：滚动窗口钳制与 by-session / clampCostWindow 同口径（[1min, 30d]），
+    // 补上界——此前无限大窗口会让全表明细扫描失去时间过滤
     const raw = Number(c.req.query("windowMs"));
-    const windowMs = Number.isFinite(raw) && raw > 0 ? raw : 86_400_000;
+    const windowMs =
+      Number.isFinite(raw) && raw > 0
+        ? Math.min(Math.max(Math.floor(raw), 60_000), 30 * 24 * 3_600_000)
+        : 86_400_000;
     const [usage, byModel] = await Promise.all([
       costRepo.sumWindow(windowMs),
       costRepo.sumWindowByModel(windowMs),
