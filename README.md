@@ -126,7 +126,57 @@ pnpm llms           # 重新生成 llms.txt / llms-full.txt
 pnpm docs:dev       # 文档站本地开发
 pnpm test           # 全仓测试
 pnpm typecheck      # 全仓类型检查
-pnpm build          # 构建组件库与 playground
+pnpm build          # 全仓编译构建（protocol / server / ui / playground）
+```
+
+## NPM 发布流程
+
+本项目采用 Monorepo 架构开发，面向 npm 发布的包包括 `@vuagent/protocol`、`@vuagent/server` 和 `@vuagent/ui`。
+
+> [!IMPORTANT]
+> 由于包间存在 `workspace:*` 协议依赖，**必须使用 `pnpm publish` 或 `changeset` 发布**，pnpm 会在打包上传前自动将 `workspace:*` 动态置换为真实的发布版本号。切勿使用原生 `npm publish` 直发，否则会导致外部安装时报依赖解析错误。
+
+### 1. 发布前全量校验
+
+执行统一卡口流水线（依次运行类型检查、全量单元测试与全包构建）：
+
+```bash
+pnpm prepublish:check
+```
+
+### 2. 执行发布
+
+#### 方式 A：使用 Changeset 标准化发布（推荐）
+
+```bash
+# 登录 npm
+npm login
+
+# 按照 changeset 配置发布所有更新包（已自动配置 access: public 与 apps/ 过滤）
+pnpm changeset publish
+```
+
+#### 方式 B：使用 pnpm 逐包发布
+
+若需手动控制发布顺序，请严格按照**依赖拓扑顺序**依次执行：
+
+```bash
+# 1. 发布协议契约层（底层基础包）
+pnpm --filter @vuagent/protocol publish --no-git-checks
+
+# 2. 发布服务端执行引擎
+pnpm --filter @vuagent/server publish --no-git-checks
+
+# 3. 发布前端操作组件库
+pnpm --filter @vuagent/ui publish --no-git-checks
+```
+
+### 3. 验证发布状态
+
+```bash
+npm view @vuagent/protocol version
+npm view @vuagent/server version
+npm view @vuagent/ui version
 ```
 
 各包的架构、设计与业务逻辑详见对应 README：[protocol](./packages/protocol/README.md) · [server](./packages/server/README.md) · [ui](./packages/ui/README.md)。早期方案推演存档于 [`tasks/plan.md`](./tasks/plan.md)，文档站源码在 `apps/docs`（含 DESIGN.md）。
