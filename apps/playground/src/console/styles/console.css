@@ -1659,11 +1659,8 @@
   text-align: center;
 }
 
-/* TASK-075 成本观测：消息区迷你占比条与流式思考指示 */
-.va-console__usage-bar {
-  margin: 0 0 8px;
-  padding: 0 4px;
-}
+/* TASK-075 成本观测：消息区迷你占比条与流式思考指示——两者均因
+   语义错位/指示重复从消息流移除，用量分解统一在 UsagePanel 呈现 */
 /* 流式间隙加载胶囊已从控制台移除（与 AssistantTurn 轮内指示重复） */
 /* 左栏会话列表首拉骨架 */
 .va-console__stree-skeleton {

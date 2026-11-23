@@ -10,7 +10,7 @@
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
 import { ArrowDown, ChevronDown, History, PanelRight, Route } from "lucide-vue-next";
-import { formatTokens, useStickToBottom, VaCommandMenu, VaCompactBreakdown, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaPopover, VaQueueDock, VaSegmentedControl, VaSkeleton, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
+import { formatTokens, useStickToBottom, VaCommandMenu, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaPopover, VaQueueDock, VaSegmentedControl, VaSkeleton, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
 import type { CommandItem, NotificationItem, QueueItem, ComposerAttachment } from "@vuagent/ui";
 import type { ContextPart } from "@vuagent/ui";
 import type { Decision } from "@vuagent/ui";
@@ -425,10 +425,8 @@ const ctxParts = computed<ContextPart[]>(() =>
 /** 压缩中：历史格子微光收缩（VaContextWindow 内置动画），按钮进入禁用态 */
 const isCompacting = ref(false);
 
-/** 成本迷你占比段（TASK-075）：按模型 token 份额降序取前 4，其余不展示（面板内看全量） */
-const usageCompactSegments = computed(() =>
-  usage.byModelTokens.value.filter((seg) => seg.value > 0).slice(0, 4)
-);
+/** 成本迷你占比段已移除（原 TASK-075 消息流顶部占比条）：语义错位且观测不到，
+ *  按模型分解统一由 UsagePanel 呈现（与 usage.byModelTokens 同一数据域） */
 
 /** 流式间隙指示已移除（原 TASK-075 的 VaThinkingLoader）：与 AssistantTurn 轮内的
  *  思考折叠框占位 + 「正在分析中」光标重复——三重指示并存且观感差，轮内指示位置更准确 */
@@ -1173,13 +1171,9 @@ function quickFillPrompt(text: string) {
             class="va-console__messages-stream"
             @scroll.passive="onChatScroll"
           >
-            <!-- 成本迷你占比条（TASK-075）：按模型 token 份额，仅在有数据时渲染 -->
-            <VaCompactBreakdown
-              v-if="usageCompactSegments.length > 0"
-              class="va-console__usage-bar"
-              :segments="usageCompactSegments"
-              :height="6"
-            />
+            <!-- 成本迷你占比条已移除：全局 24h 按模型 token 份额挂在会话消息流顶部
+                 语义错位（与 composer 的 Context 上下文占用混淆）、钉底时永远滚出视野、
+                 top-4 截断重归一失真；完整分解见 UsagePanel（byModel 共用同一数据域） -->
             <TurnList
               :turns="chatTurns"
               @approve="(actionId) => submitApproval(actionId, true)"
