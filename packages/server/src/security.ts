@@ -23,6 +23,8 @@ export const DEFAULT_LOCAL_ORIGINS = [
   "http://127.0.0.1:4173",
   "http://localhost:6991",
   "http://127.0.0.1:6991",
+  "http://localhost:6995",
+  "http://127.0.0.1:6995",
 ];
 
 export interface SecurityConfig {

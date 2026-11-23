@@ -16,6 +16,7 @@ export default defineConfig({
     exclude: ["@vuagent/ui"],
   },
   server: {
+    port: 6995,
     proxy: {
       "/api": {
         target: "http://localhost:3001",
