@@ -43,7 +43,15 @@ function pickPermission(id: string) {
   permOpen.value = false;
 }
 /** ComposerModelOption → ModelItem（VaModelPicker 承载模型 seat，键盘可导航） */
-const mpModels = computed(() => props.models.map((m) => ({ id: m.id, name: m.label, tag: m.meta })));
+const mpModels = computed(() =>
+  props.models.map((m) => ({
+    id: m.id,
+    name: m.label,
+    tag: m.meta,
+    provider: m.provider,
+    model: m.model,
+  }))
+);
 function onModelPicked(id: string) {
   if (id !== currentModel.value) emit("update:model", id);
 }

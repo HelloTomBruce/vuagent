@@ -4,6 +4,7 @@
  * AgentLoop 端到端（禁用后模型不可见 + 调用被结构化拒绝）、HTTP GET/PATCH 路由
  */
 import { describe, it, expect } from "vitest";
+import { Type } from "@sinclair/typebox";
 import { MemoryStorageDriver } from "../src/storage/drivers/memory.driver.js";
 import { ToolConfigRepository } from "../src/storage/repositories/tool-config.repository.js";
 import { WorkspaceRepository } from "../src/storage/repositories/workspace.repository.js";
@@ -17,7 +18,7 @@ import type { ModelDriverRequest } from "../src/adapters/model-driver.js";
 import { FsReadTool, FsWriteTool } from "../src/tools/system/fs-tools.js";
 import { createHarnessServer } from "../src/server.js";
 import type { ModelStreamChunk } from "../src/adapters/model-driver.js";
-import type { HarnessStreamEvent } from "../src/core/types.js";
+import type { HarnessStreamEvent, HarnessTool } from "../src/core/types.js";
 
 describe("ToolConfigRepository（全局启用配置，缺记录=启用）", () => {
   it("全新仓库 → 无禁用工具（默认全启）", async () => {
@@ -149,7 +150,7 @@ describe("AgentLoop 端到端：禁用工具的可见性与调用兜底", () => 
 });
 
 describe("工具配置 HTTP 路由", () => {
-  it("GET /api/tools 返回全部内置工具与默认启用状态", async () => {
+  it("GET /api/tools 默认返回内置核心工具与 UI 组件工具", async () => {
     const { app } = createHarnessServer({ dbPath: ":memory:" });
     const res = await app.request("/api/tools");
     expect(res.status).toBe(200);
@@ -160,8 +161,32 @@ describe("工具配置 HTTP 路由", () => {
     expect(names).toContain("web_fetch");
     for (const t of tools) {
       expect(t.enabled).toBe(true);
-      expect(t.source).toBe("builtin");
+      if (t.name === "ui_deploy_status") {
+        expect(t.source).toBe("ui_component");
+      } else {
+        expect(t.source).toBe("builtin");
+      }
     }
+  });
+
+  it("使用方在 createHarnessServer 传入 customTools 显式注册业务动作工具", async () => {
+    const myCustomTool: HarnessTool = {
+      name: "db_query",
+      description: "执行数据库只读查询",
+      parameters: Type.Object({ sql: Type.String() }),
+      riskLevel: "medium",
+      async execute() {
+        return { rows: [] };
+      },
+    };
+    const { app } = createHarnessServer({ dbPath: ":memory:", customTools: [myCustomTool] });
+    const res = await app.request("/api/tools");
+    expect(res.status).toBe(200);
+    const tools = (await res.json()) as Array<{ name: string; enabled: boolean; source: string }>;
+    const dbTool = tools.find((t) => t.name === "db_query");
+    expect(dbTool).toBeDefined();
+    expect(dbTool?.source).toBe("custom");
+    expect(dbTool?.enabled).toBe(true);
   });
 
   it("PATCH 启停往返：禁用后 GET 反映状态，未知工具 404，非法 body 400", async () => {

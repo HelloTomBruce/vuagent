@@ -173,6 +173,14 @@ describe("③ 操作纪律块", () => {
     expect(block).toContain("先搜索定位");
     expect(block).toContain("非零退出码不代表工具故障");
   });
+
+  it("支持 concise 精简版操作纪律（对齐 Pi 理念）", () => {
+    const block = buildDisciplineBlock("concise");
+    expect(block).toContain("非交互式命令");
+    expect(block).toContain("忠于真实执行结果");
+    // 不包含长篇说教
+    expect(block).not.toContain("先搜再读再改");
+  });
 });
 
 describe("buildSystemPrompt 完整组装", () => {

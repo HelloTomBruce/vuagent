@@ -47,8 +47,15 @@ export function useSessions(options: SessionsOptions) {
 
   const sessionsLoading = ref(false);
 
-  async function fetchSessions() {
-    sessionsLoading.value = true;
+  /**
+   * 拉取会话列表
+   * @param options.silent 是否静默刷新（缺省当内存中已有会话数据时自动静默，避免打翻重挂会话树骨架屏）
+   */
+  async function fetchSessions(options?: { silent?: boolean }) {
+    const isSilent = options?.silent ?? sessions.value.length > 0;
+    if (!isSilent) {
+      sessionsLoading.value = true;
+    }
     try {
       const data = await listSessions();
       if (data) {
@@ -57,7 +64,9 @@ export function useSessions(options: SessionsOptions) {
     } catch (e) {
       console.error("加载会话失败:", e);
     } finally {
-      sessionsLoading.value = false;
+      if (!isSilent) {
+        sessionsLoading.value = false;
+      }
     }
   }
 

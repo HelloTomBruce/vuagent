@@ -92,4 +92,28 @@ describe("VaSessionTree confirmMode", () => {
     mounted.push(w);
     expect(w.find(".va-stree__footer").exists()).toBe(false);
   });
+
+  it("未分组（orphans）会话正确渲染在 va-stree__list-clip 内并展示时间与操作按钮", () => {
+    const w = mountTree({
+      workspaces: [{ id: "ws1", name: "工作区一" }],
+      sessions: [
+        { id: "s-orphan", title: "未分组孤儿会话", createdAt: 1, updatedAt: Date.now() - 5000, archived: false },
+      ],
+      hoverOps: true,
+    });
+    mounted.push(w);
+
+    const orphanGroup = w.findAll(".va-stree__group").find((g) => g.find(".va-stree__ws-name").text() === "未分组");
+    expect(orphanGroup).toBeTruthy();
+    expect(orphanGroup!.find(".va-stree__list-clip").exists()).toBe(true);
+
+    const orphanSession = orphanGroup!.find(".va-stree__session");
+    expect(orphanSession.exists()).toBe(true);
+    expect(orphanSession.find(".va-stree__session-title").text()).toBe("未分组孤儿会话");
+    expect(orphanSession.find(".va-stree__time").text()).toContain("刚刚");
+
+    // 存在操作按钮（置顶、重命名、归档、删除）
+    const ops = orphanSession.findAll(".va-stree__op");
+    expect(ops.length).toBe(4);
+  });
 });

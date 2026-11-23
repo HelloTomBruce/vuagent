@@ -115,7 +115,7 @@ const models = useModelProfiles({
 
 const chat = useChatStream({
   getActiveSessionId: () => sessionsApi.activeSessionId.value,
-  refreshSessions: () => sessionsApi.fetchSessions(),
+  refreshSessions: () => sessionsApi.fetchSessions({ silent: true }),
   scrollToBottom,
 });
 
@@ -408,7 +408,13 @@ const {
 
 /** 座位区数据：模型 / 权限（VaComposer seats） */
 const composerModels = computed(() =>
-  availableModels.value.map((m) => ({ id: m.id, label: m.label, meta: m.meta }))
+  availableModels.value.map((m) => ({
+    id: m.id,
+    label: m.label,
+    meta: m.meta,
+    provider: m.provider,
+    model: m.model,
+  }))
 );
 const composerPermissions = computed(() =>
   permissionModes.map((p) => ({ id: p.id, label: p.label, desc: p.desc }))
@@ -983,7 +989,7 @@ function quickFillPrompt(text: string) {
     <ConsoleSidebar
       :workspaces="workspaces"
       :sessions="sessions"
-      :loading="sessionsLoading"
+      :loading="sessionsLoading && sessions.length === 0"
       :active-workspace-id="activeWorkspaceId"
       :active-session-id="activeSessionId"
       :is-new-chat="isNewChat"
@@ -1057,7 +1063,7 @@ function quickFillPrompt(text: string) {
           <VaEmptyHero
             :workspaces="heroWorkspaces"
             title="准备好开启新任务了吗？"
-            description="原生驱动自主 ReAct 循环、多工具沙箱执行、文件 Diff 审阅与人机协同 (HITL) 审批"
+            description="面向工程任务的自主 Agent 工作台：支持代码修改、工具执行与丰富场景卡片"
             @create-session="onHeroCreateSession"
             @create-workspace="pickAndCreateWorkspace"
           />
@@ -1148,6 +1154,13 @@ function quickFillPrompt(text: string) {
                 @click="quickFillPrompt('创建端到端自动化测试脚本并生成报告')"
               >
                 生成自动化测试用例
+              </button>
+              <button
+                class="va-console__chip va-console__chip--scene"
+                type="button"
+                @click="quickFillPrompt('调用微服务部署工具 ui_deploy_status，生成展示 auth-service 在 production 生产环境的部署与健康巡检状态卡片')"
+              >
+                🎨 体验微服务部署场景组件
               </button>
             </div>
           </div>

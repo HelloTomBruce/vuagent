@@ -6,7 +6,7 @@ import type { ToolConfigRepository } from "../storage/repositories/tool-config.r
 import type { ConfigResolver } from "./config-resolver.js";
 import type { ToolRegistry } from "./tool-registry.js";
 import type { ActionHub } from "./action-hub.js";
-import type { IModelDriver } from "../adapters/model-driver.js";
+import type { IModelDriver, ModelStreamChunk } from "../adapters/model-driver.js";
 import { OpenAICompatibleDriver } from "../adapters/openai-driver.js";
 import { AnthropicDriver } from "../adapters/anthropic-driver.js";
 import {
@@ -511,21 +511,52 @@ export class AgentLoop {
         // 调用模型流式输出（effectiveDriver 已在轮次开始前装配：注入驱动或主档案+降级链）
         // 推理档位并入 parameters：OpenAI 兼容端点经 ...parameters 展开自然到达
         // reasoning_effort；Anthropic 原生驱动在请求构造时映射为 thinking budget
-        const stream = effectiveDriver.generateStream({
-          model: modelProfile.model,
-          messages: compactedMessages,
-          tools: toolsDefinition,
-          parameters: {
-            ...modelProfile.parameters,
-            ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
-            ...(typeof declaredMaxOutput === "number" && declaredMaxOutput > 0
-              ? { max_tokens: declaredMaxOutput }
-              : {}),
-          },
-          abortSignal: runSignal,
-        });
+        const createModelStream = (msgs: ChatMessage[]) =>
+          effectiveDriver.generateStream({
+            model: modelProfile.model,
+            messages: msgs,
+            tools: toolsDefinition,
+            parameters: {
+              ...modelProfile.parameters,
+              ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
+              ...(typeof declaredMaxOutput === "number" && declaredMaxOutput > 0
+                ? { max_tokens: declaredMaxOutput }
+                : {}),
+            },
+            abortSignal: runSignal,
+          });
 
-        for await (const chunk of stream) {
+        let activeStream = createModelStream(compactedMessages);
+        let streamIterator = activeStream[Symbol.asyncIterator]();
+        let chunkResult: IteratorResult<ModelStreamChunk>;
+
+        try {
+          chunkResult = await streamIterator.next();
+        } catch (err: unknown) {
+          // 诚实自愈边界：在流尚未吐出任何 chunk 前若遭遇模型端 400 上下文超限（context_overflow），
+          // 触发一次紧急深度压缩折叠历史并自动重试
+          if (err instanceof ClassifiedModelError && err.errorClass === "context_overflow") {
+            const emergencyMessages = this.compactor.manualCompact(compactedMessages, {
+              keepTokens: Math.max(1000, Math.floor(effectiveContextWindow * 0.5)),
+            }).messages;
+            this.ops.emit({
+              type: "warn",
+              at: Date.now(),
+              code: "MODEL_CONTEXT_OVERFLOW_AUTO_HEAL",
+              sessionId: session.id,
+              turnId,
+              detail: "遭遇模型端上下文溢出 (400)，触发紧急深度压缩并自动重试",
+            });
+            activeStream = createModelStream(emergencyMessages);
+            streamIterator = activeStream[Symbol.asyncIterator]();
+            chunkResult = await streamIterator.next();
+          } else {
+            throw err;
+          }
+        }
+
+        while (!chunkResult.done) {
+          const chunk = chunkResult.value;
           if (runSignal.aborted) break;
 
           if (chunk.type === "usage" && chunk.usage) {
@@ -635,6 +666,8 @@ export class AgentLoop {
               }
             }
           }
+
+          chunkResult = await streamIterator.next();
         }
 
         // 降级通知收敛为轨迹事件（模型 lane，前端时间线可见「档案 A → 档案 B」切换）

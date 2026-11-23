@@ -129,6 +129,30 @@ export function isRetriableErrorClass(errorClass: ProviderErrorClass): boolean {
 }
 
 /**
+ * 格式化模型 API 错误响应正文：
+ * 优先从 JSON 结构（如 {"error": {"message": "..."}} 或 {"detail": "..."}）中提取人类可读的 message，
+ * 避免把未格式化的长 JSON 原样推给用户界面，提升排查与阅读体验。
+ */
+export function formatModelErrorDetail(rawText: string): string {
+  if (!rawText || !rawText.trim()) return "无详细错误响应体";
+  const trimmed = rawText.trim();
+  try {
+    const json = JSON.parse(trimmed);
+    if (json && typeof json === "object") {
+      const err = json.error ?? json;
+      const msg = err.message ?? err.msg ?? err.error_msg ?? err.detail;
+      const type = err.type ?? err.code;
+      if (typeof msg === "string" && msg.trim()) {
+        return type ? `[${type}] ${msg.trim()}` : msg.trim();
+      }
+    }
+  } catch {
+    // 非 JSON，直接返回原始文本
+  }
+  return trimmed;
+}
+
+/**
  * 解析 Retry-After 头（秒数或 HTTP-date），结果钳 0–60s；非法值返回 undefined
  * （调用方回落到指数退避）。now 可注入以便测试 HTTP-date 分支。
  */

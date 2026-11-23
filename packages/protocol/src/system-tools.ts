@@ -71,6 +71,19 @@ export const BashRunParamsSchema = Type.Object(
 
 export type BashRunParams = Static<typeof BashRunParamsSchema>;
 
+/**
+ * 4 把原子核心系统工具（向 Pi coding agent 极简内核对齐）
+ * fs_read / fs_write / fs_edit / bash_run
+ */
+export const VuagentCoreToolNames = [
+  "fs_read",
+  "fs_write",
+  "fs_edit",
+  "bash_run",
+] as const;
+
+export type VuagentCoreToolName = (typeof VuagentCoreToolNames)[number];
+
 // ==========================================
 // 5. glob（文件模式搜索）
 // ==========================================

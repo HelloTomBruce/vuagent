@@ -402,3 +402,13 @@ export type {
 } from "./runtime/types";
 export { default as VaAgentRenderer } from "./runtime/VaAgentRenderer.vue";
 
+// 场景自定义卡片注册中心（CardRegistry，支持场景 Agent 自由扩展富组件展现）
+export {
+  useCardRegistry,
+  registerCardComponent,
+  unregisterCardComponent,
+  getCardComponent,
+  clearCardComponents,
+} from "./composables/useCardRegistry";
+
+

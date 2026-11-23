@@ -5,6 +5,10 @@ export interface ModelItem {
   name: string;
   /** 右侧小标签，如 "推荐" / "快" */
   tag?: string;
+  /** 所属供应商标识（如 "DEEPSEEK", "OPENAI"），提供后自动启用 Provider 分组展示 */
+  provider?: string;
+  /** 真实底层模型标识（如 "deepseek-chat", "gpt-4o"） */
+  model?: string;
 }
 
 export interface ModelPickerProps {

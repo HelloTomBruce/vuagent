@@ -9,6 +9,8 @@ import { ActionHub } from "../src/core/action-hub.js";
 import { AgentLoop } from "../src/core/agent-loop.js";
 import { ToolConfigRepository } from "../src/storage/repositories/tool-config.repository.js";
 import { MockDriver } from "./helpers/mock-driver.js";
+import { ClassifiedModelError } from "../src/adapters/resilience.js";
+import type { IModelDriver, ModelDriverRequest, ModelStreamChunk } from "../src/adapters/model-driver.js";
 import type { HarnessStreamEvent } from "../src/core/types.js";
 
 describe("AgentLoop (Loop & Lifecycle + HITL)", () => {
@@ -209,6 +211,60 @@ describe("AgentLoop (Loop & Lifecycle + HITL)", () => {
     expect(events.some((e) => e.type === "suspended")).toBe(true);
     expect(events.some((e) => e.type === "resumed")).toBe(true);
     expect(events.some((e) => e.type === "tool_call_result")).toBe(true);
+    expect(events.some((e) => e.type === "turn_end")).toBe(true);
+  });
+
+  it("当模型请求遭遇 context_overflow (400) 时，自动触发紧急压缩自愈并重试", async () => {
+    const driver = new MemoryStorageDriver();
+    const workspaceRepo = new WorkspaceRepository(driver);
+    const sessionRepo = new SessionRepository(driver);
+    const settingsRepo = new SettingsRepository(driver);
+    const toolRegistry = new ToolRegistry();
+    const actionHub = new ActionHub();
+
+    let attempts = 0;
+    const overflowAutoHealDriver: IModelDriver = {
+      async *generateStream(_req: ModelDriverRequest): AsyncIterable<ModelStreamChunk> {
+        attempts++;
+        if (attempts === 1) {
+          // 首次调用模拟 400 上下文超限
+          throw new ClassifiedModelError("maximum context length is 8192 tokens", "context_overflow", 400);
+        }
+        // 自愈重试后成功输出
+        yield { type: "text_delta", text: "上下文自愈重试成功！" };
+        yield { type: "done" };
+      },
+    };
+
+    const ws = await workspaceRepo.create({ name: "WS", rootPath: "/tmp", permission: "read-write" });
+    const session = await sessionRepo.create({ workspaceId: ws.id, title: "Session" });
+    await settingsRepo.createProfile({ id: "m", name: "M", provider: "openai", model: "m", isDefault: true });
+
+    const loop = new AgentLoop({
+      workspaceRepo,
+      sessionRepo,
+      settingsRepo,
+      toolRegistry,
+      toolConfigRepo: new ToolConfigRepository(driver),
+      actionHub,
+      modelDriver: overflowAutoHealDriver,
+    });
+
+    const events: HarnessStreamEvent[] = [];
+    for await (const evt of loop.runTurn({
+      workspaceId: ws.id,
+      sessionId: session.id,
+      prompt: "长会话触发自愈测试",
+    })) {
+      events.push(evt);
+    }
+
+    // 验证调用了 2 次（第 1 次失败被捕获自愈，第 2 次成功）
+    expect(attempts).toBe(2);
+    // 文本成功产出
+    expect(events.some((e) => e.type === "text_delta" && e.delta.includes("上下文自愈重试成功"))).toBe(true);
+    // 正常结束，无未捕获的错误事件
+    expect(events.some((e) => e.type === "error")).toBe(false);
     expect(events.some((e) => e.type === "turn_end")).toBe(true);
   });
 });

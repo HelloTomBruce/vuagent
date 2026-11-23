@@ -286,48 +286,49 @@ function onCreate(wId: string) {
         </span>
       </div>
       <div class="va-stree__list">
-        <div
-          v-for="s in orphans"
-          :key="s.id"
-          class="va-stree__session"
-          :data-active="s.id === props.currentSessionId || undefined"
-        >
-          <template v-if="editingId === s.id">
-            <input
-              v-model="draft"
-              class="va-stree__input"
-              type="text"
-              @keydown.enter.prevent="commitRename"
-              @keydown.escape.prevent="cancelRename"
-            />
-            <button class="va-stree__op" type="button" aria-label="确认重命名" @click="commitRename"><Check :size="14" /></button>
-            <button class="va-stree__op" type="button" aria-label="取消" @click="cancelRename"><X :size="14" /></button>
-          </template>
-          <template v-else>
-            <button class="va-stree__session-main" type="button" :title="titleOf(s)" @click="pickSession(s)">
-              <span v-if="s.waitingApproval" class="va-stree__dot va-stree__dot--warn" aria-hidden="true" />
-              <span v-else-if="s.running" class="va-stree__dot va-stree__dot--run" aria-hidden="true" />
-              <Pin v-else-if="s.pinned" class="va-stree__pin" :size="11" aria-hidden="true" />
-              <span class="va-stree__session-title">{{ titleOf(s) }}</span>
-              <span v-if="s.waitingApproval" class="va-stree__warn-tag">待审批</span>
-              <span class="va-stree__time">{{ fmtTime(s.updatedAt) }}</span>
-            </button>
-            <button class="va-stree__op" type="button" :aria-label="s.pinned ? '取消置顶' : '置顶'" :disabled="props.disabled" @click.stop="emit('togglePin', s.id)">
-              <PinOff v-if="s.pinned" :size="13" /><Pin v-else :size="13" />
-            </button>
-            <button class="va-stree__op" type="button" aria-label="重命名" :disabled="props.disabled" @click.stop="startRename(s)"><Pen :size="13" /></button>
-            <button class="va-stree__op" type="button" aria-label="归档" :disabled="props.disabled" @click.stop="emit('archive', s.id, true)"><Archive :size="13" /></button>
-            <button
-              class="va-stree__op"
-              type="button"
-              :data-danger="confirmId === s.id || undefined"
-              :aria-label="confirmId === s.id ? '确认删除' : '删除'"
-              :disabled="props.disabled"
-              @click.stop="askRemove(s.id)"
-            ><span v-if="confirmId === s.id" class="va-stree__confirm">确认?</span><Trash2 v-else :size="13" /></button>
-          </template>
+        <div class="va-stree__list-clip">
+          <div
+            v-for="s in orphans"
+            :key="s.id"
+            class="va-stree__session"
+            :data-active="s.id === props.currentSessionId || undefined"
+          >
+            <template v-if="editingId === s.id">
+              <input
+                v-model="draft"
+                class="va-stree__input"
+                type="text"
+                @keydown.enter.prevent="commitRename"
+                @keydown.escape.prevent="cancelRename"
+              />
+              <button class="va-stree__op" type="button" aria-label="确认重命名" @click="commitRename"><Check :size="14" /></button>
+              <button class="va-stree__op" type="button" aria-label="取消" @click="cancelRename"><X :size="14" /></button>
+            </template>
+            <template v-else>
+              <button class="va-stree__session-main" type="button" :title="titleOf(s)" @click="pickSession(s)">
+                <span v-if="s.waitingApproval" class="va-stree__dot va-stree__dot--warn" aria-hidden="true" />
+                <span v-else-if="s.running" class="va-stree__dot va-stree__dot--run" aria-hidden="true" />
+                <Pin v-else-if="s.pinned" class="va-stree__pin" :size="11" aria-hidden="true" />
+                <span class="va-stree__session-title">{{ titleOf(s) }}</span>
+                <span v-if="s.waitingApproval" class="va-stree__warn-tag">待审批</span>
+                <span class="va-stree__time">{{ fmtTime(s.updatedAt) }}</span>
+              </button>
+              <button class="va-stree__op" type="button" :aria-label="s.pinned ? '取消置顶' : '置顶'" :disabled="props.disabled" @click.stop="emit('togglePin', s.id)">
+                <PinOff v-if="s.pinned" :size="13" /><Pin v-else :size="13" />
+              </button>
+              <button class="va-stree__op" type="button" aria-label="重命名" :disabled="props.disabled" @click.stop="startRename(s)"><Pen :size="13" /></button>
+              <button class="va-stree__op" type="button" aria-label="归档" :disabled="props.disabled" @click.stop="emit('archive', s.id, true)"><Archive :size="13" /></button>
+              <button
+                class="va-stree__op"
+                type="button"
+                :data-danger="confirmId === s.id || undefined"
+                :aria-label="confirmId === s.id ? '确认删除' : '删除'"
+                :disabled="props.disabled"
+                @click.stop="askRemove(s.id)"
+              ><span v-if="confirmId === s.id" class="va-stree__confirm">确认?</span><Trash2 v-else :size="13" /></button>
+            </template>
+          </div>
         </div>
-        <p class="va-stree__empty">所属工作区已被删除。</p>
       </div>
     </section>
 

@@ -4,8 +4,19 @@
  * 兼做大模型 Tool Parameters 规范和前端组件 Props 类型单一事实来源
  */
 
-import { Type, type Static } from "@sinclair/typebox";
+import { Type, type Static, type TSchema } from "@sinclair/typebox";
 import { VuagentSystemToolSchemas, type VuagentSystemToolName } from "./system-tools.js";
+
+/**
+ * 开放 UI 组件契约定义规范（供应用层/开发者自行丰富消息展现组件）
+ * 包含组件唯一标识、展示标题、引导模型的描述与 TypeBox 参数 Schema
+ */
+export interface UIComponentDefinition {
+  name: string;
+  title: string;
+  description: string;
+  schema: TSchema;
+}
 
 // ==========================================
 // 1. 审批卡片工具 (ApprovalCard)
@@ -186,14 +197,39 @@ export const FileStatusSchema = Type.Union([
   Type.Literal("untracked"),
 ]);
 
-export const FileNodeSchema = Type.Recursive((This) =>
-  Type.Object({
-    path: Type.String({ description: "相对路径或文件名" }),
-    type: Type.Optional(Type.Union([Type.Literal("file"), Type.Literal("dir")])),
-    status: Type.Optional(FileStatusSchema),
-    children: Type.Optional(Type.Array(This)),
-  })
-);
+/**
+ * 文件树节点 Schema
+ * 采用显式嵌套结构，避免使用 Type.Recursive，以兼容 Moonshot/Kimi、OpenAI 等大模型 Function Calling 参数校验器
+ * （部分模型严格拒绝非 #/$defs/ 开头的递归 $ref 或直接不支持递归 Schema）
+ */
+export const FileNodeSchema = Type.Object({
+  path: Type.String({ description: "相对路径或文件名" }),
+  type: Type.Optional(Type.Union([Type.Literal("file"), Type.Literal("dir")])),
+  status: Type.Optional(FileStatusSchema),
+  children: Type.Optional(
+    Type.Array(
+      Type.Object({
+        path: Type.String({ description: "相对路径或文件名" }),
+        type: Type.Optional(Type.Union([Type.Literal("file"), Type.Literal("dir")])),
+        status: Type.Optional(FileStatusSchema),
+        children: Type.Optional(
+          Type.Array(
+            Type.Object({
+              path: Type.String({ description: "相对路径或文件名" }),
+              type: Type.Optional(Type.Union([Type.Literal("file"), Type.Literal("dir")])),
+              status: Type.Optional(FileStatusSchema),
+              children: Type.Optional(
+                Type.Array(Type.Any(), { description: "更深层级的子目录或文件节点列表" })
+              ),
+            }),
+            { description: "二级子目录或文件列表" }
+          )
+        ),
+      }),
+      { description: "子目录文件列表" }
+    )
+  ),
+});
 
 export const FileTreeToolSchema = Type.Object(
   {

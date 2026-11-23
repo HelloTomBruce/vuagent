@@ -20,7 +20,6 @@ import {
   deleteModelProfileById,
   deleteProviderApi,
   discoverProviderModels,
-  listModelProfiles,
   listProviders,
   testModelConnectionApi,
   updateModelProfileApi,
@@ -200,29 +199,51 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
         };
       }
 
-      // 扁平模型列表从 providers 展开，避免额外一次 HTTP 往返
-      syncFlatModels(list.flatMap((p) => p.models ?? []));
+      // 扁平模型列表从 providers 展开，并按 Provider 供应商组织层级与分组
+      syncModelsFromProviders(list);
     } catch (e) {
       console.error("加载供应商失败:", e);
     }
   }
 
-  /** 兼容旧入口：仅刷新扁平模型列表 */
+  /** 兼容旧入口：刷新供应商与归属模型列表 */
   async function fetchModelProfiles() {
     try {
-      const list = await listModelProfiles();
-      if (list) syncFlatModels(list);
+      await loadProviders();
     } catch (e) {
       console.error("加载模型列表失败:", e);
     }
   }
 
-  function syncFlatModels(list: ModelProfileItem[]) {
-    // 空列表也要同步：删掉最后一个模型后 UI 不能停留在旧数据上
-    modelProfiles.value = list;
-    if (list.length === 0) {
+  function syncModelsFromProviders(provList: ProviderItem[]) {
+    const provMap = new Map<string, ProviderItem>();
+    for (const p of provList) {
+      provMap.set(p.id, p);
+    }
+
+    const flatModels: ModelProfileItem[] = [];
+    const modelOptions: ModelOption[] = [];
+
+    for (const p of provList) {
+      const pName = p.name?.trim() || p.provider || "默认供应商";
+      const pModels = p.models ?? [];
+      for (const m of pModels) {
+        flatModels.push(m);
+        modelOptions.push({
+          id: m.id,
+          label: m.name,
+          meta: m.model,
+          provider: pName,
+          model: m.model,
+          contextWindow: m.contextWindow || m.capabilities?.contextWindow || 128000,
+        });
+      }
+    }
+
+    modelProfiles.value = flatModels;
+
+    if (flatModels.length === 0) {
       // 无任何已配置模型时回落内置展示列表，全新安装的模型选择器不至于空白
-      //（发送时服务端 resolveEffectiveSettings 自有 env 兜底，这里只管展示）
       availableModels.value = [...AVAILABLE_MODELS];
       defaultModelId.value = "";
       if (!AVAILABLE_MODELS.some((m) => m.id === activeModel.value)) {
@@ -230,15 +251,12 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
       }
       return;
     }
-    availableModels.value = list.map((m) => ({
-      id: m.id,
-      label: m.name,
-      meta: `${(m.provider || "custom").toUpperCase()} · ${m.model}`,
-      contextWindow: m.contextWindow || m.capabilities?.contextWindow || 128000,
-    }));
-    const def = list.find((m) => m.isDefault) || list[0];
+
+    availableModels.value = modelOptions;
+
+    const def = flatModels.find((m) => m.isDefault) || flatModels[0];
     defaultModelId.value = def.id;
-    if (!activeModel.value || !list.some((m) => m.id === activeModel.value)) {
+    if (!activeModel.value || !flatModels.some((m) => m.id === activeModel.value)) {
       activeModel.value = def.id;
     }
   }

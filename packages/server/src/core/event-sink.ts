@@ -18,6 +18,7 @@ export type HarnessOpsCode =
   | "MODEL_NETWORK"
   | "MODEL_BAD_REQUEST"
   | "MODEL_CONTEXT_OVERFLOW"
+  | "MODEL_CONTEXT_OVERFLOW_AUTO_HEAL"
   | "MODEL_UNKNOWN"
   // 模型降级链（按序切换备用档案）
   | "MODEL_FALLBACK"

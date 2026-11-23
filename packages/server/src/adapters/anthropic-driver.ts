@@ -5,6 +5,7 @@ import {
   classifyHttpError,
   classifyModelError,
   createResilientFetch,
+  formatModelErrorDetail,
   resolveResiliencePolicy,
 } from "./resilience.js";
 
@@ -269,8 +270,9 @@ export class AnthropicDriver implements IModelDriver {
       // 与 OpenAICompatibleDriver 同口径：先读正文再分类（context_overflow 依赖 message 检测）
       const errText = await res.text().catch(() => "");
       const errorClass = classifyHttpError(res.status, errText);
+      const detail = formatModelErrorDetail(errText);
       throw new ClassifiedModelError(
-        `模型 API 返回错误 (${res.status} ${res.statusText}): ${errText}`,
+        `模型 API 返回错误 (${res.status} ${res.statusText}): ${detail}`,
         errorClass,
         res.status
       );
@@ -312,13 +314,16 @@ export class AnthropicDriver implements IModelDriver {
           const dataStr = trimmed.slice(6).trim();
           if (!dataStr) continue;
 
+          let parsed: Record<string, unknown>;
           try {
-            const parsed = JSON.parse(dataStr) as Record<string, unknown>;
-            const chunk = toStreamChunk(parsed, state);
-            if (chunk) yield chunk;
+            parsed = JSON.parse(dataStr) as Record<string, unknown>;
           } catch {
             // 忽略非合法 JSON 行
+            continue;
           }
+
+          const chunk = toStreamChunk(parsed, state);
+          if (chunk) yield chunk;
         }
       }
     } finally {
@@ -430,8 +435,16 @@ function toStreamChunk(parsed: Record<string, unknown>, state: StreamState): Mod
     case "message_stop":
       return { type: "done" };
 
+    case "error": {
+      const err = parsed.error as { type?: string; message?: string } | undefined;
+      const msg = err?.message || JSON.stringify(parsed);
+      const isOverloaded = err?.type === "overloaded_error";
+      const errorClass = isOverloaded ? "server" : classifyModelError(msg);
+      throw new ClassifiedModelError(`Anthropic 流式错误: ${msg}`, errorClass);
+    }
+
     default:
-      // ping / content_block_stop / error 等事件不映射增量
+      // ping / content_block_stop 等事件不映射增量
       return undefined;
   }
 }

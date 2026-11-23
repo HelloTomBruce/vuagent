@@ -17,3 +17,7 @@ apps/ag-ui-langgraph/workspaces/
 
 # vuagent harness 运行时数据
 .vuagent/
+
+# VitePress cache
+.vitepress/cache/
+**/.vitepress/cache/

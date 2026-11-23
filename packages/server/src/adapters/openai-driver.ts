@@ -4,6 +4,7 @@ import {
   classifyHttpError,
   classifyModelError,
   createResilientFetch,
+  formatModelErrorDetail,
   resolveResiliencePolicy,
   type ResiliencePolicy,
   type ResilientFetchHooks,
@@ -93,8 +94,9 @@ export class OpenAICompatibleDriver implements IModelDriver {
       // message 检测，此前分类在读取正文前执行，context_overflow 永远不可达
       const errText = await res.text().catch(() => "");
       const errorClass = classifyHttpError(res.status, errText);
+      const detail = formatModelErrorDetail(errText);
       throw new ClassifiedModelError(
-        `模型 API 返回错误 (${res.status} ${res.statusText}): ${errText}`,
+        `模型 API 返回错误 (${res.status} ${res.statusText}): ${detail}`,
         errorClass,
         res.status
       );
@@ -140,6 +142,20 @@ export class OpenAICompatibleDriver implements IModelDriver {
 
           try {
             const parsed = JSON.parse(dataStr);
+
+            // 识别流中嵌入的业务错误（如个别国产模型在 HTTP 200 下首包返回 error_code 或 error 对象）
+            if (parsed.error || parsed.error_code || (typeof parsed.code === "number" && parsed.code >= 400)) {
+              const errObj = (parsed.error && typeof parsed.error === "object") ? parsed.error : parsed;
+              const errMsg = errObj.message ?? errObj.error_msg ?? errObj.msg ?? JSON.stringify(errObj);
+              const errStatus = typeof errObj.code === "number" ? errObj.code : (typeof parsed.error_code === "number" ? parsed.error_code : undefined);
+              const errorClass = errStatus ? classifyHttpError(errStatus, errMsg) : classifyModelError(errMsg);
+              throw new ClassifiedModelError(
+                `模型流输出错误${errStatus ? ` (${errStatus})` : ""}: ${errMsg}`,
+                errorClass,
+                errStatus
+              );
+            }
+
             const choice = parsed.choices?.[0];
 
             if (parsed.usage) {

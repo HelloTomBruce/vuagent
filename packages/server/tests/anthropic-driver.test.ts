@@ -404,4 +404,15 @@ describe("推理档位 → extended thinking 映射（能力运行时 P1）", ()
     // Object.hasOwn 守卫：取不到原型上的函数，按未知名回落 medium
     expect(payload.thinking).toEqual({ type: "enabled", budget_tokens: 16384 });
   });
+
+  it("当 SSE 流接收到 type: 'error' 事件时抛出 ClassifiedModelError", async () => {
+    const fetchImpl = anthropicSseFetch([
+      {
+        type: "error",
+        error: { type: "overloaded_error", message: "Anthropic is currently overloaded." },
+      },
+    ]);
+    const driver = new AnthropicDriver("k", "http://x", { fetchImpl, resilience: false });
+    await expect(collect(driver)).rejects.toThrow(/Anthropic 流式错误: Anthropic is currently overloaded/);
+  });
 });

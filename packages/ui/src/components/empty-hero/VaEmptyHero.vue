@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FolderClosed, Plus } from "lucide-vue-next";
+import { FolderClosed, Plus, Sparkles } from "lucide-vue-next";
 import type { EmptyHeroEvents, EmptyHeroProps } from "./types";
 
 const props = withDefaults(defineProps<EmptyHeroProps>(), {
@@ -14,7 +14,11 @@ const emit = defineEmits<EmptyHeroEvents>();
 
 <template>
   <div class="va-hero">
-    <span class="va-hero__mark" aria-hidden="true" />
+    <div class="va-hero__badge" aria-hidden="true">
+      <slot name="icon">
+        <Sparkles :size="20" class="va-hero__icon" />
+      </slot>
+    </div>
     <h3 class="va-hero__title">{{ props.title }}</h3>
     <p class="va-hero__desc">{{ props.description }}</p>
     <div class="va-hero__cards">

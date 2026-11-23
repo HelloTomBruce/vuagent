@@ -134,6 +134,18 @@ export function applyUiComponentResult(
     case "ui_approval_card":
       // 审批卡片由 suspended/resumed 的 HITL 流负责渲染，工具结果无需重复建卡
       break;
+
+    default:
+      // 业务场景自定义组件（Generative UI）：以 "ui" 契约卡片派发，交由 CardRenderer 动态分发给注册组件
+      placeTurnCard(turn, {
+        id: `ui-${toolCallId}`,
+        type: "ui",
+        data: {
+          component: result.component,
+          props,
+        },
+      });
+      break;
   }
 }
 

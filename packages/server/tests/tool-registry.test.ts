@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Type } from "@sinclair/typebox";
-import { ToolRegistry } from "../src/core/tool-registry.js";
+import { ToolRegistry, sanitizeSchemaForModel } from "../src/core/tool-registry.js";
 import { ActionHub } from "../src/core/action-hub.js";
 import type { WorkspaceEntity } from "../src/storage/interfaces.js";
 
@@ -99,5 +99,48 @@ describe("ToolRegistry (Tooling & Sandbox)", () => {
 
     expect(res.isError).toBe(true);
     expect(res.error).toContain("timed out");
+  });
+
+  it("should sanitize non-compliant $ref in tool definitions for model compatibility", () => {
+    const rawSchema = {
+      type: "object",
+      properties: {
+        tree: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              path: { type: "string" },
+              children: {
+                type: "array",
+                items: { $ref: "This" },
+              },
+            },
+          },
+        },
+        defsRef: {
+          $ref: "#/$defs/MyDef",
+        },
+      },
+    };
+
+    const sanitized = sanitizeSchemaForModel(rawSchema) as any;
+    expect(sanitized.properties.tree.items.properties.children.items.$ref).toBeUndefined();
+    expect(sanitized.properties.tree.items.properties.children.items.type).toBe("object");
+    // 保留合规的 #/$defs/ 引用
+    expect(sanitized.properties.defsRef.$ref).toBe("#/$defs/MyDef");
+
+    // 验证 registry.toModelToolDefinitions 会自动应用 sanitize
+    const registry = new ToolRegistry();
+    registry.register({
+      name: "test_schema_tool",
+      description: "测试 Schema 过滤",
+      parameters: rawSchema as any,
+      execute: async () => ({}),
+    });
+
+    const [def] = registry.toModelToolDefinitions();
+    const params = def.function.parameters as any;
+    expect(params.properties.tree.items.properties.children.items.$ref).toBeUndefined();
   });
 });

@@ -58,14 +58,38 @@ describe("useModelProfiles：修复回归", () => {
     expect(m.activeModel.value).toBe("deepseek-v3");
   });
 
-  it("有供应商时扁平模型列表从 providers 展开", async () => {
+  it("有供应商时扁平模型列表从 providers 展开，并正确按 Provider 供应商归属", async () => {
     vi.mocked(listProviders).mockResolvedValue([
-      { id: "p1", name: "P", provider: "custom", models: [{ ...MODEL, contextWindow: 64000 }] },
+      {
+        id: "p1",
+        name: "Moonshot 官方",
+        provider: "moonshot",
+        models: [
+          { id: "m1", providerId: "p1", name: "Kimi 8K", model: "moonshot-v1-8k", provider: "moonshot", contextWindow: 64000 },
+          { id: "m2", providerId: "p1", name: "Kimi 32K", model: "moonshot-v1-32k", provider: "moonshot" },
+        ],
+      },
+      {
+        id: "p2",
+        name: "DeepSeek",
+        provider: "deepseek",
+        models: [
+          { id: "m3", providerId: "p2", name: "DeepSeek V3", model: "deepseek-chat", provider: "deepseek" },
+        ],
+      },
     ]);
     const m = useModelProfiles();
     await m.loadProviders();
 
-    expect(m.modelProfiles.value).toHaveLength(1);
+    expect(m.modelProfiles.value).toHaveLength(3);
+    expect(m.availableModels.value).toHaveLength(3);
+    expect(m.availableModels.value[0].provider).toBe("Moonshot 官方");
+    expect(m.availableModels.value[0].label).toBe("Kimi 8K");
+    expect(m.availableModels.value[0].meta).toBe("moonshot-v1-8k");
+    expect(m.availableModels.value[1].provider).toBe("Moonshot 官方");
+    expect(m.availableModels.value[1].label).toBe("Kimi 32K");
+    expect(m.availableModels.value[2].provider).toBe("DeepSeek");
+    expect(m.availableModels.value[2].label).toBe("DeepSeek V3");
     expect(m.availableModels.value[0].contextWindow).toBe(64000);
     expect(m.activeModel.value).toBe("m1");
   });

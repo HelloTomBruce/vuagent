@@ -417,7 +417,8 @@ export interface ToolItem {
   enabled: boolean;
   /** per-tool 超时覆盖（TASK-026）；null 表示未覆盖 */
   timeoutMs?: number | null;
-  source: "builtin";
+  /** 工具来源：内置系统工具、业务扩展工具 或 场景 UI 组件 (Generative UI) */
+  source: "builtin" | "ui_component" | "custom";
 }
 
 /** 拉取内置工具清单（含启停状态），非 2xx 返回 null */

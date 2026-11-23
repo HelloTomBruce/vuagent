@@ -45,6 +45,10 @@ export interface ComposerModelOption {
   label: string;
   /** 次要说明（provider 等） */
   meta?: string;
+  /** 所属供应商（例如 DEEPSEEK / OPENAI） */
+  provider?: string;
+  /** 底层模型标识（例如 deepseek-chat） */
+  model?: string;
 }
 
 export interface ComposerPermissionOption {

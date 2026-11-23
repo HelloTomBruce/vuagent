@@ -4,6 +4,8 @@ import { createHarnessServer } from "./server.js";
 export * from "./core/types.js";
 export * from "./core/action-hub.js";
 export * from "./core/tool-registry.js";
+export * from "./core/ui-registry.js";
+export * from "./core/system-prompt.js";
 export * from "./core/stream-orchestrator.js";
 export * from "./core/telemetry.js";
 export * from "./core/context-compactor.js";

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { Type } from "@sinclair/typebox";
 import os from "node:os";
 import path from "node:path";
 import { exec } from "node:child_process";
@@ -18,7 +19,7 @@ import { isProviderKind } from "./storage/interfaces.js";
 import type { ModelCapabilities, ProviderEntity, ProviderKind } from "./storage/interfaces.js";
 import { detectModels } from "./core/model-probe.js";
 import { defaultBaseUrlFor, isAnthropicNativeEndpoint } from "./core/provider-defaults.js";
-import type { TurnImageInput } from "./core/types.js";
+import type { TurnImageInput, HarnessTool } from "./core/types.js";
 
 const execAsync = promisify(exec);
 import { SQLiteStorageDriver } from "./storage/drivers/sqlite.driver.js";
@@ -58,6 +59,18 @@ import {
 } from "./core/event-sink.js";
 import { ModelPricingTable, computeCostUsd, type ModelPricing } from "./core/pricing-table.js";
 import { CostRecordRepository } from "./storage/repositories/cost-record.repository.js";
+import type { UIComponentDefinition } from "@vuagent/protocol";
+import { UIComponentRegistry } from "./core/ui-registry.js";
+
+/**
+ * 4 把核心原子系统工具（对齐 Pi coding agent 极简内核）
+ */
+export const CoreSystemTools = [
+  FsReadTool,
+  FsWriteTool,
+  FsEditTool,
+  BashRunTool,
+] as const;
 
 export interface ServerOptions {
   storageDriver?: IStorageDriver;
@@ -74,7 +87,51 @@ export interface ServerOptions {
   /** 计价表来源（TASK-052）：JSON 文件路径或内存表；缺省 `${cwd}/config/model-pricing.json`（缺失=只记量不记钱） */
   pricingPath?: string;
   pricingTable?: Record<string, ModelPricing>;
+  /** 开放场景 UI 组件定义（由 UIComponentRegistry 管理并注册为模型工具与前端卡片契约） */
+  customUIComponents?: UIComponentDefinition[];
+  /** 自定义 UI 注册中心（可选显式注入） */
+  uiRegistry?: UIComponentRegistry;
+  /** 自定义业务动作工具（非 UI 契约的函数/动作工具） */
+  customTools?: HarnessTool[];
 }
+
+export const defaultSceneComponents: UIComponentDefinition[] = [
+  {
+    name: "ui_deploy_status",
+    title: "微服务部署与巡检卡片",
+    description: "渲染微服务部署进展与健康巡检的专用可视化卡片",
+    schema: Type.Object({
+      serviceName: Type.String({ description: "服务名称，例如 auth-service" }),
+      environment: Type.Union([
+        Type.Literal("staging"),
+        Type.Literal("production"),
+        Type.Literal("preview"),
+      ], { description: "部署环境" }),
+      version: Type.String({ description: "版本号，例如 v2.4.1" }),
+      status: Type.Union([
+        Type.Literal("deploying"),
+        Type.Literal("healthy"),
+        Type.Literal("degraded"),
+        Type.Literal("failed"),
+      ], { description: "服务健康状态" }),
+      endpoints: Type.Optional(Type.Array(Type.String(), { description: "服务访问端点列表" })),
+      metrics: Type.Optional(
+        Type.Object({
+          cpu: Type.Optional(Type.String({ description: "CPU 负载" })),
+          memory: Type.Optional(Type.String({ description: "内存使用" })),
+          replicas: Type.Optional(Type.String({ description: "副本状态，例如 4/4 Ready" })),
+        })
+      ),
+      commit: Type.Optional(
+        Type.Object({
+          hash: Type.Optional(Type.String({ description: "提交哈希" })),
+          message: Type.Optional(Type.String({ description: "提交说明" })),
+          author: Type.Optional(Type.String({ description: "提交作者" })),
+        })
+      ),
+    }),
+  },
+];
 
 export function createHarnessServer(options: ServerOptions = {}) {
   const app = new Hono();
@@ -114,12 +171,11 @@ export function createHarnessServer(options: ServerOptions = {}) {
   const costRepo = new CostRecordRepository(driver);
   const pricingTable = new ModelPricingTable(options.pricingTable ?? options.pricingPath);
 
-  // 2. 初始化核心组件
+  // 2. 初始化核心组件与工具注册中心
   const toolRegistry = new ToolRegistry();
-  toolRegistry.register(FsReadTool);
-  toolRegistry.register(FsWriteTool);
-  toolRegistry.register(FsEditTool);
-  toolRegistry.register(BashRunTool);
+  for (const t of CoreSystemTools) {
+    toolRegistry.register(t);
+  }
   toolRegistry.register(GlobTool);
   toolRegistry.register(GrepTool);
   // 显式终态协议工具：注册进 registry（执行链可见性由 finishTaskMode 推导的
@@ -135,6 +191,29 @@ export function createHarnessServer(options: ServerOptions = {}) {
   );
   for (const t of AllBuiltinTools) {
     toolRegistry.register(t);
+  }
+
+  // 开放场景 UI 组件注册中心 (UIComponentRegistry)
+  const uiRegistry = options.uiRegistry ?? new UIComponentRegistry();
+  for (const def of defaultSceneComponents) {
+    uiRegistry.register(def);
+  }
+  if (options.customUIComponents) {
+    for (const def of options.customUIComponents) {
+      uiRegistry.register(def);
+    }
+  }
+  for (const t of uiRegistry.toHarnessTools()) {
+    toolRegistry.register(t);
+  }
+
+  // 业务自定义动作工具（由使用方通过 options.customTools 显式注册）
+  const customToolNames = new Set<string>();
+  if (options.customTools) {
+    for (const t of options.customTools) {
+      toolRegistry.register(t);
+      customToolNames.add(t.name);
+    }
   }
 
   const actionHub = new ActionHub();
@@ -255,6 +334,13 @@ export function createHarnessServer(options: ServerOptions = {}) {
       .map((t) => {
         const cfg = cfgByName.get(t.name);
         const derivedApproval = t.requiresApproval === true || t.riskLevel === "high";
+        const isUI = uiRegistry.get(t.name) !== undefined;
+        const isCustom = customToolNames.has(t.name);
+        const source: "builtin" | "ui_component" | "custom" = isUI
+          ? "ui_component"
+          : isCustom
+          ? "custom"
+          : "builtin";
         return {
           name: t.name,
           description: t.description,
@@ -263,7 +349,7 @@ export function createHarnessServer(options: ServerOptions = {}) {
           requiresApproval: derivedApproval || cfg?.requiresApproval === true,
           enabled: cfg?.enabled !== false,
           timeoutMs: cfg?.timeoutMs ?? null,
-          source: "builtin",
+          source,
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -1492,6 +1578,7 @@ export function createHarnessServer(options: ServerOptions = {}) {
     sessionRepo,
     settingsRepo,
     toolRegistry,
+    uiRegistry,
     actionHub,
     agentLoop,
   };

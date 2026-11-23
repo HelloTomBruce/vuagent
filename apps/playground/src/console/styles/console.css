@@ -9,6 +9,7 @@
   color: var(--va-ink, #1a1917);
   font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif);
   overflow: hidden;
+  --va-chat-content-width: 1040px;
 }
 
 /* ==========================================================================
@@ -30,6 +31,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 10px 8px 0;
 }
 
@@ -88,7 +90,7 @@
 }
 
 .va-console__welcome-hero {
-  max-width: 880px;
+  max-width: var(--va-chat-content-width, 1040px);
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -158,7 +160,7 @@
 .va-console__messages-stream {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 32px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -193,7 +195,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 860px;
+  max-width: var(--va-chat-content-width, 1040px);
   width: 100%;
   margin: 0 auto;
 }
@@ -409,10 +411,19 @@
    ========================================================================== */
 .va-console__docked-plan {
   width: 100%;
-  max-width: 860px;
-  margin: 0 auto;
   padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
   z-index: var(--va-z-raised, 10);
+}
+
+.va-console__plan-bar,
+.va-console__plan-drawer {
+  width: 100%;
+  max-width: var(--va-chat-content-width, 1040px);
+  box-sizing: border-box;
 }
 
 .va-console__plan-bar {
@@ -523,14 +534,16 @@
   padding: 10px 24px 18px 24px;
   background: var(--va-bg, #f7f6f2);
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 /* VaComposer 是 flex 子项,默认不拉伸——显式撑满并居中(留呼吸上限) */
 .va-console__bottom-composer > .va-cmp {
-  flex: 1;
   width: 100%;
-  max-width: 980px;
+  max-width: var(--va-chat-content-width, 1040px);
+  box-sizing: border-box;
 }
 
 
@@ -606,6 +619,36 @@
   border-color: var(--va-accent, #c2410c);
   color: var(--va-accent, #c2410c);
   background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+}
+.va-console__chip--custom {
+  border-color: #bae6fd;
+  color: #0369a1;
+  background: #f0f9ff;
+}
+.va-console__chip--custom:hover {
+  border-color: #38bdf8;
+  color: #0284c7;
+  background: #e0f2fe;
+}
+.va-console__chip--danger {
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+.va-console__chip--danger:hover {
+  border-color: #f87171;
+  color: #991b1b;
+  background: #fee2e2;
+}
+.va-console__chip--scene {
+  border-color: #d8b4fe;
+  color: #7e22ce;
+  background: #faf5ff;
+}
+.va-console__chip--scene:hover {
+  border-color: #a855f7;
+  color: #6b21a8;
+  background: #f3e8ff;
 }
 
 
@@ -1529,6 +1572,88 @@
   overflow: hidden;
 }
 
+.va-settings__scene-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--va-radius-pill, 999px);
+  background: #f3e8ff;
+  color: #7e22ce;
+  font-weight: 500;
+}
+.va-settings__scene-ready {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--va-radius-pill, 999px);
+  background: #ecfdf5;
+  color: #047857;
+  font-weight: 500;
+  border: 1px solid #a7f3d0;
+}
+.va-settings__scene-unbound {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--va-radius-pill, 999px);
+  background: #f1f5f9;
+  color: #64748b;
+  font-weight: 500;
+}
+.va-settings__custom-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--va-radius-pill, 999px);
+  background: #e0f2fe;
+  color: #0369a1;
+  font-weight: 500;
+}
+.va-settings__approval-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--va-radius-pill, 999px);
+  background: #fff7ed;
+  color: #c2410c;
+  font-weight: 500;
+  border: 1px solid #ffedd5;
+  display: inline-flex;
+  align-items: center;
+}
+
+.va-settings__tool-filter-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 4px;
+}
+.va-settings__tool-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--va-radius-pill, 999px);
+  background: var(--va-bg-subtle, #efede7);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  color: var(--va-ink-2, #43413c);
+  cursor: pointer;
+  transition: all var(--va-dur-1, 120ms) ease;
+}
+.va-settings__tool-tab-btn:hover {
+  background: var(--va-card, #ffffff);
+  border-color: var(--va-ink-tertiary, #8a8580);
+}
+.va-settings__tool-tab-btn--active {
+  background: var(--va-ink, #1a1917);
+  color: var(--va-card, #ffffff);
+  border-color: var(--va-ink, #1a1917);
+}
+.va-settings__tool-tab-btn--active:hover {
+  background: var(--va-ink, #1a1917);
+  color: var(--va-card, #ffffff);
+}
+.va-settings__group-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* ==========================================================================
    配置中心通用面板（TASK-028，ConfigPanel.vue）
    ========================================================================== */
@@ -1720,7 +1845,10 @@
 
 /* TASK-076 F2：运行中入队 dock（composer 上方） */
 .va-console__queuedock {
+  width: 100%;
+  max-width: var(--va-chat-content-width, 1040px);
   margin: 0 0 8px;
+  box-sizing: border-box;
 }
 
 /* TASK-076 @提及浮层：悬浮输入框上方，不打断输入 */

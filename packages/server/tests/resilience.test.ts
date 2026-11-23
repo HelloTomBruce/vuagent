@@ -8,6 +8,7 @@ import {
   backoffDelay,
   combineAbortSignals,
   ClassifiedModelError,
+  formatModelErrorDetail,
   type ResolvedResiliencePolicy,
 } from "../src/adapters/resilience.js";
 import { OpenAICompatibleDriver } from "../src/adapters/openai-driver.js";
@@ -530,5 +531,28 @@ describe("combineAbortSignals（deprecated，委托 AbortSignal.any）", () => {
     const b = new AbortController();
     const combined = combineAbortSignals(a.signal, b.signal);
     expect(combined.aborted).toBe(true);
+  });
+});
+
+describe("formatModelErrorDetail 友好错误信息提取", () => {
+  it("从标准 JSON error.message 提取清晰提示", () => {
+    const raw = JSON.stringify({
+      error: {
+        message: "Invalid API key provided",
+        type: "invalid_request_error",
+        code: "invalid_api_key",
+      },
+    });
+    expect(formatModelErrorDetail(raw)).toBe("[invalid_request_error] Invalid API key provided");
+  });
+
+  it("支持提取顶层 detail 或 msg 字段", () => {
+    expect(formatModelErrorDetail(JSON.stringify({ detail: "Token limit exceeded" }))).toBe("Token limit exceeded");
+    expect(formatModelErrorDetail(JSON.stringify({ msg: "服务开小差了", code: 500 }))).toBe("[500] 服务开小差了");
+  });
+
+  it("非 JSON 文本安全回落原始字符串", () => {
+    expect(formatModelErrorDetail("502 Bad Gateway nginx")).toBe("502 Bad Gateway nginx");
+    expect(formatModelErrorDetail("")).toBe("无详细错误响应体");
   });
 });

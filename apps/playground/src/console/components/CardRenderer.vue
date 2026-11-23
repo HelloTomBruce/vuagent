@@ -17,6 +17,7 @@ import {
   VaChangeSummary,
   VaCommentThread,
   VaAiAnswer,
+  getCardComponent,
 } from "@vuagent/ui";
 import type { ActionCard } from "../types";
 import { toolCardDefaultOpen } from "../utils/auto-collapse";
@@ -91,14 +92,23 @@ const UI_RENDERABLE = new Set([
 const uiProps = computed<Record<string, any>>(() => props.card.data?.props || {});
 const uiComponent = computed(() => String(props.card.data?.component || ""));
 const uiRenderable = computed(() => UI_RENDERABLE.has(uiComponent.value));
+// 开发者注册的场景自定义卡片组件
+const customComponent = computed(() => getCardComponent(uiComponent.value));
 </script>
 
 <template>
   <div class="va-console__card-item">
-    <!-- ui_* 契约持久化卡：按 component 动态分发 -->
+    <!-- ui_* 契约持久化卡 / 场景自定义卡片：优先匹配用户注册组件，其次按内置组件分发，未知组件优雅降级 -->
     <template v-if="card.type === 'ui'">
+      <!-- ① 开发者自定义场景组件 -->
+      <component
+        v-if="customComponent"
+        :is="customComponent"
+        v-bind="uiProps"
+      />
+      <!-- ② 内置组件契约分发 -->
       <VaCodeDiff
-        v-if="uiRenderable && uiComponent === 'ui_code_diff'"
+        v-else-if="uiRenderable && uiComponent === 'ui_code_diff'"
         :file-name="uiProps.fileName"
         :old-text="uiProps.oldText"
         :new-text="uiProps.newText"
@@ -146,6 +156,11 @@ const uiRenderable = computed(() => UI_RENDERABLE.has(uiComponent.value));
         :answer="uiProps.answer"
         :sources="uiProps.sources"
       />
+      <!-- ③ 未知组件优雅降级卡片（防止未注册组件白屏） -->
+      <div v-else class="va-custom-card-fallback" style="padding: 10px 14px; border: 1px dashed var(--va-color-border, #cbd5e1); border-radius: 8px; font-size: 13px; margin: 4px 0;">
+        <div style="font-weight: 600; margin-bottom: 4px; color: var(--va-color-text-subtle, #64748b);">[场景组件: {{ uiComponent }}]</div>
+        <pre style="margin: 0; font-size: 11px; overflow-x: auto; max-height: 160px; background: var(--va-color-bg-subtle, #f8fafc); padding: 8px; border-radius: 4px;">{{ JSON.stringify(uiProps, null, 2) }}</pre>
+      </div>
     </template>
 
     <!-- 工具调用链卡片 (VaToolCallCard)：start → args_delta → executing → result 全生命周期 -->

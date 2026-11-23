@@ -103,6 +103,13 @@ describe("@vuagent/protocol - TypeBox Schemas", () => {
           path: "src",
           type: "dir",
           children: [
+            {
+              path: "src/utils",
+              type: "dir",
+              children: [
+                { path: "src/utils/format.ts", type: "file", status: "added" },
+              ],
+            },
             { path: "src/index.ts", type: "file", status: "modified" },
             { path: "src/utils.ts", type: "file" },
           ],
@@ -111,6 +118,11 @@ describe("@vuagent/protocol - TypeBox Schemas", () => {
       ],
     };
     expect(Value.Check(FileTreeToolSchema, validTree)).toBe(true);
+
+    // 验证导出的 JSON Schema 中不包含未被 #/$defs/ 解析的原生 $ref（确保 Moonshot/Kimi 等模型兼容）
+    const schemaJson = JSON.stringify(FileTreeToolSchema);
+    expect(schemaJson).not.toContain('"$ref":"This"');
+    expect(schemaJson).not.toContain('"$ref"');
   });
 });
 

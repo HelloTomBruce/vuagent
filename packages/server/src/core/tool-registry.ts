@@ -13,6 +13,40 @@ export interface ToolExecutionResult {
 }
 
 /**
+ * 递归净化 JSON Schema，保证兼容主流大模型（如 Moonshot / Kimi、OpenAI、Anthropic 等）参数校验规范：
+ * 1. 消除未指向 '#/$defs/' 的非法 '$ref' 引用，避免 400 invalid_request_error
+ * 2. 避免大模型端反序列化或递归编译失败
+ */
+export function sanitizeSchemaForModel(schema: unknown): Record<string, unknown> {
+  if (!schema || typeof schema !== "object") {
+    return { type: "object", properties: {} };
+  }
+  const cloned = JSON.parse(JSON.stringify(schema));
+
+  function walk(node: unknown) {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    const record = node as Record<string, unknown>;
+    // 如果存在非法 $ref（如未指向 #/$defs/ 的递归占位符），替换为通用对象避免模型网关拒绝
+    if (typeof record.$ref === "string" && !record.$ref.startsWith("#/$defs/")) {
+      delete record.$ref;
+      if (!record.type) {
+        record.type = "object";
+      }
+    }
+    for (const key of Object.keys(record)) {
+      walk(record[key]);
+    }
+  }
+
+  walk(cloned);
+  return cloned;
+}
+
+/**
  * 工具注册中心与沙箱执行器 (ToolRegistry)
  * 负责大模型 Function Calling 的元数据转换、入参校验、执行超时控制与异常隔离
  */
@@ -70,7 +104,7 @@ export class ToolRegistry {
         function: {
           name: t.name,
           description: t.description,
-          parameters: t.parameters as Record<string, unknown>,
+          parameters: sanitizeSchemaForModel(t.parameters),
         },
       }));
   }

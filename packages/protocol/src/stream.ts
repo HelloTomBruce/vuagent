@@ -34,7 +34,7 @@ export {
  */
 export interface UiComponentRenderResult {
   rendered?: boolean;
-  component?: VuagentToolName;
+  component?: VuagentToolName | (string & {});
   props?: Record<string, unknown>;
 }
 

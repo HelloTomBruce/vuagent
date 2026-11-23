@@ -124,16 +124,18 @@ export interface ModelOption {
   id: string;
   label: string;
   meta: string;
+  provider?: string;
+  model?: string;
   /** 模型声明的上下文窗口大小，供 Context 仪表上限展示 */
   contextWindow?: number;
 }
 
 /** 模型配置为空时的兜底展示列表（与原 Console.vue 保持一致） */
 export const AVAILABLE_MODELS: ModelOption[] = [
-  { id: "deepseek-v3", label: "DeepSeek V3", meta: "DeepSeek 官方推理API" },
-  { id: "qwen-2.5-72b", label: "Qwen 2.5 72B", meta: "阿里云通义旗舰" },
-  { id: "claude-3-7-sonnet", label: "Claude 3.7 Sonnet", meta: "Anthropic 旗舰编排" },
-  { id: "ollama-local", label: "Ollama (Local)", meta: "本地部署模型" },
+  { id: "deepseek-v3", label: "DeepSeek V3", meta: "deepseek-chat", provider: "DeepSeek", model: "deepseek-chat" },
+  { id: "qwen-2.5-72b", label: "Qwen 2.5 72B", meta: "qwen-2.5-72b", provider: "通义千问", model: "qwen-2.5-72b-instruct" },
+  { id: "claude-3-7-sonnet", label: "Claude 3.7 Sonnet", meta: "claude-3-7-sonnet", provider: "Anthropic", model: "claude-3-7-sonnet-20250219" },
+  { id: "ollama-local", label: "Ollama (Local)", meta: "llama3:8b", provider: "Ollama 本地", model: "llama3:8b" },
 ];
 
 export interface PermissionMode {

@@ -103,7 +103,7 @@ describe("VaSessionTree SSR", () => {
       }),
     );
     expect(html).toContain("未分组");
-    expect(html).toContain("已被删除");
+    expect(html).toContain("孤儿");
     expect(html).toContain("disabled");
   });
 });

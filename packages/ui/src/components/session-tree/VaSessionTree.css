@@ -169,6 +169,7 @@
 .va-stree__list {
   display: grid;
   grid-template-rows: 1fr;
+  min-width: 0;
 }
 
 .va-stree__list-clip {
@@ -251,13 +252,16 @@
   align-items: center;
   gap: 1px;
   border-radius: var(--va-radius-s, 8px);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .va-stree__session:hover { background: var(--va-bg-subtle, #efede7); }
 .va-stree__session[data-active="true"] { background: var(--va-accent-soft, rgba(194, 65, 12, 0.1)); }
 .va-stree__session[data-archived="true"] { opacity: 0.6; }
 
 .va-stree__session-main {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -270,6 +274,7 @@
   padding: 7px 8px;
   cursor: pointer;
   border-radius: var(--va-radius-s, 8px);
+  overflow: hidden;
 }
 .va-stree__session-main--static { cursor: default; }
 .va-stree__session-main:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; }
@@ -288,10 +293,16 @@
   color: var(--va-accent, #c2410c);
 }
 
-.va-stree__time { flex: none; font-size: var(--va-fs-xs, 11px); color: var(--va-muted, #6f6d66); }
+.va-stree__time {
+  flex: none;
+  font-size: var(--va-fs-xs, 11px);
+  color: var(--va-muted, #6f6d66);
+  white-space: nowrap;
+}
 
 .va-stree__op {
   flex: none;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -377,6 +388,14 @@
 .va-stree[data-hover-ops="true"] .va-stree__session:hover .va-stree__op,
 .va-stree[data-hover-ops="true"] .va-stree__session:focus-within .va-stree__op,
 .va-stree[data-hover-ops="true"] .va-stree__op[data-danger] { display: inline-flex; }
+
+/* 当 hover-ops 下鼠标悬浮或聚焦会话行时，时间让位给操作按钮组，避免横向挤出视区或操作按钮被遮挡 */
+.va-stree[data-hover-ops="true"] .va-stree__session:hover .va-stree__time,
+.va-stree[data-hover-ops="true"] .va-stree__session:focus-within .va-stree__time {
+  display: none;
+}
+
+
 
 /* 树底部操作区（footer 插槽，如设置入口）：margin-top:auto 沉底；
    宿主把 .va-stree 设为滚动容器时 sticky 保证长列表下 footer 恒可见 */

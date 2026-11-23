@@ -103,8 +103,15 @@ export function buildPermissionBlock(
   ].join("\n");
 }
 
-/** 操作纪律块（对标 Codex 失败重试纪律 / Claude Code 行为规范） */
-export function buildDisciplineBlock(): string {
+/** 操作纪律块（对标 Codex 失败重试纪律 / Claude Code 行为规范；支持 concise 精简版向 Pi 对齐） */
+export function buildDisciplineBlock(style: "standard" | "concise" = "standard"): string {
+  if (style === "concise") {
+    return [
+      "## 操作纪律",
+      "- 优先使用非交互式命令（加 -y/--yes、用管道或重定向输入），避免进程挂起等待输入；",
+      "- 忠于真实执行结果：未执行不谎称执行，结合输出与退出码判断真实状态，不盲目死循环重试。",
+    ].join("\n");
+  }
   return [
     "## 操作纪律",
     "1. 同一命令或操作连续失败 2~3 次后停止重试：总结已尝试的方案与失败现象，向用户说明并请示下一步，不要盲目换参数硬试。",
@@ -131,6 +138,10 @@ export interface PromptAssemblyConfig {
   includeEnvironmentBlock?: boolean;
   /** 权限声明块开关（默认 true） */
   includePermissionBlock?: boolean;
+  /** 操作纪律块开关（默认 true） */
+  includeDisciplineBlock?: boolean;
+  /** 操作纪律样式：standard (默认完整版) | concise (精炼极简版，对齐 Pi) */
+  disciplineStyle?: "standard" | "concise";
   /**
    * 显式终态协议开关（execution.finishTaskMode=enforced 时为 true）：
    * 向模型声明「完成必须调用 finish_task 且通过交付断言」的契约块。
@@ -167,7 +178,12 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
   if (includePermission) {
     parts.push(buildPermissionBlock(opts.workspace, opts.effectiveMode));
   }
-  parts.push(buildDisciplineBlock());
+
+  const includeDiscipline = opts.promptConfig?.includeDisciplineBlock ?? true;
+  if (includeDiscipline) {
+    const disciplineStyle = opts.promptConfig?.disciplineStyle ?? "standard";
+    parts.push(buildDisciplineBlock(disciplineStyle));
+  }
 
   // 显式终态协议块（finishTaskMode=enforced）：与引擎侧交付断言同源声明
   if (opts.promptConfig?.finishTaskEnforced) {

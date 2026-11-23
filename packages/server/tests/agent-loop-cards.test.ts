@@ -220,4 +220,56 @@ describe("AgentLoop 工具卡片持久化（TASK-006）", () => {
     expect((turn.cards ?? []).some((c: any) => c.id === "call-call-read-1")).toBe(true);
     expect((turn.cards ?? []).some((c: any) => c.id.startsWith("term-"))).toBe(false);
   });
+
+  it("fs_edit 成功时自然投影 diff 卡片，无需模型调用 ui_code_diff", async () => {
+    const { ws, session, toolRegistry, mockDriver, loop, sessionRepo } =
+      await setup();
+
+    const stubEdit: HarnessTool = {
+      name: "fs_edit",
+      description: "修改文件",
+      parameters: { type: "object", properties: {} },
+      riskLevel: "low",
+      execute: async () => ({ success: true, replaced: 1 }),
+    };
+    toolRegistry.register(stubEdit);
+
+    mockDriver.setScript({
+      steps: [
+        [
+          { type: "text", text: "修改代码。" },
+          {
+            type: "tool_call",
+            id: "call-edit-1",
+            name: "fs_edit",
+            arguments: {
+              filePath: "src/main.ts",
+              oldString: "const a = 1;",
+              newString: "const a = 2;",
+            },
+          },
+        ],
+        [{ type: "text", text: "修改完毕。" }],
+      ],
+    });
+
+    await collect(loop, {
+      workspaceId: ws.id,
+      sessionId: session.id,
+      prompt: "修改",
+    });
+
+    const detail = await sessionRepo.get(session.id);
+    const turn = detail!.turns[detail!.turns.length - 1];
+    const cards = turn.cards ?? [];
+
+    const diffCard = must(cards.find((c: any) => c.id === "diff-call-edit-1"));
+    expect(diffCard).toBeDefined();
+    expect(diffCard.type).toBe("diff");
+    expect(diffCard.data.file).toBe("src/main.ts");
+    expect(diffCard.data.oldCode).toBe("const a = 1;");
+    expect(diffCard.data.newCode).toBe("const a = 2;");
+    expect(diffCard.data.view).toBe("unified");
+    expect(typeof diffCard.data.contentOffset).toBe("number");
+  });
 });

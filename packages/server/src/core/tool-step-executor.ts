@@ -315,6 +315,21 @@ export async function* executeToolCallStep(
       });
     }
 
+    // fs_edit 自然投影：成功编辑时派发代码差异卡片 (Diff)，免除模型调用伪工具 ui_code_diff 的负担
+    if (call.name === "fs_edit" && !isError) {
+      accumulatedCards.push({
+        id: `diff-${call.id}`,
+        type: "diff",
+        data: {
+          file: String(parsedArgs.filePath || ""),
+          oldCode: String(parsedArgs.oldString || ""),
+          newCode: String(parsedArgs.newString || ""),
+          view: "unified",
+          contentOffset: getContentLength(),
+        },
+      });
+    }
+
     // ui_* 契约工具：持久化通用 {component, props} 载荷，前端 CardRenderer 动态分发
     // （审批卡由 HITL 流负责、agent_plan 由 turn.plan 负责此处不重复落卡）
     const renderResult =
