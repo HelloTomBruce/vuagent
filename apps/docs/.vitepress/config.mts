@@ -2,32 +2,75 @@ import { defineConfig } from "vitepress";
 
 export default defineConfig({
   lang: "zh-CN",
-  // GitHub Pages 子路径部署
   base: "/vuagent/",
   title: "Vuagent",
-  description: "Vue 生态第一个 Agent Ops 组件库：计划 / 审批 / 工具调用 / 上下文 / 收件箱",
+  description: "Vue 生态 Agent 运行时与操作层套件：业务快速嵌入、自定义工具/UI、协议解耦对接、工业级 Harness 服务端",
+  head: [
+    ["link", { rel: "icon", href: "/favicon.ico" }],
+  ],
   themeConfig: {
     siteTitle: "Vuagent",
     nav: [
-      { text: "指南", link: "/guide/getting-started" },
-      { text: "Agent Harness", link: "/guide/harness" },
-      { text: "组件", link: "/components/" },
+      { text: "产品定位", link: "/guide/overview" },
+      { text: "接入指南", link: "/guide/getting-started" },
+      { text: "开放协议 (Protocol)", link: "/protocol/overview" },
+      { text: "官方服务端 (Server)", link: "/server/overview" },
+      { text: "组件库", link: "/components/" },
     ],
-    sidebar: [
-      {
-        text: "指南",
-        items: [
-          { text: "快速开始", link: "/guide/getting-started" },
-          { text: "主题化", link: "/guide/theming" },
-          { text: "Overlay 浮层组件", link: "/guide/overlays" },
-        ],
-      },
-      {
-        text: "Agent Harness",
-        items: [{ text: "接入指南", link: "/guide/harness" }],
-      },
-      { text: "组件", items: [{ text: "组件总览", link: "/components/" }] },
+    sidebar: {
+      "/guide/": [
+        {
+          text: "核心理念",
+          items: [
+            { text: "产品定位与架构理念", link: "/guide/overview" },
+            { text: "快速接入现有 Vue 项目", link: "/guide/getting-started" },
+            { text: "接入项目特有工具与自定义 UI", link: "/guide/custom-tools-and-ui" },
+            { text: "主题化与样式定制", link: "/guide/theming" },
+          ],
+        },
+      ],
+      "/protocol/": [
+        {
+          text: "开放契约层",
+          items: [
+            { text: "协议总览与契约设计", link: "/protocol/overview" },
+            { text: "18 个流式事件全集", link: "/protocol/events" },
+            { text: "对接自定义后端 (Python/Go/Java)", link: "/protocol/custom-backend" },
+            { text: "HITL 动作与审批回调", link: "/protocol/actions" },
+          ],
+        },
+      ],
+      "/server/": [
+        {
+          text: "官方 Harness Server",
+          items: [
+            { text: "服务端总体架构", link: "/server/overview" },
+            { text: "执行枢纽与断线重连", link: "/server/execution-hub" },
+            { text: "权限模型与 HITL 协程挂起", link: "/server/permissions-and-hitl" },
+            { text: "Token 预算与上下文治理", link: "/server/context-management" },
+            { text: "部署与生产运维", link: "/server/deployment" },
+          ],
+        },
+      ],
+      "/components/": [
+        {
+          text: "组件参考",
+          items: [
+            { text: "组件总览与分类", link: "/components/" },
+            { text: "Agent-Ops 旗舰组件", link: "/components/agent-ops" },
+            { text: "Chat 对话交互组件", link: "/components/chat" },
+            { text: "基础与浮层组件", link: "/components/overlays" },
+            { text: "反馈与图表可视化", link: "/components/charts" },
+          ],
+        },
+      ],
+    },
+    socialLinks: [
+      { icon: "github", link: "https://github.com/HelloTomBruce/vuagent" },
     ],
-    socialLinks: [{ icon: "github", link: "https://github.com/HelloTomBruce/vuagent" }],
+    footer: {
+      message: "Released under the MIT License.",
+      copyright: "Copyright © 2024-present Vuagent Team",
+    },
   },
 });

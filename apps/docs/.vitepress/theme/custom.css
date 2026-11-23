@@ -18,3 +18,37 @@
   --vp-c-brand-3: var(--va-accent);
   --vp-c-brand-soft: var(--va-accent-soft);
 }
+
+/* 文档组件交互演示容器 */
+.demo-preview {
+  border: 1px solid var(--va-color-border, #e2e8f0);
+  background: var(--va-color-surface, #ffffff);
+  border-radius: 10px;
+  padding: 24px;
+  margin: 16px 0 24px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.dark .demo-preview {
+  background: var(--va-color-surface, #18181b);
+  border-color: var(--va-color-border, #27272a);
+}
+
+.demo-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vp-c-text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.demo-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
