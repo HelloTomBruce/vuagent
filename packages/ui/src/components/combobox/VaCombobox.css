@@ -29,11 +29,13 @@
   right: 9px;
   top: 50%;
   transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
   color: var(--va-muted, #6f6d66);
-  font-size: var(--va-fs-2xs, 10px);
   cursor: pointer;
-  user-select: none;
+  transition: transform var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
+.va-cbx__chev--open { transform: translateY(-50%) rotate(180deg); }
 
 .va-cbx__list,
 .va-cbx__empty {
@@ -100,7 +102,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .va-cbx__input { transition: none; }
+  .va-cbx__input,
+  .va-cbx__chev { transition: none; }
 }
 
 /* 下拉面板显隐过渡：自上方轻滑入淡入（与 VaPopover bottom 放置同构），单文件自含 */

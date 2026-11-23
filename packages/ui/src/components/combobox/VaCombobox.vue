@@ -41,7 +41,20 @@ const displayValue = computed(() => selected.value?.label ?? props.modelValue ??
       @keydown="onInputKeydown"
       @blur="close()"
     >
-    <span class="va-cbx__chev" aria-hidden="true" @mousedown.prevent>{{ open ? "▴" : "▾" }}</span>
+    <svg
+      class="va-cbx__chev"
+      :class="{ 'va-cbx__chev--open': open }"
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      @mousedown.prevent
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
 
     <Transition name="va-cbx-pop">
       <ul

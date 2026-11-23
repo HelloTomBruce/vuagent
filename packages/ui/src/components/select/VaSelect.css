@@ -68,10 +68,14 @@
 }
 
 .va-sel__chev {
+  width: 14px;
+  height: 14px;
+  flex: none;
   color: var(--va-muted, #6f6d66);
-  font-size: var(--va-fs-2xs, 10px);
-  user-select: none;
+  transition: transform var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
+.va-sel--open .va-sel__chev { transform: rotate(180deg); }
+.va-sel--sm .va-sel__chev { width: 12px; height: 12px; }
 
 .va-sel__spinner {
   width: 12px;
@@ -259,4 +263,5 @@
   .va-sel__check { transition: none; }
   .va-sel__spinner { animation: none; }
   .va-sel__list { animation: none; }
+  .va-sel__chev { transition: none; }
 }

@@ -106,7 +106,9 @@ const rootClass = computed(() => [
           </span>
           <span class="va-sel__indicators" aria-hidden="true">
             <span v-if="props.loading" class="va-sel__spinner" />
-            <span v-else class="va-sel__chev">{{ open ? "▴" : "▾" }}</span>
+            <svg v-else class="va-sel__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
           </span>
         </button>
         <button

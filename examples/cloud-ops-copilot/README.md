@@ -25,7 +25,7 @@
 pnpm example:ops
 ```
 
-启动完成后，浏览器访问：**`http://localhost:5174`**。
+启动完成后，浏览器访问：**`http://localhost:6991`**。
 
 ---
 
