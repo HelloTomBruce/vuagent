@@ -9,7 +9,7 @@
  * 本文件只保留：组合式装配、欢迎页 hero 文案与用户动作编排。
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
-import { ArrowDown, Bell, Check, ChevronDown, History, PanelRight, Route, Sparkles } from "lucide-vue-next";
+import { ArrowDown, Bell, ChevronDown, History, PanelRight, Route } from "lucide-vue-next";
 import { formatTokens, useStickToBottom, VaCommandMenu, VaCompactBreakdown, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaNotificationStack, VaPopover, VaQueueDock, VaSegmentedControl, VaSkeleton, VaThinkingLoader, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
 import type { CommandItem, NotificationItem, QueueItem, ComposerAttachment } from "@vuagent/ui";
 import type { ContextPart } from "@vuagent/ui";
@@ -26,12 +26,22 @@ import ToolsPanel from "./console/components/settings/ToolsPanel.vue";
 import ConfigPanel from "./console/components/settings/ConfigPanel.vue";
 import type { SettingsTab } from "./console/components/settings/types";
 import TurnList from "./console/components/TurnList.vue";
+import ReasoningEffortMenu from "./console/components/ReasoningEffortMenu.vue";
 import {
   listSuspendedActions,
   compactSession,
   patchSession,
   fetchWorkspaceFiles,
 } from "./console/api/client";
+import {
+  buildAttachmentPrefix,
+  collectTurnAttachments,
+  collectTurnImages,
+  disposeAttachments,
+  readImageToBase64,
+  snapshotAttachments,
+} from "./console/composables/attachments";
+import type { AttachmentSource } from "./console/composables/attachments";
 import { useApprovals } from "./console/composables/useApprovals";
 import { useConsoleToolsConfig } from "./console/composables/useConsoleToolsConfig";
 import { useChatStream } from "./console/composables/useChatStream";
@@ -195,6 +205,7 @@ const {
   supportsImageInput,
   reasoningEffort,
   setReasoningEffort,
+  migrateSessionEffort,
   reasoningEffortOptions,
   fetchModelProfiles,
   resetModelToDefault,
@@ -435,14 +446,31 @@ const awaitingFirstContent = computed(() => {
 
 /* ---------- 运行中入队（TASK-076 F2：VaQueueDock；composer busy 不拦截 send，宿主自排队） ---------- */
 const messageQueue = ref<QueueItem[]>([]);
+/**
+ * 队列项的附件快照（TASK-082）：入队时随文本保存，flush 消费 / 移除时释放。
+ * QueueItem 类型属 @vuagent/ui（仅 id/text）不可扩展，故宿主侧以 id 侧车存储。
+ */
+const queuedAttachmentSnapshots = new Map<string, AttachmentSource>();
 
-function enqueueMessage(text: string) {
-  messageQueue.value.push({ id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text });
+function enqueueMessage(text: string): QueueItem {
+  const item: QueueItem = { id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text };
+  messageQueue.value.push(item);
   vaToaster.add({ title: "已加入队列", description: "当前会话运行中，结束后自动发送", kind: "info" });
+  return item;
+}
+
+/** 取出并摘除队列项的附件快照（一次性消费语义） */
+function takeQueuedAttachments(id: string): AttachmentSource | undefined {
+  const snap = queuedAttachmentSnapshots.get(id);
+  if (snap) queuedAttachmentSnapshots.delete(id);
+  return snap;
 }
 
 function onQueueRemove(index: number) {
-  messageQueue.value.splice(index, 1);
+  const [item] = messageQueue.value.splice(index, 1);
+  // 随项保存的附件快照一并释放，对象 URL / 缓存不留孤儿
+  const snap = item ? takeQueuedAttachments(item.id) : undefined;
+  if (snap) disposeAttachments(snap);
 }
 
 /** 插队：移动到队首；会话空闲则立即下发 */
@@ -450,7 +478,7 @@ function onQueueSendNow(index: number) {
   const [item] = messageQueue.value.splice(index, 1);
   if (!item) return;
   if (!isRunning.value) {
-    void handleSend(item.text);
+    void handleSend(item.text, item.id);
     return;
   }
   messageQueue.value.unshift(item);
@@ -464,7 +492,7 @@ function onQueueEdit(index: number, text: string) {
 watch(isRunning, (running, prev) => {
   if (prev === true && running === false && messageQueue.value.length > 0 && !isNewChat.value) {
     const next = messageQueue.value.shift();
-    if (next) setTimeout(() => void handleSend(next.text), 400);
+    if (next) setTimeout(() => void handleSend(next.text, next.id), 400);
   }
 });
 
@@ -590,23 +618,11 @@ const imageDatas = new Map<string, { name: string; mediaType: string; data: stri
 /** 尚未读完 base64 的图片 File 引用：发送瞬间补读，杜绝「chip 清了、图没发」的静默丢失 */
 const imageFiles = new Map<string, File>();
 
-/** 读单张图为 base64 存入 imageDatas；读完即释放 File 引用 */
-function readImageToBase64(id: string, file: File): Promise<void> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const m = /^data:([^;]+);base64,(.+)$/.exec(String(reader.result ?? ""));
-      if (m) imageDatas.set(id, { name: file.name, mediaType: m[1], data: m[2] });
-      imageFiles.delete(id);
-      resolve();
-    };
-    reader.onerror = () => {
-      imageFiles.delete(id); // 读取失败：不留死引用，发送侧按缺图处理
-      resolve();
-    };
-    reader.readAsDataURL(file);
-  });
+/** composer 实时附件来源（TASK-082 抽象：与队列项快照同一访问层） */
+function composerAttachmentSource(): AttachmentSource {
+  return { atts: attachments.value, texts: attachmentTexts, images: imageDatas, files: imageFiles };
 }
+
 const ATTACH_INLINE_CAP = 48 * 1024;
 /** 与服务端 /api/chat 校验同口径：类型白名单 / 单张 5MB / 单轮 4 张 */
 const IMAGE_MEDIA_WHITELIST = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
@@ -639,7 +655,7 @@ function onFilesSelected(files: File[]) {
         vaToaster.add({ title: `图片「${f.name}」超过 5MB 上限`, kind: "warning" });
         continue;
       }
-      if ([...attachments.value.filter((a) => a.kind === "image")].length >= IMAGE_MAX_PER_TURN) {
+      if (attachments.value.filter((a) => a.kind === "image").length >= IMAGE_MAX_PER_TURN) {
         vaToaster.add({ title: `单轮最多 ${IMAGE_MAX_PER_TURN} 张图片`, kind: "warning" });
         continue;
       }
@@ -655,11 +671,13 @@ function onFilesSelected(files: File[]) {
     if (isImage) {
       // 读为 base64（视觉通道：随请求 images 字段发送）；发送时若仍未读完会补读
       imageFiles.set(id, f);
-      void readImageToBase64(id, f);
+      void readImageToBase64(id, f, imageDatas, imageFiles);
       continue;
     }
     const reader = new FileReader();
     reader.onload = () => {
+      // chip 已移除 / 所有权已转移（入队快照）时不写回，防陈旧缓存
+      if (!attachments.value.some((a) => a.id === id)) return;
       let content = String(reader.result ?? "");
       if (content.length > ATTACH_INLINE_CAP) {
         content = `${content.slice(0, ATTACH_INLINE_CAP)}\n…（超出 48KB 已截断）`;
@@ -670,59 +688,8 @@ function onFilesSelected(files: File[]) {
   }
 }
 
-function buildAttachmentPrefix(): string {
-  // 图片附件不进 prompt 前缀（视觉通道：经 images 字段组装 content parts）
-  const fileLikes = attachments.value.filter((a) => a.kind !== "image");
-  if (fileLikes.length === 0) return "";
-  const parts: string[] = [];
-  for (const a of fileLikes) {
-    const text = attachmentTexts.get(a.id);
-    parts.push(text ? `---\n[${a.name}]\n${text}\n---` : `[附件] ${a.name}（文件）`);
-  }
-  return parts.join("\n\n") + "\n\n";
-}
-
-/**
- * 收集本轮图片附件（视觉通道 P2）；无图返回 undefined（请求不带 images 字段）。
- * 发送瞬间仍在读取的图片先补读（handleSend 本就是 async）——否则用户
- * 「选完图立刻发送」会遇到 chip 已清而请求不带图的静默丢失。
- */
-/** 本轮附件回显元数据（TASK-050）：图片带 dataUrl（当日真图），文本附件带名字 */
-function collectTurnAttachments(): { name: string; kind: "image" | "file"; size: number; dataUrl?: string }[] {
-  return attachments.value.map((a) => {
-    const size = a.size ?? 0;
-    if (a.kind !== "image") return { name: a.name, kind: "file" as const, size };
-    const d = imageDatas.get(a.id);
-    return {
-      name: a.name,
-      kind: "image" as const,
-      size,
-      ...(d ? { dataUrl: `data:${d.mediaType};base64,${d.data}` } : {}),
-    };
-  });
-}
-
-async function collectTurnImages(): Promise<{ name: string; mediaType: string; data: string }[] | undefined> {
-  const imageAtts = attachments.value.filter((a) => a.kind === "image");
-  if (imageAtts.length === 0) return undefined;
-  await Promise.all(
-    imageAtts
-      .filter((a) => !imageDatas.has(a.id) && imageFiles.has(a.id))
-      .map((a) => readImageToBase64(a.id, imageFiles.get(a.id)!))
-  );
-  const images = imageAtts
-    .map((a) => imageDatas.get(a.id))
-    .filter((x): x is { name: string; mediaType: string; data: string } => !!x);
-  return images.length > 0 ? images : undefined;
-}
-
 function clearAttachments() {
-  for (const a of attachments.value) {
-    if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
-    attachmentTexts.delete(a.id);
-    imageDatas.delete(a.id);
-    imageFiles.delete(a.id);
-  }
+  disposeAttachments(composerAttachmentSource());
   attachments.value = [];
 }
 
@@ -935,15 +902,27 @@ async function onSelectModel(id: string) {
   }
 }
 
-async function handleSend(promptOverride?: string) {
+async function handleSend(promptOverride?: string, queueItemId?: string) {
   // 运行中入队（TASK-076 F2）：composer busy 不拦截 send，宿主排队、结束后自动下发
   if (isRunning.value) {
     const queued = (promptOverride ?? composerText.value).trim();
-    if (queued) enqueueMessage(queued);
+    if (!queued) return;
+    // TASK-082：附件随队列项快照（含未读完图片的 File 引用，flush 时补读），
+    // 快照后清空 composer chip——否则附件既丢在队列外、又错挂到下一条手动发送
+    const snap = queueItemId
+      ? takeQueuedAttachments(queueItemId) // flush 途中被重新入队：快照随迁不丢
+      : promptOverride
+        ? undefined
+        : snapshotAttachments(composerAttachmentSource());
+    const item = enqueueMessage(queued);
+    if (snap) {
+      queuedAttachmentSnapshots.set(item.id, snap);
+      if (!queueItemId && !promptOverride) attachments.value = []; // 所有权已转移给队列项
+    }
     return;
   }
 
-  // 附件内联（仅直接发送路径；队列 flush 走 promptOverride 直传）
+  // 附件内联（仅直接发送路径；队列 flush 走入队快照）
   let prompt = (promptOverride ?? composerText.value).trim();
   // @提及令牌展开：文本中仍存在的已插入引用 → 追加显式块（内联 @path 一并保留可读）
   const mentionBlocks = [...referencedFiles].filter((fp) => prompt.includes(`@${fp}`));
@@ -951,13 +930,21 @@ async function handleSend(promptOverride?: string) {
     prompt += mentionBlocks.map((fp) => `\n\n[@引用文件] ${fp}`).join("");
     for (const fp of mentionBlocks) referencedFiles.delete(fp);
   }
+  // 附件来源（TASK-082）：直发读 composer 实时态；队列 flush 读入队快照。
   // 图片先收集再清（视觉通道 P2：随请求 images 字段发送；含未读完的补读）
-  const turnImages = promptOverride ? undefined : await collectTurnImages();
-  const turnAttachments = promptOverride ? undefined : collectTurnAttachments();
+  const queuedSnap = queueItemId ? takeQueuedAttachments(queueItemId) : undefined;
+  const attachSrc = queuedSnap ?? composerAttachmentSource();
+  const skipAttachments = !!promptOverride && !queuedSnap; // 无快照的 promptOverride 路径不带附件（如重发）
+  const turnImages = skipAttachments ? undefined : await collectTurnImages(attachSrc);
+  const turnAttachments = skipAttachments ? undefined : collectTurnAttachments(attachSrc);
   if (!promptOverride && attachments.value.length > 0) {
-    const prefix = buildAttachmentPrefix();
+    const prefix = buildAttachmentPrefix(attachSrc);
     prompt = prompt ? `${prefix}${prompt}` : prefix.trim();
     clearAttachments();
+  } else if (queuedSnap) {
+    const prefix = buildAttachmentPrefix(queuedSnap);
+    if (prefix) prompt = prompt ? `${prefix}${prompt}` : prefix.trim();
+    disposeAttachments(queuedSnap); // 快照已消费：释放对象 URL / 缓存
   }
   if (!prompt) return;
 
@@ -976,6 +963,9 @@ async function handleSend(promptOverride?: string) {
     if (newSess) {
       currentSessionId = newSess.id;
       isNewChat.value = false;
+      // TASK-081：草稿槽（"" 键）已选档位随会话创建迁移到新会话 id——
+      // 否则 sendPrompt 读取 reasoningEffort 时按新 id 求值无槽回落默认，选择静默丢失
+      migrateSessionEffort("", newSess.id);
     }
   }
 
@@ -1142,33 +1132,14 @@ function quickFillPrompt(text: string) {
                   </div>
                 </VaPopover>
 
-                <!-- 推理档位（能力运行时 P1）：仅当模型声明 supportedEfforts 时渲染；切模型自动回落 defaultEffort -->
-                <VaPopover v-if="reasoningEffortOptions.length" placement="top-start" :offset="8">
-                  <template #trigger>
-                    <button class="va-console__seat-btn" type="button" :aria-label="`推理档位（当前 ${reasoningEffort}）`">
-                      <Sparkles :size="12" aria-hidden="true" />
-                      <span class="va-console__seat-text">思考: {{ reasoningEffort }}</span>
-                      <ChevronDown :size="11" aria-hidden="true" />
-                    </button>
-                  </template>
-                  <template #default="{ close }">
-                    <div class="va-console__effort-menu" role="menu" aria-label="推理档位">
-                      <button
-                        v-for="opt in reasoningEffortOptions"
-                        :key="opt"
-                        class="va-console__effort-item"
-                        type="button"
-                        role="menuitem"
-                        :data-active="opt === reasoningEffort || undefined"
-                        @click="setReasoningEffort(opt); close()"
-                      >
-                        <Check v-if="opt === reasoningEffort" :size="13" aria-hidden="true" />
-                        <span v-else class="va-console__effort-gap" aria-hidden="true" />
-                        <span>{{ opt }}</span>
-                      </button>
-                    </div>
-                  </template>
-                </VaPopover>
+                <!-- 推理档位（能力运行时 P1）：仅当模型声明 supportedEfforts 时渲染；
+                     读取侧兜底——会话未选择回落 defaultEffort，切模型后旧值非法同样回落 -->
+                <ReasoningEffortMenu
+                  v-if="reasoningEffortOptions.length"
+                  :options="reasoningEffortOptions"
+                  :model-value="reasoningEffort"
+                  @select="setReasoningEffort"
+                />
               </template>
               <template #trailing>
                 <ComposerMenu
@@ -1340,33 +1311,14 @@ function quickFillPrompt(text: string) {
                 </div>
               </VaPopover>
 
-              <!-- 推理档位（能力运行时 P1）：仅当模型声明 supportedEfforts 时渲染；切模型自动回落 defaultEffort -->
-              <VaPopover v-if="reasoningEffortOptions.length" placement="top-start" :offset="8">
-                <template #trigger>
-                  <button class="va-console__seat-btn" type="button" :aria-label="`推理档位（当前 ${reasoningEffort}）`">
-                    <Sparkles :size="12" aria-hidden="true" />
-                    <span class="va-console__seat-text">思考: {{ reasoningEffort }}</span>
-                    <ChevronDown :size="11" aria-hidden="true" />
-                  </button>
-                </template>
-                <template #default="{ close }">
-                  <div class="va-console__effort-menu" role="menu" aria-label="推理档位">
-                    <button
-                      v-for="opt in reasoningEffortOptions"
-                      :key="opt"
-                      class="va-console__effort-item"
-                      type="button"
-                      role="menuitem"
-                      :data-active="opt === reasoningEffort || undefined"
-                      @click="setReasoningEffort(opt); close()"
-                    >
-                      <Check v-if="opt === reasoningEffort" :size="13" aria-hidden="true" />
-                      <span v-else class="va-console__effort-gap" aria-hidden="true" />
-                      <span>{{ opt }}</span>
-                    </button>
-                  </div>
-                </template>
-              </VaPopover>
+              <!-- 推理档位（能力运行时 P1）：仅当模型声明 supportedEfforts 时渲染；
+                   读取侧兜底——会话未选择回落 defaultEffort，切模型后旧值非法同样回落 -->
+              <ReasoningEffortMenu
+                v-if="reasoningEffortOptions.length"
+                :options="reasoningEffortOptions"
+                :model-value="reasoningEffort"
+                @select="setReasoningEffort"
+              />
             </template>
             <template #trailing>
               <ComposerMenu

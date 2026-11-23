@@ -26,12 +26,9 @@ import {
   updateModelProfileApi,
   updateProviderApi,
 } from "../api/client";
-import type { DetectedModelInfo, ProviderPayload } from "../api/client";
+import type { CapabilityVerdict, DetectedModelInfo, ProviderPayload } from "../api/client";
 import { vaConfirm, vaToaster } from "@vuagent/ui";
 import { AVAILABLE_MODELS, DEFAULT_MODEL_FORM, PROVIDER_PRESETS } from "../types";
-import type {
-  CapabilityVerdict,
-} from "../api/client";
 import type {
   ModelCapabilities,
   ModelOption,
@@ -145,6 +142,20 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
 
   function setReasoningEffort(effort: string): void {
     sessionEfforts.set(options.getSessionId?.() ?? "", effort);
+  }
+
+  /**
+   * 草稿槽迁移（TASK-081）：新建态写入 "" 槽的档位，在会话创建成功后迁移到
+   * 新 sessionId——否则读取侧按新 id 求值无槽回落 defaultEffort，用户在
+   * 新会话首条消息前已选的档位会被静默丢弃（UI 同步跳回默认）。
+   * 目标槽已有显式选择时不覆盖（防御重复调用 / 竞态下保留目标侧用户意图）。
+   */
+  function migrateSessionEffort(fromId: string, toId: string): void {
+    if (!toId || fromId === toId) return;
+    const stored = sessionEfforts.get(fromId);
+    if (stored === undefined) return;
+    if (!sessionEfforts.has(toId)) sessionEfforts.set(toId, stored);
+    sessionEfforts.delete(fromId);
   }
 
 
@@ -573,8 +584,8 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
           vaToaster.add({ title: res.note || "未勾选可探测能力", kind: "info" });
         }
       }
-    } catch (e: any) {
-      vaToaster.add({ title: `验证失败: ${e.message || String(e)}`, kind: "danger" });
+    } catch (e: unknown) {
+      vaToaster.add({ title: `验证失败: ${e instanceof Error ? e.message : String(e)}`, kind: "danger" });
     } finally {
       isVerifyingCapabilities.value = false;
     }
@@ -661,6 +672,7 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
     /* 推理档位（能力运行时 P1，TASK-052 会话级隔离） */
     reasoningEffort,
     setReasoningEffort,
+    migrateSessionEffort,
     reasoningEffortOptions,
     defaultModelId,
     resetModelToDefault,

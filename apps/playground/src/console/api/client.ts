@@ -71,6 +71,8 @@ export interface ChatRequestBody {
   reasoningEffort?: string;
   /** 图片附件（能力运行时 P2）：base64 无前缀；能力门禁与结构校验在服务端 */
   images?: Array<{ name: string; mediaType: string; data: string }>;
+  /** 附件回显元数据（TASK-050）：轻量 name/kind/size（不含 dataUrl），服务端白名单校验后落库 */
+  attachments?: Array<{ name: string; kind: "image" | "file"; size: number }>;
 }
 
 export interface PickDirectoryResult extends Partial<WorkspaceItem> {

@@ -256,16 +256,10 @@ export function useChatStream(options: ChatStreamOptions) {
       permission: opts.permission,
       reasoningEffort: opts.reasoningEffort,
       images: opts.images,
-      // 落库元数据剥离 dataUrl（服务端不存内容）
-      ...(opts.attachments?.length
-        ? {
-            attachments: opts.attachments.map(({ name, kind, size }) => ({
-              name,
-              kind,
-              size,
-            })),
-          }
-        : {}),
+      // 落库元数据剥离 dataUrl（服务端不存内容）；JSON 序列化自动丢弃 undefined
+      attachments: opts.attachments?.length
+        ? opts.attachments.map(({ name, kind, size }) => ({ name, kind, size }))
+        : undefined,
     });
   }
 

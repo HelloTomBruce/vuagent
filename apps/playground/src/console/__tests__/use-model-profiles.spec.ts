@@ -214,3 +214,71 @@ describe("useModelProfiles：档位会话级隔离（TASK-052）", () => {
     expect(m.reasoningEffort.value).toBe("");
   });
 });
+
+describe("useModelProfiles：草稿槽迁移（TASK-081）", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const CAPS = {
+    reasoning: { supported: true, supportedEfforts: ["low", "medium", "high"], defaultEffort: "medium" },
+  };
+
+  function loadWithCaps() {
+    vi.mocked(listProviders).mockResolvedValue([
+      {
+        id: "p1", name: "P", provider: "custom",
+        models: [{ id: "m-r", providerId: "p1", name: "R", provider: "custom", model: "r", isDefault: true, capabilities: CAPS }],
+      },
+    ]);
+  }
+
+  it("新建态选档后会话创建：档位从 \"\" 槽迁移到新 sessionId，不回落默认", async () => {
+    loadWithCaps();
+    // 模拟 Console 的 draft→created：新建态 getSessionId() = ""，建会话后变为新 id
+    const currentSession = ref("");
+    const m = useModelProfiles({ getSessionId: () => currentSession.value });
+    await m.loadProviders();
+
+    m.setReasoningEffort("high"); // 草稿态选择落 "" 槽
+    expect(m.reasoningEffort.value).toBe("high");
+
+    // 修复前：会话创建后按新 id 读取 → 无槽回落 "medium"，首条消息静默丢档
+    m.migrateSessionEffort("", "sess-new");
+    currentSession.value = "sess-new";
+    expect(m.reasoningEffort.value).toBe("high");
+  });
+
+  it("目标槽已有显式选择时不被草稿值覆盖；源槽迁移后清空", async () => {
+    loadWithCaps();
+    const currentSession = ref("");
+    const m = useModelProfiles({ getSessionId: () => currentSession.value });
+    await m.loadProviders();
+
+    m.setReasoningEffort("high"); // "" 槽草稿值
+    currentSession.value = "sess-new";
+    m.setReasoningEffort("low"); // 目标槽已有显式选择
+
+    m.migrateSessionEffort("", "sess-new");
+    expect(m.reasoningEffort.value).toBe("low"); // 不覆盖目标槽
+
+    // 源槽已清空：切回新建态回落 defaultEffort 而非旧草稿值
+    currentSession.value = "";
+    expect(m.reasoningEffort.value).toBe("medium");
+  });
+
+  it("空槽迁移 / 自迁移是幂等无操作", async () => {
+    loadWithCaps();
+    const currentSession = ref("");
+    const m = useModelProfiles({ getSessionId: () => currentSession.value });
+    await m.loadProviders();
+
+    m.migrateSessionEffort("", "sess-new"); // "" 槽未写过：无操作
+    currentSession.value = "sess-new";
+    expect(m.reasoningEffort.value).toBe("medium"); // defaultEffort
+
+    m.setReasoningEffort("high");
+    m.migrateSessionEffort("sess-new", "sess-new"); // 自迁移：值保留
+    expect(m.reasoningEffort.value).toBe("high");
+  });
+});

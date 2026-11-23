@@ -25,7 +25,7 @@ defineEmits<{
         <div class="va-console__user-bubble">
           <!-- 附件回显（TASK-050）：当日真图 / 历史占位 / 文本附件 chip -->
           <div v-if="turn.attachments?.length" class="va-console__user-atts">
-            <template v-for="att in turn.attachments" :key="att.name + att.size">
+            <template v-for="(att, attIdx) in turn.attachments" :key="`${att.name}:${att.size}:${attIdx}`">
               <a
                 v-if="att.kind === 'image' && att.dataUrl"
                 :href="att.dataUrl"
