@@ -34,6 +34,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Build @vuagent/ui（主题 styles.css 依赖 dist 产物）
+        run: pnpm --filter @vuagent/ui build
+
       - name: Build docs
         run: pnpm docs:build
 
