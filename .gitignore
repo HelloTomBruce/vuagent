@@ -21,3 +21,5 @@ apps/ag-ui-langgraph/workspaces/
 # VitePress cache
 .vitepress/cache/
 **/.vitepress/cache/
+tasks/
+.zcode
