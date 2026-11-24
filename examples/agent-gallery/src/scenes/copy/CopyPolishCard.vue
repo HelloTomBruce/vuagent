@@ -7,6 +7,7 @@ export interface CopyPolishProps {
   revised?: string;
   style?: string;
   notes?: string[];
+  predicted?: { ctrDelta?: string; readability?: string };
 }
 
 withDefaults(defineProps<CopyPolishProps>(), {
@@ -14,6 +15,7 @@ withDefaults(defineProps<CopyPolishProps>(), {
   revised: "",
   style: "冲击力",
   notes: () => [],
+  predicted: undefined,
 });
 </script>
 
@@ -28,6 +30,11 @@ withDefaults(defineProps<CopyPolishProps>(), {
     </div>
 
     <VaInlineDiff :original="original" :revised="revised" />
+
+    <div v-if="predicted" class="polish-card__predict">
+      <span>📈 预估点击率 <b>{{ predicted.ctrDelta }}</b></span>
+      <span>📖 可读性 <b>{{ predicted.readability }}</b></span>
+    </div>
 
     <div v-if="notes?.length" class="polish-card__notes">
       <div class="polish-card__sec"><Lightbulb :size="12" /> 改写说明</div>
@@ -53,6 +60,12 @@ withDefaults(defineProps<CopyPolishProps>(), {
 .polish-card__head svg { color: var(--gv-accent); margin-top: 2px; }
 .polish-card__title { font-size: 13px; font-weight: 600; }
 .polish-card__meta { font-size: 11px; color: var(--gv-muted); margin-top: 2px; }
+
+.polish-card__predict {
+  display: flex; gap: 16px; font-size: 11px; color: var(--gv-muted);
+  background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 7px 12px;
+}
+.polish-card__predict b { color: #15803d; font-family: var(--va-font-mono, monospace); }
 
 .polish-card__notes { background: var(--va-bg-subtle, #faf9f7); border-radius: 8px; padding: 10px 12px; }
 .polish-card__sec { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--gv-muted); margin-bottom: 6px; }

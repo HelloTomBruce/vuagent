@@ -27,15 +27,19 @@ const emit = defineEmits<{ (e: "quick", prompt: string): void }>();
     <div class="flow">
       <div class="flow-step">
         <span class="flow-num">1</span>
-        <div><b>生成重构预览</b><p>返回文件树 + diff 卡片，只读不落盘</p></div>
+        <div><b>生成重构预览</b><p>文件树 + 逐文件 diff 卡片，只读不落盘</p></div>
       </div>
       <div class="flow-step">
         <span class="flow-num">2</span>
-        <div><b>应用重构（审批）</b><p>高危写操作 → 安全引擎挂起 → 人工批准</p></div>
+        <div><b>跑验证测试</b><p>失败用例自动修复重跑，终端日志卡留痕</p></div>
       </div>
       <div class="flow-step">
         <span class="flow-num">3</span>
-        <div><b>检查点就绪</b><p>自动生成检查点，diff 预览 + 一键回滚</p></div>
+        <div><b>应用重构（审批）</b><p>高危写操作 → 安全引擎挂起 → 人工批准</p></div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-num">4</span>
+        <div><b>检查点就绪</b><p>行上可预览 diff、一键触发回滚</p></div>
       </div>
     </div>
 

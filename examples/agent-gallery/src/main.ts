@@ -6,22 +6,30 @@ import { registerCardComponent } from "@vuagent/ui";
 
 import ClusterHealthCard from "./scenes/cloudops/ClusterHealthCard.vue";
 import CanaryDeployCard from "./scenes/cloudops/CanaryDeployCard.vue";
+import IncidentTimelineCard from "./scenes/cloudops/IncidentTimelineCard.vue";
 import AnalysisPlanCard from "./scenes/analysis/AnalysisPlanCard.vue";
 import AnalysisReportCard from "./scenes/analysis/AnalysisReportCard.vue";
+import AnalysisTableCard from "./scenes/analysis/AnalysisTableCard.vue";
 import CodeChangeCard from "./scenes/code/CodeChangeCard.vue";
 import CodeCheckpointCard from "./scenes/code/CodeCheckpointCard.vue";
+import CodeTestsCard from "./scenes/code/CodeTestsCard.vue";
 import CopyPolishCard from "./scenes/copy/CopyPolishCard.vue";
+import CopyVariantsCard from "./scenes/copy/CopyVariantsCard.vue";
 import TaskInboxCard from "./scenes/tasks/TaskInboxCard.vue";
 import TaskLogCard from "./scenes/tasks/TaskLogCard.vue";
 
 // 注册全部场景的 Generative UI 卡片：模型调用工具返回组件标识时，由消息流动态挂载
 registerCardComponent("ui_cluster_health", ClusterHealthCard);
 registerCardComponent("ui_canary_deploy", CanaryDeployCard);
+registerCardComponent("ui_incident_timeline", IncidentTimelineCard);
 registerCardComponent("ui_analysis_plan", AnalysisPlanCard);
 registerCardComponent("ui_analysis_report", AnalysisReportCard);
+registerCardComponent("ui_analysis_table", AnalysisTableCard);
 registerCardComponent("ui_code_change", CodeChangeCard);
 registerCardComponent("ui_code_checkpoint", CodeCheckpointCard);
+registerCardComponent("ui_code_tests", CodeTestsCard);
 registerCardComponent("ui_copy_polish", CopyPolishCard);
+registerCardComponent("ui_copy_variants", CopyVariantsCard);
 registerCardComponent("ui_task_inbox", TaskInboxCard);
 registerCardComponent("ui_task_log", TaskLogCard);
 

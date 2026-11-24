@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { Server, Activity, AlertTriangle, Cpu, HardDrive, ShieldCheck } from "lucide-vue-next";
+import { Server, Activity, AlertTriangle, Cpu, HardDrive, ShieldCheck, Zap } from "lucide-vue-next";
+import { VaKpiChart } from "@vuagent/ui";
 
 export interface PodItem {
   name: string;
@@ -19,6 +20,9 @@ export interface ClusterHealthProps {
   status?: "healthy" | "degraded" | "critical" | string;
   cpuUsage?: string;
   memoryUsage?: string;
+  cpuSeries?: number[];
+  memSeries?: number[];
+  slo?: { availability?: string; errorBudget?: string; p99Latency?: string };
   replicaSummary?: string;
   pods?: PodItem[];
   alerts?: string[];
@@ -33,6 +37,9 @@ const props = withDefaults(defineProps<ClusterHealthProps>(), {
   status: "degraded",
   cpuUsage: "78%",
   memoryUsage: "94%",
+  cpuSeries: () => [],
+  memSeries: () => [],
+  slo: undefined,
   replicaSummary: "2/2 Ready",
   pods: () => [],
   alerts: () => [],
@@ -41,15 +48,16 @@ const props = withDefaults(defineProps<ClusterHealthProps>(), {
 
 const emit = defineEmits<{
   (e: "action", payload: { action: string; targetReplicas: number }): void;
+  /** 卡片内交互回传：按钮直接驱动下一轮 agent 调用 */
+  (e: "quick", prompt: string): void;
 }>();
 
 const isDegraded = computed(() => props.status === "degraded" || props.status === "critical");
+const cpuVal = computed(() => parseInt(props.cpuUsage) || 0);
+const memVal = computed(() => parseInt(props.memoryUsage) || 0);
 
 function handleQuickScale() {
-  emit("action", {
-    action: "scale",
-    targetReplicas: 5,
-  });
+  emit("quick", `请调用 ops_scale_replicas 工具将 ${props.serviceName} 扩容至 5 个副本以分流负载`);
 }
 </script>
 
@@ -105,6 +113,24 @@ function handleQuickScale() {
       </div>
     </div>
 
+    <!-- 资源趋势（近 12 个采样点）与 SLO 水位 -->
+    <div v-if="cpuSeries?.length" class="ops-cluster-card__trends">
+      <VaKpiChart label="CPU 趋势 (%)" :value="cpuVal" :series="cpuSeries" :width="170" :height="34" />
+      <VaKpiChart
+        label="内存趋势 (%)"
+        :value="memVal"
+        :series="memSeries"
+        :width="170"
+        :height="34"
+        color="#dc2626"
+      />
+      <div v-if="slo" class="ops-slo-box">
+        <div class="ops-slo-row"><span>可用性 SLO</span><b>{{ slo.availability }}</b></div>
+        <div class="ops-slo-row"><span>错误预算</span><b class="text-danger">{{ slo.errorBudget }}</b></div>
+        <div class="ops-slo-row"><span>P99 延迟</span><b>{{ slo.p99Latency }}</b></div>
+      </div>
+    </div>
+
     <!-- Pod 实例拓扑列表 -->
     <div v-if="pods && pods.length > 0" class="ops-cluster-card__pods-sec">
       <div class="ops-section-title">
@@ -140,12 +166,16 @@ function handleQuickScale() {
       </div>
     </div>
 
-    <!-- 底部快捷动作（可选交互） -->
+    <!-- 底部快捷动作：卡片内交互回传，直接驱动下一轮 agent 调用 -->
     <div v-if="!readonly" class="ops-cluster-card__footer">
       <div class="ops-footer-hint">
         <ShieldCheck :size="13" />
-        <span>建议在下方输入：扩容该微服务以分流负载</span>
+        <span>内存超 SLO 预算，建议水平扩容</span>
       </div>
+      <button type="button" class="ops-scale-btn" @click="handleQuickScale">
+        <Zap :size="12" />
+        一键建议扩容至 5 副本
+      </button>
     </div>
   </div>
 </template>
@@ -388,6 +418,36 @@ function handleQuickScale() {
   border-top: 1px solid #f1f5f9;
   padding-top: 8px;
 }
+
+.ops-cluster-card__trends {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.ops-slo-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  font-size: 10px;
+}
+
+.ops-slo-row { display: flex; justify-content: space-between; gap: 6px; color: #64748b; }
+.ops-slo-row b { font-family: var(--va-font-mono, monospace); color: #1e293b; font-weight: 600; }
+
+.ops-scale-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid #fca5a5; background: #fff5f5; color: #dc2626;
+  font-size: 11px; font-weight: 600; padding: 5px 10px;
+  border-radius: 6px; cursor: pointer; transition: all 0.15s;
+}
+.ops-scale-btn:hover { background: #fee2e2; }
 
 .ops-footer-hint {
   display: flex;

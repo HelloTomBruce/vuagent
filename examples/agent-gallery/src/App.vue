@@ -112,11 +112,13 @@ const isDrawerOpen = ref(true);
             @update:thought-expanded="(val: boolean) => (turn.showThought = val)"
           >
             <div v-if="turn.cards.length" class="drawer__cards">
+              <!-- 卡片内交互回传：卡片 emit quick(prompt) 直接驱动下一轮 agent 调用 -->
               <component
                 :is="getCardComponent(card.component)"
                 v-for="card in turn.cards"
                 :key="card.id"
                 v-bind="card.props"
+                @quick="(prompt: string) => chat.send(prompt)"
               />
             </div>
 
