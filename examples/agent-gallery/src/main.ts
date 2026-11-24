@@ -10,8 +10,6 @@ import IncidentTimelineCard from "./scenes/cloudops/IncidentTimelineCard.vue";
 import AnalysisPlanCard from "./scenes/analysis/AnalysisPlanCard.vue";
 import AnalysisReportCard from "./scenes/analysis/AnalysisReportCard.vue";
 import AnalysisTableCard from "./scenes/analysis/AnalysisTableCard.vue";
-import CopyPolishCard from "./scenes/copy/CopyPolishCard.vue";
-import CopyVariantsCard from "./scenes/copy/CopyVariantsCard.vue";
 import TaskInboxCard from "./scenes/tasks/TaskInboxCard.vue";
 import TaskLogCard from "./scenes/tasks/TaskLogCard.vue";
 
@@ -22,8 +20,6 @@ registerCardComponent("ui_incident_timeline", IncidentTimelineCard);
 registerCardComponent("ui_analysis_plan", AnalysisPlanCard);
 registerCardComponent("ui_analysis_report", AnalysisReportCard);
 registerCardComponent("ui_analysis_table", AnalysisTableCard);
-registerCardComponent("ui_copy_polish", CopyPolishCard);
-registerCardComponent("ui_copy_variants", CopyVariantsCard);
 registerCardComponent("ui_task_inbox", TaskInboxCard);
 registerCardComponent("ui_task_log", TaskLogCard);
 

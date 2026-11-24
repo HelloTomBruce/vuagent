@@ -1,7 +1,6 @@
 import type { SceneDef } from "./types";
 import CloudOpsHost from "./cloudops/Host.vue";
 import AnalysisHost from "./analysis/Host.vue";
-import CopyHost from "./copy/Host.vue";
 import TasksHost from "./tasks/Host.vue";
 
 /**
@@ -35,20 +34,8 @@ export const SCENES: SceneDef[] = [
     host: AnalysisHost,
   },
   {
-    id: "copy",
-    label: "③ 文案精修台",
-    tagline: "三种风格变体 → 点选精修 → 行内逐词采纳",
-    greeting:
-      "你好！这里是文案精修场景。可以让 agent 先出三种风格变体，点选任一变体后会生成可逐词采纳的精修 diff——改稿权始终在你手里：",
-    chips: [
-      { label: "🎭 生成三种风格变体", prompt: "请调用 copy_variants 工具，为这段产品发布文案生成三种风格变体：我们致力于打造行业领先的智能客服平台，通过非常强大的 AI 能力，为大家进行了全链路的服务体验提升和改进。" },
-      { label: "✨ 直接按冲击力精修", prompt: "请调用 copy_polish 工具，按「冲击力」风格精修这段文案：我们致力于打造行业领先的智能客服平台，通过非常强大的 AI 能力，为大家进行了全链路的服务体验提升和改进。平台支持多渠道接入，可以帮助您快速搭建属于自己的客服体系。" },
-    ],
-    host: CopyHost,
-  },
-  {
     id: "tasks",
-    label: "④ 后台任务管家",
+    label: "③ 后台任务管家",
     tagline: "有状态仿真：进度与日志随真实时间演进",
     greeting:
       "你好！这里是后台任务场景。回填集群启动后会在后台真实推进——隔几秒再点「跟踪日志」，你会看到新内容和进度变化；出错的任务可以点「修复」看收件箱状态演进：",
