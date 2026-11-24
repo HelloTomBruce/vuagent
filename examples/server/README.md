@@ -6,7 +6,7 @@
 
 ## 📖 定位
 
-这是 `examples/` 目录下所有前端案例（如 [`cloud-ops-copilot`](../cloud-ops-copilot/README.md)）共用的**执行引擎进程**：
+这是 `examples/` 目录下所有前端案例（如 [`agent-gallery`](../agent-gallery/) 场景画廊）共用的**执行引擎进程**：
 
 - 基于 `@vuagent/server` 的 `createHarnessServer` 启动一个完整的 Agent Harness（ReAct 循环、SSE 事件流、HITL 审批挂起、会话检查点）；
 - 通过 `customTools` 注册各案例所需的**场景自定义工具**（Custom Tools），并展示如何用 `HarnessTool` + TypeBox 声明工具契约；
@@ -20,8 +20,8 @@
 # 方式一：仅启动 Example Server（http://localhost:6881）
 pnpm example:server
 
-# 方式二：随案例一键启动（Server + cloud-ops-copilot 前端）
-pnpm example:ops
+# 方式二：随案例一键启动（Server + agent-gallery 前端，含全部场景）
+pnpm example:gallery
 ```
 
 其它脚本：

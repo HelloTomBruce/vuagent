@@ -28,8 +28,6 @@ const { app } = createHarnessServer({
     // 允许前端覆盖或者自备模型
     allowByoProvider: true,
     extraOrigins: [
-      "http://localhost:6991",
-      "http://127.0.0.1:6991",
       "http://localhost:6992",
       "http://127.0.0.1:6992",
       "http://localhost:6995",
