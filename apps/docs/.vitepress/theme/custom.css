@@ -52,3 +52,31 @@
   gap: 12px;
   align-items: center;
 }
+
+/* ==========================================================
+   落地页（index.md, layout: home）全出血布局：
+   解除 VP 内容容器的最大宽度与内边距，让 landing 区块通栏铺满；
+   仅作用于 home 布局，不影响文档阅读页。
+   ========================================================== */
+.VPContent.is-home .container,
+.VPContent.is-home .container .main {
+  max-width: 100%;
+  padding-left: 0;
+  padding-right: 0;
+}
+.VPContent.is-home .vp-doc {
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
+}
+.VPContent.is-home .vp-doc > div {
+  padding: 0;
+  margin: 0;
+}
+/* 落地页区块紧贴导航栏（去掉 home 布局的顶部留白） */
+.VPContent.is-home { padding-top: 0 !important; }
+.VPContent.is-home .VPHome { padding-bottom: 0; }
+
+/* 落地页深色 Hero 上导航需实底可读：导航栏全局实底 */
+.VPNavBar { background-color: var(--vp-c-bg) !important; }
+.VPNavBar .divider { background-color: transparent; }

@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="zh-CN" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>vuagent — Hero 总宣传片</title>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <style>
+      :root {
+        --ground-light: #f7f6f2;
+        --ground-dark: #141311;
+        --ink: #1a1917;
+        --ink-soft: #43413c;
+        --ink-muted: #6f6d66;
+        --ink-inverse: #f0eee9;
+        --accent: #c2410c;
+        --accent-soft: rgba(194, 65, 12, 0.1);
+        --success: #1a7f4b;
+        --danger: #d5453c;
+        --card: #ffffff;
+        --edge: rgba(26, 25, 23, 0.12);
+        --font-display: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, "Segoe UI", sans-serif;
+        --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--ground-light);
+        font-family: var(--font-display);
+      }
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+      }
+      .clip {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+      }
+      /* 全屏底色放在全出血子元素上（不放在 composition root 上） */
+      .fill { position: absolute; inset: 0; }
+      .fill-light { background: var(--ground-light); }
+      .fill-dark { background: var(--ground-dark); }
+
+      .stage-inner {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0 140px;
+      }
+
+      /* ---- 场景 1 痛点 ---- */
+      .s1-line {
+        font-size: 64px;
+        font-weight: 700;
+        color: var(--ink-inverse);
+        letter-spacing: 0.01em;
+        line-height: 1.35;
+      }
+      .s1-line--accent { color: #e8925e; font-size: 84px; }
+      .s1-sub {
+        margin-top: 42px;
+        font-size: 24px;
+        color: rgba(240, 238, 233, 0.55);
+        letter-spacing: 0.06em;
+      }
+      .s1-rule {
+        width: 96px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--accent);
+        margin: 36px auto 0;
+      }
+
+      /* ---- 场景 2 品牌 ---- */
+      .s2-mark { width: 132px; height: 132px; display: block; }
+      .s2-word {
+        margin-top: 28px;
+        font-size: 96px;
+        font-weight: 800;
+        color: var(--ink);
+        letter-spacing: -0.02em;
+      }
+      .s2-word .dot { color: var(--accent); }
+      .s2-bar {
+        width: 148px;
+        height: 6px;
+        border-radius: 3px;
+        background: var(--accent);
+        margin: 30px auto 0;
+      }
+      .s2-tagline {
+        margin-top: 30px;
+        font-size: 34px;
+        font-weight: 600;
+        color: var(--ink-soft);
+      }
+      .s2-sub {
+        margin-top: 16px;
+        font-size: 20px;
+        color: var(--ink-muted);
+        letter-spacing: 0.08em;
+      }
+
+      /* ---- 场景 3 三包架构 ---- */
+      .s3-row { display: flex; align-items: stretch; gap: 0; }
+      .s3-card {
+        width: 430px;
+        min-height: 300px;
+        background: var(--card);
+        border: 1px solid var(--edge);
+        border-radius: 18px;
+        padding: 30px 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        box-shadow: 0 12px 40px rgba(26, 25, 23, 0.08);
+      }
+      .s3-card__pkg {
+        display: inline-flex;
+        width: fit-content;
+        font-family: var(--font-mono);
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--accent);
+        background: var(--accent-soft);
+        border-radius: 999px;
+        padding: 5px 14px;
+      }
+      .s3-card__title { font-size: 30px; font-weight: 700; color: var(--ink); }
+      .s3-card__desc { font-size: 17px; color: var(--ink-muted); line-height: 1.7; }
+      .s3-arrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 70px;
+        font-size: 34px;
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .s3-caption {
+        margin-top: 46px;
+        font-size: 30px;
+        font-weight: 600;
+        color: var(--ink-soft);
+        letter-spacing: 0.04em;
+      }
+
+      /* ---- 截帧设备框 ---- */
+      .shot-frame {
+        position: relative;
+        width: 1560px;
+        height: 830px;
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid var(--edge);
+        box-shadow: 0 30px 90px rgba(26, 25, 23, 0.22), 0 4px 18px rgba(26, 25, 23, 0.1);
+        background: #ffffff;
+      }
+      .shot-frame img.shot {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: left center;
+      }
+      .scene-caption {
+        position: absolute;
+        left: 140px;
+        top: 74px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .scene-caption .k {
+        font-family: var(--font-mono);
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: var(--accent);
+      }
+      .scene-caption .t {
+        font-size: 42px;
+        font-weight: 700;
+        color: var(--ink);
+        letter-spacing: 0.01em;
+      }
+      .scene-caption .d {
+        font-size: 19px;
+        color: var(--ink-muted);
+        letter-spacing: 0.02em;
+      }
+
+      /* ---- 审批卡复刻（对齐 VaApprovalCard 设计） ---- */
+      .approval-replica {
+        width: 520px;
+        background: var(--card);
+        border: 1px solid var(--edge);
+        border-radius: 16px;
+        box-shadow: 0 24px 70px rgba(26, 25, 23, 0.28);
+        overflow: hidden;
+      }
+      .approval-replica__head {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--edge);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .approval-replica__risk {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        font-weight: 700;
+        color: #b91c1c;
+        background: #fee2e2;
+        border-radius: 999px;
+        padding: 2px 10px;
+      }
+      .approval-replica__title { font-size: 16px; font-weight: 700; color: var(--ink); }
+      .approval-replica__body {
+        padding: 14px 20px;
+        background: #faf9f7;
+        font-family: var(--font-mono);
+        font-size: 13px;
+        line-height: 1.8;
+        color: var(--ink-soft);
+      }
+      .approval-replica__body .key { color: var(--ink-muted); }
+      .approval-replica__body .val { color: var(--accent); font-weight: 700; }
+      .approval-replica__actions {
+        display: flex;
+        gap: 10px;
+        padding: 14px 20px 16px;
+      }
+      .ar-btn {
+        flex: 1;
+        text-align: center;
+        font-size: 15px;
+        font-weight: 700;
+        padding: 10px 0;
+        border-radius: 8px;
+      }
+      .ar-btn--deny { background: #f1f5f9; color: var(--ink-muted); }
+      .ar-btn--approve { background: var(--accent); color: #ffffff; box-shadow: 0 0 0 0 rgba(194, 65, 12, 0.45); }
+      .approval-replica__done {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 20px;
+        background: #f0fdf4;
+        color: #15803d;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .approval-replica__done .tick {
+        width: 20px; height: 20px; border-radius: 50%;
+        background: #15803d; color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 12px;
+      }
+
+      /* ---- 终端复刻 ---- */
+      .terminal-replica {
+        width: 900px;
+        background: #0b0f14;
+        border-radius: 14px;
+        border: 1px solid rgba(240, 238, 233, 0.14);
+        box-shadow: 0 24px 70px rgba(26, 25, 23, 0.35);
+        overflow: hidden;
+      }
+      .terminal-replica__bar {
+        height: 38px;
+        background: #131a22;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 0 14px;
+      }
+      .terminal-replica__bar i {
+        width: 11px; height: 11px; border-radius: 50%;
+        display: inline-block;
+      }
+      .terminal-replica__bar .r { background: #ff5f57; }
+      .terminal-replica__bar .y { background: #febc2e; }
+      .terminal-replica__bar .g { background: #28c840; }
+      .terminal-replica__bar span {
+        margin-left: 10px;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: #8a929c;
+      }
+      .terminal-replica__body {
+        padding: 16px 20px 20px;
+        font-family: var(--font-mono);
+        font-size: 15px;
+        line-height: 2.0;
+        color: #c9d1d9;
+      }
+      .tl-ok { color: #4cc38a; }
+      .tl-warn { color: #e3b341; }
+      .tl-dim { color: #768390; }
+      .tl-hl { color: #58a6ff; font-weight: 700; }
+
+      /* ---- CTA ---- */
+      .cta-cmd {
+        width: 760px;
+        background: var(--ground-dark);
+        border-radius: 14px;
+        border: 1px solid rgba(240, 238, 233, 0.14);
+        box-shadow: 0 24px 70px rgba(26, 25, 23, 0.3);
+        padding: 26px 30px;
+        font-family: var(--font-mono);
+        font-size: 24px;
+        color: var(--ink-inverse);
+        text-align: left;
+      }
+      .cta-cmd .dollar { color: #e8925e; margin-right: 12px; }
+      .cta-cmd .flag { color: #8a929c; }
+      .cta-url {
+        margin-top: 26px;
+        font-family: var(--font-mono);
+        font-size: 20px;
+        color: var(--accent);
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+      .cta-lockup { display: flex; align-items: center; gap: 16px; margin-bottom: 44px; }
+      .cta-lockup img { width: 64px; height: 64px; display: block; }
+      .cta-lockup span { font-size: 40px; font-weight: 800; color: var(--ink); }
+      .cta-lockup span .dot { color: var(--accent); }
+      .cta-meta {
+        margin-top: 34px;
+        display: flex;
+        gap: 14px;
+      }
+      .cta-meta span {
+        font-size: 16px;
+        color: var(--ink-soft);
+        background: var(--accent-soft);
+        border-radius: 999px;
+        padding: 6px 16px;
+        font-weight: 600;
+      }
+
+      /* ---- 转场擦除层 ---- */
+      .wipe {
+        position: absolute;
+        inset: 0;
+        background: var(--ground-light);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="vuagent-hero"
+      data-start="0"
+      data-width="1920"
+      data-height="1080"
+      data-duration="55"
+    >
+      <!-- ============ 场景 1 · 痛点（0–8s，暗场） ============ -->
+      <section id="s1" class="clip" data-start="0" data-duration="8" data-track-index="0">
+        <div class="fill fill-dark"></div>
+        <div class="stage-inner" id="s1-inner">
+          <div class="s1-line" id="s1-l1">Agent 的能力，已经越来越强。</div>
+          <div class="s1-line s1-line--accent" id="s1-l2">但用户看到的，还是一坨文本流。</div>
+          <div class="s1-rule" id="s1-rule"></div>
+          <div class="s1-sub" id="s1-l3">执行计划 · 危险操作审批 · 工具调用链 · 上下文水位 —— 全部埋在字里行间</div>
+        </div>
+      </section>
+
+      <!-- ============ 场景 2 · 品牌（8–13.5s，亮场） ============ -->
+      <section id="s2" class="clip" data-start="8" data-duration="5.5" data-track-index="0">
+        <div class="fill fill-light"></div>
+        <div class="stage-inner" id="s2-inner">
+          <img id="s2-mark" class="s2-mark" src="assets/vuagent-mark.svg" alt="vuagent mark" />
+          <div class="s2-word" id="s2-word">vuagent<span class="dot">.</span></div>
+          <div class="s2-bar" id="s2-bar"></div>
+          <div class="s2-tagline" id="s2-tagline">Vue 生态第一个 Agent Ops 工具箱</div>
+          <div class="s2-sub" id="s2-sub">执行计划 / 危险操作审批 / 工具调用 / 上下文 / 收件箱 —— 运行时操作层，一套组件讲完</div>
+        </div>
+      </section>
+
+      <!-- ============ 场景 3 · 三包架构（13.5–21.5s，亮场） ============ -->
+      <section id="s3" class="clip" data-start="13.5" data-duration="8" data-track-index="0">
+        <div class="fill fill-light"></div>
+        <div class="stage-inner" id="s3-inner">
+          <div class="s3-row">
+            <div class="s3-card" id="s3-c1">
+              <span class="s3-card__pkg">@vuagent/protocol</span>
+              <div class="s3-card__title">契约层</div>
+              <div class="s3-card__desc">TypeBox Schema 单一事实来源：18 事件流、工具契约、组件生命周期。</div>
+            </div>
+            <div class="s3-arrow" id="s3-a1">→</div>
+            <div class="s3-card" id="s3-c2">
+              <span class="s3-card__pkg">@vuagent/server</span>
+              <div class="s3-card__title">执行层</div>
+              <div class="s3-card__desc">自研 Agent Harness：ReAct 循环、HITL 审批挂起、会话检查点、断线重连。</div>
+            </div>
+            <div class="s3-arrow" id="s3-a2">→</div>
+            <div class="s3-card" id="s3-c3">
+              <span class="s3-card__pkg">@vuagent/ui</span>
+              <div class="s3-card__title">界面层</div>
+              <div class="s3-card__desc">79 个强类型组件 + 渲染分发器，SSE 事件流收敛为渐进式界面。</div>
+            </div>
+          </div>
+          <div class="s3-caption" id="s3-cap">一份契约，三端永远对同一份 Schema 说话。</div>
+        </div>
+      </section>
+
+      <!-- ============ 场景 4 · 云运维（21.5–31.5s） ============ -->
+      <section id="s4" class="clip" data-start="21.5" data-duration="10" data-track-index="0">
+        <div class="fill fill-light"></div>
+        <div class="scene-caption" id="s4-cap">
+          <span class="k">SCENE 01 · CLOUDOPS</span>
+          <span class="t">云运维大盘：巡检、审批、扩容，一气呵成</span>
+          <span class="d">高危写操作自动挂起 → 人工批准 → 执行链唤醒</span>
+        </div>
+        <div class="shot-frame" id="s4-shot" style="position: absolute; right: 150px; top: 250px;">
+          <img class="shot" src="assets/frames/host-cloudops-real.png" alt="云运维大盘" />
+        </div>
+        <div id="s4-approval" style="position: absolute; left: 150px; top: 300px;">
+          <div class="approval-replica">
+            <div class="approval-replica__head">
+              <span class="approval-replica__risk">HIGH RISK</span>
+              <span class="approval-replica__title">生产变更安全审批：ops_scale_replicas 申请执行</span>
+            </div>
+            <div class="approval-replica__body">
+              <div><span class="key">service: </span><span class="val">"order-service"</span></div>
+              <div><span class="key">targetReplicas: </span><span class="val">5</span><span class="key">  // 2 → 5</span></div>
+              <div><span class="key">reason: </span>"营销大促洪峰流量横向扩容"</div>
+            </div>
+            <div class="approval-replica__actions" id="s4-actions">
+              <div class="ar-btn ar-btn--deny">驳回</div>
+              <div class="ar-btn ar-btn--approve" id="s4-approve">批准执行</div>
+            </div>
+            <div class="approval-replica__done" id="s4-done" style="display: none;">
+              <span class="tick">✓</span> 已批准 · 服务端执行链唤醒 · 变更落地
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 场景 5 · 数据分析（31.5–40s） ============ -->
+      <section id="s5" class="clip" data-start="31.5" data-duration="8.5" data-track-index="0">
+        <div class="fill fill-light"></div>
+        <div class="scene-caption" id="s5-cap">
+          <span class="k">SCENE 02 · BI COPILOT</span>
+          <span class="t">数据分析台：计划先行，图表即结果</span>
+          <span class="d">KPI 趋势 · 渠道构成 · 异常检测 · 维度下钻</span>
+        </div>
+        <div class="shot-frame" id="s5-shot" style="position: absolute; right: 150px; top: 250px;">
+          <img class="shot" src="assets/frames/host-analysis-real.png" alt="BI 分析台" />
+        </div>
+        <div class="shot-frame" id="s5-report" style="position: absolute; left: 150px; top: 300px; width: 560px; height: 620px;">
+          <img class="shot" src="assets/frames/gallery-analysis-chain.png" alt="分析报告卡" style="object-position: right center;" />
+        </div>
+      </section>
+
+      <!-- ============ 场景 6 · 后台任务（40–48.5s） ============ -->
+      <section id="s6" class="clip" data-start="40" data-duration="8.5" data-track-index="0">
+        <div class="fill fill-light"></div>
+        <div class="scene-caption" id="s6-cap">
+          <span class="k">SCENE 03 · OPS CONSOLE</span>
+          <span class="t">后台任务管家：任务在跑，日志在滚</span>
+          <span class="d">收件箱状态演进 · ANSI 实时日志 · 失败可修复</span>
+        </div>
+        <div class="shot-frame" id="s6-shot" style="position: absolute; right: 150px; top: 250px; width: 700px;">
+          <img class="shot" src="assets/frames/host-tasks-real.png" alt="任务调度中心" />
+        </div>
+        <div id="s6-term" style="position: absolute; left: 150px; top: 310px;">
+          <div class="terminal-replica">
+            <div class="terminal-replica__bar"><i class="r"></i><i class="y"></i><i class="g"></i><span>backfill bf-1 — tail -f</span></div>
+            <div class="terminal-replica__body" id="s6-lines">
+              <div><span class="tl-dim">+004s</span> <span class="tl-ok">✓</span> shard-1 写入 12,804 行（1.8s）</div>
+              <div><span class="tl-dim">+008s</span> <span class="tl-warn">⚠</span> shard-3 脏数据 3 行 → reject 表</div>
+              <div><span class="tl-dim">+012s</span> <span class="tl-hl">[进度]</span> 128/1024 批 · 4,210 行/s</div>
+              <div><span class="tl-dim">+015s</span> worker-2 心跳正常（内存 412MB）</div>
+              <div><span class="tl-dim">+040s</span> <span class="tl-ok">✔ 回填完成</span> · 校验任务自动触发</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 场景 7 · CTA（48.5–55s） ============ -->
+      <section id="s7" class="clip" data-start="48.5" data-duration="6.5" data-track-index="0">
+        <div class="fill fill-light"></div>
+        <div class="stage-inner" id="s7-inner">
+          <div class="cta-lockup" id="s7-lockup">
+            <img src="assets/vuagent-mark.svg" alt="vuagent" />
+            <span>vuagent<span class="dot">.</span></span>
+          </div>
+          <div class="cta-cmd" id="s7-cmd">
+            <span class="dollar">$</span>npm install <span class="flag">@vuagent/ui @vuagent/server</span>
+          </div>
+          <div class="cta-url" id="s7-url">hellotombruce.github.io/vuagent</div>
+          <div class="cta-meta" id="s7-meta">
+            <span>3 组件包</span><span>79 个强类型组件</span><span>MIT License</span><span>v0.3.0 已发布 npm</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const E = "power3.out";
+      const EIO = "power2.inOut";
+
+      /* ---------- 场景 1 · 痛点（0–8） ---------- */
+      tl.fromTo("#s1-l1", { autoAlpha: 0, y: 36 }, { autoAlpha: 1, y: 0, duration: 0.7, ease: E }, 0.6);
+      tl.fromTo("#s1-l2", { autoAlpha: 0, y: 44 }, { autoAlpha: 1, y: 0, duration: 0.8, ease: E }, 2.6);
+      tl.fromTo("#s1-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: EIO, transformOrigin: "50% 50%" }, 3.9);
+      tl.fromTo("#s1-l3", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8 }, 4.5);
+      tl.to("#s1-inner", { autoAlpha: 0, y: -30, duration: 0.7, ease: "power2.in" }, 7.2);
+
+      /* ---------- 场景 2 · 品牌（8–13.5） ---------- */
+      tl.fromTo("#s2-mark", { autoAlpha: 0, scale: 0.6, rotate: -8 }, { autoAlpha: 1, scale: 1, rotate: 0, duration: 0.9, ease: "back.out(1.6)" }, 8.4);
+      tl.fromTo("#s2-word", { autoAlpha: 0, y: 30 }, { autoAlpha: 1, y: 0, duration: 0.7, ease: E }, 9.0);
+      tl.fromTo("#s2-bar", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: EIO }, 9.7);
+      tl.fromTo("#s2-tagline", { autoAlpha: 0, y: 20 }, { autoAlpha: 1, y: 0, duration: 0.6, ease: E }, 10.1);
+      tl.fromTo("#s2-sub", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.6 }, 10.8);
+      tl.to("#s2-inner", { autoAlpha: 0, duration: 0.5, ease: "power2.in" }, 13.0);
+
+      /* ---------- 场景 3 · 三包架构（13.5–21.5） ---------- */
+      tl.fromTo("#s3-c1", { autoAlpha: 0, y: 60 }, { autoAlpha: 1, y: 0, duration: 0.7, ease: E }, 14.0);
+      tl.fromTo("#s3-a1", { autoAlpha: 0, x: -18 }, { autoAlpha: 1, x: 0, duration: 0.4, ease: E }, 14.6);
+      tl.fromTo("#s3-c2", { autoAlpha: 0, y: 60 }, { autoAlpha: 1, y: 0, duration: 0.7, ease: E }, 14.9);
+      tl.fromTo("#s3-a2", { autoAlpha: 0, x: -18 }, { autoAlpha: 1, x: 0, duration: 0.4, ease: E }, 15.5);
+      tl.fromTo("#s3-c3", { autoAlpha: 0, y: 60 }, { autoAlpha: 1, y: 0, duration: 0.7, ease: E }, 15.8);
+      tl.fromTo("#s3-cap", { autoAlpha: 0, y: 18 }, { autoAlpha: 1, y: 0, duration: 0.6, ease: E }, 17.6);
+      tl.to("#s3-inner", { autoAlpha: 0, scale: 0.97, duration: 0.5, ease: "power2.in" }, 21.0);
+
+      /* ---------- 场景 4 · 云运维（21.5–31.5） ---------- */
+      tl.fromTo("#s4-cap .k", { autoAlpha: 0, x: -24 }, { autoAlpha: 1, x: 0, duration: 0.4, ease: E }, 21.9);
+      tl.fromTo("#s4-cap .t", { autoAlpha: 0, x: -30 }, { autoAlpha: 1, x: 0, duration: 0.5, ease: E }, 22.05);
+      tl.fromTo("#s4-cap .d", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5 }, 22.35);
+      tl.fromTo(
+        "#s4-shot",
+        { autoAlpha: 0, scale: 1.06, y: 26 },
+        { autoAlpha: 1, scale: 1, y: 0, duration: 0.9, ease: E },
+        22.2
+      );
+      tl.fromTo("#s4-approval", { autoAlpha: 0, y: 70, scale: 0.96 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.8, ease: E }, 24.2);
+      /* 批准按钮按压 + 完成），卡片翻到已批准态 */
+      tl.to("#s4-actions", { autoAlpha: 0, duration: 0.35, ease: "power2.in" }, 27.6);
+      tl.set("#s4-done", { display: "flex" }, 27.95);
+      tl.fromTo("#s4-done", { autoAlpha: 0, y: 12 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: E }, 27.95);
+      tl.to("#s4-approval", { scale: 1.02, duration: 0.4, ease: EIO }, 28.5);
+
+      /* ---------- 场景 5 · 分析（31.5–40） ---------- */
+      tl.fromTo("#s5-cap .k", { autoAlpha: 0, x: -24 }, { autoAlpha: 1, x: 0, duration: 0.4, ease: E }, 31.9);
+      tl.fromTo("#s5-cap .t", { autoAlpha: 0, x: -30 }, { autoAlpha: 1, x: 0, duration: 0.5, ease: E }, 32.05);
+      tl.fromTo("#s5-cap .d", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5 }, 32.35);
+      tl.fromTo("#s5-shot", { autoAlpha: 0, scale: 1.05, y: 24 }, { autoAlpha: 1, scale: 1, y: 0, duration: 0.9, ease: E }, 32.2);
+      tl.fromTo("#s5-report", { autoAlpha: 0, x: -60, scale: 0.97 }, { autoAlpha: 1, x: 0, scale: 1, duration: 0.8, ease: E }, 34.2);
+      tl.to("#s5-report", { scale: 1.015, duration: 0.4, ease: EIO }, 38.2);
+
+      /* ---------- 场景 6 · 任务（40–48.5） ---------- */
+      tl.fromTo("#s6-cap .k", { autoAlpha: 0, x: -24 }, { autoAlpha: 1, x: 0, duration: 0.4, ease: E }, 40.4);
+      tl.fromTo("#s6-cap .t", { autoAlpha: 0, x: -30 }, { autoAlpha: 1, x: 0, duration: 0.5, ease: E }, 40.55);
+      tl.fromTo("#s6-cap .d", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5 }, 40.85);
+      tl.fromTo("#s6-shot", { autoAlpha: 0, scale: 1.05, y: 24 }, { autoAlpha: 1, scale: 1, y: 0, duration: 0.9, ease: E }, 40.7);
+      tl.fromTo("#s6-term", { autoAlpha: 0, y: 50 }, { autoAlpha: 1, y: 0, duration: 0.7, ease: E }, 41.4);
+      tl.fromTo(
+        "#s6-lines div",
+        { autoAlpha: 0, y: 14 },
+        { autoAlpha: 1, y: 0, duration: 0.45, ease: E, stagger: 0.55 },
+        42.2
+      );
+
+      /* ---------- 场景 7 · CTA（48.5–55） ---------- */
+      tl.fromTo("#s7-lockup", { autoAlpha: 0, y: 30 }, { autoAlpha: 1, y: 0, duration: 0.6, ease: E }, 49.0);
+      tl.fromTo("#s7-cmd", { autoAlpha: 0, y: 30 }, { autoAlpha: 1, y: 0, duration: 0.6, ease: E }, 49.5);
+      tl.fromTo("#s7-url", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5 }, 50.6);
+      tl.fromTo("#s7-meta span", { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.4, ease: E, stagger: 0.18 }, 51.2);
+      tl.to("#s7-inner", { autoAlpha: 0, duration: 0.6, ease: "power2.in" }, 54.3);
+
+      window.__timelines["vuagent-hero"] = tl;
+    </script>
+  </body>
+</html>
