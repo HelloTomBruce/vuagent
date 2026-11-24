@@ -31,7 +31,7 @@ const isDrawerOpen = ref(true);
     <div class="gv-brand">
       <Sparkles :size="16" style="color: var(--gv-accent)" />
       <span>Agent 场景画廊</span>
-      <span class="gv-brand__tag">vuagent examples · 5 场景</span>
+      <span class="gv-brand__tag">vuagent examples · 4 场景</span>
     </div>
     <div class="gv-tabs">
       <button

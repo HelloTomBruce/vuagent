@@ -1,7 +1,6 @@
 import type { SceneDef } from "./types";
 import CloudOpsHost from "./cloudops/Host.vue";
 import AnalysisHost from "./analysis/Host.vue";
-import CodeHost from "./code/Host.vue";
 import CopyHost from "./copy/Host.vue";
 import TasksHost from "./tasks/Host.vue";
 
@@ -36,21 +35,8 @@ export const SCENES: SceneDef[] = [
     host: AnalysisHost,
   },
   {
-    id: "code",
-    label: "③ 前端重构助手",
-    tagline: "diff 预览 → 测试验证 → 审批落盘 → 检查点回滚",
-    greeting:
-      "你好！这里是代码重构场景。完整链路：生成只读重构预览 → 跑验证测试（失败会自动修复重跑）→ 应用重构走审批 → 自动落检查点，检查点行上可以直接预览 diff 或触发回滚：",
-    chips: [
-      { label: "🧩 生成重构预览", prompt: "请调用 code_refactor_preview 工具，生成把 OrderService 拆分成领域子模块的重构预览" },
-      { label: "🧪 跑重构验证测试", prompt: "请调用 code_run_tests 工具，对重构后的 OrderService 模块运行验证测试" },
-      { label: "🚀 应用重构（审批）", prompt: "请调用 code_refactor_apply 工具，将 OrderService 的重构预览写入仓库", tone: "action" },
-    ],
-    host: CodeHost,
-  },
-  {
     id: "copy",
-    label: "④ 文案精修台",
+    label: "③ 文案精修台",
     tagline: "三种风格变体 → 点选精修 → 行内逐词采纳",
     greeting:
       "你好！这里是文案精修场景。可以让 agent 先出三种风格变体，点选任一变体后会生成可逐词采纳的精修 diff——改稿权始终在你手里：",
@@ -62,7 +48,7 @@ export const SCENES: SceneDef[] = [
   },
   {
     id: "tasks",
-    label: "⑤ 后台任务管家",
+    label: "④ 后台任务管家",
     tagline: "有状态仿真：进度与日志随真实时间演进",
     greeting:
       "你好！这里是后台任务场景。回填集群启动后会在后台真实推进——隔几秒再点「跟踪日志」，你会看到新内容和进度变化；出错的任务可以点「修复」看收件箱状态演进：",

@@ -3,7 +3,6 @@ import { serve } from "@hono/node-server";
 import { createHarnessServer } from "@vuagent/server";
 import { opsTools } from "./tools/ops-tools.js";
 import { analysisTools } from "./tools/analysis-tools.js";
-import { codeTools } from "./tools/code-tools.js";
 import { copyTools } from "./tools/copy-tools.js";
 import { taskTools } from "./tools/task-tools.js";
 
@@ -20,9 +19,8 @@ const dbPath = process.env.DB_PATH || defaultSharedDbPath;
 const exampleSceneTools = [
   ...opsTools, // 场景① 云运维 Copilot
   ...analysisTools, // 场景② 数据分析副驾
-  ...codeTools, // 场景③ 前端重构助手
-  ...copyTools, // 场景④ 文案精修台
-  ...taskTools, // 场景⑤ 后台任务管家
+  ...copyTools, // 场景③ 文案精修台
+  ...taskTools, // 场景④ 后台任务管家
 ];
 
 const { app } = createHarnessServer({
