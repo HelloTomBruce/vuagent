@@ -40,6 +40,11 @@
 - [Session Manager](https://hellotombruce.github.io/vuagent/components/session-manager): 会话管理下拉：活跃/归档分组、新建、行内重命名、归档恢复与二次确认删除。（VaSessionManager）
 - [Session List](https://hellotombruce.github.io/vuagent/components/session-tree): 会话侧栏：工作区为平铺分组标题（无树形折叠）、会话一列排开，支持行内重命名/归档恢复/删除二次确认（confirmMode 可交由宿主模态确认）；footer 插槽承载底部操作区。（VaSessionTree）
 - [Stream Answer](https://hellotombruce.github.io/vuagent/components/stream-answer): 流式回答：按节奏逐字吐出 source，带流式光标，完成后 emit complete，支持重放。（VaStreamAnswer）
+- [Markdown](https://hellotombruce.github.io/vuagent/components/markdown): 轻量高质量 Markdown 渲染器：基于 markdown-it，支持流式光标、代码块、表格、列表及排版样式。（VaMarkdown）
+- [Thought Box](https://hellotombruce.github.io/vuagent/components/thought-box): 思考过程与摘要折叠：支持脑电波脉冲动效、流式思考态，以及回答结束收拢的「已完成·耗时·工具调用」单行摘要条。（VaThoughtBox）
+- [User Bubble](https://hellotombruce.github.io/vuagent/components/user-bubble): 用户提问气泡：支持头像、文本排版，以及多模态图片和文档附件的即时预览。（VaUserBubble）
+- [Assistant Turn](https://hellotombruce.github.io/vuagent/components/assistant-turn): 助手消息轮次复合组件：整合思考链（ThoughtBox）、Markdown 正文排版、工具卡片时序穿插插槽、操作栏及流式中止状态。（VaAssistantTurn）
+- [Turn List](https://hellotombruce.github.io/vuagent/components/turn-list): 消息时序瀑布流：按角色自动将对话轮次路由给 UserBubble 与 AssistantTurn，提供穿透卡片插槽与空状态。（VaTurnList）
 - [Message Actions / Text](https://hellotombruce.github.io/vuagent/components/message-actions): AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输入）、版本切换；MessageText 提供版本交叉淡入。（VaMessageActions / VaMessageText）
 - [Comment Thread](https://hellotombruce.github.io/vuagent/components/comment-thread): 评论线程：agent 起草待审条目（采纳/重写/丢弃操作条）、人发评论、首字母头像、⌘/Ctrl+Enter 发布。（VaCommentThread）
 
@@ -94,6 +99,7 @@
 - [KPI Chart](https://hellotombruce.github.io/vuagent/components/kpi-chart): 指标卡 + sparkline：手写 SVG 折线（中点平滑/面积渐变/描线入场），环比涨跌徽章（invertDelta 适配错误率类「跌=好」），aria 摘要。（VaKpiChart）
 - [Breakdown Chart](https://hellotombruce.github.io/vuagent/components/breakdown-chart): 横向分布条：按值降序、色板/自定义色、barScale 按最大项或总量、maxRows 折叠「其他」、行可点选。（VaBreakdownChart）
 - [Compact Breakdown](https://hellotombruce.github.io/vuagent/components/compact-breakdown): 单行堆叠占比条 + 内联图例：一行放下的迷你分布（嵌入卡片头、表格行内）。（VaCompactBreakdown）
+- [Metric Chart](https://hellotombruce.github.io/vuagent/components/metric-chart): 时序指标图：纯 SVG 折线/柱状两种形态，标题与单位内联展示，适合埋点/业务指标的趋势呈现。（VaMetricChart）
 - [Experiment Card](https://hellotombruce.github.io/vuagent/components/experiment-card): A/B 实验对比卡：变体并列（胜者描边 + ✓）、置信度条与结论（未达显著给「继续观察」）、running 态实时时长 + 结束/重开。（VaExperimentCard）
 - [AI Answer](https://hellotombruce.github.io/vuagent/components/ai-answer): 带来源引用的回答卡：正文 [n] 标记渲染为可点击上标角标（无对应来源原样保留）、来源列表（序号 + 标题 + 出处）、流式光标。（VaAiAnswer）
 
