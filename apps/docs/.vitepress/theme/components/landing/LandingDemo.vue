@@ -10,10 +10,10 @@ const SLOTS = [
   {
     id: "hero",
     label: "总宣传片",
-    title: "vuagent · 60 秒总览",
+    title: "vuagent · 47 秒总览",
     desc: "从「文本流」到「组件流」：三场景蒙太奇一次看完。",
     poster: withBase("/img/landing/host-cloudops-real.jpg"),
-    video: null as string | null,
+    video: withBase("/videos/hero.mp4"),
     featured: true,
   },
   {
@@ -22,7 +22,7 @@ const SLOTS = [
     title: "巡检 → 事件深挖 → 审批扩容，一气呵成",
     desc: "只读巡检返回带趋势与 SLO 的健康卡；扩容属于高危写操作，安全引擎自动挂起，批准后执行链唤醒。",
     poster: withBase("/img/landing/host-cloudops-real.jpg"),
-    video: null as string | null,
+    video: withBase("/videos/cloudops.mp4"),
     featured: false,
   },
   {
@@ -31,7 +31,7 @@ const SLOTS = [
     title: "计划先行，图表即结果",
     desc: "agent 先把分析计划亮出来供核对，执行后 KPI 趋势与渠道构成渲染成图表卡，报告卡上可直接下钻明细。",
     poster: withBase("/img/landing/host-analysis-real.jpg"),
-    video: null as string | null,
+    video: withBase("/videos/analysis.mp4"),
     featured: false,
   },
   {
@@ -40,7 +40,7 @@ const SLOTS = [
     title: "任务在跑，日志在滚",
     desc: "耗时任务交给 agent 后台执行：收件箱统一管理状态演进，ANSI 终端卡实时跟踪日志流。",
     poster: withBase("/img/landing/host-tasks-real.jpg"),
-    video: null as string | null,
+    video: withBase("/videos/tasks.mp4"),
     featured: false,
   },
 ];
