@@ -2,6 +2,10 @@ import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import { createHarnessServer } from "@vuagent/server";
 import { opsTools } from "./tools/ops-tools.js";
+import { analysisTools } from "./tools/analysis-tools.js";
+import { codeTools } from "./tools/code-tools.js";
+import { copyTools } from "./tools/copy-tools.js";
+import { taskTools } from "./tools/task-tools.js";
 
 const port = Number(process.env.PORT) || 6881;
 
@@ -14,8 +18,11 @@ const dbPath = process.env.DB_PATH || defaultSharedDbPath;
 
 // 收集所有案例所需的自定义场景工具
 const exampleSceneTools = [
-  ...opsTools,
-  // 随着新案例的增加，可在下方继续扩展注册其它案例 tools
+  ...opsTools, // 场景① 云运维 Copilot
+  ...analysisTools, // 场景② 数据分析副驾
+  ...codeTools, // 场景③ 前端重构助手
+  ...copyTools, // 场景④ 文案精修台
+  ...taskTools, // 场景⑤ 后台任务管家
 ];
 
 const { app } = createHarnessServer({
@@ -27,6 +34,8 @@ const { app } = createHarnessServer({
     extraOrigins: [
       "http://localhost:6991",
       "http://127.0.0.1:6991",
+      "http://localhost:6992",
+      "http://127.0.0.1:6992",
       "http://localhost:6995",
       "http://127.0.0.1:6995",
     ],

@@ -18,7 +18,8 @@
     "dev": "pnpm --filter @vuagent/playground dev",
     "console": "concurrently -k -n server,web -c yellow,cyan \"pnpm --filter @vuagent/server dev\" \"pnpm --filter @vuagent/playground dev\"",
     "example:server": "pnpm --filter @examples/server dev",
-    "example:ops": "concurrently -k -n server,client -c yellow,green \"pnpm --filter @examples/server dev\" \"pnpm --filter cloud-ops-copilot dev\""
+    "example:ops": "concurrently -k -n server,client -c yellow,green \"pnpm --filter @examples/server dev\" \"pnpm --filter cloud-ops-copilot dev\"",
+    "example:gallery": "concurrently -k -n server,client -c yellow,green \"pnpm --filter @examples/server dev\" \"pnpm --filter @examples/agent-gallery dev\""
   },
   "repository": {
     "type": "git",
