@@ -37,7 +37,7 @@ function unlockBodyScroll() {
 </script>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, useSlots, useTemplateRef, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, useSlots, useTemplateRef, watch, type Slots } from "vue";
 import { X } from "lucide-vue-next";
 import type { DialogEvents, DialogProps, DialogSize } from "./types";
 import { useFocusTrap } from "./useFocusTrap";
@@ -65,7 +65,7 @@ const props = withDefaults(defineProps<DialogProps>(), {
   lockScroll: undefined,
 });
 const emit = defineEmits<DialogEvents>();
-const slots = useSlots();
+const slots: Slots = useSlots();
 
 /* 受控 open 优先，缺省回落非受控 defaultOpen（哨兵） */
 const innerOpen = ref(props.defaultOpen ?? false);

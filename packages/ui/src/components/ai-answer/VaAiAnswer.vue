@@ -24,7 +24,7 @@ const { nodes } = useCitedText(
     <p v-if="props.question" class="va-ans__q">{{ props.question }}</p>
 
     <div class="va-ans__body">
-      <template v-for="(n, i) in nodes" :key="i">
+      <template v-for="(n, _i) in nodes" :key="_i">
         <component :is="n" />
       </template>
       <span v-if="props.streaming" class="va-ans__cursor" aria-hidden="true" />
