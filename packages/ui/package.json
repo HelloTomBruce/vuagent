@@ -1,6 +1,6 @@
 {
   "name": "@vuagent/ui",
-  "version": "1.0.0",
+  "version": "0.3.0",
   "description": "Agent Ops UI components for Vue 3 — plans, approvals, tool calls, context, inboxes.",
   "type": "module",
   "license": "MIT",
