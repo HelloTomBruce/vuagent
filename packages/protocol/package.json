@@ -1,6 +1,6 @@
 {
   "name": "@vuagent/protocol",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Shared contract, TypeBox schemas, and stream event protocols for Vuagent",
   "type": "module",
   "license": "MIT",
