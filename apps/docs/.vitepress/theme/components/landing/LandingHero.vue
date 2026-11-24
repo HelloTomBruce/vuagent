@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import { VaGridBackground, VaTextReveal, VaKpiChart } from "@vuagent/ui";
+import { VaGridBackground, VaTextReveal, VaAgentPlan } from "@vuagent/ui";
 import { withBase } from "vitepress";
+
+const planSteps = [
+  { id: "h1", title: "调用 ops_scale_replicas", detail: "order-service · 2 → 5 副本", status: "done", duration: 420 },
+  { id: "h2", title: "等待人工审批", detail: "高风险写操作 · 安全引擎挂起", status: "running", startedAt: Date.now() - 3_200 },
+  { id: "h3", title: "探针就绪检查", detail: "liveness / readiness 5/5", status: "pending" },
+];
 </script>
 
 <template>
@@ -29,10 +35,27 @@ import { withBase } from "vitepress";
             rel="noreferrer"
           >GitHub</a>
         </div>
-        <div class="lh-hero__kpis">
-          <VaKpiChart label="运行时组件" :value="79" :series="[30, 38, 45, 52, 58, 66, 73, 79]" :width="150" :height="34" />
-          <VaKpiChart label="SSE 契约事件" :value="18" :series="[8, 10, 12, 14, 16, 17, 18, 18]" :width="150" :height="34" />
-          <VaKpiChart label="npm 三包版本" :value="0.3" :series="[1, 2, 3]" :width="150" :height="34" />
+        <div class="lh-hero__meta">
+          <span>79 个运行时组件</span><i /><span>18 种 SSE 契约事件</span><i /><span>v0.3.0 · MIT</span>
+        </div>
+      </div>
+
+      <!-- 签名演示：文本流 → 卡片流（真组件） -->
+      <div class="lh-hero__demo" aria-label="文本流到组件流的转化演示">
+        <div class="lh-hero__stream">
+          <div class="lh-hero__stream-head">agent 文本流</div>
+          <div class="lh-hero__stream-line">▸ 调用 ops_scale_replicas</div>
+          <div class="lh-hero__stream-line">▸ service: order-service · replicas: 5</div>
+          <div class="lh-hero__stream-line lh-hero__stream-line--dim">▸ action_suspended · 等待审批<span class="lh-hero__cursor">▍</span></div>
+        </div>
+        <div class="lh-hero__morph">
+          <span class="lh-hero__morph-line"></span>
+          <span class="lh-hero__morph-label">渲染分发器</span>
+          <span class="lh-hero__morph-line"></span>
+        </div>
+        <div class="lh-hero__card">
+          <div class="lh-hero__card-head">组件流 · 同一次调用</div>
+          <VaAgentPlan :steps="(planSteps as any)" :editable="false" />
         </div>
       </div>
     </div>
@@ -43,24 +66,28 @@ import { withBase } from "vitepress";
 .lh-hero {
   position: relative;
   overflow: hidden;
-  background: var(--va-ink, #1a1917);
+  background: #141311;
 }
 .lh-hero__bg {
   position: absolute;
   inset: 0;
-  opacity: 0.55;
+  opacity: 0.5;
 }
 .lh-hero__inner {
   position: relative;
-  max-width: 1180px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 96px 32px 84px;
+  padding: 96px 32px 88px;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 64px;
+  align-items: center;
 }
 .lh-hero__eyebrow {
   display: inline-flex;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.03em;
   color: #e8925e;
   border: 1px solid rgba(232, 146, 94, 0.35);
   background: rgba(232, 146, 94, 0.08);
@@ -69,29 +96,23 @@ import { withBase } from "vitepress";
 }
 .lh-hero__title {
   margin: 26px 0 0;
-  font-size: 58px;
+  font-size: 54px;
   line-height: 1.22;
   font-weight: 800;
-  color: var(--ink-inverse, #f0eee9);
+  color: #f0eee9;
   letter-spacing: -0.01em;
 }
-.lh-hero__title-accent {
-  color: var(--va-accent, #c2410c);
-  background: linear-gradient(120deg, #c2410c 20%, #e8925e 90%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
+.lh-hero__title-accent { color: #e8925e; }
 .lh-hero__tagline {
   margin: 24px 0 0;
-  font-size: 19px;
+  font-size: 18px;
   line-height: 1.85;
-  color: rgba(240, 238, 233, 0.72);
+  color: rgba(240, 238, 233, 0.74);
 }
 .lh-hero__ctas {
   display: flex;
   gap: 14px;
-  margin-top: 36px;
+  margin-top: 34px;
   flex-wrap: wrap;
 }
 .lh-btn {
@@ -103,7 +124,7 @@ import { withBase } from "vitepress";
   padding: 11px 24px;
   border-radius: 10px;
   border: 1px solid rgba(240, 238, 233, 0.22);
-  color: var(--ink-inverse, #f0eee9);
+  color: #f0eee9;
   text-decoration: none;
   transition: all 0.15s;
 }
@@ -115,14 +136,84 @@ import { withBase } from "vitepress";
 }
 .lh-btn--primary:hover { background: #d9531e; color: #ffffff; }
 .lh-btn--ghost { border-style: dashed; }
-.lh-hero__kpis {
+.lh-hero__meta {
   display: flex;
-  gap: 22px;
-  margin-top: 48px;
+  align-items: center;
+  gap: 12px;
+  margin-top: 34px;
+  font-size: 13px;
+  color: rgba(240, 238, 233, 0.66);
+  font-family: var(--va-font-mono, ui-monospace, monospace);
   flex-wrap: wrap;
 }
-@media (max-width: 960px) {
+.lh-hero__meta i {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: rgba(240, 238, 233, 0.3);
+}
+
+/* ---- 变形演示面板 ---- */
+.lh-hero__demo {
+  background: #1c1a17;
+  border: 1px solid rgba(232, 146, 94, 0.22);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 0 0 1px rgba(194, 65, 12, 0.12), 0 30px 80px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lh-hero__stream {
+  background: #0b0f14;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-family: var(--va-font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  line-height: 2;
+}
+.lh-hero__stream-head {
+  font-size: 11px;
+  color: #768390;
+  letter-spacing: 0.14em;
+  margin-bottom: 8px;
+}
+.lh-hero__stream-line { color: #c9d1d9; }
+.lh-hero__stream-line--dim { color: #e3b341; }
+.lh-hero__cursor {
+  color: #e3b341;
+  animation: lh-cursor 1.1s steps(2, start) infinite;
+}
+@keyframes lh-cursor { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .lh-hero__cursor { animation: none; }
+}
+
+.lh-hero__morph {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px;
+}
+.lh-hero__morph-line { flex: 1; height: 1px; background: rgba(232, 146, 94, 0.35); }
+.lh-hero__morph-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #e8925e;
+}
+.lh-hero__card {
+  background: var(--va-card, #ffffff);
+  border-radius: 12px;
+  padding: 16px;
+}
+.lh-hero__card-head {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--va-accent, #c2410c);
+  margin-bottom: 12px;
+}
+@media (max-width: 1100px) {
+  .lh-hero__inner { grid-template-columns: 1fr; gap: 44px; padding: 72px 20px 64px; }
   .lh-hero__title { font-size: 40px; }
-  .lh-hero__inner { padding: 72px 20px 64px; }
 }
 </style>

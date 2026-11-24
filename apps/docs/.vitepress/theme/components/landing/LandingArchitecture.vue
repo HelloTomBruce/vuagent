@@ -34,10 +34,7 @@ const packages = [
             <p class="lh-arch__desc">{{ p.desc }}</p>
             <span class="lh-arch__tag">{{ p.tag }}</span>
           </div>
-          <div v-if="i < packages.length - 1" class="lh-arch__arrow" aria-hidden="true">
-            <span class="lh-arch__arrow-line"></span>
-            <span class="lh-arch__arrow-head">→</span>
-          </div>
+          <div v-if="i < packages.length - 1" class="lh-arch__arrow" aria-hidden="true">→</div>
         </template>
       </div>
     </div>
@@ -46,77 +43,73 @@ const packages = [
 
 <style scoped>
 .lh-arch {
-  background: var(--va-card, #ffffff);
-  border-top: 1px solid var(--va-edge, rgba(26, 25, 23, 0.1));
-  border-bottom: 1px solid var(--va-edge, rgba(26, 25, 23, 0.1));
+  background: #141311;
+  border-top: 1px solid rgba(240, 238, 233, 0.08);
 }
 .lh-arch__inner {
-  max-width: 1180px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 72px 32px;
+  padding: 76px 32px;
 }
 .lh-sec-title {
   margin: 0;
   font-size: 34px;
   font-weight: 800;
-  color: var(--va-ink, #1a1917);
+  color: #f0eee9;
 }
 .lh-sec-sub {
   margin: 12px 0 0;
   font-size: 16px;
-  color: var(--va-muted, #6f6d66);
+  color: rgba(240, 238, 233, 0.72);
   max-width: 760px;
   line-height: 1.8;
 }
 .lh-arch__row {
   display: flex;
   align-items: stretch;
-  gap: 0;
   margin-top: 40px;
 }
 .lh-arch__card {
   flex: 1;
-  background: var(--va-bg-subtle, #efede7);
-  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.1));
+  background: #1c1a17;
+  border: 1px solid rgba(240, 238, 233, 0.14);
   border-radius: 16px;
   padding: 26px 28px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  position: relative;
 }
+.lh-arch__card:hover { border-color: rgba(232, 146, 94, 0.4); }
 .lh-arch__pkg {
   width: fit-content;
   font-family: var(--va-font-mono, ui-monospace, monospace);
   font-size: 13px;
   font-weight: 700;
-  color: var(--va-accent, #c2410c);
-  background: rgba(194, 65, 12, 0.1);
+  color: #e8925e;
+  background: rgba(232, 146, 94, 0.1);
   border-radius: 999px;
   padding: 4px 13px;
 }
-.lh-arch__title { font-size: 26px; font-weight: 700; color: var(--va-ink, #1a1917); }
-.lh-arch__desc { font-size: 14px; color: var(--va-muted, #6f6d66); line-height: 1.8; flex: 1; }
+.lh-arch__title { font-size: 26px; font-weight: 700; color: #f0eee9; }
+.lh-arch__desc { font-size: 14px; color: rgba(240, 238, 233, 0.72); line-height: 1.8; flex: 1; }
 .lh-arch__tag {
   width: fit-content;
   font-size: 11px;
   font-weight: 600;
-  color: var(--va-ink-2, #43413c);
-  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  color: rgba(240, 238, 233, 0.72);
+  border: 1px solid rgba(240, 238, 233, 0.2);
   border-radius: 6px;
   padding: 2px 9px;
 }
 .lh-arch__arrow {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   width: 56px;
-  color: var(--va-accent, #c2410c);
+  color: #e8925e;
   font-size: 28px;
   font-weight: 700;
 }
-.lh-arch__arrow-line { width: 22px; height: 3px; border-radius: 2px; background: currentColor; }
 @media (max-width: 960px) {
   .lh-arch__row { flex-direction: column; gap: 12px; }
   .lh-arch__arrow { transform: rotate(90deg); width: auto; height: 30px; }

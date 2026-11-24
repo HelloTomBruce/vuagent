@@ -111,7 +111,7 @@ function onFocusOut(e: FocusEvent) {
       @click="props.collapsible !== false ? toggleCollapse() : null"
     >
       <span class="va-acd__risk" :data-risk="props.risk">{{ riskLabel }}</span>
-      <h4 class="va-acd__title">{{ props.title }}</h4>
+      <h3 class="va-acd__title">{{ props.title }}</h3>
 
       <!-- 未决策时的倒计时提示 -->
       <span

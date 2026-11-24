@@ -19,7 +19,7 @@ import LandingTrust from "./.vitepress/theme/components/landing/LandingTrust.vue
 <LandingArchitecture />
 <LandingDemo />
 <LandingHitl />
-<LandingMatrix />
 <LandingSteps />
+<LandingMatrix />
 <LandingTrust />
 </div>

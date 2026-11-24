@@ -9,6 +9,11 @@ export default defineConfig({
     ["link", { rel: "icon", href: "/favicon.ico" }],
   ],
   vite: {
+    server: {
+      // 专用 dev 端口（避免默认 5173 与其他项目冲突）；strictPort：被占直接报错而非悄悄漂移
+      port: 6970,
+      strictPort: true,
+    },
     css: {
       postcss: {
         plugins: [

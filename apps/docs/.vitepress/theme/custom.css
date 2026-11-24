@@ -80,3 +80,19 @@
 /* 落地页深色 Hero 上导航需实底可读：导航栏全局实底 */
 .VPNavBar { background-color: var(--vp-c-bg) !important; }
 .VPNavBar .divider { background-color: transparent; }
+
+/* 落地页边界修复（critique P1）：home 顶部导航融入暗色舞台；
+   landing 区 h2 免除 vp-doc 的 border-top（暗底上显 1px 亮线）；
+   home 布局下 aside 不参与布局 */
+.VPNavBar.home-top {
+  background: #141311 !important;
+  border-bottom-color: transparent !important;
+}
+.VPNavBar.home-top .VPNavBarTitle .title { color: #f0eee9; }
+.VPNavBar.home-top .VPNavBarMenuLink { color: rgba(240, 238, 233, 0.74); }
+.VPNavBar.home-top .VPNavBarMenuLink:hover { color: #e8925e; }
+.VPNavBar.home-top .VPNavBarHamburger { color: #f0eee9; }
+.VPContent.is-home .vp-doc .landing-page h2 {
+  border-top: none;
+  padding-top: 0;
+}
