@@ -13,12 +13,12 @@
 }
 
 .va-user-bubble__body {
-  background: var(--va-accent-soft, rgba(194, 65, 12, 0.08));
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
   border: 1px solid var(--va-accent-subtle, rgba(194, 65, 12, 0.18));
-  border-radius: var(--va-radius-l, 14px);
+  border-radius: var(--va-radius-l, 16px);
   border-top-right-radius: 4px;
   padding: 10px 14px;
-  color: var(--va-ink, #1c1917);
+  color: var(--va-ink, #1a1917);
   font-size: 14px;
   line-height: 1.6;
 }
@@ -34,8 +34,8 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--va-ink, #1c1917);
-  color: var(--va-bg, #ffffff);
+  background: var(--va-ink, #1a1917);
+  color: var(--va-bg, #f7f6f2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -63,7 +63,7 @@
   display: inline-block;
   border-radius: var(--va-radius-s, 8px);
   overflow: hidden;
-  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.15));
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
 }
 
 .va-user-bubble__att-img {
@@ -78,9 +78,9 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  background: var(--va-bg-subtle, rgba(0, 0, 0, 0.05));
+  background: var(--va-bg-subtle, #efede7);
   border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
-  border-radius: var(--va-radius-s, 6px);
+  border-radius: var(--va-radius-s, 8px);
   font-size: 11.5px;
-  color: var(--va-ink-2, #57534e);
+  color: var(--va-ink-2, #43413c);
 }

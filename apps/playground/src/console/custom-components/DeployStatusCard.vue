@@ -211,8 +211,8 @@ function handleRefresh() {
   width: 28px;
   height: 28px;
   border-radius: var(--va-radius-md, 6px);
-  background: var(--va-bg-subtle, #f1f5f9);
-  color: var(--va-ink, #1e293b);
+  background: var(--va-bg-subtle, #efede7);
+  color: var(--va-ink, #1a1917);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -227,14 +227,14 @@ function handleRefresh() {
 .va-deploy-card__name {
   font-size: 14px;
   font-weight: 600;
-  color: var(--va-ink, #0f172a);
-  font-family: var(--va-font-mono, monospace);
+  color: var(--va-ink, #1a1917);
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
 }
 
 .va-deploy-card__version {
   font-size: 11px;
-  color: var(--va-muted, #64748b);
-  font-family: var(--va-font-mono, monospace);
+  color: var(--va-muted, #6f6d66);
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
 }
 
 .va-deploy-card__badge-scene {
@@ -277,10 +277,10 @@ function handleRefresh() {
 }
 
 .va-deploy-card__status-dot--pulse {
-  animation: vaPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: vaDeployCardPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-@keyframes vaPulse {
+@keyframes vaDeployCardPulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.4; transform: scale(0.85); }
 }
@@ -292,7 +292,7 @@ function handleRefresh() {
 }
 
 .va-deploy-card__metric-item {
-  background: var(--va-bg-subtle, #f8fafc);
+  background: var(--va-bg-subtle, #efede7);
   border: 1px solid var(--va-edge-subtle, rgba(26, 25, 23, 0.05));
   border-radius: var(--va-radius-md, 6px);
   padding: 8px 10px;
@@ -303,14 +303,14 @@ function handleRefresh() {
 
 .va-deploy-card__metric-label {
   font-size: 11px;
-  color: var(--va-muted, #64748b);
+  color: var(--va-muted, #6f6d66);
 }
 
 .va-deploy-card__metric-val {
   font-size: 13px;
   font-weight: 600;
-  color: var(--va-ink, #1e293b);
-  font-family: var(--va-font-mono, monospace);
+  color: var(--va-ink, #1a1917);
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
 }
 
 .va-deploy-card__section {
@@ -322,7 +322,7 @@ function handleRefresh() {
 .va-deploy-card__sec-title {
   font-size: 11px;
   font-weight: 500;
-  color: var(--va-muted, #64748b);
+  color: var(--va-muted, #6f6d66);
 }
 
 .va-deploy-card__endpoints {
@@ -335,13 +335,13 @@ function handleRefresh() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--va-bg-subtle, #f8fafc);
+  background: var(--va-bg-subtle, #efede7);
   border: 1px solid var(--va-edge-subtle, rgba(26, 25, 23, 0.05));
   border-radius: 4px;
   padding: 4px 8px;
   font-size: 12px;
-  font-family: var(--va-font-mono, monospace);
-  color: var(--va-ink, #334155);
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  color: var(--va-ink, #1a1917);
 }
 
 .va-deploy-card__endpoint-url {
@@ -360,7 +360,7 @@ function handleRefresh() {
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  color: var(--va-muted, #64748b);
+  color: var(--va-muted, #6f6d66);
 }
 .va-deploy-card__btn-copy:hover {
   background: rgba(0, 0, 0, 0.06);
@@ -372,13 +372,13 @@ function handleRefresh() {
   gap: 6px;
   font-size: 11px;
   padding: 6px 10px;
-  background: var(--va-bg-subtle, #f1f5f9);
+  background: var(--va-bg-subtle, #efede7);
   border-radius: 4px;
-  color: var(--va-ink-2, #475569);
+  color: var(--va-ink-2, #43413c);
 }
 
 .va-deploy-card__commit-hash {
-  font-family: var(--va-font-mono, monospace);
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   font-weight: 600;
   color: var(--va-info, #2563eb);
 }
@@ -391,7 +391,7 @@ function handleRefresh() {
 }
 
 .va-deploy-card__commit-author {
-  color: var(--va-muted, #94a3b8);
+  color: var(--va-muted, #6f6d66);
 }
 
 .va-deploy-card__footer {
@@ -409,9 +409,9 @@ function handleRefresh() {
   font-size: 11px;
   padding: 3px 8px;
   border-radius: 4px;
-  background: var(--va-bg-subtle, #f1f5f9);
+  background: var(--va-bg-subtle, #efede7);
   border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
-  color: var(--va-ink-2, #334155);
+  color: var(--va-ink-2, #43413c);
   cursor: pointer;
 }
 .va-deploy-card__action-btn:hover {
@@ -420,7 +420,7 @@ function handleRefresh() {
 
 .va-deploy-card__footer-hint {
   font-size: 10px;
-  color: var(--va-muted, #94a3b8);
+  color: var(--va-muted, #6f6d66);
 }
 
 .va-spin {

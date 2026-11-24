@@ -152,7 +152,7 @@ export const components = [
     ],
   },
   {
-    dir: "composer", slug: "composer", title: "Composer", category: "Chat", components: ["VaComposer"],
+    dir: "composer", slug: "composer", title: "Composer", category: "Chat", components: ["VaComposer"], deps: ["model-picker"],
     desc: "任务输入框：自动增高、Enter 发送（Shift+Enter 换行、中文输入法安全）、可插入模型选择等前缀。",
     props: [
       { name: "v-model:text", type: "string", default: `""`, desc: "输入内容" },

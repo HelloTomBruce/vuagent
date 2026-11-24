@@ -456,7 +456,7 @@ mq.addEventListener("change", () => { if (pref === "system") apply(); });</pre>
   border-radius: var(--va-radius-m, 10px);
   padding: 12px;
 }
-.td__scope[data-theme="dark"] { background: var(--va-bg, #141311); border-style: solid; }
+.td__scope[data-theme="dark"] { background: var(--va-bg, #f7f6f2); border-style: solid; }
 .td__scope-tag { font-size: var(--va-fs-2xs, 10px); letter-spacing: var(--va-tracking-wider, 0.06em); text-transform: uppercase; color: var(--va-muted, #6f6d66); }
 
 /* 代码块 */

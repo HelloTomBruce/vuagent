@@ -38,7 +38,7 @@
   background: var(--va-card, #ffffff);
   border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
   border-radius: var(--va-radius-m, 10px);
-  box-shadow: var(--va-shadow-2, 0 6px 18px rgba(26, 25, 23, 0.12));
+  box-shadow: var(--va-shadow-2, 0 4px 12px rgba(26, 25, 23, 0.08));
   z-index: 50;
   scrollbar-width: thin;
 }
@@ -64,11 +64,11 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--va-muted, #8a8580);
+  color: var(--va-muted, #6f6d66);
 }
 .va-mpk__group-count {
   font-size: 10px;
-  font-family: var(--va-font-mono, monospace);
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   color: var(--va-ink-tertiary, #8a8580);
   background: var(--va-bg-subtle, #efede7);
   padding: 0 5px;
@@ -93,7 +93,7 @@
   height: 32px;
   padding: 0 8px;
   border: 0;
-  border-radius: var(--va-radius-s, 6px);
+  border-radius: var(--va-radius-s, 8px);
   background: none;
   color: var(--va-ink, #1a1917);
   cursor: pointer;
@@ -101,7 +101,7 @@
   text-align: left;
   white-space: nowrap;
   box-sizing: border-box;
-  transition: background var(--va-dur-1, 100ms) ease;
+  transition: background var(--va-dur-1, 120ms) ease;
 }
 .va-mpk__item--active { background: var(--va-bg-subtle, #efede7); }
 .va-mpk__item--selected {
@@ -137,7 +137,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 11px;
-  font-family: var(--va-font-mono, monospace);
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   color: var(--va-ink-tertiary, #6f6d66);
   background: var(--va-bg-subtle, #efede7);
   border-radius: 4px;

@@ -3,7 +3,7 @@ import { computed, ref, useTemplateRef } from "vue";
 import { Check, ChevronDown, FileText, Loader2, Paperclip, Shield, X, Zap } from "lucide-vue-next";
 import type { ComposerEvents, ComposerProps } from "./types";
 import { useComposer } from "./useComposer";
-import { VaModelPicker } from "../model-picker/index.js";
+import { VaModelPicker } from "../model-picker";
 
 const props = withDefaults(defineProps<ComposerProps>(), {
   text: undefined,

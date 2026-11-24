@@ -1,7 +1,8 @@
 /* VaMarkdown — Agent 消息 Markdown 排版渲染器 */
 
 .va-md {
-  font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif);
+  font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Helvetica Neue", sans-serif);
   font-size: var(--va-fs-md, 13px);
   line-height: 1.65;
   color: var(--va-ink, #1a1917);
@@ -32,7 +33,7 @@
   font-weight: var(--va-fw-semibold, 600);
   line-height: 1.35;
   letter-spacing: normal; /* 防宿主 heading 规则注入紧缩字距 */
-  color: var(--va-ink, #0f172a);
+  color: var(--va-ink, #1a1917);
 }
 
 .va-md .va-md__body h1 { font-size: 16px; }
@@ -60,11 +61,11 @@
 
 /* 行内代码与代码块 */
 .va-md .va-md__body code {
-  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-family: var(--va-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   font-size: 0.9em;
   padding: 1px 5px;
   border-radius: var(--va-radius-xs, 4px);
-  background: var(--va-bg-subtle, rgba(26, 25, 23, 0.06));
+  background: var(--va-bg-subtle, #efede7);
   color: var(--va-ink, #1a1917);
   border: 1px solid var(--va-edge-subtle, rgba(26, 25, 23, 0.08));
 }
@@ -73,7 +74,7 @@
   margin: var(--va-s3, 8px) 0;
   padding: 10px 12px;
   border-radius: var(--va-radius-s, 8px);
-  background: var(--va-bg-subtle, #f8fafc);
+  background: var(--va-bg-subtle, #efede7);
   border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
   overflow-x: auto;
   line-height: 1.5;
@@ -88,17 +89,17 @@
   border: none;
   border-radius: 0;
   font-size: 12px;
-  color: var(--va-ink, #1e293b);
+  color: var(--va-ink, #1a1917);
 }
 
 /* 引用块 */
 .va-md .va-md__body blockquote {
   margin: var(--va-s3, 8px) 0;
   padding: 4px 12px;
-  border-left: 3px solid var(--va-accent, #2563eb);
-  background: var(--va-bg-subtle, rgba(26, 25, 23, 0.03));
+  border-left: 3px solid var(--va-accent, #c2410c);
+  background: var(--va-bg-subtle, #efede7);
   border-radius: 0 var(--va-radius-xs, 4px) var(--va-radius-xs, 4px) 0;
-  color: var(--va-muted, #64748b);
+  color: var(--va-muted, #6f6d66);
 }
 .va-md .va-md__body blockquote p:last-child {
   margin-bottom: 0;
@@ -127,14 +128,14 @@
 }
 
 .va-md .va-md__body th {
-  background: var(--va-bg-subtle, #f1f5f9);
+  background: var(--va-bg-subtle, #efede7);
   font-weight: 600;
-  color: var(--va-ink, #0f172a);
+  color: var(--va-ink, #1a1917);
 }
 
 /* 超链接 */
 .va-md .va-md__body a {
-  color: var(--va-accent, #2563eb);
+  color: var(--va-accent, #c2410c);
   font-weight: inherit; /* 防宿主链接规则加粗 */
   text-decoration: none;
 }
@@ -161,7 +162,7 @@
   height: 14px;
   vertical-align: -2px;
   margin-left: 2px;
-  background: var(--va-accent, #2563eb);
+  background: var(--va-accent, #c2410c);
   border-radius: 1px;
   animation: va-md-blink 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

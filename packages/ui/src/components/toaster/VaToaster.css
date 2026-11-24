@@ -34,12 +34,12 @@
   width: 18px;
   height: 18px;
   margin-top: 1px;
-  color: var(--va-info, #7ab0f5);
+  color: var(--va-info, #2563eb);
 }
 .va-toast__icon svg { width: 16px; height: 16px; }
-.va-toast__item[data-kind="success"] .va-toast__icon { color: var(--va-success, #4cc38a); }
-.va-toast__item[data-kind="warning"] .va-toast__icon { color: var(--va-warning, #e5a53a); }
-.va-toast__item[data-kind="danger"] .va-toast__icon { color: var(--va-danger, #f07168); }
+.va-toast__item[data-kind="success"] .va-toast__icon { color: var(--va-success, #1a7f4b); }
+.va-toast__item[data-kind="warning"] .va-toast__icon { color: var(--va-warning, #b45309); }
+.va-toast__item[data-kind="danger"] .va-toast__icon { color: var(--va-danger, #d5453c); }
 
 .va-toast__body { flex: 1; min-width: 0; }
 .va-toast__title { margin: 0; font-size: var(--va-fs-md, 13px); font-weight: var(--va-fw-semibold, 600); color: inherit; }

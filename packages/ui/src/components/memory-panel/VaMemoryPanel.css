@@ -133,7 +133,7 @@
   margin-left: auto;
   border: 0;
   background: none;
-  color: var(--va-accent, #e8925e);
+  color: var(--va-accent, #c2410c);
   font-size: var(--va-fs-sm, 12px);
   font-weight: var(--va-fw-semibold, 600);
   cursor: pointer;
