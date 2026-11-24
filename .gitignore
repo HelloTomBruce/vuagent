@@ -23,3 +23,6 @@ apps/ag-ui-langgraph/workspaces/
 **/.vitepress/cache/
 tasks/
 .zcode
+
+# 视频制作源项目（HyperFrames，含 30MB+ 字体与渲染产物，不入库）
+promo/
