@@ -36,7 +36,8 @@ const steps = [
         <h2 class="lh-sec-title">危险操作，先过人这一关</h2>
         <p class="lh-sec-sub">
           Agent Ops 的核心不是让 agent 更快，而是让高风险动作可控。HITL（Human-in-the-Loop）
-          审批是 vuagent 的一等公民：服务端协程级挂起、界面级审批卡、决策回传唤醒——三段全部内建。
+          在 vuagent 是从协议到像素的一条链：挂起是 wire protocol 的一等事件，决策端点、
+          审批卡组件、断线重连后的卡片重建全部内建——多数框架只给挂起原语，界面留给宿主自己写。
         </p>
         <div class="lh-hitl__steps">
           <div v-for="s in steps" :key="s.num" class="lh-hitl__step">

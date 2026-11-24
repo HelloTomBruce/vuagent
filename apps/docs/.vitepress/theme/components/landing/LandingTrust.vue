@@ -30,6 +30,7 @@ const specs = [
   { title: "契约单一事实来源", desc: "TypeBox Schema 单向推导三端类型，杜绝漂移" },
   { title: "强类型端到端", desc: "Props / 事件 / 18 种 SSE 事件全部有型可查" },
   { title: "零运行时依赖", desc: "peer 仅 vue ^3.5，图标随构建内联，装完即用" },
+  { title: "诚实的恢复语义", desc: "进程重启不假装续跑：中断轮次诚实标记，checkpoint 进度保留可查" },
   { title: "亮暗双主题", desc: "--va-* 设计令牌一键换肤，跟随 data-theme" },
   { title: "动效尊重系统", desc: "全部动效遵循 prefers-reduced-motion" },
 ];
