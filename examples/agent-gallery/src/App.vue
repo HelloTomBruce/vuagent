@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Bot, ChevronDown, RefreshCw, Sparkles, X } from "lucide-vue-next";
+import { Bot, ChevronDown, Sparkles, X } from "lucide-vue-next";
 import {
   VaComposer,
   VaApprovalCard,
@@ -134,11 +134,6 @@ const isDrawerOpen = ref(true);
             </div>
           </VaAssistantTurn>
         </template>
-
-        <div v-if="chat.isStreaming.value" class="drawer__streaming">
-          <RefreshCw :size="13" class="gv-spin" style="color: var(--gv-accent)" />
-          <span>agent 正在调用场景工具并执行…</span>
-        </div>
       </div>
 
       <!-- 输入区 -->
@@ -207,13 +202,6 @@ const isDrawerOpen = ref(true);
 }
 .drawer__cards { display: flex; flex-direction: column; gap: 8px; }
 .drawer__approval { margin-top: 4px; }
-
-.drawer__streaming {
-  display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--gv-muted);
-  padding: 8px 12px; background: #f8fafc; border-radius: 6px;
-}
-.gv-spin { animation: gv-spin 1s linear infinite; }
-@keyframes gv-spin { 100% { transform: rotate(360deg); } }
 
 .drawer__footer { border-top: 1px solid var(--gv-border); padding: 10px 14px 8px; background: #fff; }
 .drawer__session {
