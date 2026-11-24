@@ -57,12 +57,11 @@ const isDrawerOpen = ref(true);
   </div>
 
   <div class="gv-main">
-    <!-- 左侧：场景宿主面板（画布区） -->
-    <section class="gv-stage">
-      <div class="gv-stage__banner">
-        <h1>{{ activeScene.label.replace(/^[①②③④⑤]\s*/, "") }}</h1>
-        <p>{{ activeScene.tagline }}</p>
-      </div>
+    <!-- 左侧：场景宿主面板（真实业务页面形态） -->
+    <section
+      class="gv-stage"
+      :class="{ 'gv-stage--pushed': isDrawerOpen }"
+    >
       <component
         :is="activeScene.host"
         @quick="(prompt: string) => chat.send(prompt)"
