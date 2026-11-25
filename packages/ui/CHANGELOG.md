@@ -1,5 +1,27 @@
 # @vuagent/ui
 
+## 0.5.0
+
+### Minor Changes
+
+- 动效体系强化轮（五维审视落地：触发打断 / 时间物理 / 空间连续 / 反馈容错 / 性能无障碍）。
+  
+  **@vuagent/ui（本轮唯一功能性变更包；protocol/server 无接口变化，随 fixed 三包联动升版）**
+  
+  - **错误反馈标准 `.va-shake`**：校验失败横向微振 ±3px（`--va-dur-2` × 2），reduced-motion 降级为不播（可感知性由错误样式承担）；配套 `useShake()` composable，`VaStepperForm` / `VaOtpInput` 经 `defineExpose({ shake })` 暴露给宿主，宿主自绘表单可直接挂类。错误语义仍需宿主以文案/aria 披露
+  - **行级按压反馈分轨口径**：file-tree / notification-stack / session-manager 行与 command-menu / dropdown / select 选项补 `:active`——表面朝 `--va-ink` 混 15% 加深（主题自适应方向），选中/高亮行保持 accent 色相不跳灰
+  - **动效档位 `--va-dur-4: 600ms`**：慢速状态条档（ContextWindow 收缩条迁入）；全量 transition/animation 时长字面量清零，循环动画统一 `calc(--va-dur-loop)` 倍率（时长精确不变）；VaButton transition 补 opacity（hover/disabled 变暗由瞬跳改过渡）
+  - **ThinkingLoader**：shine 动画移入内层 span，阶段切换时长回归 CSS（`--va-dur-1`）驱动，移除 `:duration` 硬编码
+  - **registry 自包含修复**：组件使用 motion 工具类时拷贝自动附带 motion.css（修复 terminal-log 等 10 个组件缺 `.va-copy`/`.va-enter-*` 规则的存量缺口）；共享模块 `import type` 整句导入会被内联器剥 type 语义，已改内联 `import { type X }` 形式
+  - **性能**：VaSegmentedControl 滑块 `will-change` 去除 width（无合成收益）
+  
+  **配套门禁与宿主（仓库层，不入包）**
+  
+  - `tokens:check` 新增第 4 项检查：transition/animation 裸时长字面量一律红灯（豁免 0s/亚毫秒、var fallback、delay 长手、插画装饰白名单）
+  - playground（不发布）：修复发送消息出现双份思考过程（sendPrompt 双 push 回归，R8）
+  
+  **视觉微调说明**：循环动画时长全部经精确分数换算（1.2s=×2/3、1.6s=×8/9、2s=×10/9、0.9s=×0.5、1.1s=×11/18），仅 playground 侧 vaSpin 对齐库内底速由 1.2s 收敛至 0.9s。
+
 ## 0.4.0
 
 ### Minor Changes
