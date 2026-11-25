@@ -8,10 +8,12 @@
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  DECORATIVE_ANIMATIONS,
   extractKeyframes,
   extractStyleBlocks,
   extractVarRefs,
   findBareL2Refs,
+  findBareTimeLiterals,
   isL2Token,
   lineAtRaw,
   normalize,
@@ -185,5 +187,69 @@ describe("tokens.css 动效/光影 token（TASK-102 回归锁定）", () => {
     expect(light["--va-stage-raised"]).toBe("#ffffff");
     expect(dark["--va-stage"]).toBe("#141311");
     expect(dark["--va-stage-raised"]).toBe("#1c1a17");
+  });
+});
+
+describe("findBareTimeLiterals（动效档位纪律：时长须经令牌给出）", () => {
+  it("裸时长字面量命中：transition/animation 简写与 duration 长手", () => {
+    const css = [
+      ".a { transition: opacity 0.7s ease; }",
+      ".b { animation: va-pulse 1.2s infinite; }",
+      ".c { animation-duration: 2s; }",
+      ".d { transition-duration: 300ms; }",
+    ].join("\n");
+    const hits = findBareTimeLiterals(css);
+    expect(hits.map((h) => h.literal)).toEqual(["0.7s", "1.2s", "2s", "300ms"]);
+    expect(hits.map((h) => h.prop)).toEqual([
+      "transition",
+      "animation",
+      "animation-duration",
+      "transition-duration",
+    ]);
+  });
+
+  it("var() fallback 与 calc 派生豁免（时长经令牌给出）", () => {
+    const css = [
+      ".a { transition: opacity var(--va-dur-1, 120ms) linear; }",
+      ".b { animation: va-shake calc(var(--va-dur-2, 200ms) * 2) ease; }",
+      ".c { animation-duration: calc(var(--va-dur-loop, 1.8s) * 10 / 9); }",
+    ].join("\n");
+    expect(findBareTimeLiterals(css)).toEqual([]);
+  });
+
+  it("零时长与亚毫秒豁免（visibility 翻转 / reduced-motion 秒杀块）", () => {
+    const css = [
+      ".o { transition: opacity var(--va-dur-2, 200ms) ease, visibility 0s; }",
+      ".o2 { transition: opacity var(--va-dur-2, 200ms) ease, visibility 0s var(--va-dur-2, 200ms); }",
+      ".k { animation-duration: 0.01ms !important; }",
+    ].join("\n");
+    expect(findBareTimeLiterals(css)).toEqual([]);
+    // 秒单位的非零小值仍是真实时长，必须命中
+    expect(findBareTimeLiterals(".x { transition: opacity 0.01s linear; }")).toHaveLength(1);
+  });
+
+  it("插画装饰白名单：animation 简写首词命中即整条豁免", () => {
+    expect(DECORATIVE_ANIMATIONS.has("va-wheel-spin")).toBe(true);
+    const css = ".w { animation: va-wheel-spin 36s linear infinite; }";
+    expect(findBareTimeLiterals(css)).toEqual([]);
+    // 同时长但非白名单动画：命中
+    expect(findBareTimeLiterals(".v { animation: va-spin 36s linear infinite; }")).toHaveLength(1);
+  });
+
+  it("delay 长手与 animation-name/property 不在扫描范围", () => {
+    const css = [
+      ".a { transition-delay: 50ms; }",
+      ".b { animation-delay: 0.15s; }",
+      ".c { transition-property: opacity; }",
+      ".d { animation-name: va-motion-fade-in; }",
+      ".e { animation-iteration-count: infinite; }",
+      ".f { transition: none; }",
+    ].join("\n");
+    expect(findBareTimeLiterals(css)).toEqual([]);
+  });
+
+  it("注释内字面量不误报（先剥注释再扫描）", () => {
+    const css = "/* transition: opacity 120ms ease; */ .a { transition: none; }";
+    expect(findBareTimeLiterals(css)).toEqual([]);
   });
 });

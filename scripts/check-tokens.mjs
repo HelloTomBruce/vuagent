@@ -17,7 +17,10 @@
  *    覆盖范围含 playground（宿主与库同标准，杜绝双轨）;
  * 3. @keyframes 同名一致性：同名 keyframes 在多文件定义时（单文件拷贝要求
  *    各文件自含）规范化 body 必须一致，防止一处改动静默影响全部 spinner；
- * 4. fail-closed 守卫：tokens.css 解析为空、或实际校验数为 0 时按失败退出，
+ * 4. 时长字面量（动效档位纪律）：transition/animation 的 <time> 必须经 --va-*
+ *    令牌（var/calc 派生）给出——裸写字面量绕过动效档位，档位迁移与宿主调速
+ *    静默失效。豁免：0s/0ms、var() fallback、插画装饰循环白名单、delay 长手；
+ * 5. fail-closed 守卫：tokens.css 解析为空、或实际校验数为 0 时按失败退出，
  *    守卫自身失效不得绿灯。
  *
  * 扫描范围：packages/ui/src 与 apps/playground/src 的 .css 与 .vue <style> 块
@@ -32,6 +35,7 @@ import {
   stripComments,
   extractVarRefs,
   findBareTokenRefs,
+  findBareTimeLiterals,
   extractStyleBlocks,
   extractKeyframes,
   normalize,
@@ -76,6 +80,7 @@ function main() {
   const problems = [];
   const warnings = [];
   const bareProblems = [];
+  const timeProblems = [];
   let checked = 0;
 
   // fail-closed：tokens.css 解析为空（路径改错/结构重排）必须红灯
@@ -124,6 +129,15 @@ function main() {
         );
       }
 
+      // 时长字面量门禁（动效档位纪律）：transition/animation 的 <time> 须经令牌给出
+      for (const hit of findBareTimeLiterals(unit.css)) {
+        const line = unit.lineOffset + stripped.text.slice(0, hit.offset).split("\n").length;
+        timeProblems.push(
+          `${rel}:${line}  ${hit.prop}: ${hit.value}  裸时长 ${hit.literal}——` +
+            `须经 --va-* 令牌（var/calc 派生）给出`
+        );
+      }
+
       for (const [name, body] of Object.entries(extractKeyframes(unit.css))) {
         if (!keyframesIndex.has(name)) keyframesIndex.set(name, []);
         keyframesIndex.get(name).push({ file: rel, body });
@@ -159,15 +173,20 @@ function main() {
     for (const p of bareProblems) console.error("  " + p);
   }
 
+  if (timeProblems.length) {
+    console.error(`✗ 动效时长字面量（${timeProblems.length} 处，绕过动效档位）：`);
+    for (const p of timeProblems) console.error("  " + p);
+  }
+
   if (problems.length) {
     console.error(`✗ tokens fallback / keyframes 校验失败（${problems.length} 处 / 已校验 ${checked} 处）：`);
     for (const p of problems) console.error("  " + p);
   }
 
-  if (problems.length || bareProblems.length) process.exit(1);
+  if (problems.length || bareProblems.length || timeProblems.length) process.exit(1);
   console.log(
     `✓ tokens 校验通过：${checked} 处 fallback 一致、全局令牌裸引用 0 处、` +
-      `${[...keyframesIndex.keys()].length} 个 @keyframes 同名一致性通过`
+      `动效时长字面量 0 处、${[...keyframesIndex.keys()].length} 个 @keyframes 同名一致性通过`
   );
 }
 

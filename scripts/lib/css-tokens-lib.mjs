@@ -215,3 +215,67 @@ export function extractKeyframes(css) {
   }
   return out;
 }
+
+/**
+ * 插画装饰循环白名单（时长字面量豁免）：表演节奏独立于 UI 脉冲底速
+ * （--va-dur-loop），不随宿主动效档位迁移——这类 keyframes 的 animation
+ * 简写中允许裸 <time> 字面量。新增装饰插画在此登记，其余一律走令牌。
+ */
+export const DECORATIVE_ANIMATIONS = new Set([
+  "va-orb-ripple",
+  "va-orb-breathe",
+  "va-orb-eq", // VoiceOrb 插画三态
+  "va-team-float", // AgentTeam 环形悬浮
+  "va-wheel-spin", // ModelWheel 慢自转
+  "va-gf-breathe",
+  "va-gt-flow", // 渐变地面/文字流光
+  "va-grid-drift", // 网格底纹漂移（周期由 composable 注入 CSS 变量，天然令牌化）
+  "va-gradient-border-spin", // 渐变边框光环
+]);
+
+/** 抠掉 var(...) 整段（含嵌套括号，长度保持不变）：fallback 字面量是分发口径的合法存在 */
+function blankVarSegments(text) {
+  let out = text;
+  let idx = out.indexOf("var(");
+  while (idx !== -1) {
+    const openIdx = idx + 3;
+    const closeIdx = matchParen(out, openIdx);
+    if (closeIdx === -1) break; // 未配对：交由引用扫描的 unmatched 警告，这里停止
+    out = out.slice(0, idx) + " ".repeat(closeIdx - idx + 1) + out.slice(closeIdx + 1);
+    idx = out.indexOf("var(", idx + 4);
+  }
+  return out;
+}
+
+/**
+ * 时长字面量扫描（动效档位纪律）：transition/animation 简写与 *-duration 长手里，
+ * 裸 <time> 字面量（如 120ms / 0.7s）会绕过动效档位——档位迁移与宿主调速静默失效，
+ * 必须经 --va-* 令牌（var 或 calc 派生）给出。
+ * 豁免：0s/0ms（visibility 翻转等零时长语义）、var() 内 fallback、插画白名单首词、
+ * delay 长手（transition-delay/animation-delay 属编排细节，不入档位）。
+ * 返回 [{ prop, value, literal, offset }]（offset 基于传入文本，调用方映射行号）。
+ */
+export function findBareTimeLiterals(css) {
+  const { text } = stripComments(css);
+  const hits = [];
+  const declRe = /(^|[;{])\s*((?:transition|animation)(?:-duration)?)\s*:\s*([^;}]*)/g;
+  let m;
+  while ((m = declRe.exec(text))) {
+    const [, , prop, rawValue] = m;
+    // animation 简写：首个标识符为 keyframes 名，命中插画白名单整条豁免
+    if (prop === "animation") {
+      const nameMatch = /^\s*([\w-]+)/.exec(rawValue);
+      if (nameMatch && DECORATIVE_ANIMATIONS.has(nameMatch[1])) continue;
+    }
+    const blanked = blankVarSegments(rawValue);
+    const litRe = /(?<![\w./-])(\d*\.?\d+)(ms|s)(?![\w-])/g;
+    let lm;
+    while ((lm = litRe.exec(blanked))) {
+      // 零时长语义：0s/0ms（visibility 延迟翻转）与亚毫秒（0.01ms !important 秒杀块）
+      if (Number(lm[1]) === 0 || (lm[2] === "ms" && Number(lm[1]) < 1)) continue;
+      hits.push({ prop, value: rawValue.trim(), literal: lm[0], offset: m.index });
+      break; // 每条声明报一处即可
+    }
+  }
+  return hits;
+}
