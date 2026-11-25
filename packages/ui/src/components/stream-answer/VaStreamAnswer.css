@@ -17,7 +17,13 @@
   background: var(--va-accent, #c2410c);
   animation: va-stream-caret 0.9s steps(1) infinite;
 }
+
+/* 流光标闪烁共享关键帧（TASK-103 统一，规范名 va-stream-caret）：
+   与 markdown/VaMarkdown.css 同名同 body——单文件拷贝分发要求
+   各文件自含，跨文件一致性由 scripts/check-tokens.mjs 的同名同 body 门禁锁定。
+   （原 body 仅 50% 一帧，0%/100% 隐式取计算值 opacity:1，显式化后渲染等价） */
 @keyframes va-stream-caret {
+  0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
 

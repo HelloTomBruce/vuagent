@@ -306,3 +306,88 @@
 .va-traj__row[data-selected="true"] .va-traj__dot {
   background: var(--va-accent, #c2410c);
 }
+
+/* ---- TASK-107 渐进揭示（克制版 scroll 驱动：IO 一次性触发，无 scroll-jack）----
+   逻辑见 useTrajectoryReveal.ts：挂载后 data-reveal="on" 才应用初始隐藏态
+   （SSR / 无 IO / reduced-motion 不挂 attr，内容直接全显，渐进增强）。
+   台账行 opacity/translateY 过渡 + 左侧连接线 scaleY 渐进描线 + 节点点亮；
+   泳道块随泳道区进视口一次性浮现。仅动 opacity/transform，不改布局，
+   不引起滚动抖动（stick-to-bottom 契约安全）。 */
+.va-traj[data-reveal="on"] .va-traj__row {
+  opacity: 0;
+  transform: translateY(var(--va-dist-s, 4px));
+  transition:
+    opacity var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1));
+}
+.va-traj[data-reveal="on"] .va-traj__row[data-shown="true"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 连接线渐进描线：行点亮时线段自上而下 scaleY 展开 */
+.va-traj[data-reveal="on"] .va-traj__rail::before {
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform calc(var(--va-dur-in, 180ms) * 1.6) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1));
+}
+.va-traj[data-reveal="on"] .va-traj__row[data-shown="true"] .va-traj__rail::before {
+  transform: scaleY(1);
+}
+
+/* 节点点亮 */
+.va-traj[data-reveal="on"] .va-traj__dot {
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    opacity var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1));
+}
+.va-traj[data-reveal="on"] .va-traj__row[data-shown="true"] .va-traj__dot {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 泳道块：泳道区进视口一次性浮现（保留 translateY(-50%) 垂直居中） */
+.va-traj[data-reveal="on"] .va-traj__block {
+  opacity: 0;
+  transform: translateY(-50%) scale(0.5);
+  transition:
+    opacity var(--va-dur-2, 200ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--va-dur-2, 200ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1));
+}
+.va-traj[data-reveal="on"] .va-traj__block[data-shown="true"] {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+/* 主从详情区入场（选中行挂载即播一次） */
+.va-traj__detail {
+  animation: va-traj-detail-in var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+@keyframes va-traj-detail-in {
+  from { opacity: 0; transform: translateX(var(--va-dist-m, 8px)); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* reduced-motion 兜底：即使 data-reveal 已挂载（极端时序）也强制全显、无过渡 */
+@media (prefers-reduced-motion: reduce) {
+  .va-traj[data-reveal="on"] .va-traj__row,
+  .va-traj[data-reveal="on"] .va-traj__dot {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .va-traj[data-reveal="on"] .va-traj__block {
+    opacity: 1;
+    transform: translateY(-50%);
+    transition: none;
+  }
+  .va-traj[data-reveal="on"] .va-traj__rail::before {
+    transform: none;
+    transition: none;
+  }
+  .va-traj__detail {
+    animation: none;
+  }
+}

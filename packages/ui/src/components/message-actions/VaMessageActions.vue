@@ -44,10 +44,12 @@ const {
 <template>
   <div class="va-msg" :class="{ 'va-msg--quiet': props.quiet, 'va-msg--panel': panelOpen }">
     <div class="va-msg__bar">
-      <!-- 复制 -->
+      <!-- 复制：.va-copy 交叉结构（TASK-106 标准，copy→check 120ms 交叉 + spring 微弹） -->
       <button class="va-msg__act" type="button" :aria-label="copied ? '已复制' : '复制'" @click="copy">
-        <svg v-if="copied" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 8" /></svg>
-        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 9.5A1.5 1.5 0 0 1 10.5 8h8A1.5 1.5 0 0 1 20 9.5v9a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 9 18.5zM15 8V5.5A1.5 1.5 0 0 0 13.5 4h-8A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H9" /></svg>
+        <span class="va-copy" :class="{ 'va-copy--done': copied }" aria-hidden="true">
+          <svg class="va-copy__idle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9.5A1.5 1.5 0 0 1 10.5 8h8A1.5 1.5 0 0 1 20 9.5v9a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 9 18.5zM15 8V5.5A1.5 1.5 0 0 0 13.5 4h-8A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H9" /></svg>
+          <svg class="va-copy__done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5.5 12.5l4 4L18.5 8" /></svg>
+        </span>
       </button>
 
       <!-- 再生成 -->

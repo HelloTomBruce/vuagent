@@ -69,3 +69,48 @@
   gap: var(--va-s5, 16px);
   text-align: left;
 }
+
+/* ---- TASK-107 入场编排 ----
+   hero 即时上浮，步骤区延迟三拍跟随（.va-enter-up 动画挂载即播，
+   animation-delay 用高特异性覆盖 motion.css 的 animation 简写复位）。 */
+.va-ob__steps.va-enter-up {
+  animation-delay: calc(var(--va-stagger, 40ms) * 3);
+}
+
+/* ---- 完成勾选描线原语（宿主步骤槽内容消费）----
+   步骤由宿主插槽提供，组件无法直接渲染勾选。两种挂法：
+   1. SVG 勾选：path 设 pathLength="1" 归一化，外层 svg 挂 .va-ob__check
+      → dasharray 1 → dashoffset 0 描线；
+   2. 字符/图标勾选：元素挂 .va-ob__check--pop → spring 轻弹入。 */
+.va-ob__check path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: va-ob-check-draw var(--va-dur-2, 200ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)) forwards;
+}
+
+.va-ob__check--pop {
+  animation: va-ob-check-pop var(--va-dur-2, 200ms) var(--va-ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) both;
+}
+
+@keyframes va-ob-check-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes va-ob-check-pop {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-ob__check path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .va-ob__check--pop {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+

@@ -141,9 +141,8 @@
 }
 
 .va-acd .va-acd__actions { display: flex; align-items: center; gap: var(--va-s2, 4px); margin-top: var(--va-s4, 12px); }
-/* va-act / va-act--ink 基类兜底，仅保留 30px 定高形态 */
+/* va-act / va-act--ink 基类兜底，仅保留 30px 定高形态；按压反馈走基类 :active（TASK-105 迁移，原 scale(0.97) 删除） */
 .va-acd .va-acd__btn { height: 30px; padding: 0 var(--va-s5, 16px); border-radius: var(--va-radius-m, 10px); }
-.va-acd .va-acd__btn:active { transform: scale(0.97); }
 
 .va-acd .va-acd__kbd-hint { margin-left: auto; font-size: var(--va-fs-xs, 11px); color: var(--_muted); }
 .va-acd .va-acd__kbd-hint kbd {
@@ -177,5 +176,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .va-acd .va-acd__done { animation: none; }
-  .va-acd .va-acd__btn:active { transform: none; }
+  /* 按压降级由 .va-act 基类媒体块统一处理（transform: none + opacity 反馈） */
 }

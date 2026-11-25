@@ -68,7 +68,7 @@ const filtered = computed(() => {
       </div>
     </div>
 
-    <p v-if="!filtered.length" class="va-pl__empty">{{ props.emptyLabel ?? "没有匹配的提示词" }}</p>
+    <p v-if="!filtered.length" class="va-pl__empty va-fade-in">{{ props.emptyLabel ?? "没有匹配的提示词" }}</p>
     <ul v-else class="va-pl__list">
       <li v-for="p in filtered" :key="p.id" class="va-pl__card">
         <header class="va-pl__head">

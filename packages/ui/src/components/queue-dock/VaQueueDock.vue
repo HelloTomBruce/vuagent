@@ -30,7 +30,18 @@ function cancelEdit() {
 </script>
 
 <template>
-  <div class="va-queuedock" role="list" aria-label="排队消息">
+  <!-- 进出场（TASK-108）：排队项入队/出队走 TransitionGroup——
+       .va-enter-up 上浮入场 / .va-exit-left 左移离场 / move 平移补位
+       （motion.css 统一协议，reduced-motion 由其媒体块降级为纯 fade） -->
+  <TransitionGroup
+    tag="div"
+    class="va-queuedock"
+    role="list"
+    aria-label="排队消息"
+    enter-active-class="va-enter-up"
+    leave-active-class="va-exit-left"
+    move-class="va-queuedock-move"
+  >
     <div v-for="(item, i) in props.items" :key="item.id" class="va-queuedock__row" role="listitem">
       <span class="va-queuedock__tag">排队 {{ i + 1 }}</span>
 
@@ -56,7 +67,7 @@ function cancelEdit() {
         <button class="va-queuedock__op" type="button" aria-label="移除排队" :disabled="props.disabled" @click="emit('remove', i)"><X :size="13" /></button>
       </template>
     </div>
-  </div>
+  </TransitionGroup>
 </template>
 
 <style src="./VaQueueDock.css"></style>

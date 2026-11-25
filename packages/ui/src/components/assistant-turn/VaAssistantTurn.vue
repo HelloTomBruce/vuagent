@@ -51,7 +51,10 @@ const hasThought = computed(() => Boolean(props.thought) || (props.streaming && 
 </script>
 
 <template>
-  <div class="va-assistant-turn-row">
+  <!-- .va-enter-up（motion.css，180ms 上浮+fade）：组件挂载即一次性入场，
+       reduced-motion 由 motion.css 媒体块降级为纯 fade；
+       流式点脉冲在本入场结束后才起（见 VaAssistantTurn.css 的 animation-delay） -->
+  <div class="va-assistant-turn-row va-enter-up">
     <div class="va-assistant-turn">
       <!-- 1. 头像 -->
       <slot name="avatar">

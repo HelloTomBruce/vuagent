@@ -21,7 +21,8 @@
 }
 
 .va-rx__btn:hover:not(:disabled) { border-color: var(--va-edge-strong, rgba(26, 25, 23, 0.22)); }
-.va-rx__btn:active:not(:disabled) { transform: scale(0.96); }
+/* 按压口径对齐 .va-act 基类（TASK-105）：下沉 0.5px + 微缩 0.985（原 0.96） */
+.va-rx__btn:active:not(:disabled) { transform: translateY(0.5px) scale(0.985); }
 .va-rx__btn:disabled { opacity: 0.45; cursor: default; }
 .va-rx__btn:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: 1px; }
 
@@ -44,4 +45,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .va-rx__btn { transition: none; }
+  /* 按压降级：去位移只留透明度反馈（对齐 .va-act 基类口径，TASK-105） */
+  .va-rx__btn:active:not(:disabled) { transform: none; opacity: 0.7; }
 }

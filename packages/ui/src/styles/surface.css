@@ -1,0 +1,55 @@
+/* ============================================================
+   共享表面工具类 —— glass / noise 克制体系（TASK-110，dark-first）。
+   分发：随 @vuagent/ui/styles.css 聚合（src/index.ts 引入，与 motion.css 同轨）。
+   tokens:check 兼容：凡引用 tokens.css 令牌一律带字面 fallback（单文件拷贝口径）；
+   --va-noise-url / --va-noise-o 为宿主钩子（不在 tokens.css，可在任意祖先覆盖）。
+
+   使用规范：仅 stage / hero 级大表面使用 glass / noise（详细约定见 docs
+   guide/theming.md「Glass 与噪点」段）——普通卡片/列表靠阴影与描边档位
+   表达层次，不套玻璃与噪点，避免全页磨砂糊成一团。
+   ============================================================ */
+
+/* ---- .va-glass：backdrop blur 玻璃面 ----
+   半透明 surface（--va-surface-glass）+ blur 档 3 + 描边 + 顶缘内高光；
+   降级：@supports not (backdrop-filter: blur(1px))（happy-dom / 老内核口径）
+   → 纯色 scrim（--va-surface-raised），层次感不丢失。 */
+.va-glass {
+  background: var(--va-surface-glass, rgba(255, 255, 255, 0.68));
+  -webkit-backdrop-filter: blur(var(--va-blur-3, 16px));
+  backdrop-filter: blur(var(--va-blur-3, 16px));
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .va-glass {
+    background: var(--va-surface-raised, #ffffff);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+[data-theme="dark"] .va-glass,
+.dark .va-glass {
+  /* 暗色顶缘高光减淡（亮色 0.25 → 0.08，避免暗底白线过亮） */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* ---- .va-noise：feTurbulence 噪点纹理 ----
+   纹理为内联 SVG data-URI（灰度 fractalNoise，约 0.3KB < 2KB 记录），
+   经 --va-noise-url 钩子供宿主替换。用法：叠加层盖在 stage/hero 表面上
+   （典型 absolute inset:0，父级 position:relative；组件不强制定位布局）。
+   叠加层透明度阶梯走 --va-noise-o（默认 0.05，建议上限 0.08）；
+   dark 减淡 ×0.6（暗底噪点过亮会显脏）。静态纹理，与 reduced-motion /
+   hover 约定无冲突（不涉及任何动画）。 */
+.va-noise {
+  pointer-events: none;
+  background-image: var(--va-noise-url, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E"));
+  background-repeat: repeat;
+  opacity: var(--va-noise-o, 0.05);
+}
+
+[data-theme="dark"] .va-noise,
+.dark .va-noise {
+  opacity: calc(var(--va-noise-o, 0.05) * 0.6);
+}

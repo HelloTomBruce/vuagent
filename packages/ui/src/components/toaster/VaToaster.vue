@@ -41,7 +41,7 @@ watch(
         :key="t.id"
         class="va-toast__item"
         :data-kind="t.kind"
-        :style="{ '--va-stagger': `${enterDelay.get(t.id) ?? 0}ms` }"
+        :style="{ '--va-toast-stagger': `${enterDelay.get(t.id) ?? 0}ms` }"
       >
         <span class="va-toast__icon" aria-hidden="true">
           <svg v-if="t.kind === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5.5 12.5l4 4L18.5 8" /></svg>

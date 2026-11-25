@@ -67,7 +67,7 @@ function toggleSplit() {
       v-for="(pane, i) in props.panes"
       v-show="fullscreen === null || fullscreen === i"
       :key="i"
-      class="va-dock__pane"
+      class="va-dock__pane va-enter-up"
     >
       <div class="va-dock__tabs">
         <button
@@ -125,7 +125,7 @@ function toggleSplit() {
 
       <div class="va-dock__body">
         <slot name="pane" :pane-index="i" :tab-id="pane.activeId">
-          <p v-if="!pane.tabs.length" class="va-dock__empty">没有打开的面板，点「＋」添加。</p>
+          <p v-if="!pane.tabs.length" class="va-dock__empty va-fade-in">没有打开的面板，点「＋」添加。</p>
         </slot>
       </div>
     </section>

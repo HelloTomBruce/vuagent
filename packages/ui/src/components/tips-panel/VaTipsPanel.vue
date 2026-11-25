@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import { Lightbulb } from "lucide-vue-next";
+import { useStagger } from "../../composables/useStagger";
 import type { TipsPanelEvents, TipsPanelProps } from "./types";
 
 const props = defineProps<TipsPanelProps>();
 
 const emit = defineEmits<TipsPanelEvents>();
+
+/**
+ * 条目错峰（TASK-108）：统一消费 useStagger（animation-delay 轴，配合 .va-enter-*
+ * 动画类使用；默认档位对齐 --va-stagger 40ms 步长、8 档钳制、reduced-motion 归零；
+ * SSR 无 window 按正常分支输出，服务端与客户端首帧一致）。
+ */
+const { delayStyle } = useStagger();
 </script>
 
 <template>
@@ -14,7 +22,12 @@ const emit = defineEmits<TipsPanelEvents>();
       <span class="va-tips__title">{{ props.title ?? "使用技巧" }}</span>
     </header>
     <ul class="va-tips__list">
-      <li v-for="t in tips" :key="t.id" class="va-tips__item">
+      <li
+        v-for="(t, i) in tips"
+        :key="t.id"
+        class="va-tips__item va-enter-up"
+        :style="delayStyle(i)"
+      >
         <div class="va-tips__main">
           <span class="va-tips__t">{{ t.title }}</span>
           <span class="va-tips__b">{{ t.body }}</span>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useStagger } from "../../composables/useStagger";
 import type { ChangeSummaryEvents, ChangeSummaryProps } from "./types";
 import { FILE_STATUS_LABEL } from "../file-tree/types";
 import { formatMs } from "../../utils/format";
@@ -23,10 +24,18 @@ const overflow = computed(() =>
 const shown = computed(() =>
   overflow.value && collapsed.value ? props.files.slice(0, props.maxFiles) : props.files,
 );
+
+/**
+ * 文件行错峰（TASK-108）：统一消费 useStagger（animation-delay 轴，配合 .va-enter-*
+ * 动画类使用；默认档位对齐 --va-stagger 40ms 步长、8 档钳制、reduced-motion 归零；
+ * SSR 无 window 按正常分支输出，服务端与客户端首帧一致）。
+ */
+const { delayStyle } = useStagger();
 </script>
 
 <template>
-  <section class="va-cs" aria-label="变更摘要">
+  <!-- 入场（TASK-108）：根卡片上浮，文件行错峰跟随（motion.css 统一协议） -->
+  <section class="va-cs va-enter-up" aria-label="变更摘要">
     <header class="va-cs__head">
       <span class="va-cs__title">{{ props.title ?? "本轮变更" }}</span>
       <span class="va-cs__stats" role="status">
@@ -40,7 +49,7 @@ const shown = computed(() =>
     </header>
 
     <ul class="va-cs__files">
-      <li v-for="f in shown" :key="f.path">
+      <li v-for="(f, i) in shown" :key="f.path" class="va-enter-up" :style="delayStyle(i)">
         <button class="va-cs__file" type="button" @click="emit('openFile', f)">
           <span v-if="f.status" class="va-cs__status" :data-status="f.status">{{ FILE_STATUS_LABEL[f.status] }}</span>
           <span class="va-cs__path">{{ f.path }}</span>

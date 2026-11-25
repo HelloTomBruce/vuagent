@@ -150,3 +150,17 @@
   .va-bill { grid-template-columns: 1fr; }
   .va-bill__nav { position: static; flex-direction: row; flex-wrap: wrap; }
 }
+
+/* ---- TASK-108 交互反馈 ----
+   导航项 active 切换的背景/投影/字色平滑过渡（套餐卡入场错峰由模板
+   .va-enter-up + animationDelay 编排，走 motion.css 统一协议）。 */
+.va-bill__item {
+  transition:
+    background-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    box-shadow var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-bill__item { transition: none; }
+}

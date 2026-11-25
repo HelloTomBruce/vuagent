@@ -86,7 +86,7 @@ function onTriggerKeydown(e: KeyboardEvent) {
         </div>
 
         <div id="va-cmd-list" class="va-cmd__list" role="listbox" aria-label="命令列表">
-          <p v-if="!flat.length" class="va-cmd__empty">{{ props.emptyLabel ?? "没有匹配的命令" }}</p>
+          <p v-if="!flat.length" class="va-cmd__empty va-fade-in">{{ props.emptyLabel ?? "没有匹配的命令" }}</p>
           <template v-for="g in groups" :key="g.group ?? ''">
             <div v-if="g.group" class="va-cmd__group" aria-hidden="true">{{ g.group }}</div>
             <button

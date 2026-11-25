@@ -31,6 +31,29 @@
   margin-right: var(--va-s2, 4px);
 }
 
+/* ---- TASK-107 步指示器进度线渐进填充 ----
+   宿主侧增强（限定 .va-sf 内的 VaProgressTracker 实例，不改动 progress-tracker 自身）：
+   把「渐变硬停止」改为底色 + accent 覆盖层的 background-size 口径，
+   --va-pt-fill（tracker 内联注入的完成比例）变化时 background-size 平滑过渡。 */
+.va-sf .va-pt[data-orientation="horizontal"] .va-pt__step:not(:first-child)::before {
+  background-color: var(--va-edge, rgba(26, 25, 23, 0.12));
+  background-image: linear-gradient(
+    to right,
+    var(--va-accent, #c2410c),
+    var(--va-accent, #c2410c)
+  );
+  background-size: var(--va-pt-fill, 0%) 100%;
+  background-repeat: no-repeat;
+  transition: background-size var(--va-dur-3, 300ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-sf .va-pt[data-orientation="horizontal"] .va-pt__step:not(:first-child)::before {
+    transition: none;
+  }
+}
+
+
 
 
 

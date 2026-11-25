@@ -64,8 +64,10 @@
 
 /* 进出 */
 .va-toast-enter-active, .va-toast-leave-active { transition: opacity var(--va-dur-2, 200ms) ease, transform var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)); }
-/* 多条堆叠级联入场（≤8 条封顶防拖沓）；离场不延迟 */
-.va-toast-enter-active { transition-delay: var(--va-stagger, 0ms); }
+/* 多条堆叠级联入场（≤8 条封顶防拖沓）；离场不延迟。
+   --va-toast-stagger 为本组件 L3 钩子（模板内联逐条注入实际延迟），
+   勿与全局错峰步长 --va-stagger（L2，tokens.css）混用—— hooks 遵循 --va-<组件>-* 命名 */
+.va-toast-enter-active { transition-delay: var(--va-toast-stagger, 0ms); }
 .va-toast-enter-from { opacity: 0; transform: translateY(8px); }
 .va-toast-leave-to { opacity: 0; transform: translateY(4px); }
 .va-toast-move { transition: transform var(--va-dur-3, 300ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)); }

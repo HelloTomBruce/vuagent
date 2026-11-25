@@ -93,6 +93,25 @@ npm 发布物内零 workspace 依赖，因此与 `@vuagent/protocol` 共享的�
 - 组件四段事件（参数流式生成 → 执行中 → 结果）：按 `toolCallId` 寻址对应组件块原地更新状态与载荷；
 - HITL 挂起/恢复事件：驱动组件块的 `executing ⇄ done` 迁移与决策回写。
 
+### 共享流式消费件（宿主可复用）
+
+状态机底座的三个公共件已独立导出，宿主自建流式数据域时可复用同一实现（与 `useAgentChat` 内部零差异）：
+
+- **`consumeSSEStream<T>`**：SSE 消费循环——泛型事件类型、跨 chunk 半包/CRLF/多行 data 合并、`[DONE]`/本地中止分类、`onParseError` 解析失败钩子（单块损坏不拖垮整条流）。传输完全由 `open()` 扩展点掌控（POST 发起 / GET 重连 / 鉴权 / 代理）。
+- **`parseSSEChunk`**：纯函数块解析（增量 chunk + 残余 buffer 线程），供需要自定义消费循环的场景。
+- **`createDeltaBuffer`**：文本增量 rAF 合帧缓冲（`push`/`flush`/`drop` 纪律 + 陈旧帧防御）；`scheduler` 可注入（worker / 节流 / 测试手动跑帧），无 rAF 环境同步降级。
+
+```ts
+import { consumeSSEStream, createDeltaBuffer } from "@vuagent/ui";
+
+const buffer = createDeltaBuffer({ commit: (text) => (block.content += text) });
+await consumeSSEStream<UIStreamEvent>({
+  open: () => fetch("/api/chat", { method: "POST", body }),
+  onEvent: (e) => (e.type === "text_delta" ? buffer.push(e.delta) : reduce(e)),
+  onDone: () => buffer.flush(),
+});
+```
+
 ### HITL 动作回传链路
 
 审批卡 / 表单的提交经统一回传通道：分发器封装了 API 直发（`POST /api/action/:actionId`）与宿主回调两条路径，失败语义显式（提交失败即上报 error 并中止，宿主不会把网络故障误记为已决策）。服务端唤醒挂起协程后，执行链路带着用户决策继续走，前端组件块随之收敛为只读回执态。

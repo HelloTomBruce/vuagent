@@ -16,6 +16,23 @@ beforeAll(() => {
 });
 
 describe("Agent Runtime - useAgentChat State Machine", () => {
+  it("无 rAF 环境（Node SSR/单测）降级为同步直写：每 delta 即时可见", () => {
+    // 本文件运行于 vitest node 环境：无 window/requestAnimationFrame，
+    // useAgentChat 走同步降级路径（TASK-104），行为与合帧前契约一致
+    expect(typeof requestAnimationFrame).toBe("undefined");
+
+    const { messages, handleStreamEvent } = useAgentChat();
+    handleStreamEvent({ type: "text_delta", messageId: "m1", delta: "同步" });
+    handleStreamEvent({ type: "text_delta", messageId: "m1", delta: "直写" });
+
+    expect(messages.value[0].blocks?.length).toBe(1);
+    expect(messages.value[0].blocks?.[0]).toEqual({
+      id: expect.any(String),
+      kind: "text",
+      content: "同步直写",
+    });
+  });
+
   it("accumulates text_delta events into contiguous text blocks", () => {
     const { messages, handleStreamEvent } = useAgentChat();
 
@@ -87,6 +104,16 @@ describe("Agent Runtime - useAgentChat State Machine", () => {
 
     expect(isStreaming.value).toBe(false);
     expect(messages.value[0].blocks?.[0].kind).toBe("text");
+  });
+
+  it("mock 序列缺终态事件时 isStreaming 不悬挂（回放结束强制复位）", async () => {
+    const { isStreaming, playMockEvents } = useAgentChat();
+
+    await playMockEvents([
+      { type: "text_delta", messageId: "m1", delta: "只有增量、没有 turn_end" },
+    ], 5);
+
+    expect(isStreaming.value).toBe(false); // 审查修复回归锚点：原实现永久悬挂 true
   });
 });
 

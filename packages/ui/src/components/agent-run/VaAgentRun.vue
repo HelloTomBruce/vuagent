@@ -23,15 +23,15 @@ const STATUS_TEXT = { running: "运行中", success: "已完成", error: "失败
     </header>
 
     <div class="va-run__grid">
-      <section class="va-run__col va-run__col--plan" :aria-label="`计划`">
+      <section class="va-run__col va-run__col--plan va-enter-up" :aria-label="`计划`">
         <h3 class="va-run__col-title">计划</h3>
         <slot name="plan" />
       </section>
-      <section class="va-run__col va-run__col--stream" aria-label="执行流">
+      <section class="va-run__col va-run__col--stream va-enter-up" aria-label="执行流">
         <h3 class="va-run__col-title">执行流</h3>
         <slot />
       </section>
-      <section class="va-run__col va-run__col--aside" aria-label="上下文">
+      <section class="va-run__col va-run__col--aside va-enter-up" aria-label="上下文">
         <h3 class="va-run__col-title">上下文</h3>
         <slot name="aside" />
       </section>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, watch, ref } from "vue";
+import { useStagger } from "../../composables/useStagger";
 import type { SetupGuideEvents, SetupGuideProps } from "./types";
 
 const props = defineProps<SetupGuideProps>();
@@ -20,6 +21,13 @@ watch(
   },
   { immediate: true },
 );
+
+/**
+ * 步骤行错峰（TASK-108）：统一消费 useStagger（animation-delay 轴，配合 .va-enter-*
+ * 动画类使用；默认档位对齐 --va-stagger 40ms 步长、8 档钳制、reduced-motion 归零；
+ * SSR 无 window 按正常分支输出，服务端与客户端首帧一致）。
+ */
+const { delayStyle } = useStagger();
 </script>
 
 <template>
@@ -31,9 +39,10 @@ watch(
 
     <ol class="va-sg__list">
       <li
-        v-for="s in steps"
+        v-for="(s, i) in steps"
         :key="s.id"
-        class="va-sg__item"
+        class="va-sg__item va-enter-up"
+        :style="delayStyle(i)"
         :data-status="s.status ?? 'pending'"
       >
         <span class="va-sg__mark" aria-hidden="true">
@@ -54,7 +63,7 @@ watch(
       </li>
     </ol>
 
-    <p v-if="!pending.length" class="va-sg__done">
+    <p v-if="!pending.length" class="va-sg__done va-enter-up">
       {{ props.finishLabel ?? "全部就绪，开始使用吧！" }}
     </p>
   </section>

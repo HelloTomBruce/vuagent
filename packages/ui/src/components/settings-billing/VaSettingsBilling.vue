@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useStagger } from "../../composables/useStagger";
 import type { SettingsBillingEvents, SettingsBillingProps } from "./types";
 import type { BillingPlan } from "./types";
 
@@ -19,6 +20,13 @@ function pickNav(id: string) {
   innerActive.value = id;
   emit("update:active", id);
 }
+
+/**
+ * 套餐卡错峰（TASK-108）：统一消费 useStagger（animation-delay 轴，配合 .va-enter-*
+ * 动画类使用；默认档位对齐 --va-stagger 40ms 步长、8 档钳制、reduced-motion 归零；
+ * SSR 无 window 按正常分支输出，服务端与客户端首帧一致）。
+ */
+const { delayStyle } = useStagger();
 </script>
 
 <template>
@@ -46,9 +54,10 @@ function pickNav(id: string) {
         <slot name="plans">
           <div v-if="props.plans?.length" class="va-bill__grid">
             <article
-              v-for="p in props.plans"
+              v-for="(p, i) in props.plans"
               :key="p.id"
-              class="va-bill__plan"
+              class="va-bill__plan va-enter-up"
+              :style="delayStyle(i)"
               :data-current="p.current ?? false"
               :data-recommended="p.recommended ?? false"
             >

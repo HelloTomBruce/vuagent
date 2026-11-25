@@ -54,6 +54,10 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
+  transition:
+    border-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    background-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .va-sg__item[data-status="done"] .va-sg__mark {
@@ -85,4 +89,24 @@
   color: var(--va-success, #1a7f4b);
   font-size: var(--va-fs-md, 13px);
   font-weight: var(--va-fw-semibold, 600);
+}
+
+/* ---- TASK-108 完成勾选动画 ----
+   status 翻到 done 时 data-status 选择器新命中 → 动画启动（pop 一次）；
+   mark 底色/描边同步平滑过渡（pending → done 的颜色渐变）。 */
+.va-sg__item[data-status="done"] .va-sg__mark {
+  animation: va-sg-check-pop var(--va-dur-2, 200ms) var(--va-ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) both;
+}
+
+@keyframes va-sg-check-pop {
+  0% { transform: scale(0.5); }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-sg__mark {
+    transition: none;
+    animation: none;
+  }
 }

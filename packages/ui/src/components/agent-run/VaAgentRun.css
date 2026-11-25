@@ -70,3 +70,16 @@
 @media (max-width: 760px) {
   .va-run__grid { grid-template-columns: 1fr; }
 }
+
+/* ---- 进出场（TASK-108）：三列错峰入场（.va-enter-up + --va-stagger 步长） ----
+   首列 0 延迟；reduced-motion 下 motion.css 媒体块降级为纯 fade（位移清零）。
+   注：列数固定为 3，错峰由纯 CSS 规则编排（免 JS 逐项绑 style）——与
+   composables/useStagger.ts 的 delayStyle(i) 是两种等价口径（同 --va-stagger
+   步长、同 animation-delay 轴），后者用于任意长度 v-for 列表的通用场景。 */
+.va-run__col--stream {
+  animation-delay: var(--va-stagger, 40ms);
+}
+
+.va-run__col--aside {
+  animation-delay: calc(var(--va-stagger, 40ms) * 2);
+}

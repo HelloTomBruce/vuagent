@@ -87,7 +87,11 @@ const sidePairs = computed<SidePair[]>(() => {
         {{ expandAll ? "折叠上下文" : "全部展开" }}
       </button>
       <button class="va-act va-act--sm va-cdiff__btn" type="button" :aria-label="copied ? '已复制' : '复制新文件内容'" @click="copy">
-        {{ copied ? "已复制 ✓" : "复制新文件" }}
+        <!-- .va-copy 交叉结构（TASK-106 标准）：同格堆叠宽度取较宽子项，切换零跳动 -->
+        <span class="va-copy" :class="{ 'va-copy--done': copied }" aria-hidden="true">
+          <span class="va-copy__idle">复制新文件</span>
+          <span class="va-copy__done">已复制 ✓</span>
+        </span>
       </button>
     </header>
 

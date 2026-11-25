@@ -140,7 +140,7 @@ function moveFocusTo(path: string) {
           :title="`${FILE_STATUS_LABEL[row.node.status]} · ${STATUS_TITLE[row.node.status]}`"
         >{{ FILE_STATUS_LABEL[row.node.status] }}</span>
       </div>
-      <p v-if="!rows.length" class="va-ftree__empty">没有文件。</p>
+      <p v-if="!rows.length" class="va-ftree__empty va-fade-in">没有文件。</p>
     </div>
   </div>
 </template>

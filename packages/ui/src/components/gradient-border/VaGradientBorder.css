@@ -1,0 +1,48 @@
+/* VaGradientBorder — 渐变边框原语：slot 承载内容，组件只画边框层。
+   static = padding-box/border-box 双背景双色描边（border 透明仅占位，
+   内容面填 --va-gb-fill 遮住内区渐变）；running = conic 光环经 @property
+   注册角度自定义属性慢速旋转（Agent Ops「运行中」语义；@property 不支持
+   的环境角度恒 0deg → 静态 conic 渐变，优雅降级）。无伪元素/无 overflow 副作用。
+   L3 钩子（宿主可覆盖）：
+   --va-gb-w     边宽 px（props.width 写入）
+   --va-gb-from  起色（缺省 --va-grad-accent-from）
+   --va-gb-to    止色（缺省 --va-grad-accent-to）
+   --va-gb-speed 光环周期（props.speed 写入，缺省 --va-dur-loop）
+   --va-gb-angle static 渐变角（默认 120deg）
+   --va-gb-fill  内容面填充（默认 --va-card；透底场景宿主自决）
+   --va-gb-radius 圆角（默认 --va-radius-m） */
+
+@property --va-gb-spin {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.va-gborder {
+  position: relative;
+  border-radius: var(--va-gb-radius, var(--va-radius-m, 10px));
+}
+
+.va-gborder--static {
+  border: var(--va-gb-w, 1px) solid transparent;
+  background:
+    var(--va-gb-fill, var(--va-card, #ffffff)) padding-box,
+    linear-gradient(var(--va-gb-angle, 120deg), var(--va-gb-from), var(--va-gb-to)) border-box;
+}
+
+.va-gborder--running {
+  border: var(--va-gb-w, 1px) solid transparent;
+  background:
+    var(--va-gb-fill, var(--va-card, #ffffff)) padding-box,
+    conic-gradient(from var(--va-gb-spin, 0deg), var(--va-gb-from), var(--va-gb-to), var(--va-gb-from)) border-box;
+  animation: va-gradient-border-spin var(--va-gb-speed, var(--va-dur-loop, 1.8s)) linear infinite;
+}
+
+@keyframes va-gradient-border-spin {
+  to { --va-gb-spin: 360deg; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 光环静止：停在 0deg 的静态 conic 渐变（降级静态渐变） */
+  .va-gborder--running { animation: none; }
+}

@@ -430,6 +430,24 @@
       "type": "registry:ui"
     },
     {
+      "name": "spotlight-card",
+      "title": "Spotlight Card",
+      "description": "聚光卡（VaTiltCard 静态版）：accent 发光描边 + 舞台级深投影 + hover 指针光斑（复用 useSpotlight）；触屏与 reduced-motion 自动静态，静态发光保留；暗色下可配 --va-stage-raised 舞台抬升面。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "scrim-edge",
+      "title": "Scrim Edge",
+      "description": "边缘渐变 scrim 原语：bottom/top/left/right 四向线性渐隐遮罩，叠在卡片/媒体封面上（父级需 relative）；颜色缺省取 --va-scrim 遮罩色（亮暗自适应），纯 CSS 无动画。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "gradient-border",
+      "title": "Gradient Border",
+      "description": "渐变边框原语：static 双色渐变描边（padding-box/border-box 双背景）；running 态 conic 光环慢速旋转（Agent Ops「运行中」语义，speed 缺省走 --va-dur-loop）；reduced-motion 光环静止降级静态渐变。",
+      "type": "registry:ui"
+    },
+    {
       "name": "app-shell",
       "title": "App Shell",
       "description": "应用外壳：品牌侧栏 + 导航（徽标/禁用/哨兵受控）+ 顶栏与主区插槽；窄屏自动抽屉化（scrim + 汉堡）。",

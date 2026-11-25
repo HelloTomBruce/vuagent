@@ -5,8 +5,8 @@
 
    三层主题模型：
    L1 基础令牌（本文件）——换肤只改这里；
-   L2 语义令牌（本文件 · 排版/尺寸/层级/动效段）——从 L1 派生的规范档位，
-      组件不得绕过它裸写字号/字重/控件高度；
+   L2 语义令牌（本文件 · 排版/尺寸/层级/动效/光影段）——从 L1 派生的规范档位，
+      组件不得绕过它裸写字号/字重/控件高度/模糊半径；
    L3 组件钩子——--va-<组件>-*（各组件 CSS 内定义，见组件文件头注释）。
 
    动效分频策略（prefers-reduced-motion: reduce）：
@@ -109,13 +109,17 @@
   --va-shadow-1: 0 1px 2px rgba(26, 25, 23, 0.06);
   --va-shadow-2: 0 4px 12px rgba(26, 25, 23, 0.08);
   --va-shadow-3: 0 12px 32px rgba(26, 25, 23, 0.12);
+  /* 舞台级深投影：hero/聚光卡等大表面（几何同暗色档，透明度自 shadow-3 加深） */
+  --va-shadow-4: 0 30px 80px rgba(26, 25, 23, 0.16);
 
   /* ---- 动效 ----
      基础三档用于 hover/按压等微交互；
      进出编排骨架（浮层统一协议）：入场 --va-dur-in + ease-out-quart，
      离场 --va-dur-out + ease-in-quad（离场更快更短，感知更干脆）；
      --va-ease-spring 用于成功/强调反馈的弹性过冲；
-     --va-dur-loop 为循环动画底速（shimmer/spinner/pulse），组件内 calc 倍率微调。 */
+     --va-dur-loop 为循环动画底速（shimmer/spinner/pulse），组件内 calc 倍率微调；
+     --va-stagger 为列表子项错峰步长（useStagger 默认口径，配合 .va-enter-* 动画类
+     使用——延迟走 animation-delay 轴，transition-delay 对 animation 零作用）。 */
   --va-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --va-ease-out-quart: cubic-bezier(0.22, 1, 0.36, 1);
   --va-ease-in-quad: cubic-bezier(0.55, 0, 0.55, 0.2);
@@ -128,6 +132,45 @@
   --va-dist-s: 4px;
   --va-dist-m: 8px;
   --va-dur-loop: 1.8s;
+  --va-stagger: 40ms;
+
+  /* ---- 光影 · 模糊档位（filter/backdrop-filter 的 blur 半径，勿裸写新值） ----
+     档位自全库散点盘点吸附（原散点 2/4/8/10/48px → 2/8/16/48）：
+     1 = 浮层压暗微模糊（command-menu 2px 原值）；
+     2 = 顶栏 backdrop / blur-in 入场（app-shell 8px 原值，同 VaBlurCrossfade 默认）；
+     3 = 中等氛围 / 毛玻璃预留（16px，暂无散点）；
+     4 = 舞台级氛围光晕（VaGradientFloor 48px 原值）。
+     离群值吸附记录：text-reveal 原 blur(4px) 就近吸附至档 2（8px，与 va-xfade
+     口径一致，入场起始更朦胧）；playground App.vue 原 blur(10px) 对应档 2（8px，
+     宿主侧待迁，见 TASK-102 报告）。 */
+  --va-blur-1: 2px;
+  --va-blur-2: 8px;
+  --va-blur-3: 16px;
+  --va-blur-4: 48px;
+
+  /* ---- 光影 · 发光/渐变/舞台（亮暗独立取值；均自既有 palette 派生，勿发明新色相） ----
+     glow（box-shadow 发光）：accent 系按落地页「追光」手法从 --va-accent 派生 alpha
+     （内圈描边 .35 + 外圈软晕 .22）；soft 为中性微光晕（ink 派生）。
+     grad（渐变端点色）：accent 族 = VaGradientText/VaGradientFloor 现用 accent→info
+     组合的 token 化；info 族 = 冷调 info→success（次级强调/数据场景）。
+     stage（舞台表面对）：大表面 --va-stage + 其上抬升面 --va-stage-raised，
+     暗色取落地页已验证层级，亮色与 bg-subtle/card 同值。 */
+  --va-glow-accent: 0 0 0 1px rgba(194, 65, 12, 0.35), 0 8px 32px rgba(194, 65, 12, 0.22);
+  --va-glow-soft: 0 0 32px rgba(26, 25, 23, 0.08);
+  --va-grad-accent-from: #c2410c;
+  --va-grad-accent-to: #2563eb;
+  --va-grad-info-from: #2563eb;
+  --va-grad-info-to: #1a7f4b;
+  --va-stage: #efede7;
+  --va-stage-raised: #ffffff;
+
+  /* glass 表面对（TASK-110 glass 克制体系，dark-first 语义）：
+     glass = 半透明玻璃面（backdrop blur 的载体，styles .va-glass 工具类消费）；
+     raised = 无 backdrop-filter 环境的纯色降级面（.va-glass 的 @supports fallback）。
+     亮色为 stage-raised 的半透明版（白玻璃）；alpha 0.68 保证其上正文对比度。
+     使用规范（仅 stage/hero 级表面）见 docs guide/theming.md。 */
+  --va-surface-glass: rgba(255, 255, 255, 0.68);
+  --va-surface-raised: #ffffff;
 
   /* ---- 字体 ---- */
   --va-font:
@@ -168,8 +211,25 @@
   --va-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
   --va-shadow-2: 0 4px 12px rgba(0, 0, 0, 0.35);
   --va-shadow-3: 0 12px 32px rgba(0, 0, 0, 0.45);
+  /* 舞台级深投影（落地页「追光」已验证值） */
+  --va-shadow-4: 0 30px 80px rgba(0, 0, 0, 0.45);
 
   /* 暗色专属：骨架屏用白色叠加，与深色卡片可辨 */
   --va-skel-bg: rgba(255, 255, 255, 0.09);
   --va-skel-hl: rgba(255, 255, 255, 0.22);
+
+  /* 暗色光影：accent 系自暗色 accent(#e8925e) 派生 alpha；中性光晕用暖白；
+     stage 取落地页已验证层级（stage 同 bg，raised 介于 bg-subtle 与 card 之间） */
+  --va-glow-accent: 0 0 0 1px rgba(232, 146, 94, 0.35), 0 8px 32px rgba(232, 146, 94, 0.22);
+  --va-glow-soft: 0 0 32px rgba(240, 238, 233, 0.06);
+  --va-grad-accent-from: #e8925e;
+  --va-grad-accent-to: #7ab0f5;
+  --va-grad-info-from: #7ab0f5;
+  --va-grad-info-to: #4cc38a;
+  --va-stage: #141311;
+  --va-stage-raised: #1c1a17;
+
+  /* glass：暖黑玻璃面（#1c1a17 的 68%），降级面同 stage-raised（dark-first 主场） */
+  --va-surface-glass: rgba(28, 26, 23, 0.68);
+  --va-surface-raised: #1c1a17;
 }

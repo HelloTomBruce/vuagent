@@ -6,7 +6,8 @@
   white-space: pre;
   opacity: 0;
   transform: translateY(6px);
-  filter: blur(4px);
+  /* 原 blur(4px) 就近吸附 --va-blur-2（8px）：与 VaBlurCrossfade 默认口径一致，起始更朦胧 */
+  filter: blur(var(--va-blur-2, 8px));
   transition-property: opacity, transform, filter;
   transition-timing-function: var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }

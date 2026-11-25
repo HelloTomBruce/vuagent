@@ -83,7 +83,7 @@ const displayValue = computed(() => selected.value?.label ?? props.modelValue ??
     </ul>
     </Transition>
     <Transition name="va-cbx-pop">
-      <div v-if="open && !items.length" class="va-cbx__empty" @mousedown.prevent>
+      <div v-if="open && !items.length" class="va-cbx__empty va-fade-in" @mousedown.prevent>
         {{ props.emptyLabel ?? "没有匹配项" }}
       </div>
     </Transition>

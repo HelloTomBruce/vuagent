@@ -1,0 +1,60 @@
+/* VaSpotlightCard — 聚光卡（VaTiltCard 静态版）：accent 发光描边 + 舞台深投影 + pointer 光斑。
+   L3 钩子（宿主可覆盖）：
+   --va-spot-card-bg    卡面底色（默认 --va-card；暗色 stage 联动示例：宿主置 var(--va-stage-raised)）
+   --va-spot-card-glow  描边发光段（--glow 修饰类置 --va-glow-accent；默认透明占位段）
+   --va-spot-card-shadow 投影段（--e1..e4 修饰类换挡，默认 --va-shadow-4）
+   --va-spot-size/-color 光斑尺寸/颜色（与 motion.css .va-spotlight 同名钩子，口径一致）
+   发光是静态样式（box-shadow）不算动画，reduced-motion 下保留，只关光斑与过渡。 */
+
+.va-spot-card {
+  --va-spot-card-bg: var(--va-card, #ffffff);
+  position: relative;
+  display: block;
+  border-radius: var(--va-radius-l, 16px);
+  background: var(--va-spot-card-bg);
+  /* 双段式阴影：发光段 + 投影段（none 不能与其他阴影并列为逗号表，用全透明占位） */
+  box-shadow:
+    var(--va-spot-card-glow, 0 0 rgba(26, 25, 23, 0)),
+    var(--va-spot-card-shadow, var(--va-shadow-4, 0 30px 80px rgba(26, 25, 23, 0.16)));
+  transition: box-shadow var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.va-spot-card--glow {
+  --va-spot-card-glow: var(--va-glow-accent, 0 0 0 1px rgba(194, 65, 12, 0.35), 0 8px 32px rgba(194, 65, 12, 0.22));
+}
+
+.va-spot-card--e1 { --va-spot-card-shadow: var(--va-shadow-1, 0 1px 2px rgba(26, 25, 23, 0.06)); }
+.va-spot-card--e2 { --va-spot-card-shadow: var(--va-shadow-2, 0 4px 12px rgba(26, 25, 23, 0.08)); }
+.va-spot-card--e3 { --va-spot-card-shadow: var(--va-shadow-3, 0 12px 32px rgba(26, 25, 23, 0.12)); }
+.va-spot-card--e4 { --va-spot-card-shadow: var(--va-shadow-4, 0 30px 80px rgba(26, 25, 23, 0.16)); }
+
+/* 光斑：::after 承载（坐标由 useSpotlight 写 --va-spot-x/y），hover 点亮；
+   自含绘制（registry 单文件拷贝不依赖全局 .va-spotlight），数学与全局钩子口径一致。
+   注意：此 ::after radial 与 styles/motion.css 的 .va-spotlight::after 为
+   registry 单文件自含有意复制，改动需两处同步。 */
+.va-spot-card--spot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  background: radial-gradient(
+    var(--va-spot-size, 240px) circle at var(--va-spot-x, 50%) var(--va-spot-y, 50%),
+    var(--va-spot-color, rgba(255, 255, 255, 0.14)),
+    transparent 65%
+  );
+}
+
+.va-spot-card--spot:hover::after { opacity: 1; }
+
+/* 双降级：触屏无 hover 不绘制光斑；reduced-motion 关过渡——静态发光/投影保留 */
+@media (hover: none) {
+  .va-spot-card--spot::after { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-spot-card { transition: none; }
+  .va-spot-card--spot::after { display: none; }
+}

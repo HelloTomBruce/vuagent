@@ -84,3 +84,38 @@
 
 .va-rec__close:hover { color: var(--va-ink, #1a1917); background: var(--va-bg-subtle, #efede7); }
 .va-rec__close:focus-visible { outline: 2px solid var(--va-accent, #c2410c); }
+
+/* ---- TASK-107 接受/忽略反馈过渡 ----
+   点击后宿主决定去留（emit 即刻，卡片可能立即卸载）；若仍挂载：
+   卡片转暗 + 被点按钮淡出（操作已受理语义）+ spark spring 弹跳确认
+   （--va-ease-spring 按 token 策略用于强调反馈，不另发明曲线）。 */
+.va-rec__btn,
+.va-rec__close {
+  transition:
+    opacity var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    background-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.va-rec[data-acted="true"] {
+  opacity: 0.72;
+  transition: opacity var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+.va-rec__btn[data-acted="true"] { opacity: 0.55; }
+
+.va-rec[data-acted="true"] .va-rec__spark {
+  animation: va-rec-spark-pop calc(var(--va-dur-2, 200ms) * 1.2) var(--va-ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) both;
+}
+
+@keyframes va-rec-spark-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-rec[data-acted="true"] .va-rec__spark { animation: none; }
+  .va-rec[data-acted="true"],
+  .va-rec__btn,
+  .va-rec__close { transition: none; }
+}

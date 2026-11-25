@@ -46,7 +46,7 @@ function onRestore(id: string) {
       class="va-ckpt__list"
       :style="props.maxHeight ? { maxHeight: `${props.maxHeight}px` } : undefined"
     >
-      <p v-if="!props.checkpoints.length" class="va-ckpt__empty">还没有检查点。</p>
+      <p v-if="!props.checkpoints.length" class="va-ckpt__empty va-fade-in">还没有检查点。</p>
       <div
         v-for="c in props.checkpoints"
         :key="c.id"

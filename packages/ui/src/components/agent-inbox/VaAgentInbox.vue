@@ -76,7 +76,7 @@ const { filter, tabs, counts, visible, elapsedOf, expandedId, toggle } = useAgen
       </article>
     </TransitionGroup>
 
-    <p v-if="!visible.length" class="va-inb__empty">这个视图下没有任务。</p>
+    <p v-if="!visible.length" class="va-inb__empty va-fade-in">这个视图下没有任务。</p>
   </div>
 </template>
 

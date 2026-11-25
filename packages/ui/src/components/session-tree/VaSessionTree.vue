@@ -268,13 +268,13 @@ function onCreate(wId: string) {
             ><span v-if="confirmId === s.id" class="va-stree__confirm">确认?</span><Trash2 v-else :size="13" /></button>
           </template>
         </div>
-        <p v-if="g.sessions.length === 0" class="va-stree__empty">{{ searching ? "无匹配会话" : "暂无会话" }}</p>
+        <p v-if="g.sessions.length === 0" class="va-stree__empty va-fade-in">{{ searching ? "无匹配会话" : "暂无会话" }}</p>
           </div>
         </div>
       </Transition>
     </section>
 
-    <p v-if="searching && groups.every((g) => g.sessions.length === 0) && orphans.length === 0" class="va-stree__empty va-stree__search-empty">
+    <p v-if="searching && groups.every((g) => g.sessions.length === 0) && orphans.length === 0" class="va-stree__empty va-stree__search-empty va-fade-in">
       没有匹配「{{ keyword.trim() }}」的会话
     </p>
 

@@ -738,6 +738,37 @@ export const components = [
     ],
   },
 
+  /* ---------- 光影渐变原语（TASK-109） ---------- */
+  {
+    dir: "spotlight-card", slug: "spotlight-card", title: "Spotlight Card", category: "动效", components: ["VaSpotlightCard"],
+    desc: "聚光卡（VaTiltCard 静态版）：accent 发光描边 + 舞台级深投影 + hover 指针光斑（复用 useSpotlight）；触屏与 reduced-motion 自动静态，静态发光保留；暗色下可配 --va-stage-raised 舞台抬升面。",
+    props: [
+      { name: "glow", type: "boolean", default: "true", desc: "accent 发光描边（--va-glow-accent，静态样式非动画）" },
+      { name: "spot", type: "boolean", default: "true", desc: "指针光斑（hover 点亮；hover:none / reduced-motion / SSR 自动关闭）" },
+      { name: "elevation", type: "number", default: "4", desc: "投影档位 1-4（--va-shadow-N）" },
+    ],
+  },
+  {
+    dir: "scrim-edge", slug: "scrim-edge", title: "Scrim Edge", category: "动效", components: ["VaScrimEdge"],
+    desc: "边缘渐变 scrim 原语：bottom/top/left/right 四向线性渐隐遮罩，叠在卡片/媒体封面上（父级需 relative）；颜色缺省取 --va-scrim 遮罩色（亮暗自适应），纯 CSS 无动画。",
+    props: [
+      { name: "direction", type: `"bottom" | "top" | "left" | "right"`, default: `"bottom"`, desc: "渐变依附边" },
+      { name: "scrimColor", type: "string", default: "var(--va-scrim)", desc: "scrim 颜色（CSS 色）" },
+      { name: "height", type: "number", default: "72", desc: "厚度 px（bottom/top 为高，left/right 为宽）" },
+      { name: "stops", type: "[number, number]", default: "[0, 100]", desc: "全色起点 / 全透明终点（%）" },
+    ],
+  },
+  {
+    dir: "gradient-border", slug: "gradient-border", title: "Gradient Border", category: "动效", components: ["VaGradientBorder"],
+    desc: "渐变边框原语：static 双色渐变描边（padding-box/border-box 双背景）；running 态 conic 光环慢速旋转（Agent Ops「运行中」语义，speed 缺省走 --va-dur-loop）；reduced-motion 光环静止降级静态渐变。",
+    props: [
+      { name: "variant", type: `"static" | "running"`, default: `"static"`, desc: "静态描边 / 运行中光环" },
+      { name: "from / to", type: "string", default: "accent 渐变端点", desc: "渐变起止色（--va-grad-accent-from/-to）" },
+      { name: "width", type: "number", default: "1", desc: "边框宽度 px" },
+      { name: "speed", type: "string | number", default: "var(--va-dur-loop, 1.8s)", desc: "running 光环周期（CSS 时长或毫秒）" },
+    ],
+  },
+
   /* ---------- M7 · Screens 精选 ---------- */
   {
     dir: "app-shell", slug: "app-shell", title: "App Shell", category: "Screens", components: ["VaAppShell"],

@@ -31,7 +31,7 @@ const current = computed(() => props.files.find((f) => f.id === selectedId.value
       <button
         v-for="f in props.files"
         :key="f.id"
-        class="va-ws__file"
+        class="va-ws__file va-enter-up"
         type="button"
         :data-selected="f.id === selectedId"
         @click="open(f)"

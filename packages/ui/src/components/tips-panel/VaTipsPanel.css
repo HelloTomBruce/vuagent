@@ -57,8 +57,19 @@
 .va-tips__close:hover { color: var(--va-ink, #1a1917); background: color-mix(in srgb, var(--va-warning, #b45309) 12%, transparent); }
 .va-tips__close:focus-visible { outline: 2px solid var(--va-accent, #c2410c); }
 
+/* TASK-108 交互反馈：关闭按钮 hover 平滑过渡（条目错峰入场由模板 .va-enter-up 编排） */
+.va-tips__close {
+  transition:
+    background-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
 .va-tips__empty {
   margin: 0;
   font-size: var(--va-fs-sm, 12px);
   color: var(--va-muted, #6f6d66);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-tips__close { transition: none; }
 }

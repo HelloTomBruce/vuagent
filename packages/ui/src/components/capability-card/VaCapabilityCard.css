@@ -28,6 +28,7 @@
 
 .va-cap__title { font-size: var(--va-fs-md, 13px); color: var(--va-ink, #1a1917); }
 
+/* TASK-108：关闭按钮 hover 平滑过渡（transition 与既有 hover 反馈同生命周期） */
 .va-cap__close {
   margin-left: auto;
   width: 22px;
@@ -38,9 +39,16 @@
   color: var(--va-muted, #6f6d66);
   font-size: var(--va-fs-lg, 14px);
   cursor: pointer;
+  transition:
+    background-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 .va-cap__close:hover { background: var(--va-bg-subtle, #efede7); color: var(--va-ink, #1a1917); }
 .va-cap__close:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .va-cap__close { transition: none; }
+}
 
 .va-cap__desc { margin: 0; font-size: var(--va-fs-md, 13px); line-height: 1.6; color: var(--va-ink-2, #43413c); }
 

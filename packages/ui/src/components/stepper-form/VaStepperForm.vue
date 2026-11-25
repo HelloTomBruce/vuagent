@@ -52,9 +52,20 @@ function goBack() {
 
     <p v-if="steps[step]?.description" class="va-sf__desc">{{ steps[step]!.description }}</p>
 
-    <!-- 每步内容：宿主用 <template #step-{id}> 提供对应内容 -->
+    <!-- 每步内容：宿主用 <template #step-{id}> 提供对应内容。
+         步进切换 out-in 过渡（TASK-107）：走 motion.css 统一协议
+         （.va-exit-up 离场 → .va-enter-up 上浮入场），reduced-motion 由
+         motion.css 媒体块降级为纯 fade。 -->
     <div class="va-sf__body">
-      <slot :name="`step-${steps[step]?.id}`" :step="step" />
+      <Transition
+        mode="out-in"
+        enter-active-class="va-enter-up"
+        leave-active-class="va-exit-up"
+      >
+        <div :key="steps[step]?.id ?? step" class="va-sf__step">
+          <slot :name="`step-${steps[step]?.id}`" :step="step" />
+        </div>
+      </Transition>
     </div>
 
     <footer class="va-sf__foot">

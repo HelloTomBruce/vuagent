@@ -14,7 +14,7 @@ const emit = defineEmits<PricingPlansEvents>();
       <article
         v-for="t in props.tiers"
         :key="t.id"
-        class="va-price__tier"
+        class="va-price__tier va-enter-up"
         :data-recommended="t.recommended ?? false"
         :data-current="t.current ?? false"
       >

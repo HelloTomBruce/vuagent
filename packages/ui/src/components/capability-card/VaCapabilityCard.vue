@@ -18,7 +18,8 @@ const hasLists = computed(() => (props.events?.length ?? 0) > 0 || (props.compon
 </script>
 
 <template>
-  <section class="va-cap" aria-label="能力级别说明">
+  <!-- 入场（TASK-108）：.va-enter-up（motion.css 统一协议，reduced-motion 由其媒体块降级） -->
+  <section class="va-cap va-enter-up" aria-label="能力级别说明">
     <div class="va-cap__head">
       <span class="va-cap__badge" aria-hidden="true">L{{ props.level }}</span>
       <strong class="va-cap__title">{{ heading }}</strong>

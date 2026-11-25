@@ -87,3 +87,7 @@
   color: var(--va-success, #1a7f4b);
   font-weight: var(--va-fw-bold, 700);
 }
+
+/* ---- 进出场（TASK-108）：定价卡错峰入场（--va-stagger 步长） ---- */
+.va-price__tier:nth-child(2) { animation-delay: var(--va-stagger, 40ms); }
+.va-price__tier:nth-child(3) { animation-delay: calc(var(--va-stagger, 40ms) * 2); }

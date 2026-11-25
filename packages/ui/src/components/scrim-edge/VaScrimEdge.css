@@ -1,0 +1,45 @@
+/* VaScrimEdge — 边缘渐变 scrim 原语（绝对定位覆盖层，纯 CSS 无动画）。
+   用法：叠在卡片 / 媒体封面上，宿主容器需 position:relative（同 VaGradientFloor 约定）；
+   组件自身 absolute 铺依附边，不参与事件（pointer-events:none）。
+   L3 钩子（经 props 写入，宿主也可在 style 里直接覆盖）：
+   --va-scrim-edge-h     厚度（bottom/top 为高、left/right 为宽）
+   --va-scrim-edge-c     scrim 颜色（缺省 --va-scrim，亮暗自适应）
+   --va-scrim-edge-from  全色起点 %（默认 0）
+   --va-scrim-edge-to    全透明终点 %（默认 100） */
+
+.va-scrim-edge {
+  position: absolute;
+  pointer-events: none;
+}
+
+.va-scrim-edge--bottom {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--va-scrim-edge-h, 72px);
+  background: linear-gradient(to top, var(--va-scrim-edge-c) var(--va-scrim-edge-from, 0%), transparent var(--va-scrim-edge-to, 100%));
+}
+
+.va-scrim-edge--top {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--va-scrim-edge-h, 72px);
+  background: linear-gradient(to bottom, var(--va-scrim-edge-c) var(--va-scrim-edge-from, 0%), transparent var(--va-scrim-edge-to, 100%));
+}
+
+.va-scrim-edge--left {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--va-scrim-edge-h, 72px);
+  background: linear-gradient(to right, var(--va-scrim-edge-c) var(--va-scrim-edge-from, 0%), transparent var(--va-scrim-edge-to, 100%));
+}
+
+.va-scrim-edge--right {
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: var(--va-scrim-edge-h, 72px);
+  background: linear-gradient(to left, var(--va-scrim-edge-c) var(--va-scrim-edge-from, 0%), transparent var(--va-scrim-edge-to, 100%));
+}

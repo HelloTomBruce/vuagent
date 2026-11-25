@@ -2,6 +2,7 @@
 import { computed, ref, type PropType } from "vue";
 import { Clock3, Layers, Repeat2, Search, Wrench, X } from "lucide-vue-next";
 import type { TrajEvent, TrajectoryEvents } from "./types";
+import { useTrajectoryReveal } from "./useTrajectoryReveal";
 
 /**
  * 运行时 props 声明（而非类型导入式声明）：
@@ -106,6 +107,10 @@ const turnStartIds = computed(() => {
 const fmtTime = (at: number) =>
   new Date(at).toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
+/* ---------- 渐进揭示（TASK-107）：IO 进视口逐节点点亮，逻辑见 useTrajectoryReveal ---------- */
+const rootEl = ref<HTMLElement | null>(null);
+const { active: revealActive, rowVisible, blocksVisible } = useTrajectoryReveal(rootEl, filtered);
+
 const ROLE_LABEL: Record<string, string> = {
   user: "用户",
   assistant: "助手",
@@ -126,11 +131,13 @@ function snippet(e: TrajEvent): string {
 
 <template>
   <div
+    ref="rootEl"
     class="va-traj"
     :class="{
       'va-traj--plain': props.bordered === false,
       'va-traj--split': props.splitDetail,
     }"
+    :data-reveal="revealActive ? 'on' : undefined"
   >
     <div class="va-traj__panel">
     <!-- 指标条：时长/轮次/调用/子调用 + 搜索 -->
@@ -156,6 +163,7 @@ function snippet(e: TrajEvent): string {
             :key="e.id"
             class="va-traj__block"
             :data-lane="lane.key"
+            :data-shown="blocksVisible ? 'true' : undefined"
             :style="blockStyle(e)"
             :title="`${fmtTime(e.at)} ${e.title}`"
           />
@@ -172,6 +180,8 @@ function snippet(e: TrajEvent): string {
         v-for="e in filtered"
         :key="e.id"
         class="va-traj__row"
+        :data-id="e.id"
+        :data-shown="rowVisible(e.id) ? 'true' : undefined"
         :title="`${fmtTime(e.at)}${e.endAt ? ` · ${fmtDur(e.endAt - e.at)}` : ''}`"
         :data-open="(!props.splitDetail && expandedIds.has(e.id)) || undefined"
         :data-selected="(props.splitDetail && selectedId === e.id) || undefined"

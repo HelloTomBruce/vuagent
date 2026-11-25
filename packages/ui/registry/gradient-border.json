@@ -1,0 +1,30 @@
+{
+  "$schema": "https://shadcn-vue.com/schema/registry-item.json",
+  "name": "gradient-border",
+  "title": "Gradient Border",
+  "description": "渐变边框原语：static 双色渐变描边（padding-box/border-box 双背景）；running 态 conic 光环慢速旋转（Agent Ops「运行中」语义，speed 缺省走 --va-dur-loop）；reduced-motion 光环静止降级静态渐变。",
+  "type": "registry:ui",
+  "dependencies": [],
+  "registryDependencies": [],
+  "docs": "- `variant` (\"static\" | \"running\"，默认 \"static\")：静态描边 / 运行中光环\n- `from / to` (string，默认 accent 渐变端点)：渐变起止色（--va-grad-accent-from/-to）\n- `width` (number，默认 1)：边框宽度 px\n- `speed` (string | number，默认 var(--va-dur-loop, 1.8s))：running 光环周期（CSS 时长或毫秒）",
+  "files": [
+    {
+      "path": "components/ui/gradient-border/VaGradientBorder.vue",
+      "type": "registry:ui",
+      "target": "components/ui/gradient-border/VaGradientBorder.vue",
+      "content": "<script setup lang=\"ts\">\nimport { computed } from \"vue\";\nimport type { GradientBorderProps } from \"./types\";\n\nconst props = withDefaults(defineProps<GradientBorderProps>(), {\n  variant: \"static\",\n  width: 1,\n});\n\n/** 边框量：from/to 缺省吃 accent 渐变端点；speed 数字按 ms，缺省走 --va-dur-loop 底速 */\nconst style = computed(() => {\n  const speed =\n    props.speed === undefined ? null : typeof props.speed === \"number\" ? `${props.speed}ms` : props.speed;\n  return {\n    \"--va-gb-w\": `${props.width}px`,\n    \"--va-gb-from\": props.from ?? \"var(--va-grad-accent-from, #c2410c)\",\n    \"--va-gb-to\": props.to ?? \"var(--va-grad-accent-to, #2563eb)\",\n    ...(speed ? { \"--va-gb-speed\": speed } : null),\n  };\n});\n</script>\n\n<template>\n  <div class=\"va-gborder\" :class=\"`va-gborder--${props.variant}`\" :style=\"style\">\n    <slot />\n  </div>\n</template>\n\n<style>\n/* VaGradientBorder — 渐变边框原语：slot 承载内容，组件只画边框层。\n   static = padding-box/border-box 双背景双色描边（border 透明仅占位，\n   内容面填 --va-gb-fill 遮住内区渐变）；running = conic 光环经 @property\n   注册角度自定义属性慢速旋转（Agent Ops「运行中」语义；@property 不支持\n   的环境角度恒 0deg → 静态 conic 渐变，优雅降级）。无伪元素/无 overflow 副作用。\n   L3 钩子（宿主可覆盖）：\n   --va-gb-w     边宽 px（props.width 写入）\n   --va-gb-from  起色（缺省 --va-grad-accent-from）\n   --va-gb-to    止色（缺省 --va-grad-accent-to）\n   --va-gb-speed 光环周期（props.speed 写入，缺省 --va-dur-loop）\n   --va-gb-angle static 渐变角（默认 120deg）\n   --va-gb-fill  内容面填充（默认 --va-card；透底场景宿主自决）\n   --va-gb-radius 圆角（默认 --va-radius-m） */\n\n@property --va-gb-spin {\n  syntax: \"<angle>\";\n  initial-value: 0deg;\n  inherits: false;\n}\n\n.va-gborder {\n  position: relative;\n  border-radius: var(--va-gb-radius, var(--va-radius-m, 10px));\n}\n\n.va-gborder--static {\n  border: var(--va-gb-w, 1px) solid transparent;\n  background:\n    var(--va-gb-fill, var(--va-card, #ffffff)) padding-box,\n    linear-gradient(var(--va-gb-angle, 120deg), var(--va-gb-from), var(--va-gb-to)) border-box;\n}\n\n.va-gborder--running {\n  border: var(--va-gb-w, 1px) solid transparent;\n  background:\n    var(--va-gb-fill, var(--va-card, #ffffff)) padding-box,\n    conic-gradient(from var(--va-gb-spin, 0deg), var(--va-gb-from), var(--va-gb-to), var(--va-gb-from)) border-box;\n  animation: va-gradient-border-spin var(--va-gb-speed, var(--va-dur-loop, 1.8s)) linear infinite;\n}\n\n@keyframes va-gradient-border-spin {\n  to { --va-gb-spin: 360deg; }\n}\n\n@media (prefers-reduced-motion: reduce) {\n  /* 光环静止：停在 0deg 的静态 conic 渐变（降级静态渐变） */\n  .va-gborder--running { animation: none; }\n}\n</style>\n"
+    },
+    {
+      "path": "components/ui/gradient-border/index.ts",
+      "type": "registry:ui",
+      "target": "components/ui/gradient-border/index.ts",
+      "content": "export { default as VaGradientBorder } from \"./VaGradientBorder.vue\";\nexport type { GradientBorderProps } from \"./types\";\n"
+    },
+    {
+      "path": "components/ui/gradient-border/types.ts",
+      "type": "registry:ui",
+      "target": "components/ui/gradient-border/types.ts",
+      "content": "/** VaGradientBorder 的类型定义 */\n\nexport interface GradientBorderProps {\n  /** \"static\" 双色渐变描边（默认）| \"running\" conic 光环慢速旋转（Agent Ops「运行中」语义） */\n  variant?: \"static\" | \"running\";\n  /** 渐变起色（缺省 --va-grad-accent-from） */\n  from?: string;\n  /** 渐变止色（缺省 --va-grad-accent-to） */\n  to?: string;\n  /** 边框宽度 px（默认 1） */\n  width?: number;\n  /** running 光环周期：CSS 时长（\"2.4s\"）或毫秒数（1800）；缺省 var(--va-dur-loop, 1.8s) */\n  speed?: string | number;\n}\n"
+    }
+  ]
+}

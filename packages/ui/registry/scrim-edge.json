@@ -1,0 +1,30 @@
+{
+  "$schema": "https://shadcn-vue.com/schema/registry-item.json",
+  "name": "scrim-edge",
+  "title": "Scrim Edge",
+  "description": "边缘渐变 scrim 原语：bottom/top/left/right 四向线性渐隐遮罩，叠在卡片/媒体封面上（父级需 relative）；颜色缺省取 --va-scrim 遮罩色（亮暗自适应），纯 CSS 无动画。",
+  "type": "registry:ui",
+  "dependencies": [],
+  "registryDependencies": [],
+  "docs": "- `direction` (\"bottom\" | \"top\" | \"left\" | \"right\"，默认 \"bottom\")：渐变依附边\n- `scrimColor` (string，默认 var(--va-scrim))：scrim 颜色（CSS 色）\n- `height` (number，默认 72)：厚度 px（bottom/top 为高，left/right 为宽）\n- `stops` ([number, number]，默认 [0, 100])：全色起点 / 全透明终点（%）",
+  "files": [
+    {
+      "path": "components/ui/scrim-edge/VaScrimEdge.vue",
+      "type": "registry:ui",
+      "target": "components/ui/scrim-edge/VaScrimEdge.vue",
+      "content": "<script setup lang=\"ts\">\nimport { computed } from \"vue\";\nimport type { ScrimEdgeProps } from \"./types\";\n\nconst props = withDefaults(defineProps<ScrimEdgeProps>(), {\n  direction: \"bottom\",\n  height: 72,\n});\n\n/** 渐变量（颜色缺省吃 --va-scrim 遮罩色：亮暗主题自适应，宿主可显式覆盖） */\nconst style = computed(() => {\n  const [from, to] = props.stops ?? [0, 100];\n  return {\n    \"--va-scrim-edge-h\": `${props.height}px`,\n    \"--va-scrim-edge-c\": props.scrimColor ?? \"var(--va-scrim, rgba(26, 25, 23, 0.45))\",\n    \"--va-scrim-edge-from\": `${from}%`,\n    \"--va-scrim-edge-to\": `${to}%`,\n  };\n});\n</script>\n\n<template>\n  <div class=\"va-scrim-edge\" :class=\"`va-scrim-edge--${props.direction}`\" :style=\"style\" aria-hidden=\"true\" />\n</template>\n\n<style>\n/* VaScrimEdge — 边缘渐变 scrim 原语（绝对定位覆盖层，纯 CSS 无动画）。\n   用法：叠在卡片 / 媒体封面上，宿主容器需 position:relative（同 VaGradientFloor 约定）；\n   组件自身 absolute 铺依附边，不参与事件（pointer-events:none）。\n   L3 钩子（经 props 写入，宿主也可在 style 里直接覆盖）：\n   --va-scrim-edge-h     厚度（bottom/top 为高、left/right 为宽）\n   --va-scrim-edge-c     scrim 颜色（缺省 --va-scrim，亮暗自适应）\n   --va-scrim-edge-from  全色起点 %（默认 0）\n   --va-scrim-edge-to    全透明终点 %（默认 100） */\n\n.va-scrim-edge {\n  position: absolute;\n  pointer-events: none;\n}\n\n.va-scrim-edge--bottom {\n  left: 0;\n  right: 0;\n  bottom: 0;\n  height: var(--va-scrim-edge-h, 72px);\n  background: linear-gradient(to top, var(--va-scrim-edge-c) var(--va-scrim-edge-from, 0%), transparent var(--va-scrim-edge-to, 100%));\n}\n\n.va-scrim-edge--top {\n  left: 0;\n  right: 0;\n  top: 0;\n  height: var(--va-scrim-edge-h, 72px);\n  background: linear-gradient(to bottom, var(--va-scrim-edge-c) var(--va-scrim-edge-from, 0%), transparent var(--va-scrim-edge-to, 100%));\n}\n\n.va-scrim-edge--left {\n  top: 0;\n  bottom: 0;\n  left: 0;\n  width: var(--va-scrim-edge-h, 72px);\n  background: linear-gradient(to right, var(--va-scrim-edge-c) var(--va-scrim-edge-from, 0%), transparent var(--va-scrim-edge-to, 100%));\n}\n\n.va-scrim-edge--right {\n  top: 0;\n  bottom: 0;\n  right: 0;\n  width: var(--va-scrim-edge-h, 72px);\n  background: linear-gradient(to left, var(--va-scrim-edge-c) var(--va-scrim-edge-from, 0%), transparent var(--va-scrim-edge-to, 100%));\n}\n</style>\n"
+    },
+    {
+      "path": "components/ui/scrim-edge/index.ts",
+      "type": "registry:ui",
+      "target": "components/ui/scrim-edge/index.ts",
+      "content": "export { default as VaScrimEdge } from \"./VaScrimEdge.vue\";\nexport type { ScrimEdgeDirection, ScrimEdgeProps } from \"./types\";\n"
+    },
+    {
+      "path": "components/ui/scrim-edge/types.ts",
+      "type": "registry:ui",
+      "target": "components/ui/scrim-edge/types.ts",
+      "content": "/** VaScrimEdge 的类型定义 */\n\n/** 渐变依附边：bottom = 底边向上渐隐，其余三向同理 */\nexport type ScrimEdgeDirection = \"bottom\" | \"top\" | \"left\" | \"right\";\n\nexport interface ScrimEdgeProps {\n  /** 渐变依附边（默认 bottom） */\n  direction?: ScrimEdgeDirection;\n  /** scrim 颜色（CSS 色）；缺省取 --va-scrim 遮罩色（亮暗自适应） */\n  scrimColor?: string;\n  /** 渐变厚度 px（bottom/top 为高、left/right 为宽，默认 72） */\n  height?: number;\n  /** 全色起点 / 全透明终点（%，默认 [0, 100] 线性渐隐） */\n  stops?: [number, number];\n}\n"
+    }
+  ]
+}

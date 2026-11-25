@@ -164,10 +164,13 @@
   margin-left: 2px;
   background: var(--va-accent, #c2410c);
   border-radius: 1px;
-  animation: va-md-blink 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: va-stream-caret 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-@keyframes va-md-blink {
+/* 流光标闪烁共享关键帧（TASK-103 统一，规范名 va-stream-caret）：
+   与 stream-answer/VaStreamAnswer.css 同名同 body——单文件拷贝分发要求
+   各文件自含，跨文件一致性由 scripts/check-tokens.mjs 的同名同 body 门禁锁定 */
+@keyframes va-stream-caret {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }

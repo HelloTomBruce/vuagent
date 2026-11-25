@@ -77,6 +77,9 @@
 - [Tilt Card](https://hellotombruce.github.io/vuagent/components/tilt-card): 3D 倾斜卡：指针驱动 rotateX/Y（可调最大角与透视）、可选跟随光斑与悬停微放大；reduced-motion 与触屏自动静态。（VaTiltCard）
 - [Blur Crossfade](https://hellotombruce.github.io/vuagent/components/blur-crossfade): 内容切换的模糊交叉过渡：target 变化时新内容 blur-in + 上浮；可调时长/模糊半径/位移；reduced-motion 只留淡入。（VaBlurCrossfade）
 - [Gradient Floor / Text](https://hellotombruce.github.io/vuagent/components/gradient): 装饰两件：Floor 是页面底部双色光晕（呼吸动画，绝对定位铺底）；Text 是 background-clip 渐变文字（可缓慢流动）。（VaGradientFloor / VaGradientText）
+- [Spotlight Card](https://hellotombruce.github.io/vuagent/components/spotlight-card): 聚光卡（VaTiltCard 静态版）：accent 发光描边 + 舞台级深投影 + hover 指针光斑（复用 useSpotlight）；触屏与 reduced-motion 自动静态，静态发光保留；暗色下可配 --va-stage-raised 舞台抬升面。（VaSpotlightCard）
+- [Scrim Edge](https://hellotombruce.github.io/vuagent/components/scrim-edge): 边缘渐变 scrim 原语：bottom/top/left/right 四向线性渐隐遮罩，叠在卡片/媒体封面上（父级需 relative）；颜色缺省取 --va-scrim 遮罩色（亮暗自适应），纯 CSS 无动画。（VaScrimEdge）
+- [Gradient Border](https://hellotombruce.github.io/vuagent/components/gradient-border): 渐变边框原语：static 双色渐变描边（padding-box/border-box 双背景）；running 态 conic 光环慢速旋转（Agent Ops「运行中」语义，speed 缺省走 --va-dur-loop）；reduced-motion 光环静止降级静态渐变。（VaGradientBorder）
 
 ## 表单
 

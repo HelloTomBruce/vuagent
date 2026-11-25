@@ -63,3 +63,22 @@
 .va-queuedock__op:hover:not(:disabled) { background: var(--va-bg-subtle, #efede7); color: var(--va-ink, #1a1917); }
 .va-queuedock__op:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; }
 .va-queuedock__op:disabled { opacity: 0.4; cursor: default; }
+
+/* ---- TASK-108 进出场/交互反馈 ----
+   进出场类由模板 TransitionGroup 挂 motion.css 的 .va-enter-up/.va-exit-left
+   （reduced-motion 由 motion.css 媒体块降级）；move 补位平移在此定义。 */
+.va-queuedock-move {
+  transition: transform var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+/* 操作按钮 hover 平滑过渡（既有 hover 反馈的过渡化） */
+.va-queuedock__op {
+  transition:
+    background-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-queuedock-move { transition: none; }
+  .va-queuedock__op { transition: none; }
+}

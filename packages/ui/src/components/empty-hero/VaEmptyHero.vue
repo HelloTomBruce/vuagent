@@ -13,7 +13,9 @@ const emit = defineEmits<EmptyHeroEvents>();
 </script>
 
 <template>
-  <div class="va-hero">
+  <!-- .va-enter-up（motion.css，180ms 上浮+fade）：空态 hero 挂载即一次性入场；
+       reduced-motion 由 motion.css 媒体块降级为纯 fade。 -->
+  <div class="va-hero va-enter-up">
     <div class="va-hero__badge" aria-hidden="true">
       <slot name="icon">
         <Sparkles :size="20" class="va-hero__icon" />

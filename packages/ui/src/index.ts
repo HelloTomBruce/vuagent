@@ -5,6 +5,12 @@
 // 按钮基类随聚合样式分发（registry 拷贝时生成器会自动内联到组件文件）
 import "./styles/button.css";
 
+// 共享动效工具类随聚合样式分发（.va-enter-*/.va-exit-*/.va-crossfade，TASK-102）
+import "./styles/motion.css";
+
+// 共享表面工具类随聚合样式分发（.va-glass/.va-noise，TASK-110）
+import "./styles/surface.css";
+
 // 基础（M1 打样）
 export { VaButton } from "./components/button";
 export type { ButtonProps, ButtonSize, ButtonSlots, ButtonVariant } from "./components/button";
@@ -322,6 +328,16 @@ export type { BlurCrossfadeProps } from "./components/blur-crossfade";
 export { VaGradientFloor, VaGradientText } from "./components/gradient";
 export type { GradientFloorProps, GradientTextProps } from "./components/gradient";
 
+// 光影渐变原语（TASK-109「追光」手法沉淀）
+export { VaSpotlightCard, clampElevation, useSpotlightCard } from "./components/spotlight-card";
+export type { SpotlightCardProps } from "./components/spotlight-card";
+
+export { VaScrimEdge } from "./components/scrim-edge";
+export type { ScrimEdgeDirection, ScrimEdgeProps } from "./components/scrim-edge";
+
+export { VaGradientBorder } from "./components/gradient-border";
+export type { GradientBorderProps } from "./components/gradient-border";
+
 // M7 · Screens 精选（页面骨架，slot 编排既有组件）
 export { VaAppShell } from "./components/app-shell";
 export type { AppShellEvents, AppShellProps, NavItem } from "./components/app-shell";
@@ -371,6 +387,10 @@ export type { DiffPiece, DiffToken, DiffTokenType } from "./utils/wordDiff";
 export { useNow } from "./composables/useNow";
 export { useCountdown } from "./composables/useCountdown";
 export { useCopyable } from "./composables/useCopyable";
+export { useStagger } from "./composables/useStagger";
+export type { UseStaggerOptions } from "./composables/useStagger";
+export { useSpotlight, spotPercent } from "./composables/useSpotlight";
+export type { SpotRect, SpotPoint, UseSpotlightOptions } from "./composables/useSpotlight";
 export { useStickToBottom, BOTTOM_THRESHOLD_PX } from "./composables/useStickToBottom";
 export type { ScrollToBottomOptions, UseStickToBottomOptions } from "./composables/useStickToBottom";
 
@@ -391,6 +411,11 @@ export {
 } from "./runtime/registry";
 export { useAgentChat } from "./runtime/useAgentChat";
 export type { ChatMessage, SendMessageOptions, UseAgentChatOptions } from "./runtime/useAgentChat";
+// TASK-114：共享流式消费件（库 runtime 与宿主流式数据域同一实现）
+export { consumeSSEStream, parseSSEChunk } from "./runtime/sse";
+export type { SSEConsumeOptions, SSEConsumeResult, SSEParseResult } from "./runtime/sse";
+export { createDeltaBuffer } from "./runtime/useDeltaBuffer";
+export type { DeltaBuffer } from "./runtime/useDeltaBuffer";
 export type {
   AgentComponentBaseProps,
   AgentComponentStatus,

@@ -1,0 +1,189 @@
+/* ============================================================
+   共享动效工具类 —— 进出场/交叉淡入的统一协议（TASK-102 动效基建）。
+   组件不逐个发明入场曲线：统一消费 --va-dur-in/--va-dur-out 骨架时长与
+   --va-dist-* 位移档；每条声明自带字面 fallback（registry 单文件拷贝分发
+   要求，与 tokens.css 门禁一致）。
+
+   接入方式二选一：
+   1. Vue <Transition>：
+      <Transition enter-active-class="va-enter-up" leave-active-class="va-exit-up">
+      动画 fill-mode 为 both（延迟期间保持首帧、播完停在终态），
+      无需再配 enter-from-class / leave-to-class；
+   2. 类切换重挂载：骨架 → 内容换节点时给新节点挂 .va-crossfade（纯淡入），
+      离场节点挂 .va-exit-*（更短更快）。
+
+   列表错峰：v-for 子项 :style="useStagger().delayStyle(i)" 配合 .va-enter-*
+   动画类使用（animation-delay 由 composable 编排——.va-enter-* 为 CSS animation，
+   transition-delay 对其零作用，见 composables/useStagger.ts）。
+   ============================================================ */
+
+/* 入场：上浮（自下方 --va-dist-m 浮起） */
+@keyframes va-motion-in-up {
+  from { opacity: 0; transform: translateY(var(--va-dist-m, 8px)); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 入场：左滑（自左侧 --va-dist-m 滑入） */
+@keyframes va-motion-in-left {
+  from { opacity: 0; transform: translateX(calc(-1 * var(--va-dist-m, 8px))); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* 入场：缩放（96% 起放大至原尺寸） */
+@keyframes va-motion-in-scale {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* 离场：与入场互逆（向上/向左飘出、缩回）；时长/曲线由工具类映射 --va-dur-out 骨架 */
+@keyframes va-motion-out-up {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(calc(-1 * var(--va-dist-m, 8px))); }
+}
+
+@keyframes va-motion-out-left {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(calc(-1 * var(--va-dist-m, 8px))); }
+}
+
+@keyframes va-motion-out-scale {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.96); }
+}
+
+/* 交叉淡入/淡出（.va-crossfade 骨架→内容交换专用，无位移，避免占位跳变叠加） */
+@keyframes va-motion-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes va-motion-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* ---- 工具类：入场走 --va-dur-in + ease-out-quart，离场走 --va-dur-out + ease-in-quad ---- */
+
+.va-enter-up {
+  animation: va-motion-in-up var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+.va-enter-left {
+  animation: va-motion-in-left var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+.va-enter-scale {
+  animation: va-motion-in-scale var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+.va-exit-up {
+  animation: va-motion-out-up var(--va-dur-out, 140ms) var(--va-ease-in-quad, cubic-bezier(0.55, 0, 0.55, 0.2)) both;
+}
+
+.va-exit-left {
+  animation: va-motion-out-left var(--va-dur-out, 140ms) var(--va-ease-in-quad, cubic-bezier(0.55, 0, 0.55, 0.2)) both;
+}
+
+.va-exit-scale {
+  animation: va-motion-out-scale var(--va-dur-out, 140ms) var(--va-ease-in-quad, cubic-bezier(0.55, 0, 0.55, 0.2)) both;
+}
+
+/* 骨架 → 内容交叉过渡：新内容纯淡入 */
+.va-crossfade {
+  animation: va-motion-fade-in var(--va-dur-in, 180ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+/* 空态/轻量状态渐入（TASK-106 弱化档）：仅 opacity、时长走 --va-dur-2，
+   供列表空态提示与一次性状态块使用（空态清单见 TASK-106 报告）。
+   纯 opacity 即动效分频策略的降级终点形态，reduced-motion 下保持原样即可。 */
+.va-fade-in {
+  animation: va-motion-fade-in var(--va-dur-2, 200ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+/* ---- 静态光斑基类（TASK-105，决策 5「追光」路线基建）----
+   pointer 坐标由 composables/useSpotlight.ts 以 rAF 节流写入 --va-spot-x/y
+   （元素内百分比，光斑数学在 composable 内可单测）；本类只负责 radial 光斑
+   绘制与显隐（:hover 点亮，无 3D 倾斜， glare 数学对齐 VaTiltCard）。
+   --va-spot-* 为 L3 组件钩子口径（宿主可覆盖尺寸/颜色），不进 tokens.css。
+   双降级对齐 VaTiltCard glare：hover: none（触屏）与 reduced-motion 不绘制。 */
+.va-spotlight { position: relative; }
+
+/* ::after 承载光斑（避开组件自身 ::before 用途）；inset 0 + border-radius inherit
+   使光斑天然裁剪在宿主圆角内，无需 overflow: hidden。
+   注意：此 ::after radial 与 components/spotlight-card/VaSpotlightCard.css 的
+   .va-spot-card--spot::after 为 registry 单文件自含有意复制，改动需两处同步。 */
+.va-spotlight::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  background: radial-gradient(
+    var(--va-spot-size, 240px) circle at var(--va-spot-x, 50%) var(--va-spot-y, 50%),
+    var(--va-spot-color, rgba(255, 255, 255, 0.14)),
+    transparent 65%
+  );
+}
+
+.va-spotlight:hover::after { opacity: 1; }
+
+@media (hover: none) {
+  .va-spotlight::after { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-spotlight::after { display: none; }
+}
+
+/* ---- 复制反馈标准（TASK-106）：copy→check 交叉过渡 ----
+   容器 .va-copy 为 inline-grid 双内容同格堆叠（格子宽取较宽子项，切换零跳动）：
+   __idle = copy 态内容（图标/文字），__done = check 态内容。
+   copied 置真挂 .va-copy--done：check 以 ease-spring 微弹入场（进入 done 态时
+   transform 的目标态时序换成 --va-ease-spring → 过冲回弹），交叉时长统一 --va-dur-1。
+   消费方：terminal-log（行复制）、code-diff（复制按钮）、message-actions（复制图标）。 */
+.va-copy { display: inline-grid; place-items: center; }
+
+.va-copy__idle,
+.va-copy__done {
+  grid-area: 1 / 1;
+  transition: opacity var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.va-copy__idle { opacity: 1; transform: scale(1); }
+.va-copy__done { opacity: 0; transform: scale(0.6); }
+
+.va-copy--done .va-copy__done {
+  opacity: 1;
+  transform: scale(1);
+  /* 时序按 transition 属性顺序映射：opacity 仍 ease，transform 换 ease-spring 微弹 */
+  transition-timing-function: var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)), var(--va-ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+
+.va-copy--done .va-copy__idle { opacity: 0; transform: scale(0.6); }
+
+@media (prefers-reduced-motion: reduce) {
+  /* 交叉过渡瞬时完成（无位移动画），copied 状态可感知性不受影响 */
+  .va-copy__idle,
+  .va-copy__done { transition: none; }
+}
+
+/* ---- 动效分频（对齐 tokens.css 头注释策略）：
+   功能动画降级为纯 opacity——进/出场整体换成 fade keyframes，
+   位移/缩放不再出现（animation-name 顶替，时长/缓动沿用上面的声明）。 */
+@media (prefers-reduced-motion: reduce) {
+  .va-enter-up,
+  .va-enter-left,
+  .va-enter-scale,
+  .va-crossfade {
+    animation-name: va-motion-fade-in;
+  }
+
+  .va-exit-up,
+  .va-exit-left,
+  .va-exit-scale {
+    animation-name: va-motion-fade-out;
+  }
+}

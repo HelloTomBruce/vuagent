@@ -159,7 +159,7 @@ function fmtTime(ts: number): string {
             </template>
           </div>
         </template>
-        <p v-else class="va-smn__empty">还没有会话，点「＋ 新建」开始。</p>
+        <p v-else class="va-smn__empty va-fade-in">还没有会话，点「＋ 新建」开始。</p>
 
         <template v-if="archivedList.length">
           <div class="va-smn__group">已归档</div>

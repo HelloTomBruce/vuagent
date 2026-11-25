@@ -22,7 +22,7 @@ function choose(d: Decision, which: DecisionAnswer) {
     </p>
 
     <TransitionGroup v-else name="va-dib-fade" tag="div">
-      <p key="empty" class="va-dib__empty">收件箱清空了，去忙别的吧。</p>
+      <p key="empty" class="va-dib__empty va-fade-in">收件箱清空了，去忙别的吧。</p>
     </TransitionGroup>
 
     <TransitionGroup name="va-dib" tag="div" class="va-dib__list">

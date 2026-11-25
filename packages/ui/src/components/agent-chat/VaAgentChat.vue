@@ -40,7 +40,7 @@ const initials = (m: { role: string }) => (m.role === "user" ? "你" : "A");
       :style="props.maxHeight ? { maxHeight: `${props.maxHeight}px` } : undefined"
       @scroll="onScroll"
     >
-      <p v-if="!props.messages.length && !props.thinking" class="va-chat__empty">
+      <p v-if="!props.messages.length && !props.thinking" class="va-chat__empty va-fade-in">
         给 agent 一个任务开始对话。
       </p>
 

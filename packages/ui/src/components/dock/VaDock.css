@@ -107,3 +107,20 @@
   min-height: 40px;
 }
 .va-dock__divider:hover, .va-dock__divider:active { background: var(--va-accent, #c2410c); }
+
+/* ---- 微交互（TASK-108）：tab/操作钮过渡与分隔条高亮过渡 ---- */
+.va-dock__tab {
+  transition:
+    background-color var(--va-dur-1, 120ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--va-dur-1, 120ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.va-dock__op {
+  transition:
+    background-color var(--va-dur-1, 120ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--va-dur-1, 120ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.va-dock__divider {
+  transition: background-color var(--va-dur-1, 120ms) var(--va-ease-out-quart, cubic-bezier(0.22, 1, 0.36, 1));
+}

@@ -93,3 +93,12 @@
 
 .va-cs__more:hover { background: color-mix(in srgb, var(--va-info, #2563eb) 6%, transparent); }
 .va-cs__more:focus-visible { outline: 2px solid var(--va-accent, #c2410c); }
+
+/* TASK-108 交互反馈：展开/收起按钮 hover 平滑过渡 */
+.va-cs__more {
+  transition: background-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-cs__more { transition: none; }
+}

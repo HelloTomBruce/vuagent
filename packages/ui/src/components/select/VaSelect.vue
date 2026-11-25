@@ -227,7 +227,7 @@ const rootClass = computed(() => [
         </template>
       </div>
 
-      <div v-else class="va-sel__empty">
+      <div v-else class="va-sel__empty va-fade-in">
         <slot name="empty">{{ props.emptyLabel }}</slot>
       </div>
     </div>

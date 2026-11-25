@@ -47,7 +47,7 @@ const initialsOf = (author: string, initials?: string) => initials ?? author.sli
       class="va-cmt__list"
       :style="props.maxHeight ? { maxHeight: `${props.maxHeight}px` } : undefined"
     >
-      <p v-if="!props.comments.length" class="va-cmt__empty">还没有评论，说点什么吧。</p>
+      <p v-if="!props.comments.length" class="va-cmt__empty va-fade-in">还没有评论，说点什么吧。</p>
       <article
         v-for="c in props.comments"
         :key="c.id"

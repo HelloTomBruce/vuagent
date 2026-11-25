@@ -63,7 +63,9 @@
   height: 6px;
   border-radius: 50%;
   background: var(--va-accent, #c2410c);
-  animation: va-dot-pulse 1.2s ease-in-out infinite;
+  /* 脉冲延迟 = 入场时长（--va-dur-in）：行节点 .va-enter-up 与本点同帧挂载时
+     先完成 180ms 上浮入场、再起无限脉冲，避免两个动画同帧并发闪烁 */
+  animation: va-dot-pulse 1.2s ease-in-out var(--va-dur-in, 180ms) infinite;
 }
 
 @keyframes va-dot-pulse {

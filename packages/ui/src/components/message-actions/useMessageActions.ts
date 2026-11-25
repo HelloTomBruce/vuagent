@@ -1,10 +1,13 @@
-import { computed, onBeforeUnmount, ref, type Ref } from "vue";
+import { computed, ref, type Ref } from "vue";
 import type { FeedbackKind, MessageActionsProps } from "./types";
 import { DEFAULT_FEEDBACK_REASONS } from "./types";
+import { useCopyable } from "../../composables/useCopyable";
 
 /**
  * VaMessageActions 的状态逻辑：复制 / 再生成 / 反馈（含原因面板）/ 版本切换。
  * version 由 SFC 的 defineModel 创建后传入（未绑定父层时组件内部自持）。
+ * 复制统一走共享 useCopyable（TASK-106：copied 1.5s 置真口径与库内其他组件一致），
+ * 图标交叉过渡由模板挂 styles/motion.css 的 .va-copy 结构承接。
  */
 export function useMessageActions(
   props: MessageActionsProps,
@@ -16,33 +19,11 @@ export function useMessageActions(
     feedback: (kind: FeedbackKind | null, reason?: string) => void;
   },
 ) {
-  /* ---------- 复制 ---------- */
-  const copied = ref(false);
-  let copiedTimer: number | undefined;
-  async function copy() {
-    const t = props.text ?? "";
-    try {
-      if (typeof navigator !== "undefined" && navigator.clipboard) {
-        await navigator.clipboard.writeText(t);
-      } else if (typeof document !== "undefined") {
-        const ta = document.createElement("textarea");
-        ta.value = t;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        ta.remove();
-      }
-    } catch {
-      /* 剪贴板不可用时静默（宿主可监听 copy 事件自行提示） */
-    }
-    copied.value = true;
-    if (copiedTimer !== undefined) window.clearTimeout(copiedTimer);
-    copiedTimer = window.setTimeout(() => (copied.value = false), 1500);
-    emit.copy(t);
-  }
-  onBeforeUnmount(() => {
-    if (copiedTimer !== undefined) window.clearTimeout(copiedTimer);
-  });
+  /* ---------- 复制（useCopyable：剪贴板写入 + copied 1.5s 置真） ---------- */
+  const { copied, copy } = useCopyable(
+    () => props.text ?? "",
+    (t) => emit.copy(t),
+  );
 
   /* ---------- 反馈 ---------- */
   const chosen = ref<FeedbackKind | null>(null);

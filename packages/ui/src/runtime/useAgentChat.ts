@@ -3,9 +3,11 @@
  * 前端流式状态机：驱动 MessageBlock 混合流、处理 SSE 事件与 HITL 动作回调
  */
 
-import { ref, shallowRef } from "vue";
+import { getCurrentInstance, onBeforeUnmount, ref, shallowRef } from "vue";
 import type { MessageBlock, UIStreamEvent, CustomProviderConfig } from "./types.js";
 import { setupDefaultAgentRegistry } from "./registry.js";
+import { consumeSSEStream } from "./sse.js";
+import { createDeltaBuffer } from "./useDeltaBuffer.js";
 
 export interface ChatMessage {
   id: string;
@@ -43,27 +45,72 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
   const isStreaming = ref(false);
   const error = ref<string | null>(null);
 
-  // 当前正在流式接收的助手消息引用
+  // 当前正在流式接收的助手消息引用。
+  // 注意保存的是 messages 数组内的响应式代理（而非原始对象）：
+  // 流式期间对 blocks/content 的写入必须经代理触发依赖更新，
+  // 否则 rAF commit 后模板不会重渲（绕过缓冲的直写点由此杜绝）。
   const currentAssistantMsg = shallowRef<ChatMessage | null>(null);
 
+  // ---- 流式文本 rAF 合帧（TASK-104，TASK-114 抽离为共享件 runtime/useDeltaBuffer）----
+  // delta 只进缓冲，requestAnimationFrame 每帧一次 commit 到响应式 text block；
+  // markdown 重解析（VaMarkdown 的 content computed）随 commit 同帧节流——
+  // 同帧多次 delta 只触发一次重解析。响应式链路唯一写入点就是 commit 回调。
+  let bufferBlock: Extract<MessageBlock, { kind: "text" }> | null = null;
+  const textBuffer = createDeltaBuffer({
+    commit: (text) => {
+      if (bufferBlock && text) {
+        bufferBlock.content += text;
+      }
+    },
+  });
+
   /**
-   * 清洗或追加文本块
+   * 即时 flush：取消待执行帧并同步提交缓冲（幂等）。
+   * 复制/截图等需要立刻取全文的场景，以及流结束 / 错误 / 组件卸载路径
+   * 统一走这里，保证流式结束时全文完整无丢字。
+   */
+  const flushNow = () => textBuffer.flush();
+  /** 丢弃缓冲：clearMessages/setMessages 换血消息时旧块已不可达，无需提交 */
+  const dropTextBuffer = () => textBuffer.drop();
+
+  /**
+   * 清洗或追加文本块（rAF 合帧版）：
+   * delta 落到目标 text block 的缓冲，帧回调统一 commit；
+   * 块边界切换（缓冲块之后插入了 component 块）时旧块缓冲立即落账，
+   * 保证块序与逐 delta 直写版一致（text → component → text）。
    */
   const appendTextDelta = (msg: ChatMessage, delta: string) => {
     if (!msg.blocks) {
       msg.blocks = [];
     }
     const lastBlock = msg.blocks[msg.blocks.length - 1];
+    let target: Extract<MessageBlock, { kind: "text" }>;
     if (lastBlock && lastBlock.kind === "text") {
-      lastBlock.content += delta;
+      target = lastBlock;
     } else {
       msg.blocks.push({
         id: `blk-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         kind: "text",
-        content: delta,
+        content: "",
       });
+      // 从响应式数组读回代理引用：commit 经代理写入才能触发依赖更新
+      target = msg.blocks[msg.blocks.length - 1] as Extract<MessageBlock, { kind: "text" }>;
     }
+
+    if (bufferBlock && bufferBlock !== target) {
+      // 防御层：正常链路 handleStreamEvent 已在组件块结构事件前 flush；
+      // 此处兜底跨块缓冲串字（如直接调用本函数的场景），旧块缓冲立即提交保块序
+      textBuffer.flush();
+    }
+    bufferBlock = target;
+    textBuffer.push(delta);
   };
+
+  // 组件作用域内注册卸载钩子：卸载时强制 flush，缓冲文本不丢
+  // （单测等非组件环境无实例，自然跳过）
+  if (getCurrentInstance()) {
+    onBeforeUnmount(flushNow);
+  }
 
   /**
    * 查找组件块
@@ -80,6 +127,13 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
    */
   const handleStreamEvent = (event: UIStreamEvent) => {
     options.onEvent?.(event);
+
+    // 合帧纪律：仅 text_delta 进缓冲；其余事件（组件块结构变化 / turn_end / error）
+    // 处理前先同步 flush——块结构切换时已收文本先就位（保块序），
+    // 终态与错误事件保证流式结束时全文完整无丢字。
+    if (event.type !== "text_delta") {
+      flushNow();
+    }
 
     if (event.type === "turn_end") {
       isStreaming.value = false;
@@ -109,7 +163,8 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
         createdAt: Date.now(),
       };
       messages.value.push(msg);
-      currentAssistantMsg.value = msg;
+      // 保存响应式代理而非原始对象：后续 block 写入经代理触发更新（见字段注释）
+      currentAssistantMsg.value = messages.value[messages.value.length - 1];
     }
 
     const current = currentAssistantMsg.value;
@@ -245,61 +300,41 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
     const opt = extraOptions as SendMessageOptions | undefined;
 
     try {
-      const res = await fetch(`${baseUrl}/api/chat`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...headers,
-        },
-        body: JSON.stringify({
-          prompt,
-          providerConfig,
-          sessionId: targetSessionId,
-          workspaceId: opt?.workspaceId,
-          mode: opt?.mode,
-          safety: opt?.safety,
-          contextFiles: opt?.contextFiles,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Chat request failed with status ${res.status}`);
-      }
-
-      if (!res.body) {
-        throw new Error("ReadableStream not supported or empty response");
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed.startsWith("data: ")) {
-            const dataStr = trimmed.slice(6).trim();
-            if (dataStr === "[DONE]") {
-              handleStreamEvent({ type: "turn_end" });
-            } else {
-              try {
-                const event: UIStreamEvent = JSON.parse(dataStr);
-                handleStreamEvent(event);
-              } catch (parseErr) {
-                console.warn("[useAgentChat] Failed to parse SSE event chunk:", parseErr);
-              }
-            }
+      // TASK-114：SSE 消费循环收口至共享件 runtime/sse.ts（与宿主流式数据域同一实现）。
+      // 解析升级：跨 chunk 半包 / CRLF / 多行 data 合并（原内联实现仅逐行拆分）。
+      const { aborted } = await consumeSSEStream<UIStreamEvent>({
+        open: async () => {
+          const res = await fetch(`${baseUrl}/api/chat`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...headers,
+            },
+            body: JSON.stringify({
+              prompt,
+              providerConfig,
+              sessionId: targetSessionId,
+              workspaceId: opt?.workspaceId,
+              mode: opt?.mode,
+              safety: opt?.safety,
+              contextFiles: opt?.contextFiles,
+            }),
+          });
+          if (!res.ok) {
+            throw new Error(`Chat request failed with status ${res.status}`);
           }
-        }
-      }
+          return res;
+        },
+        onEvent: (event) => handleStreamEvent(event),
+        onDone: () => handleStreamEvent({ type: "turn_end" }),
+      });
+      // 本地中止（当前 sendMessage 未接 signal——保留语义位）与异常收尾都强制 flush：
+      // 流正常读完（含未发 [DONE] 的异常收尾）也强制 flush，缓冲不丢字
+      void aborted;
+      flushNow();
     } catch (err: any) {
+      // 请求失败路径强制 flush：已收到的文本先完整落账
+      flushNow();
       error.value = err.message || "Failed to send message";
       isStreaming.value = false;
       options.onError?.(err);
@@ -343,15 +378,21 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
         await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     }
+    // 回放结束（序列未含 turn_end 时）同样强制 flush；并强制复位 isStreaming——
+    // 序列缺终态事件时此前会永久悬挂在流式态（审查修复轮补记）
+    flushNow();
+    isStreaming.value = false;
   };
 
   const clearMessages = () => {
+    dropTextBuffer(); // 旧消息整体丢弃，缓冲块已不可达，直接丢弃不提交
     messages.value = [];
     currentAssistantMsg.value = null;
     error.value = null;
   };
 
   const setMessages = (newMessages: ChatMessage[]) => {
+    dropTextBuffer();
     messages.value = [...newMessages];
     currentAssistantMsg.value = null;
     error.value = null;
@@ -361,6 +402,8 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
     messages,
     isStreaming,
     error,
+    /** 即时提交合帧缓冲（复制/截图等需要立刻取全文的场景；测试亦经此手动 flush） */
+    flushNow,
     sendMessage,
     submitAction,
     handleStreamEvent,

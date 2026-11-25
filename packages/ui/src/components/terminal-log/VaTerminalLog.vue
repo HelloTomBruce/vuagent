@@ -68,10 +68,14 @@ const spanStyle = (fg?: string, bg?: string) => ({
         <button
           class="va-term__copy"
           type="button"
-          :aria-label="`复制第 ${i + 1} 行`"
+          :aria-label="copied && copiedIdx === i ? `第 ${i + 1} 行已复制` : `复制第 ${i + 1} 行`"
           @click="copyRow(i, $event)"
         >
-          {{ copied && copiedIdx === i ? "✓" : "⧉" }}
+          <!-- .va-copy 交叉结构（TASK-106 标准）：⧉→✓ 120ms 交叉 + spring 微弹 -->
+          <span class="va-copy" :class="{ 'va-copy--done': copied && copiedIdx === i }" aria-hidden="true">
+            <span class="va-copy__idle">⧉</span>
+            <span class="va-copy__done">✓</span>
+          </span>
         </button>
       </div>
     </div>

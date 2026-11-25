@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import type { AgentRendererProps } from "./types.js";
 import { getAgentComponent } from "./registry.js";
 import { postAgentAction } from "./actionClient.js";
@@ -46,12 +46,25 @@ const handleAction = async (payload: unknown) => {
 };
 
 // 当前应该渲染的组件：根据状态、是否支持渐进渲染决定
+// 骨架判定：streaming 且不支持渐进渲染且有骨架 → 渲染 skeleton（TASK-103 切换点）
+const showSkeleton = computed(() => {
+  if (!entry.value) return false;
+  return props.status === "streaming" && !entry.value.progressive && Boolean(entry.value.skeleton);
+});
+
 const activeComponent = computed(() => {
   if (!entry.value) return null;
-  if (props.status === "streaming" && !entry.value.progressive && entry.value.skeleton) {
-    return entry.value.skeleton;
-  }
-  return entry.value.component;
+  return showSkeleton.value ? entry.value.skeleton : entry.value.component;
+});
+
+// 骨架 → 内容交叉过渡标记（motion.css「类切换重挂载」协议）：
+// 仅当「渲染过骨架后切换到内容」时给内容节点挂 .va-crossfade（纯淡入，无位移），
+// 历史回放等未经骨架直接渲染实体组件的场景不重复入场。
+// watch 默认 pre flush：标记先于新节点渲染就位。skeleton 自身不接入场
+// （其 shimmer 已是动效，避免双动画并发）；reduced-motion 由 motion.css 媒体块兜底。
+const crossfadeContent = ref(false);
+watch(showSkeleton, (now, before) => {
+  crossfadeContent.value = Boolean(before && !now);
 });
 
 // 计算组件透传 Props
@@ -87,11 +100,12 @@ const activeProps = computed(() => {
       {{ status }}
     </div>
 
-    <!-- 匹配已注册组件 / 骨架屏 -->
+    <!-- 匹配已注册组件 / 骨架屏（骨架→内容换节点时内容节点挂 .va-crossfade 纯淡入） -->
     <component
       :is="activeComponent"
       v-if="activeComponent"
       v-bind="activeProps"
+      :class="crossfadeContent ? 'va-crossfade' : undefined"
     />
 
     <!-- 兜底：未注册组件 -->

@@ -11,7 +11,9 @@ const props = withDefaults(defineProps<UserBubbleProps>(), {
 </script>
 
 <template>
-  <div class="va-user-bubble-row">
+  <!-- .va-enter-up（motion.css，180ms 上浮+fade）：组件挂载即一次性入场，
+       reduced-motion 由 motion.css 媒体块降级为纯 fade -->
+  <div class="va-user-bubble-row va-enter-up">
     <div class="va-user-bubble">
       <div class="va-user-bubble__body">
         <!-- 附件列表插槽或默认渲染 -->

@@ -44,7 +44,7 @@ function onOpen(id: string) {
       >全部已读</button>
     </header>
 
-    <p v-if="!props.notifications.length" class="va-ns__empty">{{ props.emptyLabel ?? "没有新通知" }}</p>
+    <p v-if="!props.notifications.length" class="va-ns__empty va-fade-in">{{ props.emptyLabel ?? "没有新通知" }}</p>
     <TransitionGroup
       v-else
       tag="ul"

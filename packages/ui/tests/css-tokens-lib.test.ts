@@ -5,6 +5,7 @@
  * 未配对括号不中断扫描（R4 回归守卫）、L2 裸引用识别、.vue style 块提取、
  * @keyframes 花括号配对与跨文件一致性原材料。
  */
+import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   extractKeyframes,
@@ -17,6 +18,9 @@ import {
   parseTokens,
   stripComments,
 } from "../../scripts/lib/css-tokens-lib.mjs";
+
+/** 真实 tokens.css 原文（动效/光影 token 亮暗取值的回归锁定，TASK-102） */
+const tokensCss = fs.readFileSync(new URL("../src/styles/tokens.css", import.meta.url), "utf8");
 
 describe("normalize", () => {
   it("空白/大小写归一", () => {
@@ -135,5 +139,51 @@ describe("extractKeyframes", () => {
     `;
     const kf = extractKeyframes(css);
     expect(kf["va-spin"]).toBe(normalize(" to { transform: rotate(360deg); } "));
+  });
+});
+
+describe("tokens.css 动效/光影 token（TASK-102 回归锁定）", () => {
+  const { light, dark } = parseTokens(tokensCss);
+
+  it("blur 档位与 stagger 存在且取值正确（亮暗同值，仅 :root 定义）", () => {
+    expect(light["--va-blur-1"]).toBe("2px");
+    expect(light["--va-blur-2"]).toBe("8px");
+    expect(light["--va-blur-3"]).toBe("16px");
+    expect(light["--va-blur-4"]).toBe("48px");
+    expect(light["--va-stagger"]).toBe("40ms");
+  });
+
+  it("shadow-4 舞台级深投影亮暗独立取值", () => {
+    expect(normalize(light["--va-shadow-4"]!)).toBe(normalize("0 30px 80px rgba(26, 25, 23, 0.16)"));
+    expect(normalize(dark["--va-shadow-4"]!)).toBe(normalize("0 30px 80px rgba(0, 0, 0, 0.45)"));
+  });
+
+  it("glow 族亮暗双段：accent 从既有 accent 派生 alpha（追光手法 .35/.22）", () => {
+    expect(normalize(light["--va-glow-accent"]!)).toBe(
+      normalize("0 0 0 1px rgba(194, 65, 12, 0.35), 0 8px 32px rgba(194, 65, 12, 0.22)"),
+    );
+    expect(normalize(dark["--va-glow-accent"]!)).toBe(
+      normalize("0 0 0 1px rgba(232, 146, 94, 0.35), 0 8px 32px rgba(232, 146, 94, 0.22)"),
+    );
+    expect(normalize(light["--va-glow-soft"]!)).toBe(normalize("0 0 32px rgba(26, 25, 23, 0.08)"));
+    expect(normalize(dark["--va-glow-soft"]!)).toBe(normalize("0 0 32px rgba(240, 238, 233, 0.06)"));
+  });
+
+  it("grad 渐变端点：accent 族 = accent→info（GradientText 现用组合），info 族 = info→success", () => {
+    expect(light["--va-grad-accent-from"]).toBe("#c2410c");
+    expect(light["--va-grad-accent-to"]).toBe("#2563eb");
+    expect(light["--va-grad-info-from"]).toBe("#2563eb");
+    expect(light["--va-grad-info-to"]).toBe("#1a7f4b");
+    expect(dark["--va-grad-accent-from"]).toBe("#e8925e");
+    expect(dark["--va-grad-accent-to"]).toBe("#7ab0f5");
+    expect(dark["--va-grad-info-from"]).toBe("#7ab0f5");
+    expect(dark["--va-grad-info-to"]).toBe("#4cc38a");
+  });
+
+  it("stage 舞台表面对：暗色取落地页层级，亮色 = bg-subtle/card 同值", () => {
+    expect(light["--va-stage"]).toBe("#efede7");
+    expect(light["--va-stage-raised"]).toBe("#ffffff");
+    expect(dark["--va-stage"]).toBe("#141311");
+    expect(dark["--va-stage-raised"]).toBe("#1c1a17");
   });
 });

@@ -110,7 +110,7 @@ const {
         </li>
       </TransitionGroup>
 
-      <p v-if="!visible.length" class="va-mem__empty">这个过滤条件下没有记忆。</p>
+      <p v-if="!visible.length" class="va-mem__empty va-fade-in">这个过滤条件下没有记忆。</p>
 
       <Transition name="va-mem-tray">
         <div v-if="tray.length" class="va-mem__tray" role="status">
