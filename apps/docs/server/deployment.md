@@ -10,7 +10,7 @@
 
 ```bash [开发模式 (热重载)]
 pnpm --filter @vuagent/server dev
-# 默认监听 http://localhost:3001
+# 默认监听 http://localhost:6880
 ```
 
 ```bash [生产直跑模式]
@@ -31,7 +31,7 @@ pnpm --filter @vuagent/server start
 
 ```ini
 # 服务端口与主机
-PORT=3001
+PORT=6880
 HOST=0.0.0.0
 
 # 安全基线配置
@@ -82,8 +82,8 @@ COPY packages/ ./packages/
 RUN pnpm install --frozen-lockfile
 
 ENV NODE_ENV=production
-ENV PORT=3001
-EXPOSE 3001
+ENV PORT=6880
+EXPOSE 6880
 
 CMD ["pnpm", "--filter", "@vuagent/server", "start"]
 ```
@@ -97,9 +97,9 @@ services:
   vuagent-server:
     build: .
     ports:
-      - "3001:3001"
+      - "6880:6880"
     environment:
-      - PORT=3001
+      - PORT=6880
       - CORS_ORIGIN=http://localhost:5173
       - STORAGE_DRIVER=sqlite
       - SQLITE_DB_PATH=/data/vuagent.db

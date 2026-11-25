@@ -6,7 +6,7 @@ const cats = ["Agent-Ops", "Chat", "基础", "表单", "反馈", "图表", "Scre
 
 # 组件总览与分类导航
 
-> Vuagent 包含 73 个专为 AI Agent 运行时操作层（Agent Ops）打造的强类型 Vue 3 组件。
+> Vuagent 包含 82 个专为 AI Agent 运行时操作层（Agent Ops）打造的强类型 Vue 3 组件。
 > 每个组件遵循「**薄模板 + 独立样式 + 强类型 + composable 逻辑**」的单元规范，零多余运行时依赖。
 
 ---

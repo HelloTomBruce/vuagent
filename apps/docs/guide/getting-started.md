@@ -65,7 +65,7 @@ import { ref } from "vue";
 import { VaAgentChat } from "@vuagent/ui";
 
 // 连接的后端 Harness 服务地址（官方 server 或自定义后端）
-const apiBaseUrl = "http://localhost:3001";
+const apiBaseUrl = "http://localhost:6880";
 const currentSessionId = ref("session_demo_01");
 
 function handleMessageSent(content: string) {
@@ -100,6 +100,8 @@ function handleMessageSent(content: string) {
 
 如果你希望将 Agent 作为现有业务界面的**侧边智能助手（Drawer / Copilot）**，可以使用 Vuagent 提供的核心流式状态机 Composable `useAgentChat` 自定义渲染：
 
+> 只想自建消息模型 / 复用底层消费件（SSE 消费循环、帧合批）而不引入状态机？见 [流式消费 Hooks](/guide/streaming-hooks)。
+
 ```vue
 <!-- components/CopilotDrawer.vue -->
 <script setup lang="ts">
@@ -116,7 +118,7 @@ const inputPrompt = ref("");
 
 // 初始化流式状态机
 const { messages, isStreaming, sendMessage, currentAssistantMsg } = useAgentChat({
-  apiBaseUrl: "http://localhost:3001",
+  apiBaseUrl: "http://localhost:6880",
   sessionId: "copilot_drawer_session",
   onError: (err) => {
     console.error("Agent 交互异常:", err);
@@ -161,7 +163,7 @@ async function handleSend() {
               :tool-call-id="block.toolCallId"
               :args="block.args"
               :state="block.state"
-              api-base-url="http://localhost:3001"
+              api-base-url="http://localhost:6880"
             />
           </div>
         </div>

@@ -4,7 +4,7 @@
 [![docs](https://img.shields.io/badge/docs-hellotombruce.github.io%2Fvuagent-c2410c)](https://hellotombruce.github.io/vuagent/)
 [![license](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
-> Vue 生态第一个 Agent Ops 工具箱：共享契约层 + 自研 Agent Harness 服务端 + 73 个运行时操作组件（计划 / 审批 / 工具调用 / 上下文 / 收件箱）。
+> Vue 生态第一个 Agent Ops 工具箱：共享契约层 + 自研 Agent Harness 服务端 + 82 个运行时操作组件（计划 / 审批 / 工具调用 / 上下文 / 收件箱）。
 
 ## 定位
 
@@ -29,7 +29,7 @@ AI agent 产品缺的不是又一个聊天壳，而是完整的**运行时操作
                    ▼                                               │
    @vuagent/server ──────────── SSE 事件流 ───────────────▶ @vuagent/ui
    Agent Harness 服务端                                     Agent Ops 组件库（Vue 3）
-   ReAct 循环 · HITL 审批挂起 · 工具沙箱                      73 个强类型组件
+   ReAct 循环 · HITL 审批挂起 · 工具沙箱                      82 个强类型组件
    会话检查点 · 断线重连 · 双轨可观测                         useAgentChat 流式状态机
                    ▲                                       注册表 + 动态渲染分发器
                    └────────── POST /api/action/:id ◀─────────┘
@@ -40,7 +40,7 @@ AI agent 产品缺的不是又一个聊天壳，而是完整的**运行时操作
 |---|---|---|
 | [@vuagent/protocol](./packages/protocol/README.md) | 契约层 | TypeBox Schema 单一事实来源：18 事件流、10 个 ui_* 工具 + 8 个系统工具 Schema（含 finish_task 显式终态声明）、组件四态生命周期；schema 单向推导类型，杜绝双事实来源漂移 |
 | [@vuagent/server](./packages/server/README.md) | 执行层 | 自研 Agent Harness：执行与 HTTP 连接解耦（断线重连/多端订阅）、权限交集 + deny-wins 审批、token 口径上下文压缩、诚实崩溃恢复、供应商 1:N 模型分层 |
-| [@vuagent/ui](./packages/ui/README.md) | 界面层 | 73 个组件 + Agent Runtime 子系统（流式状态机 / 渲染分发器 / 动作回传），npm 整包与 shadcn-vue 单文件拷贝双通道分发 |
+| [@vuagent/ui](./packages/ui/README.md) | 界面层 | 82 个组件 + Agent Runtime 子系统（流式状态机 / 渲染分发器 / 动作回传），npm 整包与 shadcn-vue 单文件拷贝双通道分发 |
 
 **一次对话的数据流**：宿主应用经 ui 的流式状态机发起请求 → server 的 ReAct 循环驱动模型与工具，执行过程以 `HarnessStreamEvent`（18 事件）经 SSE 推送 → ui 的渲染分发器把事件收敛为「文本块 + 组件块」混排流渐进渲染；高风险工具挂起等待审批，用户决策经 `/api/action` 回传唤醒执行链路。链路上的每一个字段都出自 protocol——三端永远对着同一份 Schema 说话。
 

@@ -7,6 +7,9 @@ import {
   VaGradientText,
   VaGridBackground,
   VaTiltCard,
+  VaSpotlightCard,
+  VaScrimEdge,
+  VaGradientBorder,
   VaVoiceOrb,
   VaAgentTeam,
   VaModelWheel,
@@ -58,6 +61,31 @@ const gridDirLabel = computed(
 
 // —— 5. VaTiltCard：纯指针交互（hover 驱动），无需额外状态 ——
 
+// —— 7. VaSpotlightCard：发光/光斑开关 + 投影档位 ——
+const spotGlow = ref(true);
+const spotSpot = ref(true);
+type SpotElevation = 1 | 2 | 3 | 4;
+const spotElevation = ref<SpotElevation>(4);
+const spotElevations: SpotElevation[] = [1, 2, 3, 4];
+
+// —— 8. VaScrimEdge：四向切换 ——
+type ScrimDir = "bottom" | "top" | "left" | "right";
+const scrimDirection = ref<ScrimDir>("bottom");
+const scrimDirs: Array<{ key: ScrimDir; label: string }> = [
+  { key: "bottom", label: "底部" },
+  { key: "top", label: "顶部" },
+  { key: "left", label: "左侧" },
+  { key: "right", label: "右侧" },
+];
+
+// —— 9. VaGradientBorder：static / running 切换 ——
+type BorderVariant = "static" | "running";
+const borderVariant = ref<BorderVariant>("static");
+const borderVariants: Array<{ key: BorderVariant; label: string }> = [
+  { key: "static", label: "静态描边" },
+  { key: "running", label: "运行中光环" },
+];
+
 // —— 6. 插画三件：语音球状态 / Agent 团队 / 模型轮盘 ——
 type OrbState = "idle" | "listening" | "speaking";
 
@@ -107,7 +135,7 @@ function chipStyle(active: boolean) {
 
 # 动效与插画组件
 
-> 轻量动效与纯 CSS / SVG 插画：文字逐字浮现、内容模糊切换、渐变文字与底部光晕、缓慢漂移的网格底纹、指针驱动的 3D 倾斜卡片，以及三件开箱即用的装饰插画——为零依赖的产品界面注入质感。所有动效均遵循 `prefers-reduced-motion` 自动降级。
+> 轻量动效与纯 CSS / SVG 插画：文字逐字浮现、内容模糊切换、渐变文字与底部光晕、缓慢漂移的网格底纹、指针驱动的 3D 倾斜卡片、聚光/渐隐/渐变边框三件光影原语，以及三件开箱即用的装饰插画——为零依赖的产品界面注入质感。所有动效均遵循 `prefers-reduced-motion` 自动降级。
 
 ---
 
@@ -366,6 +394,171 @@ const wheelModels = ref([
   <VaVoiceOrb :state="orbState" :size="112" />
   <VaAgentTeam :agents="teamAgents" :size="180" floating />
   <VaModelWheel :models="wheelModels" :size="200" spinning center-label="多模型路由" />
+</template>
+```
+
+---
+
+## 7. VaSpotlightCard — 聚光卡
+
+VaTiltCard 的静态版：accent 发光描边（`--va-glow-accent`）+ 舞台级深投影 + hover 指针光斑（复用 `useSpotlight`）。发光是静态样式不算动画——`reduced-motion` 下保留发光与投影，仅关闭光斑；触屏（`hover: none`）同样不启用光斑。暗色舞台联动：宿主可把卡面换成 `--va-stage-raised` 抬升面。
+
+### 交互效果预览
+
+<div class="demo-preview vp-raw">
+  <div class="demo-title">聚光卡（鼠标悬停点亮光斑） · 当前：发光 {{ spotGlow ? "开" : "关" }} / 光斑 {{ spotSpot ? "开" : "关" }} / 投影 e{{ spotElevation }}</div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+    <button type="button" :style="chipStyle(spotGlow)" @click="spotGlow = !spotGlow">发光描边</button>
+    <button type="button" :style="chipStyle(spotSpot)" @click="spotSpot = !spotSpot">指针光斑</button>
+    <button
+      v-for="n in spotElevations"
+      :key="n"
+      type="button"
+      :style="chipStyle(spotElevation === n)"
+      @click="spotElevation = n"
+    >投影 e{{ n }}</button>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:24px;">
+    <VaSpotlightCard :glow="spotGlow" :spot="spotSpot" :elevation="spotElevation" style="width:320px;">
+      <div style="padding:22px;">
+        <div style="font-size:12px;font-weight:600;letter-spacing:1px;color:var(--va-accent);">AGENT · 自主执行</div>
+        <div style="margin-top:10px;font-size:17px;font-weight:700;">深度代码巡检任务</div>
+        <p style="margin:8px 0 0;font-size:13px;line-height:1.7;color:var(--vp-c-text-2);">默认卡面（--va-card）+ accent 发光描边 + 舞台深投影，光斑随指针掠过。</p>
+      </div>
+    </VaSpotlightCard>
+    <div data-theme="dark" style="flex:1;min-width:300px;border-radius:16px;background:var(--va-stage);padding:20px;">
+      <div style="font-size:12px;color:var(--va-muted);margin-bottom:12px;">暗色舞台表面（data-theme="dark" 子树）</div>
+      <VaSpotlightCard :glow="spotGlow" :spot="spotSpot" :elevation="spotElevation" style="--va-spot-card-bg: var(--va-stage-raised);width:100%;">
+        <div style="padding:22px;">
+          <div style="font-size:17px;font-weight:700;color:var(--va-ink);">Stage Raised 舞台抬升面</div>
+          <p style="margin:8px 0 0;font-size:13px;line-height:1.7;color:var(--va-muted);">宿主经 --va-spot-card-bg 钩子接入舞台表面对，暗色下发光换暖橙派生。</p>
+        </div>
+      </VaSpotlightCard>
+    </div>
+  </div>
+</div>
+
+### 代码示例
+
+```vue
+<script setup lang="ts">
+import { VaSpotlightCard } from "@vuagent/ui";
+</script>
+
+<template>
+  <!-- 默认：发光 + 光斑 + 舞台投影 e4 -->
+  <VaSpotlightCard>
+    <div style="padding:22px;">卡片内容放在默认插槽</div>
+  </VaSpotlightCard>
+
+  <!-- 暗色舞台联动：卡面换 stage 抬升面（组件不强制，由宿主决定） -->
+  <VaSpotlightCard style="--va-spot-card-bg: var(--va-stage-raised);">
+    <div style="padding:22px;">…</div>
+  </VaSpotlightCard>
+</template>
+```
+
+---
+
+## 8. VaScrimEdge — 边缘渐变 Scrim
+
+方向可配置的渐变遮罩原语：`bottom / top / left / right` 四向线性渐隐，叠在卡片或媒体封面上保证文字可读（宿主容器需 `position:relative`）。颜色缺省取 `--va-scrim` 遮罩色，亮暗主题自适应；厚度与渐变起止点均可调，纯 CSS 无动画。
+
+### 交互效果预览
+
+<div class="demo-preview vp-raw">
+  <div class="demo-title">媒体封面文字保护 · 当前方向：{{ scrimDirs.find(d => d.key === scrimDirection)?.label }}</div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+    <button
+      v-for="d in scrimDirs"
+      :key="d.key"
+      type="button"
+      :style="chipStyle(scrimDirection === d.key)"
+      @click="scrimDirection = d.key"
+    >{{ d.label }}</button>
+  </div>
+  <div style="position:relative;border-radius:12px;overflow:hidden;height:180px;background:linear-gradient(120deg, var(--va-grad-accent-from), var(--va-grad-accent-to));">
+    <div style="position:absolute;top:16px;left:16px;font-size:13px;color:rgba(255,255,255,0.85);">媒体封面 / 卡片底图</div>
+    <div style="position:absolute;bottom:16px;left:16px;right:16px;">
+      <div style="font-size:18px;font-weight:700;color:#fff;">边缘渐隐的遮罩原语</div>
+      <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.85);">scrim 只铺依附边（当前 72px），文字叠在其上始终可读。</p>
+    </div>
+    <VaScrimEdge :direction="scrimDirection" :height="96" />
+  </div>
+</div>
+
+### 代码示例
+
+```vue
+<script setup lang="ts">
+import { VaScrimEdge } from "@vuagent/ui";
+</script>
+
+<template>
+  <!-- 父级容器需 position:relative（组件为绝对定位覆盖层） -->
+  <div style="position:relative;">
+    <img src="cover.jpg" alt="" />
+    <div style="position:absolute;bottom:16px;left:16px;color:#fff;">标题文字</div>
+    <VaScrimEdge direction="bottom" :height="96" />
+    <!-- 自定义颜色与渐变起止：<VaScrimEdge direction="top" scrim-color="#000" :height="64" :stops="[20, 100]" /> -->
+  </div>
+</template>
+```
+
+---
+
+## 9. VaGradientBorder — 渐变边框
+
+渐变边框原语：`static` 双色渐变描边（padding-box/border-box 双背景手法）；`running` 态 conic 光环慢速旋转——Agent Ops「运行中」语义，周期缺省走 `--va-dur-loop`。slot 承载内容，组件只画边框层；`reduced-motion` 下光环静止降级为静态渐变。
+
+### 交互效果预览
+
+<div class="demo-preview vp-raw">
+  <div class="demo-title">渐变边框 · 当前：{{ borderVariants.find(v => v.key === borderVariant)?.label }}</div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+    <button
+      v-for="v in borderVariants"
+      :key="v.key"
+      type="button"
+      :style="chipStyle(borderVariant === v.key)"
+      @click="borderVariant = v.key"
+    >{{ v.label }}</button>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:stretch;">
+    <VaGradientBorder :variant="borderVariant" :width="1.5" style="flex:1;min-width:280px;">
+      <div style="padding:18px;">
+        <div style="font-size:12px;font-weight:600;letter-spacing:1px;color:var(--va-accent);">TASK-1092</div>
+        <div style="margin-top:8px;font-size:15px;font-weight:700;">发布流水线 · 全量回归</div>
+        <p style="margin:6px 0 0;font-size:13px;line-height:1.7;color:var(--vp-c-text-2);">{{ borderVariant === "running" ? "光环慢速旋转 = Agent 正在执行（周期跟随 --va-dur-loop）" : "静态双色描边 = 待命/完成态（accent → info 渐变）" }}</p>
+      </div>
+    </VaGradientBorder>
+    <VaGradientBorder variant="static" :width="1.5" from="var(--va-grad-info-from)" to="var(--va-grad-info-to)" style="flex:1;min-width:280px;">
+      <div style="padding:18px;">
+        <div style="font-size:12px;font-weight:600;letter-spacing:1px;color:var(--va-info);">冷调变体</div>
+        <div style="margin-top:8px;font-size:15px;font-weight:700;">数据通道 · info → success</div>
+        <p style="margin:6px 0 0;font-size:13px;line-height:1.7;color:var(--vp-c-text-2);">from / to 换吃 --va-grad-info 族端点，次级强调场景。</p>
+      </div>
+    </VaGradientBorder>
+  </div>
+</div>
+
+### 代码示例
+
+```vue
+<script setup lang="ts">
+import { VaGradientBorder } from "@vuagent/ui";
+</script>
+
+<template>
+  <!-- 静态双色描边 -->
+  <VaGradientBorder variant="static" :width="1.5">
+    <div style="padding:18px;">内容放默认插槽，组件只画边框层</div>
+  </VaGradientBorder>
+
+  <!-- Agent Ops「运行中」：conic 光环慢速旋转，reduced-motion 自动静止 -->
+  <VaGradientBorder variant="running" :speed="2200">
+    <div style="padding:18px;">运行中的任务卡</div>
+  </VaGradientBorder>
 </template>
 ```
 

@@ -44,6 +44,7 @@ export default defineConfig({
             { text: "产品定位与架构理念", link: "/guide/overview" },
             { text: "快速接入现有 Vue 项目", link: "/guide/getting-started" },
             { text: "接入项目特有工具与自定义 UI", link: "/guide/custom-tools-and-ui" },
+            { text: "流式消费 Hooks（自建数据域）", link: "/guide/streaming-hooks" },
             { text: "主题化与样式定制", link: "/guide/theming" },
           ],
         },

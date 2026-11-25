@@ -112,7 +112,7 @@ async def handle_action(action_id: str, request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=3001)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 ```
 
 ### 验证运行
@@ -121,7 +121,7 @@ if __name__ == "__main__":
    pip install fastapi uvicorn
    python main.py
    ```
-2. 前端 `useAgentChat` 或 `VaAgentChat` 的 `apiBaseUrl` 直接指向 `http://localhost:3001` 即可，前端组件完全能够正常渲染出计划卡片与文本流！
+2. 前端 `useAgentChat` 或 `VaAgentChat` 的 `apiBaseUrl` 直接指向 `http://localhost:8000` 即可，前端组件完全能够正常渲染出计划卡片与文本流！
 
 ---
 
