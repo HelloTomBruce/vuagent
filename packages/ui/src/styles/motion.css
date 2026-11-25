@@ -170,6 +170,28 @@
   .va-copy__done { transition: none; }
 }
 
+/* ---- 错误反馈标准（校验失败横向微振）：目标元素挂 .va-shake 播一次 ±3px 微振 ----
+   时长 --va-dur-2 × 2（两拍四峰，克制的「摇头」量级，rubric 校验失败口径）；
+   重复触发需先移除类、强制 reflow 再挂回（封装见 composables/useShake.ts）。
+   reduced-motion 降级为不播：错误状态的可感知性由错误样式本身（描边/文案）承担，
+   动效只做注意力引导——符合头注释「功能动画降级保留状态可感知」的分频策略。
+   消费方：VaStepperForm / VaOtpInput 经 useShake() 程序化触发（defineExpose shake()）；
+   宿主自绘表单可直接挂类。 */
+@keyframes va-motion-shake {
+  20% { transform: translateX(-3px); }
+  40% { transform: translateX(3px); }
+  60% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+}
+
+.va-shake {
+  animation: va-motion-shake calc(var(--va-dur-2, 200ms) * 2) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-shake { animation: none; }
+}
+
 /* ---- 动效分频（对齐 tokens.css 头注释策略）：
    功能动画降级为纯 opacity——进/出场整体换成 fade keyframes，
    位移/缩放不再出现（animation-name 顶替，时长/缓动沿用上面的声明）。 */

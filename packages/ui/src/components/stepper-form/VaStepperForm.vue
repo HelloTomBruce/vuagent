@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import type { StepperFormEvents, StepperFormProps } from "./types";
 import { VaProgressTracker } from "../progress-tracker";
+import { useShake } from "../../composables/useShake";
 
 const props = defineProps<StepperFormProps>();
 
@@ -15,6 +16,10 @@ const step = computed(() =>
 );
 
 const isLast = computed(() => step.value === props.steps.length - 1);
+
+/* 校验失败反馈：宿主在 @next/@submit 里发现校验未过时调用，步骤体横向微振一次
+   （motion.css .va-shake 标准；reduced-motion 自动不播，错误语义仍需宿主以文案披露） */
+const { shake } = useShake();
 
 function setStep(v: number) {
   touched.value = true;
@@ -39,6 +44,8 @@ function goBack() {
   emit("back", prev);
   setStep(prev - 1);
 }
+
+defineExpose({ shake });
 </script>
 
 <template>
@@ -62,7 +69,7 @@ function goBack() {
         enter-active-class="va-enter-up"
         leave-active-class="va-exit-up"
       >
-        <div :key="steps[step]?.id ?? step" class="va-sf__step">
+        <div ref="shake" :key="steps[step]?.id ?? step" class="va-sf__step">
           <slot :name="`step-${steps[step]?.id}`" :step="step" />
         </div>
       </Transition>

@@ -389,6 +389,7 @@ export { useCountdown } from "./composables/useCountdown";
 export { useCopyable } from "./composables/useCopyable";
 export { useStagger } from "./composables/useStagger";
 export type { UseStaggerOptions } from "./composables/useStagger";
+export { useShake } from "./composables/useShake";
 export { useSpotlight, spotPercent } from "./composables/useSpotlight";
 export type { SpotRect, SpotPoint, UseSpotlightOptions } from "./composables/useSpotlight";
 export { useStickToBottom, BOTTOM_THRESHOLD_PX } from "./composables/useStickToBottom";

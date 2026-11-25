@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from "vue";
 import type { OtpInputEvents, OtpInputProps } from "./types";
+import { useShake } from "../../composables/useShake";
 
 const props = defineProps<OtpInputProps>();
 
@@ -14,6 +15,10 @@ const chars = computed(() => {
 const filled = computed(() => chars.value.every((c) => c !== ""));
 
 const rootEl = useTemplateRef<HTMLElement>("root");
+
+/* 验证码错误反馈：宿主侧校验失败（服务端判定不对等）时调用，输入组横向微振一次
+   （motion.css .va-shake 标准）；错误语义建议宿主同时以文案/aria 披露 */
+const { shake } = useShake(rootEl);
 
 function update(next: string[]) {
   const v = next.join("").slice(0, len.value);
@@ -73,6 +78,8 @@ function onPaste(e: ClipboardEvent) {
   const last = Math.min(text.length, len.value) - 1;
   at(Math.max(0, last))?.focus();
 }
+
+defineExpose({ shake });
 </script>
 
 <template>

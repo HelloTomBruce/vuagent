@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 const css = fs.readFileSync(new URL("../src/styles/motion.css", import.meta.url), "utf8");
 
 describe("motion.css 静态断言", () => {
-  it("进出场/交叉淡入/空态渐入工具类存在", () => {
+  it("进出场/交叉淡入/空态渐入/错误微振工具类存在", () => {
     for (const cls of [
       "va-enter-up",
       "va-enter-left",
@@ -20,6 +20,7 @@ describe("motion.css 静态断言", () => {
       "va-exit-scale",
       "va-crossfade",
       "va-fade-in",
+      "va-shake",
     ]) {
       expect(css, `缺少 .${cls}`).toMatch(new RegExp(`\\.${cls}\\s*\\{`));
     }
@@ -35,12 +36,13 @@ describe("motion.css 静态断言", () => {
       "va-motion-out-scale",
       "va-motion-fade-in",
       "va-motion-fade-out",
+      "va-motion-shake",
     ]) {
       expect(css).toContain(`@keyframes ${kf}`);
     }
     // 工具类 animation 引用（animation shorthand；不含 animation-name 覆盖行）
     const referenced = [...css.matchAll(/animation:\s*(va-motion-[\w-]+)/g)].map((m) => m[1]);
-    expect(referenced).toHaveLength(8);
+    expect(referenced).toHaveLength(9);
     for (const name of referenced) expect(css).toContain(`@keyframes ${name}`);
   });
 
@@ -97,5 +99,16 @@ describe("motion.css 静态断言", () => {
     // reduced-motion：交叉瞬时完成
     const blocks = css.split("@media (prefers-reduced-motion: reduce)").slice(1);
     expect(blocks.some((b) => b.includes(".va-copy__idle") && b.includes("transition: none"))).toBe(true);
+  });
+
+  it(".va-shake 错误反馈：±3px 横向微振、dur-2×2 时长、reduced-motion 不播（错误样式自身承担可感知性）", () => {
+    expect(css).toMatch(/\.va-shake\s*\{[^}]*animation:\s*va-motion-shake[^}]*--va-dur-2, 200ms/);
+    // 微振 keyframes：横向位移峰值（含回中收敛），无 Y 轴/缩放
+    const kf = css.slice(css.indexOf("@keyframes va-motion-shake"));
+    expect(kf).toMatch(/translateX\(-3px\)/);
+    expect(kf).toMatch(/translateX\(3px\)/);
+    expect(kf).not.toMatch(/translateY|scale\(/);
+    const blocks = css.split("@media (prefers-reduced-motion: reduce)").slice(1);
+    expect(blocks.some((b) => b.includes(".va-shake") && b.includes("animation: none"))).toBe(true);
   });
 });
