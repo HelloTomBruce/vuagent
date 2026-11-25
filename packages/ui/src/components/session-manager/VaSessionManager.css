@@ -79,7 +79,11 @@
   border-radius: var(--va-radius-s, 8px);
 }
 .va-smn__row:hover { background: var(--va-bg-subtle, #efede7); }
+/* 按压口径（行级分轨）：表面朝 ink 混 15% 加深（方向随主题自适应） */
+.va-smn__row:active { background: color-mix(in srgb, var(--va-bg-subtle, #efede7) 85%, var(--va-ink, #1a1917)); }
 .va-smn__row[data-active="true"] { background: var(--va-accent-soft, rgba(194, 65, 12, 0.1)); }
+/* 选中行按压：保持 accent 色相加深（不跳中性灰） */
+.va-smn__row[data-active="true"]:active { background: color-mix(in srgb, var(--va-accent-soft, rgba(194, 65, 12, 0.1)) 85%, var(--va-ink, #1a1917)); }
 .va-smn__row[data-archived="true"] { opacity: 0.65; }
 
 .va-smn__main {

@@ -35,6 +35,10 @@
 
 .va-ftree__row:hover { background: var(--va-bg-subtle, #efede7); }
 
+/* 按压口径（行级分轨）：表面自 hover 态朝 ink 混 15% 加深——ink 随主题翻转，
+   亮色变深/暗色变浅方向自适应；全宽行不做位移/缩放（区别 .va-act 按钮口径） */
+.va-ftree__row:active { background: color-mix(in srgb, var(--va-bg-subtle, #efede7) 85%, var(--va-ink, #1a1917)); }
+
 .va-ftree__row[data-active="true"] { outline: none; }
 .va-ftree__row:focus-visible {
   outline: 2px solid var(--va-accent, #c2410c);
@@ -88,6 +92,8 @@
   background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
   box-shadow: inset 2px 0 0 var(--va-accent, #c2410c);
 }
+/* 选中行按压：保持 accent 色相加深（不跳中性灰） */
+.va-ftree__row--selected:active { background: color-mix(in srgb, var(--va-accent-soft, rgba(194, 65, 12, 0.1)) 85%, var(--va-ink, #1a1917)); }
 
 .va-ftree__count {
   font-size: var(--va-fs-xs, 11px);

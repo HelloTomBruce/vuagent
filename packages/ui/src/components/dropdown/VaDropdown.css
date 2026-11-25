@@ -132,6 +132,10 @@
   color: var(--va-danger, #d5453c);
 }
 
+/* 按压口径（选项行）：在高亮面上朝 ink 混 15% 再加深（highlighted 保持色相） */
+.va-dd__item:active:not(:disabled) { background: color-mix(in srgb, var(--va-accent-soft, rgba(194, 65, 12, 0.1)) 85%, var(--va-ink, #1a1917)); }
+.va-dd__item[data-danger]:active:not(:disabled) { background: color-mix(in srgb, var(--va-danger, #d5453c) 18%, transparent); color: var(--va-danger, #d5453c); }
+
 /* 对勾位：固定宽度占位，非 checked 项与 checked 项左对齐 */
 .va-dd__check {
   flex: none;

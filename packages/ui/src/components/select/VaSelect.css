@@ -191,6 +191,8 @@
 
 .va-sel__opt[data-active] { background: var(--va-accent-soft, rgba(194, 65, 12, 0.1)); color: var(--va-ink, #1a1917); }
 .va-sel__opt[aria-disabled="true"] { opacity: 0.4; cursor: default; }
+/* 按压口径（选项行）：在高亮面上朝 ink 混 15% 再加深（highlighted 保持色相） */
+.va-sel__opt:active:not([aria-disabled="true"]) { background: color-mix(in srgb, var(--va-accent-soft, rgba(194, 65, 12, 0.1)) 85%, var(--va-ink, #1a1917)); }
 
 .va-sel__opt-main {
   flex: 1;

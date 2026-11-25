@@ -80,9 +80,12 @@
   text-align: left;
   font: inherit;
   min-width: 0;
+  transition: background var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .va-ns__main:hover { background: var(--va-bg-subtle, #efede7); }
+/* 按压口径（行级分轨）：hover 面朝 ink 混 15% 加深，方向随主题自适应 */
+.va-ns__main:active { background: color-mix(in srgb, var(--va-bg-subtle, #efede7) 85%, var(--va-ink, #1a1917)); }
 .va-ns__main:focus-visible { outline: 2px solid var(--va-accent, #c2410c); outline-offset: -2px; }
 
 .va-ns__icon {
