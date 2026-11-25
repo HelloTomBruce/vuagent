@@ -15,7 +15,7 @@
   margin-left: 2px;
   vertical-align: -0.15em;
   background: var(--va-accent, #c2410c);
-  animation: va-stream-caret 0.9s steps(1) infinite;
+  animation: va-stream-caret calc(var(--va-dur-loop, 1.8s) * 0.5) steps(1) infinite;
 }
 
 /* 流光标闪烁共享关键帧（TASK-103 统一，规范名 va-stream-caret）：

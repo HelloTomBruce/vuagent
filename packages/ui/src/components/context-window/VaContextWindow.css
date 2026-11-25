@@ -48,8 +48,9 @@
 .va-ctx__cell:focus-visible { outline: 2px solid var(--_accent); outline-offset: -1px; }
 
 .va-ctx__cell[data-shrink] {
-  animation: va-ctx-shimmer 0.9s linear infinite;
-  transition: width 0.7s var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  animation: va-ctx-shimmer calc(var(--va-dur-loop, 1.8s) * 0.5) linear infinite;
+  /* 收缩走慢速档 --va-dur-4（倒计时感，微交互档位对这条语义太急） */
+  transition: width var(--va-dur-4, 600ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 @keyframes va-ctx-shimmer {
   0%, 100% { filter: brightness(1); }

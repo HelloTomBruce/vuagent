@@ -25,6 +25,7 @@
     border-color var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
     color var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
     box-shadow var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    opacity var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
     transform var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
@@ -100,5 +101,6 @@
 @media (prefers-reduced-motion: reduce) {
   .va-btn { transition: none; }
   .va-btn:active:not(:disabled) { transform: none; }
-  .va-btn--loading::before { animation-duration: 2s; }
+  /* 减速不停：加载态必须保持可感知（2s = 底速 × 10/9） */
+  .va-btn--loading::before { animation-duration: calc(var(--va-dur-loop, 1.8s) * 10 / 9); }
 }

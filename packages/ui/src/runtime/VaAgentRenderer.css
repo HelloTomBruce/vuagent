@@ -11,7 +11,9 @@
   border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
   box-shadow: 0 1px 3px rgba(26, 25, 23, 0.04);
   overflow: hidden;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    box-shadow var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .va-agent-renderer[data-status="streaming"] {

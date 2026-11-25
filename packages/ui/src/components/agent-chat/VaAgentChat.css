@@ -109,7 +109,7 @@
   height: 7px;
   border-radius: 50%;
   background: var(--va-muted, #6f6d66);
-  animation: va-chat-hop 1.2s ease-in-out infinite;
+  animation: va-chat-hop calc(var(--va-dur-loop, 1.8s) * 2 / 3) ease-in-out infinite; /* 1.2s = 底速 × 2/3 */
 }
 
 .va-chat__pulse:nth-child(2) { animation-delay: 0.15s; }

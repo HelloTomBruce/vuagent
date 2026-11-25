@@ -113,7 +113,8 @@
   --va-shadow-4: 0 30px 80px rgba(26, 25, 23, 0.16);
 
   /* ---- 动效 ----
-     基础三档用于 hover/按压等微交互；
+     基础四档用于状态迁移：dur-1/2/3 hover/按压等微交互与浮层进出，
+     dur-4 慢速状态条（进度收缩/倒计时感，如 ContextWindow 收缩）；
      进出编排骨架（浮层统一协议）：入场 --va-dur-in + ease-out-quart，
      离场 --va-dur-out + ease-in-quad（离场更快更短，感知更干脆）；
      --va-ease-spring 用于成功/强调反馈的弹性过冲；
@@ -127,6 +128,7 @@
   --va-dur-1: 120ms;
   --va-dur-2: 200ms;
   --va-dur-3: 300ms;
+  --va-dur-4: 600ms;
   --va-dur-in: 180ms;
   --va-dur-out: 140ms;
   --va-dist-s: 4px;

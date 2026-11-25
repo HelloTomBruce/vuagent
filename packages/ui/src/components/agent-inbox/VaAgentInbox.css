@@ -63,7 +63,7 @@
 }
 .va-inb__row[data-status="running"] .va-inb__dot {
   background: var(--_accent);
-  animation: va-inb-pulse 1.6s ease-in-out infinite;
+  animation: va-inb-pulse calc(var(--va-dur-loop, 1.8s) * 8 / 9) ease-in-out infinite; /* 1.6s = 底速 × 8/9 */
 }
 .va-inb__row[data-status="waiting"] .va-inb__dot { background: var(--va-warning, #b45309); }
 .va-inb__row[data-status="done"] .va-inb__dot { background: var(--va-success, #1a7f4b); }

@@ -82,8 +82,9 @@ describe("VaAssistantTurn", () => {
     );
 
     // 脉冲延迟 = --va-dur-in（180ms）：行 .va-enter-up 与点同帧挂载时不并发闪两个动画
+    // 时长 = --va-dur-loop 派生（1.2s = 底速 × 2/3，动效档位纪律禁止时长字面量）
     expect(css).toMatch(
-      /\.va-assistant-turn__cursor-dot\s*\{[^}]*animation:\s*va-dot-pulse\s+1\.2s\s+ease-in-out\s+var\(--va-dur-in,\s*180ms\)\s+infinite/,
+      /\.va-assistant-turn__cursor-dot\s*\{[^}]*animation:\s*va-dot-pulse\s+calc\(var\(--va-dur-loop,\s*1\.8s\)\s*\*\s*2\s*\/\s*3\)\s+ease-in-out\s+var\(--va-dur-in,\s*180ms\)\s+infinite/,
     );
 
     // reduced-motion 分支：脉冲整体停用（静态常亮点），入场降级由 motion.css 兜底

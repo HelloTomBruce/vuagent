@@ -79,7 +79,7 @@
 
 /* 会话行状态点（G8）与置顶标记（G10） */
 .va-stree__dot { flex: none; width: 7px; height: 7px; border-radius: 50%; }
-.va-stree__dot--run { background: var(--va-warning, #b45309); animation: va-stree-pulse 1.2s infinite; }
+.va-stree__dot--run { background: var(--va-warning, #b45309); animation: va-stree-pulse calc(var(--va-dur-loop, 1.8s) * 2 / 3) infinite; /* 1.2s = 底速 × 2/3 */ }
 .va-stree__dot--warn { background: var(--va-danger, #d5453c); }
 @keyframes va-stree-pulse { 50% { opacity: 0.3; } }
 @media (prefers-reduced-motion: reduce) { .va-stree__dot--run { animation: none; } }

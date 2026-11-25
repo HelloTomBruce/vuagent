@@ -277,7 +277,7 @@ function handleRefresh() {
 }
 
 .va-deploy-card__status-dot--pulse {
-  animation: vaDeployCardPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: vaDeployCardPulse calc(var(--va-dur-loop, 1.8s) * 10 / 9) cubic-bezier(0.4, 0, 0.6, 1) infinite; /* 2s = 底速 × 10/9 */
 }
 
 @keyframes vaDeployCardPulse {
@@ -424,7 +424,7 @@ function handleRefresh() {
 }
 
 .va-spin {
-  animation: vaSpin 1s linear infinite;
+  animation: vaSpin calc(var(--va-dur-loop, 1.8s) * 0.5) linear infinite;
 }
 @keyframes vaSpin {
   100% { transform: rotate(360deg); }

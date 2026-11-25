@@ -12,7 +12,7 @@
     var(--va-skel-bg, rgba(128, 128, 128, 0.28));
   background-size: 200% 100%;
   background-position: 200% 0;
-  animation: va-skel-shimmer 1.6s linear infinite;
+  animation: va-skel-shimmer calc(var(--va-dur-loop, 1.8s) * 8 / 9) linear infinite; /* 1.6s = 底速 × 8/9 */
 }
 
 @keyframes va-skel-shimmer {

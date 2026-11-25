@@ -33,7 +33,7 @@
 
 .va-thought-box__pulse-icon {
   color: var(--va-accent, #c2410c);
-  animation: va-thought-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: va-thought-pulse calc(var(--va-dur-loop, 1.8s) * 10 / 9) cubic-bezier(0.4, 0, 0.6, 1) infinite; /* 2s = 底速 × 10/9 */
 }
 
 @keyframes va-thought-pulse {

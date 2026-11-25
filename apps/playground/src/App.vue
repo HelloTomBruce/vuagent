@@ -209,7 +209,7 @@ router.afterEach((to) => {
   box-shadow: 0 1px 2px rgba(26, 25, 23, 0.06);
 }
 
-.pg__main { animation: pg-in 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+.pg__main { animation: pg-in var(--va-dur-2, 200ms) cubic-bezier(0.22, 1, 0.36, 1); }
 
 @keyframes pg-in {
   from { opacity: 0; transform: translateY(4px); }

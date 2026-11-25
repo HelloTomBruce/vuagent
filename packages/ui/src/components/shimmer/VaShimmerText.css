@@ -12,7 +12,7 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: va-shimmer-text 2s linear infinite;
+  animation: va-shimmer-text calc(var(--va-dur-loop, 1.8s) * 10 / 9) linear infinite; /* 2s = 底速 × 10/9 */
 }
 
 @keyframes va-shimmer-text {

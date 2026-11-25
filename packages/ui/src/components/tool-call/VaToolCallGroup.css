@@ -50,7 +50,7 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: va-tclg-shine 1.6s linear infinite;
+  animation: va-tclg-shine calc(var(--va-dur-loop, 1.8s) * 8 / 9) linear infinite; /* 1.6s = 底速 × 8/9 */
 }
 @keyframes va-tclg-shine {
   from { background-position: 200% 0; }

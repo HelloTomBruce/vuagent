@@ -164,7 +164,7 @@
   margin-left: 2px;
   background: var(--va-accent, #c2410c);
   border-radius: 1px;
-  animation: va-stream-caret 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: va-stream-caret calc(var(--va-dur-loop, 1.8s) * 5 / 9) cubic-bezier(0.4, 0, 0.6, 1) infinite; /* 1s = 底速 × 5/9 */
 }
 
 /* 流光标闪烁共享关键帧（TASK-103 统一，规范名 va-stream-caret）：

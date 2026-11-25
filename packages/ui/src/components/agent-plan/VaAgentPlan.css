@@ -170,5 +170,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .va-plan-move, .va-plan-leave-active, .va-plan-enter-active { transition: none; }
-  .va-plan .va-plan__spin { animation-duration: 2s; }
+  /* 减速不停：加载态必须保持可感知（2s = 底速 × 10/9） */
+  .va-plan .va-plan__spin { animation-duration: calc(var(--va-dur-loop, 1.8s) * 10 / 9); }
 }
