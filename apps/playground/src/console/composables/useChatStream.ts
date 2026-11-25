@@ -213,15 +213,12 @@ export function useChatStream(options: ChatStreamOptions) {
       trajEvents: [],
       timestamp: Date.now(),
     };
-    chatTurns.value.push(assistantTurn);
     registry.cacheTurns(opts.sessionId, chatTurns.value);
-    // 用户刚发出消息：强制回底（无视钉底状态）
-    options.scrollToBottom({ force: true });
-
-    // 关键：appendReactiveTurn 从 reactive 数组读回代理对象交给流处理器。
-    // 直接改 raw 对象会绕过 Vue proxy 导致真实模型流式期间界面不更新
-    // （此前仅因沙箱演示流的 ui_agent_plan 恰好触发重渲染而未暴露）
+    // assistant turn 只能经 appendReactiveTurn 入列一次：它既完成追加又读回代理引用，
+    // 这里再手动 push 会让同一 turn 出现两份（思考过程/正文双份渲染，R8 回归）
     const reactiveTurn = appendReactiveTurn(chatTurns, assistantTurn);
+    // 用户刚发出消息：强制回底（无视钉底状态；两条 turn 均已入列后再滚）
+    options.scrollToBottom({ force: true });
     void connectToSessionStream(opts.sessionId, reactiveTurn, true, {
       sessionId: opts.sessionId,
       workspaceId: opts.workspaceId,

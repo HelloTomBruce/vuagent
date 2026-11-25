@@ -69,6 +69,23 @@ describe("useChatStream text_delta rAF 合帧（TASK-114）", () => {
     expect(assistantTurn.content).toBe("abc");
   });
 
+  it("sendPrompt 入列恰好一次：1 user + 1 assistant，assistant 不双份（R8 回归）", async () => {
+    openChatStream.mockResolvedValue(
+      sseResponse(['data: {"type":"text_delta","delta":"x"}\n\ndata: [DONE]\n\n'])
+    );
+    const chat = setup();
+    chat.sendPrompt("hello", { sessionId: "sess-1", workspaceId: "w", permission: "auto" });
+    await new Promise((r) => setTimeout(r, 10));
+
+    // 回归背景：TASK-113 抽取时 sendPrompt 手动 push 后又调 appendReactiveTurn
+    // 二次入列，同一 assistant turn 渲染两份（双思考过程）。
+    const turns = chat.chatTurns.value;
+    expect(turns.map((t) => t.role)).toEqual(["user", "assistant"]);
+    const assistantTurns = turns.filter((t) => t.role === "assistant");
+    expect(assistantTurns).toHaveLength(1);
+    expect(assistantTurns[0]!.content).toBe("x");
+  });
+
   it("text/thought 交错：非文本事件前 flush 已收文本（保序）", async () => {
     openChatStream.mockResolvedValue(
       sseResponse([
