@@ -41,7 +41,10 @@ export type HarnessOpsCode =
   | "CONCURRENCY_REJECTED"
   | "QUOTA_EXCEEDED"
   | "COST_RECORD_FAILED"
-  | "RECOVERED_TURNS";
+  | "RECOVERED_TURNS"
+  // TASK-101 实验面
+  | "TURN_RESUMED"
+  | "MODEL_PARTIAL_REPAIR";
 
 /** ProviderErrorClass → MODEL_* 分类码映射 */
 export function opsCodeForErrorClass(errorClass: ProviderErrorClass): HarnessOpsCode {
@@ -199,18 +202,91 @@ export type HarnessOpsEvent =
       detail?: string;
       sessionId?: string;
       turnId?: string;
+    }
+  | {
+      /** TASK-101：信息面事件（TURN_RESUMED 实验归因等）——不告警、可 grep、进 NDJSON 流 */
+      type: "info";
+      at: number;
+      code: HarnessOpsCode;
+      detail?: string;
+      sessionId?: string;
+      turnId?: string;
     };
 
 export interface HarnessEventSink {
   emit(event: HarnessOpsEvent): void;
 }
 
+/* ---------------------------------- LOG_LEVEL 门控（TASK-096） --------------------------------- */
+
+/** 日志级别（LOG_LEVEL 环境变量取值；console sink 门控与请求日志共用同一口径） */
+export type LogLevel = "debug" | "info" | "warn" | "error";
+
+const LOG_LEVEL_WEIGHT: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
+
+/**
+ * 解析 LOG_LEVEL 原始值：未设 / 空白 / 非法值一律回落 info（fail-safe——
+ * 管理员的拼写错误只会恢复默认可见度，绝不会静默吞掉 error 级事件）。
+ */
+export function resolveLogLevel(raw: string | undefined | null): LogLevel {
+  switch (typeof raw === "string" ? raw.trim().toLowerCase() : "") {
+    case "debug":
+      return "debug";
+    case "warn":
+      return "warn";
+    case "error":
+      return "error";
+    default:
+      return "info";
+  }
+}
+
+/**
+ * 运维事件 → 日志级别映射（TASK-096）：
+ * - error：`error` 事件、`abort`（中止即异常收尾）、`turn_finish` status=error；
+ * - warn：`warn` 事件、模型重试/降级（韧性层动作是故障信号）、失败工具结果、
+ *   带 code 但正常收尾的 `turn_finish`（如中止后的 done+TURN_ABORTED）；
+ * - info：其余生命周期事件（turn_start / step_finish / 正常 turn_finish / 成功工具结果）。
+ */
+export function levelForEvent(event: HarnessOpsEvent): LogLevel {
+  switch (event.type) {
+    case "error":
+    case "abort":
+      return "error";
+    case "warn":
+    case "model_retry":
+    case "model_fallback":
+      return "warn";
+    case "turn_finish":
+      return event.status === "error" ? "error" : event.code ? "warn" : "info";
+    case "tool_result":
+      return event.ok ? "info" : "warn";
+    default:
+      return "info";
+  }
+}
+
+/**
+ * 级别门控：事件/日志级别 ≥ 配置级别才输出。缺省（未设 LOG_LEVEL）= info，
+ * 即 info 及以上可见、debug 静默——与历史行为一致（当前没有任何 debug 级事件）。
+ * 每次调用即时读取 LOG_LEVEL（而非构造时快照）：server.ts 的请求日志可直接复用
+ * `shouldLog("info")`；测试可经 vi.stubEnv 动态替换，运维改环境变量后无需重建 sink。
+ */
+export function shouldLog(
+  level: LogLevel,
+  raw: string | undefined = process.env.LOG_LEVEL
+): boolean {
+  return LOG_LEVEL_WEIGHT[level] >= LOG_LEVEL_WEIGHT[resolveLogLevel(raw)];
+}
+
 /** 缺省 sink：单行 JSON。error 级走 stderr，其余 stdout——保留可 grep 性，行可被采集器摄取。 */
 export function createConsoleNdjsonSink(): HarnessEventSink {
   return {
     emit(event) {
+      const level = levelForEvent(event);
+      if (!shouldLog(level)) return; // LOG_LEVEL 门控；缺省 info 不改变既有输出可见度
       const line = JSON.stringify(event);
-      if (event.type === "error") {
+      if (level === "error") {
         console.error(line);
       } else {
         console.log(line);

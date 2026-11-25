@@ -81,6 +81,12 @@ export interface AgentTurnRequest {
    * 仅用于 TurnEntity 落库与前端历史占位渲染，不参与请求构造。
    */
   attachments?: Array<{ name: string; kind: "image" | "file"; size: number }>;
+  /**
+   * TASK-101 实验原型（VUAGENT_EXPERIMENT_RESUME=1 门控，不进默认路径）：
+   * 从指定 checkpoint 快照重建历史起点续跑（resumed 归因）。语义与边界见
+   * docs/design/mid-turn-resume.md——仅程序化宿主可用，HTTP 路由不暴露该字段。
+   */
+  resumeFromCheckpointId?: string;
 }
 
 /** 图片附件入参：结构校验见 /api/chat 路由（张数/大小/类型白名单） */

@@ -545,7 +545,13 @@ export class ContextCompactor {
     // 块 = 一条 user 消息起到下一条 user 之前（含其间 assistant/tool_calls/tool），
     // 绝不逐条删除——那会拆散 tool_calls ↔ tool 配对，触发供应商 400（如 GLM 1214）。
     // 受保护消息所在块不可删除：保护块截停裁剪，其后的新块照常保留。
-    while (this.estimateTokens(result) > maxTokens && result.length > 3) {
+    //
+    // TASK-093：循环改为增量计数——裁剪前先对每条消息计一次 token（唯一一次全量
+    // BPE），循环内只做减法；此前每删一块都 estimateTokens(result) 全量重编码，
+    // 长上下文下是 O(n²) CPU 热点。计数口径与 estimateTokens 逐字节一致（含 +2 边界）。
+    const blockMsgTokens = result.map((m) => this.#messageTokens(m));
+    let currentTokens = 2 + blockMsgTokens.reduce((a, b) => a + b, 0);
+    while (currentTokens > maxTokens && result.length > 3) {
       const start = result.findIndex((m) => m.role !== "system");
       if (start < 0) break;
       let end = start + 1;
@@ -555,8 +561,12 @@ export class ContextCompactor {
         break;
       }
       if (protectedOut.slice(start, end).some(Boolean)) break;
+      let removed = 0;
+      for (let i = start; i < end; i++) removed += blockMsgTokens[i];
       result.splice(start, end - start);
       protectedOut.splice(start, end - start);
+      blockMsgTokens.splice(start, end - start);
+      currentTokens -= removed;
     }
 
     return this.sanitize(result);

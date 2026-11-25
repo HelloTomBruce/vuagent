@@ -1,0 +1,66 @@
+# Vuagent Server 单机容器编排样例（TASK-095）
+#
+# 起停（在 deploy/ 目录下）：
+#   docker compose up -d --build                     # 基础形态（SQLite 单副本）
+#   docker compose --profile redis up -d --build     # + 可选 Redis 分布式形态
+#   docker compose logs -f server                    # 跟踪 NDJSON 运维日志
+#   docker compose down                              # 停机（保留数据卷）
+#   docker compose down -v                           # 停机并清除数据卷（谨慎）
+#
+# ── 安全默认（绑定闸门语义，完整说明见 packages/server/README.md「安全模型」）──
+# 容器内必须监听 0.0.0.0 才能被端口映射到达，而服务端绑定闸门规定：对外绑定且未配置
+# VUAGENT_TOKEN 时拒绝启动。因此本编排把 VUAGENT_TOKEN 设为必填 compose 变量
+# （${VAR:?...} 缺省即 fail-fast 拒绝起容器），把「裸奔对外」挡在编排层：
+#   VUAGENT_TOKEN=$(openssl rand -hex 32) docker compose up -d --build
+# 仅限隔离网络联调的显式豁免（自担风险）：改在 server.environment 追加
+#   VUAGENT_ALLOW_UNSAFE_NETWORK: "1"（可去掉 VUAGENT_TOKEN 行）
+#
+# 镜像形态：默认 build 仓库根（context: ..，dockerfile: deploy/Dockerfile）；
+# 若使用预构建镜像，注释掉 build 段并放开 image 行。
+
+name: vuagent
+
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    # image: ghcr.io/hellotombruce/vuagent-server:latest   # 预构建镜像形态
+    ports:
+      # 宿主侧建议收窄到反代/本机：如 "127.0.0.1:6880:6880"
+      - "6880:6880"
+    environment:
+      PORT: "6880"
+      # 容器内对外绑定（绑定闸门要求必须配 VUAGENT_TOKEN，见文件头安全默认）
+      VUAGENT_HOST: 0.0.0.0
+      # 未设置即拒绝起容器（生成强随机值：openssl rand -hex 32）
+      VUAGENT_TOKEN: ${VUAGENT_TOKEN:?必须设置 VUAGENT_TOKEN（容器对外绑定的强制闸门）}
+      # SQLite 数据落 named volume（见下 volumes 段）
+      DB_PATH: /app/.vuagent/harness.db
+      # ── 可观测（按需取消注释）──
+      # LOG_LEVEL: info            # error/warn/info/debug，缺省 info
+      # OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/logs
+      # ── Redis 分布式形态：--profile redis 启用后取消下一行注释 ──
+      # REDIS_URL: redis://redis:6379/0
+      # 部署前验证：docker compose exec server pnpm --filter @vuagent/server verify:redis "$REDIS_URL"
+      #             （容器内无 workspace 全量脚本时，可在宿主仓库执行同命令）
+    volumes:
+      - vuagent-data:/app/.vuagent
+    restart: unless-stopped
+    # 停机排空：compose stop 默认 10s，超时则 SIGKILL；在途轮次 drain 需要更久时放大
+    stop_grace_period: 30s
+    # init: true 注入 tini 作为容器 PID1：转发信号给 node 并回收僵尸——
+    # 双保险（Dockerfile 已改为 node 直跑作 PID1，此处兜底未来镜像形态回退）
+    init: true
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["redis"] # 显式启用：docker compose --profile redis up -d
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  vuagent-data:
+  redis-data:

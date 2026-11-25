@@ -167,8 +167,11 @@ describe("AnthropicDriver 请求体映射", () => {
     expect(headers["Content-Type"]).toBe("application/json");
 
     const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
-    // 多条 system 以双换行拼成顶层参数
-    expect(body.system).toBe("规则 A\n\n规则 B");
+    // 多条 system 以双换行拼成顶层参数；TASK-099 起默认 promptCaching=auto，
+    // system 提升为块数组并在尾元素挂 cache_control 断点（off 才是旧版字符串形态）
+    expect(body.system).toEqual([
+      { type: "text", text: "规则 A\n\n规则 B", cache_control: { type: "ephemeral" } },
+    ]);
     const messages = body.messages as Array<{ role: string }>;
     expect(messages.every((m) => m.role === "user" || m.role === "assistant")).toBe(true);
     expect(messages).toHaveLength(1);
@@ -217,10 +220,13 @@ describe("AnthropicDriver 请求体映射", () => {
         },
       ],
     });
-    // tool → user 消息携带 tool_result block，tool_use_id 对齐原 call id
+    // tool → user 消息携带 tool_result block，tool_use_id 对齐原 call id；
+    // TASK-099 默认 promptCaching=auto：该消息为倒数第 2 条，末位块挂缓存断点
     expect(messages[2]).toEqual({
       role: "user",
-      content: [{ type: "tool_result", tool_use_id: "call_1", content: "晴 25℃" }],
+      content: [
+        { type: "tool_result", tool_use_id: "call_1", content: "晴 25℃", cache_control: { type: "ephemeral" } },
+      ],
     });
   });
 

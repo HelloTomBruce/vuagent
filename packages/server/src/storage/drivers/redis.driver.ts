@@ -40,6 +40,13 @@ export interface RedisLike {
   expire(key: string, seconds: number): Promise<number>;
   /** EVAL：numKeys 之后依次为 KEYS 与 ARGV */
   eval(script: string, numKeys: number, ...keysAndArgs: Array<string | number>): Promise<unknown>;
+  /**
+   * 可选 list 操作（TASK-100 事件缓冲外置用）：ioredis 原生携带，
+   * FakeRedis 等测试替身按需实现；未实现时外置能力自动降级关闭。
+   */
+  rpush?(key: string, ...values: string[]): Promise<number>;
+  lrange?(key: string, start: number, stop: number): Promise<string[]>;
+  ltrim?(key: string, start: number, stop: number): Promise<unknown>;
 }
 
 /** set 的可选扩展（不破坏 IStorageDriver 既有调用面） */
@@ -101,6 +108,25 @@ export class RedisStorageDriver implements IStorageDriver {
       items.push(JSON.parse(raw) as T);
     }
     return filter ? items.filter(filter) : items;
+  }
+
+  /**
+   * 键前缀读取（PrefixListSupport，存储域审查 R2）：SCAN MATCH 前缀下推，
+   * 不再全量扫整个 collection。id 前缀按 redisKey 同一套编码规则转义
+   * （encodeURIComponent 逐字符编码保持前缀性质；`*` 补编码防 glob 注入，
+   * `?`/`[` 等其余 glob 元字符已被编码），MATCH 不会把编码后的元字符当模式。
+   * SCAN 过匹配无害：仓储侧仍按行内 sessionId 精确过滤。
+   */
+  async listByPrefix<T>(collection: string, prefix: string): Promise<T[]> {
+    const encodedPrefix = encodeURIComponent(prefix).replace(/\*/g, "%2A");
+    const keys = await this.scanAll(`${REDIS_KEYSPACE}:${collection}:${encodedPrefix}*`);
+    const items: T[] = [];
+    for (const key of keys) {
+      const raw = await this.client.get(key);
+      if (raw === null || raw === undefined) continue;
+      items.push(JSON.parse(raw) as T);
+    }
+    return items;
   }
 
   async clear(collection?: string): Promise<void> {

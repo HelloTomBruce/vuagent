@@ -41,7 +41,8 @@ export async function recoverInterruptedTurns(
       }
     }
     if (modified) {
-      await sessionRepo.update(session.id, { turns: session.turns });
+      // TASK-092：轮次已拆行存储——走全量回写兼容通道（内部逐行 upsert）
+      await sessionRepo.replaceTurns(session.id, session.turns);
     }
   }
 

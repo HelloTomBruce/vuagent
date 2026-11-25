@@ -120,10 +120,22 @@ export interface AgentLoopServices {
 export class AgentLoop {
   private compactor: ContextCompactor;
   private ops: HarnessEventSink;
+  /** 在途轮次持久化登记（审查 O1 修复）：优雅停机时批量 flush ≤250ms 防抖窗口 */
+  private inFlightPersistence = new Set<TurnPersistence>();
 
   constructor(private services: AgentLoopServices) {
     this.compactor = services.compactor ?? new ContextCompactor();
     this.ops = services.eventSink ?? createNoopSink();
+  }
+
+  /**
+   * 批量 flush 所有在途轮次的持久化缓冲（审查 O1 修复）：优雅停机关存储前调用，
+   * 把抽干超时被放弃轮次的 pending 进度（≤250ms 防抖窗口）落库，缩小恢复机制的
+   * 状态回退窗口；单条失败 fail-open（停机路径不因 flush 失败而阻塞）。
+   */
+  async flushInFlightPersistence(): Promise<void> {
+    const pending = [...this.inFlightPersistence];
+    await Promise.allSettled(pending.map((p) => p.flushProgress().catch(() => {})));
   }
 
   /**
@@ -143,6 +155,8 @@ export class AgentLoop {
       defaultNamespaceValues(EXECUTION_NS);
     const maxSteps = req.maxSteps ?? (execCfg.maxSteps as number);
     const approvalTimeoutMs = execCfg.approvalTimeoutMs as number;
+    // TASK-094：工具并行执行开关（缺省 true，配置 false 回退旧串行语义）
+    const parallelTools = execCfg.parallelTools !== false;
     const contextBudgetRatio = execCfg.contextBudgetRatio as number;
     // 单轮 token 预算熔断（0 = 不限）：计费口径跨步累计，超限自动中止保留进度
     const maxRunTokens = execCfg.maxRunTokens as number;
@@ -233,6 +247,7 @@ export class AgentLoop {
       sessionId: session.id,
       turnId,
     });
+    this.inFlightPersistence.add(persistence);
 
     // TASK-051 运维事件：轮次开始（effectiveMode 在下方 TASK-014 段才声明，
     // 此处用请求级与会话级原始值即可，运维画像不需要交集解析结果）
@@ -269,9 +284,31 @@ export class AgentLoop {
     });
 
     // 历史重建（压缩折叠 + checkpoint 快照回放 + 追加本轮用户输入）
-    messages.push(
-      ...buildHistoryMessages({ session, currentPrompt: req.prompt })
-    );
+    // TASK-101 实验原型：VUAGENT_EXPERIMENT_RESUME=1 且请求显式携带
+    // resumeFromCheckpointId 时，以该 checkpoint 的 messagesSnapshot 为历史起点
+    // 续跑（诚实归因 TURN_RESUMED ops 事件；副作用豁免由宿主声明，见设计文档）。
+    // 门控关闭或快照缺失 → 一律回落常规 history-builder 口径（行为不变）。
+    const resumeSnapshot = (() => {
+      if (process.env.VUAGENT_EXPERIMENT_RESUME !== "1" || !req.resumeFromCheckpointId) return null;
+      for (const turn of session.turns) {
+        const cp = turn.checkpoints?.find((c) => c.id === req.resumeFromCheckpointId);
+        if (cp && Array.isArray(cp.messagesSnapshot) && cp.messagesSnapshot.length > 0) {
+          return cp;
+        }
+      }
+      return null;
+    })();
+    if (resumeSnapshot) {
+      messages.push(
+        ...(resumeSnapshot.messagesSnapshot as ChatMessage[]).map((m) => ({ ...m })),
+        { role: "user", content: req.prompt }
+      );
+      ops.turnResumed(resumeSnapshot.id);
+    } else {
+      messages.push(
+        ...buildHistoryMessages({ session, currentPrompt: req.prompt })
+      );
+    }
 
     // 视觉通道（能力运行时 P2）：本轮携带图片时，把「本轮 user 消息」升级为
     // 多模态 content parts（buildHistoryMessages 追加的最后一条即本轮输入）。
@@ -373,9 +410,9 @@ export class AgentLoop {
     // 每 step 增量更新，终态 appendTurn upsert 兜底（幂等替换，不产生重复行）
     await persistence.appendRunningRow({ prompt: req.prompt, startAt, attachments: req.attachments });
 
-    /** 每 step 结束后的增量进度落盘（best-effort，失败不影响主链路） */
-    const persistProgress = async (): Promise<void> =>
-      persistence.persistProgress(
+    /** TASK-091：step 进度改为防抖缓冲（scheduleProgress），窗口到期/HITL 挂起前统一落盘 */
+    const persistProgress = (): void => {
+      persistence.scheduleProgress(
         {
           content: accumulatedContent,
           thought: accumulatedThought,
@@ -386,6 +423,7 @@ export class AgentLoop {
         },
         startAt
       );
+    };
 
     // TASK-048 整轮看门狗：独立 controller + 定时器，与客户端 abort 信号合并。
     // 超时/用户停止共用同一收尾路径（中止 → 抽干 → 落库），消息按 watchdogFired 区分成因。
@@ -422,7 +460,11 @@ export class AgentLoop {
       // 协议路由：anthropic 原生档案（provider=anthropic 且未设 baseUrl，即直连官方端点）
       // 走原生 Messages 协议驱动；设了 baseUrl 视为 OpenAI 兼容网关，保持兼容路径
       if (profile.provider === "anthropic" && !profile.baseUrl) {
-        return new AnthropicDriver(profile.apiKey || process.env.ANTHROPIC_API_KEY);
+        // TASK-099：prompt caching 档位（配置中心 execution.promptCaching，缺省 auto；
+        // 函数形态逐请求求值——运行中改档下一请求生效）
+        return new AnthropicDriver(profile.apiKey || process.env.ANTHROPIC_API_KEY, undefined, {
+          promptCaching: () => (execCfg.promptCaching === "off" ? "off" : "auto"),
+        });
       }
       // 默认端点取共享映射（provider-defaults）：anthropic 原生档案已在上方
       // 路由到 AnthropicDriver，走到这里的 anthropic 一定是显式网关或兜底
@@ -804,6 +846,9 @@ export class AgentLoop {
                 accumulatedCards,
                 messages,
                 telemetry,
+                // TASK-091：挂起窗口（可达 180s）前强制落盘缓冲进度
+                beforeSuspend: () => persistence.flushProgress(),
+                parallelTools,
               }
             );
           }
@@ -871,6 +916,9 @@ export class AgentLoop {
             accumulatedCards,
             messages,
             telemetry,
+            // TASK-091：挂起窗口（可达 180s）前强制落盘缓冲进度
+            beforeSuspend: () => persistence.flushProgress(),
+            parallelTools,
           }
         );
 
@@ -1004,6 +1052,8 @@ export class AgentLoop {
     } finally {
       // 看门狗定时器在轮次终态（done/error）后必须清除，避免悬挂计时器
       clearTimeout(watchdogTimer);
+      // 轮次终态后在途登记摘除（停机 flush 只针对真正的在途轮次）
+      this.inFlightPersistence.delete(persistence);
     }
   }
 }

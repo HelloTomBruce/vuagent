@@ -1,11 +1,14 @@
 import type { IStorageDriver } from "../drivers/base.driver.js";
+import { supportsCostAggregate } from "../drivers/base.driver.js";
 
 /**
  * 成本台账仓储（TASK-052）：token 计量从「遥测事件里的数字」升级为
  * 「可持久化、可查询、可准入拦截的账」。
  *
- * 存储形态：IStorageDriver 泛型 kv_store 的 cost_records collection——
- * sqlite 与 memory 驱动天然支持，无需扩展驱动接口（本地单机 O(list) 可接受）。
+ * 存储形态：IStorageDriver 泛型 kv_store 的 cost_records collection。
+ * TASK-093：SQLite 驱动具备 aggregateCostRecords（json_extract 库内聚合）时
+ * 聚合走 SQL 下推——准入每请求的 sumWindow 不再全表 list + 内存过滤；
+ * memory/redis 驱动自动回落 list 口径（行为不变）。
  * 多副本部署的分布式台账（Redis zset）留待真有多副本需求时引入。
  */
 
@@ -30,6 +33,23 @@ export interface WindowUsage {
 
 const COLLECTION = "cost_records";
 
+/** SQL 分组行 → Record<key, WindowUsage>（costUsd 精度收口与 list 口径一致） */
+function groupRows(
+  rows: Array<{ key: string; tokens: number; costUsd: number; recordCount: number }>,
+  keep: (row: { key: string }) => boolean = () => true
+): Record<string, WindowUsage> {
+  const out: Record<string, WindowUsage> = {};
+  for (const row of rows) {
+    if (!keep(row)) continue;
+    out[row.key] = {
+      tokens: row.tokens,
+      costUsd: Number(row.costUsd.toFixed(6)),
+      recordCount: row.recordCount,
+    };
+  }
+  return out;
+}
+
 export class CostRecordRepository {
   constructor(private driver: IStorageDriver) {}
 
@@ -51,6 +71,14 @@ export class CostRecordRepository {
 
   /** 任意区间累计 [since, until)（TASK-075：自定义日期范围出口） */
   async sumWindowBetween(since: number, until: number): Promise<WindowUsage> {
+    // TASK-093：SQLite 下推聚合（零 JSON 解码往返）；其余驱动回落 list 口径
+    if (supportsCostAggregate(this.driver)) {
+      const rows = await this.driver.aggregateCostRecords({ since, until });
+      const row = rows[0];
+      return row
+        ? { tokens: row.tokens, costUsd: Number(row.costUsd.toFixed(6)), recordCount: row.recordCount }
+        : { tokens: 0, costUsd: 0, recordCount: 0 };
+    }
     let tokens = 0;
     let costUsd = 0;
     let recordCount = 0;
@@ -78,6 +106,10 @@ export class CostRecordRepository {
     since: number,
     until: number
   ): Promise<Record<string, WindowUsage>> {
+    if (supportsCostAggregate(this.driver)) {
+      const rows = await this.driver.aggregateCostRecords({ since, until, groupBy: "sessionId" });
+      return groupRows(rows, (row) => row.key !== "" && row.key !== "__all__");
+    }
     const bySession: Record<string, WindowUsage> = {};
     for (const r of await this.list()) {
       if (r.finishedAt < since || r.finishedAt >= until) continue;
@@ -95,6 +127,10 @@ export class CostRecordRepository {
 
   /** 任意区间按模型聚合 [since, until) */
   async sumWindowByModelBetween(since: number, until: number): Promise<Record<string, WindowUsage>> {
+    if (supportsCostAggregate(this.driver)) {
+      const rows = await this.driver.aggregateCostRecords({ since, until, groupBy: "model" });
+      return groupRows(rows);
+    }
     const byModel: Record<string, WindowUsage> = {};
     for (const r of await this.list()) {
       if (r.finishedAt < since || r.finishedAt >= until) continue;
@@ -107,5 +143,28 @@ export class CostRecordRepository {
       bucket.costUsd = Number(bucket.costUsd.toFixed(6));
     }
     return byModel;
+  }
+
+  /**
+   * 台账保留策略（TASK-093）：删除 finishedAt < beforeTs 的历史记录。
+   * kv 通用实现（list + delete，删除低频可接受）；
+   * server 启动时按 VUAGENT_COST_RETENTION_DAYS（缺省 30，0=不清理）周期修剪一次。
+   */
+  async pruneBefore(beforeTs: number): Promise<number> {
+    let pruned = 0;
+    let sinceYield = 0;
+    for (const r of await this.list()) {
+      if (r.finishedAt < beforeTs) {
+        await this.driver.delete(COLLECTION, r.id);
+        pruned++;
+        // 每 200 条让出事件循环一拍（审查 Nit 修复）：大量过期台账时逐行同步
+        // await delete 虽是异步调用但中间无让出点，长删除会阻塞停机/启动路径
+        if (++sinceYield >= 200) {
+          sinceYield = 0;
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      }
+    }
+    return pruned;
   }
 }

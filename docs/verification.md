@@ -79,3 +79,32 @@ curl -N http://localhost:3111/api/chat -H "Content-Type: application/json" -H "O
 
 - [ ] ⏳ 待执行
 - 实测记录：
+
+---
+
+## ⑥ Anthropic prompt caching 真实收益（TASK-099 联动）
+
+配置 anthropic 原生档案（provider=anthropic 且未设 baseUrl），`execution.promptCaching=auto`（缺省）连续发起两轮同前缀长对话，第二轮的 usage 中 `cache_read_input_tokens` 应显著大于 0（stub 已验证请求形态含 cache_control 断点）。
+
+> ⚠️ 补充验证面（审查修复轮）：开启 `thinking.enabled` 的模型档案重复本实验——断点布位与 thinking 签名块的交互目前仅有请求形态测试锚定（anthropic-caching.test.ts），真实计费收益与 Anthropic 对 thinking 场景 cache_control 的约束需实测确认。
+
+```bash
+# 连续两轮（同一会话）；第二轮观察 SSE usage 事件或 /api/finops/by-session
+curl -N http://localhost:6880/api/chat -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d '{
+  "sessionId": "sess-cache", "workspaceId": "<ws>", "prompt": "长文任务第一轮"
+}'
+# 第二轮后对比 cache_creation / cache_read 计量
+```
+
+- [ ] ⏳ 待执行（账号：____________，需 anthropic 原生端点）
+- 预期：第二轮 cache_read > 0 且总费用下降
+- 实测记录：
+
+---
+
+## ⑦ OTLP traces span 树真实观测（TASK-098 联动）
+
+起一个 OTLP collector（如 grafana/otel-collector 或jaeger all-in-one `COLLECTOR_OTLP_HTTP_PORT=4318`），设 `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces` 跑一轮带工具的对话，Jaeger UI 应见 turn 根 span（含 sessionId/model 属性）+ step/tool_call 子 span；携带 `traceparent` 头发起请求时根 span 与入站 trace 关联。
+
+- [ ] ⏳ 待执行
+- 实测记录：

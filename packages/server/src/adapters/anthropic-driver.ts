@@ -1,5 +1,6 @@
 import type { IModelDriver, ModelDriverRequest, ModelStreamChunk } from "./model-driver.js";
 import type { ChatMessage } from "../core/context-compactor.js";
+import { childTraceparent } from "../core/trace-context.js";
 import {
   ClassifiedModelError,
   classifyHttpError,
@@ -17,6 +18,73 @@ export interface AnthropicDriverOptions {
   resilience?: boolean;
   /** Messages API 必填的 max_tokens 输出上限，缺省 8192；req.parameters.max_tokens 可按次覆盖 */
   maxTokens?: number;
+  /**
+   * TASK-099 prompt caching 模式：
+   * - "auto"（缺省）：请求装配时在 system 尾元素 + 倒数第 1/2 条消息的末位内容块
+   *   设 cache_control 断点（总数 ≤ ANTHROPIC_CACHE_BREAKPOINT_LIMIT，Anthropic 约束）；
+   * - "off"：不注入断点，请求形态与旧版逐字节一致；
+   * - 函数形式：每次请求装配时同步求值（运行中改档即时生效——async 配置源
+   *   应在构造驱动前先 resolve 出值再传入）。
+   */
+  promptCaching?: PromptCachingMode | (() => PromptCachingMode);
+}
+
+/** TASK-099：Anthropic prompt caching 模式（config 中心 execution.promptCaching 同名同值域） */
+export type PromptCachingMode = "auto" | "off";
+
+/** Anthropic cache_control 断点类型（ephemeral 是当前唯一支持的缓存类型） */
+export interface AnthropicCacheControl {
+  type: "ephemeral";
+}
+
+/**
+ * Anthropic 单请求 cache_control 断点上限（官方约束：≤4）。
+ * 本实现的 auto 策略固定产 1（system 尾）+ 2（消息倒数窗口）= 3 个，恒在上限内；
+ * 常量同时是 applyPromptCaching 的硬闸（策略演进时防越界）。
+ */
+export const ANTHROPIC_CACHE_BREAKPOINT_LIMIT = 4;
+
+/** 带 cache_control 标记的内容块（断点挂内容块级；消息边界取末位块） */
+type CacheableContentBlock = AnthropicContentBlock & { cache_control?: AnthropicCacheControl };
+
+/** system 参数形态：字符串（旧版）或内容块数组（cache_control 需要块级挂载） */
+export type AnthropicSystemParam =
+  | string
+  | Array<{ type: "text"; text: string; cache_control?: AnthropicCacheControl }>;
+
+/**
+ * TASK-099：在映射后的 Anthropic 请求件上布置 prompt caching 断点（auto 策略）。
+ *
+ * 断点位置：
+ * 1. system 尾元素——字符串提升为单块数组后挂标记（Anthropic 断点只能挂内容块）；
+ * 2. 倒数第 1 条消息的末位内容块；
+ * 3. 倒数第 2 条消息的末位内容块。
+ *
+ * messages 就地突变（mapOpenAIMessagesToAnthropic 每次产全新对象，无共享别名）；
+ * 返回 system 参数（空串原样返回，调用方跳过赋值）。超 4 断点硬闸截停
+ * （默认 3 个，闸门仅为策略演进兜底）；已在块上重复标记跳过（单消息窗口去重）。
+ */
+export function applyPromptCaching(
+  system: string,
+  messages: AnthropicMessage[]
+): AnthropicSystemParam {
+  let remaining = ANTHROPIC_CACHE_BREAKPOINT_LIMIT;
+  let systemOut: AnthropicSystemParam = system;
+  if (system) {
+    systemOut = [{ type: "text", text: system, cache_control: { type: "ephemeral" } }];
+    remaining -= 1;
+  }
+  const markTail = (msg: AnthropicMessage | undefined): void => {
+    if (!msg || remaining <= 0) return;
+    const block = msg.content[msg.content.length - 1] as CacheableContentBlock | undefined;
+    if (!block || block.cache_control) return;
+    block.cache_control = { type: "ephemeral" };
+    remaining -= 1;
+  };
+  // 倒数窗口：最后一条优先（缓存命中收益最大），其次倒数第二条
+  markTail(messages[messages.length - 1]);
+  markTail(messages[messages.length - 2]);
+  return systemOut;
 }
 
 /**
@@ -168,6 +236,7 @@ interface StreamState {
 export class AnthropicDriver implements IModelDriver {
   private readonly fetchImpl: typeof fetch;
   private readonly maxTokens: number;
+  private readonly promptCaching: PromptCachingMode | (() => PromptCachingMode);
 
   constructor(
     private apiKey?: string,
@@ -182,6 +251,8 @@ export class AnthropicDriver implements IModelDriver {
       this.fetchImpl = createResilientFetch(baseFetch, resolveResiliencePolicy(undefined), {});
     }
     this.maxTokens = options.maxTokens ?? 8192;
+    // TASK-099：缺省 auto（新增能力默认开，off 回退旧版请求形态）
+    this.promptCaching = options.promptCaching ?? "auto";
   }
 
   async *generateStream(req: ModelDriverRequest): AsyncIterable<ModelStreamChunk> {
@@ -194,8 +265,21 @@ export class AnthropicDriver implements IModelDriver {
     if (this.apiKey) {
       headers["x-api-key"] = this.apiKey;
     }
+    // TASK-098 出站 trace 传播：入站 traceparent 在 AsyncLocalStorage 中时
+    // 注入子 span traceparent（同 traceId + 新 span id）；无上下文不加头，
+    // 请求形态与注入前逐字节一致（零开销短路）
+    const outboundTraceparent = childTraceparent();
+    if (outboundTraceparent) {
+      headers["traceparent"] = outboundTraceparent;
+    }
 
     const { system, messages } = mapOpenAIMessagesToAnthropic(req.messages);
+
+    // TASK-099：prompt caching 断点在请求装配时布置——此刻 messages 已经过
+    // 上游压缩层裁剪，断点天然落在「裁剪后」的尾部窗口（超长上下文压缩后
+    // 断点仍正确贴尾）。函数形态逐次求值，值形态为构造期快照。
+    const cachingMode =
+      typeof this.promptCaching === "function" ? this.promptCaching() : this.promptCaching;
 
     // 能力运行时 P1：OpenAI 风格 reasoning_effort → Anthropic extended thinking。
     // Anthropic 不认 reasoning_effort 字段（原样透传必 400），这里翻译成
@@ -234,7 +318,12 @@ export class AnthropicDriver implements IModelDriver {
       if (_samplingTopP !== undefined) payload.top_p = _samplingTopP;
       if (_samplingTopK !== undefined) payload.top_k = _samplingTopK;
     }
-    if (system) {
+    if (cachingMode === "auto") {
+      // auto：system 尾 + 消息倒数窗口设断点；system 为空时消息尾部断点照常布置
+      const systemOut = applyPromptCaching(system, messages);
+      if (systemOut) payload.system = systemOut;
+    } else if (system) {
+      // off：完全不变（请求形态与旧版逐字节一致）
       payload.system = system;
     }
 

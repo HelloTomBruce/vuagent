@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { Type } from "@sinclair/typebox";
 import { createHarnessServer } from "../src/server.js";
 import { MemoryStorageDriver } from "../src/storage/drivers/memory.driver.js";
@@ -12,6 +12,9 @@ import { AgentLoop } from "../src/core/agent-loop.js";
 import { OpenAICompatibleDriver } from "../src/adapters/openai-driver.js";
 import {
   compositeSink,
+  createConsoleNdjsonSink,
+  levelForEvent,
+  shouldLog,
   type HarnessEventSink,
   type HarnessOpsEvent,
 } from "../src/core/event-sink.js";
@@ -364,5 +367,125 @@ describe("路由级事件（TASK-051）", () => {
     >;
     expect(finish.status).toBe("done");
     expect(finish.stepCount).toBe(1);
+  });
+});
+
+describe("LOG_LEVEL 门控（TASK-096）", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("shouldLog：缺省 info（仅 debug 静默）；LOG_LEVEL=error 只放行 error；debug 全放行", () => {
+    // 未设（空串与 undefined 同口径）
+    vi.stubEnv("LOG_LEVEL", "");
+    expect(shouldLog("debug")).toBe(false);
+    expect(shouldLog("info")).toBe(true);
+    expect(shouldLog("warn")).toBe(true);
+    expect(shouldLog("error")).toBe(true);
+
+    vi.stubEnv("LOG_LEVEL", "error");
+    expect(shouldLog("error")).toBe(true);
+    expect(shouldLog("warn")).toBe(false);
+    expect(shouldLog("info")).toBe(false);
+    expect(shouldLog("debug")).toBe(false);
+
+    vi.stubEnv("LOG_LEVEL", "debug");
+    expect(shouldLog("debug")).toBe(true);
+    expect(shouldLog("info")).toBe(true);
+    expect(shouldLog("warn")).toBe(true);
+    expect(shouldLog("error")).toBe(true);
+  });
+
+  it("shouldLog：非法值 fail-safe 回落 info，大小写不敏感", () => {
+    vi.stubEnv("LOG_LEVEL", "VERBOSE");
+    expect(shouldLog("debug")).toBe(false);
+    expect(shouldLog("info")).toBe(true);
+
+    vi.stubEnv("LOG_LEVEL", "WARN");
+    expect(shouldLog("info")).toBe(false);
+    expect(shouldLog("warn")).toBe(true);
+
+    // 显式 raw 覆盖 env（供调用方注入非环境来源的配置）；raw=undefined 走默认参数回落 env（当前 stub 为 WARN）
+    expect(shouldLog("error", "error")).toBe(true);
+    expect(shouldLog("info", "error")).toBe(false);
+    expect(shouldLog("info", undefined)).toBe(false);
+    expect(shouldLog("warn", undefined)).toBe(true);
+  });
+
+  it("levelForEvent：error/abort=error；warn/重试/降级/失败工具=warn；其余=info", () => {
+    const base = { at: 1, sessionId: "s", turnId: "t" };
+    expect(levelForEvent({ type: "error", ...base, code: "TURN_PERSIST_FAILED" })).toBe("error");
+    expect(levelForEvent({ type: "abort", ...base, reason: "user", code: "TURN_ABORTED" })).toBe(
+      "error"
+    );
+    expect(
+      levelForEvent({ type: "turn_finish", ...base, status: "error", stepCount: 1, durationMs: 1 })
+    ).toBe("error");
+    expect(levelForEvent({ type: "warn", ...base, code: "RECOVERED_TURNS" })).toBe("warn");
+    expect(
+      levelForEvent({
+        type: "tool_result",
+        ...base,
+        tool: "bash_run",
+        ok: false,
+        durationMs: 1,
+      })
+    ).toBe("warn");
+    expect(
+      levelForEvent({
+        type: "model_retry",
+        at: 1,
+        attempt: 1,
+        errorClass: "server",
+        delayMs: 0,
+        reason: "500",
+      })
+    ).toBe("warn");
+    expect(
+      levelForEvent({ type: "turn_start", ...base, model: "m" })
+    ).toBe("info");
+    expect(
+      levelForEvent({ type: "turn_finish", ...base, status: "done", stepCount: 1, durationMs: 1 })
+    ).toBe("info");
+    expect(
+      // 中止后 done + code → warn（abort 本体已在 error 级可见，收尾行降为 warn 不双倍告警）
+      levelForEvent({
+        type: "turn_finish",
+        ...base,
+        status: "done",
+        stepCount: 1,
+        durationMs: 1,
+        code: "TURN_ABORTED",
+      })
+    ).toBe("warn");
+  });
+
+  it("createConsoleNdjsonSink：LOG_LEVEL=error 静默 info 事件，error 事件走 stderr", () => {
+    vi.stubEnv("LOG_LEVEL", "error");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const sink = createConsoleNdjsonSink();
+
+    sink.emit({ type: "turn_start", at: 1, sessionId: "s", turnId: "t" });
+    expect(logSpy).not.toHaveBeenCalled();
+    expect(errSpy).not.toHaveBeenCalled();
+
+    sink.emit({ type: "error", at: 2, code: "TURN_PERSIST_FAILED" });
+    expect(errSpy).toHaveBeenCalledTimes(1);
+    expect(logSpy).not.toHaveBeenCalled();
+    const emitted = JSON.parse(String(errSpy.mock.calls[0]?.[0])) as { type: string };
+    expect(emitted.type).toBe("error");
+  });
+
+  it("createConsoleNdjsonSink：缺省（未设 LOG_LEVEL）与历史行为一致——info 事件仍输出到 stdout", () => {
+    vi.stubEnv("LOG_LEVEL", "");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    createConsoleNdjsonSink().emit({ type: "turn_start", at: 1, sessionId: "s", turnId: "t" });
+    expect(logSpy).toHaveBeenCalledTimes(1);
+    expect(errSpy).not.toHaveBeenCalled();
+    const emitted = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as { type: string };
+    expect(emitted.type).toBe("turn_start");
   });
 });

@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { secureHeaders } from "hono/secure-headers";
+import { randomUUID } from "node:crypto";
 import { Type } from "@sinclair/typebox";
 import os from "node:os";
 import path from "node:path";
@@ -9,19 +11,125 @@ import type { IStorageDriver } from "./storage/drivers/base.driver.js";
 import type { RedisLike } from "./storage/drivers/redis.driver.js";
 import { TurnLeaseManager } from "./core/turn-lease.js";
 import type { LeaseOptions } from "./core/session-execution-hub.js";
-import { applySecurityBaseline, BYO_FORBIDDEN_MESSAGE, isProfileSelectionOnly, resolveSecurityConfig, sanitizeModelProfile, sanitizeProvider, secureEqual } from "./security.js";
+import { applySecurityBaseline, bearerMatches, BYO_FORBIDDEN_MESSAGE, isProfileSelectionOnly, resolveSecurityConfig, sanitizeForLog, sanitizeModelProfile, sanitizeProvider, secureEqual } from "./security.js";
+import type { Context } from "hono";
 import { MetricsRegistry, createOpsMetricsSink } from "./core/metrics-registry.js";
+import { createRateLimitMiddleware, DEFAULT_RATE_LIMITS } from "./core/rate-limit.js";
+import type { RateLimitOptions } from "./core/rate-limit.js";
 import { createOtlpSink } from "./core/otlp-sink.js";
+import { createOtlpTraceSink } from "./core/otlp-trace-sink.js";
 import { createAdmissionPipeline } from "./core/admission.js";
 import { buildFileTree } from "./core/workspace-files.js";
-import type { ModelProfileEntity } from "./storage/interfaces.js";
+import type { ModelProfileEntity, SessionEntity } from "./storage/interfaces.js";
 import { isProviderKind } from "./storage/interfaces.js";
 import type { ModelCapabilities, ProviderEntity, ProviderKind } from "./storage/interfaces.js";
 import { detectModels } from "./core/model-probe.js";
 import { defaultBaseUrlFor, isAnthropicNativeEndpoint } from "./core/provider-defaults.js";
-import type { TurnImageInput, HarnessTool } from "./core/types.js";
+import { setCurrentTraceContext } from "./core/trace-context.js";
+import { createSSEResponse } from "./core/sse-response.js";
+import { createRedisActionPersist, createRedisEventLog } from "./core/redis-externalize.js";
+import {
+  validateCreateWorkspaceBody,
+  validateCreateSessionBody,
+  validateUpdateSessionBody,
+  validateCreateModelProfileBody,
+  isHttpUrl,
+} from "./core/http-body-guards.js";
+import type { TurnImageInput, HarnessTool, HarnessStreamEvent } from "./core/types.js";
 
 const execAsync = promisify(exec);
+
+/** 整数 env 读取：非法/缺省回落默认值；≤0 合法（=关闭对应作用域） */
+function readIntEnv(key: string, fallback: number): number {
+  const raw = Number((process.env[key] || "").trim());
+  return Number.isFinite(raw) && raw >= 0 && Number.isInteger(raw) ? raw : fallback;
+}
+
+/** 当前协议版本（TASK-054 头；TASK-101 协商锚点） */
+const PROTOCOL_VERSION = "1";
+
+/**
+ * 协议版本协商（TASK-101 + 审查 Optional 修复）：客户端显式携带 x-vuagent-protocol-version
+ * 且与**主版本**不兼容 → 426 + Upgrade 头（RFC 9110 §10.12 建议 426 携带 Upgrade）
+ * + 支持版本清单；主版本相同（"1.1" vs "1"）视为兼容放行（为协议升版留轨道）；
+ * 未携带头 = 旧客户端，放行（兼容）。
+ */
+function negotiateProtocolOr426(c: { req: { header: (name: string) => string | undefined } }): Response | null {
+  const requested = c.req.header("x-vuagent-protocol-version");
+  if (!requested) return null;
+  const reqMajor = requested.trim().split(".")[0] ?? "";
+  if (reqMajor === PROTOCOL_VERSION.split(".")[0]) return null;
+  return new Response(
+    JSON.stringify({
+      error: `协议版本不兼容：请求 ${requested.trim()}，服务端支持 ${PROTOCOL_VERSION}（主版本须一致）`,
+      code: "PROTOCOL_VERSION_MISMATCH",
+      supported: [PROTOCOL_VERSION],
+    }),
+    {
+      status: 426,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "x-vuagent-protocol-version": PROTOCOL_VERSION,
+        Upgrade: `vuagent-protocol/${PROTOCOL_VERSION}`,
+      },
+    }
+  );
+}
+
+/** SSE 心跳间隔（TASK-090）：注释帧保活防反代空闲超时掐流；0=关闭 */
+const SSE_HEARTBEAT_MS = readIntEnv("VUAGENT_SSE_HEARTBEAT_MS", 15_000);
+
+/** SSE 指标回调装配（TASK-097）：连接开/关 + 事件类型计数（闭包持有 registry） */
+function sseMetricsOf(registry: MetricsRegistry) {
+  return {
+    onOpen: () => registry.incCounter("vuagent_sse_active_connections"),
+    onClose: () => registry.decGauge("vuagent_sse_active_connections"),
+    onEvent: (type: string) => registry.incCounter("vuagent_sse_events_total", { type }),
+  };
+}
+
+/**
+ * HTTP 指标的路由模板归一（TASK-097）：参数化段的实际 id 归一为 ":id"，
+ * 防标签基数爆炸（每个会话/工作区 id 一个样本行会撑爆 Prometheus）。
+ * 兜底一律归一为常量 "unmatched"（审查 Required 修复：原「未知路由原样返回」
+ * 会让扫描器的每个随机 404 路径成为常驻样本——路径稳定 ≠ 基数有界）。
+ */
+function httpRouteTemplate(c: { req: { path: string; routePath?: unknown } }): string {
+  try {
+    // hono 4.7：routePath 为 getter 属性（路由模板字符串）
+    const rp: unknown = c.req.routePath;
+    const routePath = typeof rp === "function" ? (rp as () => string)() : typeof rp === "string" ? rp : undefined;
+    if (typeof routePath === "string" && routePath) return routePath;
+  } catch {
+    // routePath 不可用（极早中间件等）回落静态归一
+  }
+  const p = c.req.path;
+  const dynamicRoots = ["sessions", "workspaces", "action", "actions", "providers", "models", "tools", "config"];
+  const segments = p.split("/").filter(Boolean);
+  // /api/<root>/<id>[...] → /api/<root>/:id[...]
+  if (segments.length >= 3 && segments[0] === "api" && dynamicRoots.includes(segments[1])) {
+    return `/api/${segments[1]}/:id${segments.length > 3 ? `/${segments.slice(3).join("/")}` : ""}`;
+  }
+  // /api/settings/providers/<id>[...] 与 /api/settings/models/<id>[...]
+  if (segments.length >= 4 && segments[0] === "api" && segments[1] === "settings") {
+    const third = segments[2];
+    if (third === "providers" || third === "models") {
+      return `/api/settings/${third}/:id${segments.length > 4 ? `/${segments.slice(4).join("/")}` : ""}`;
+    }
+  }
+  // /metrics 与其余未匹配 404 路径：无既有模板可归一 → 常量标签（基数有界）
+  return "unmatched";
+}
+
+/**
+ * 外呼探测错误回显截断：provider 报错语义是能力判定特征（TASK-080 依赖原文
+ * 指向被测参数），故保留原文口径不收口——仅封顶长度，防极端响应体撑爆
+ * 响应与 NDJSON 日志。与全局 onError 的「内部异常不外泄」口径互补：
+ * 这里回显的是**外呼目标**（用户自配 baseUrl）返回的错误，非内部基础设施信息。
+ */
+function clipExternalError(msg: string, max: number = 500): string {
+  return msg.length > max ? `${msg.slice(0, max)}…[+${msg.length - max} 字符]` : msg;
+}
 import { SQLiteStorageDriver } from "./storage/drivers/sqlite.driver.js";
 import { MemoryStorageDriver } from "./storage/drivers/memory.driver.js";
 import { WorkspaceRepository } from "./storage/repositories/workspace.repository.js";
@@ -39,13 +147,13 @@ import {
   sanitizeMessagesForCheckpoint,
   type ChatMessage,
 } from "./core/context-compactor.js";
-import { StreamOrchestrator } from "./core/stream-orchestrator.js";
+// TASK-090：SSE 序列化收口至 core/sse-response.ts（server.ts 不再直接消费 StreamOrchestrator）
 import { SessionExecutionHub } from "./core/session-execution-hub.js";
 import type { CheckpointEntity, TurnEntity } from "./storage/interfaces.js";
 import type { IModelDriver } from "./adapters/model-driver.js";
 import { OpenAICompatibleDriver } from "./adapters/openai-driver.js";
 import { FsEditTool, FsReadTool, FsWriteTool } from "./tools/system/fs-tools.js";
-import { BashRunTool } from "./tools/system/bash-tool.js";
+import { BashRunTool, createBashRunTool } from "./tools/system/bash-tool.js";
 import { GlobTool, GrepTool } from "./tools/system/search-tools.js";
 import { FinishTaskTool } from "./tools/system/finish-task-tool.js";
 import { createWebFetchTool } from "./tools/web/web-tools.js";
@@ -54,6 +162,7 @@ import { recoverInterruptedTurns } from "./core/recovery.js";
 import {
   createConsoleNdjsonSink,
   compositeSink,
+  shouldLog,
   type HarnessEventSink,
   type HarnessOpsCode,
 } from "./core/event-sink.js";
@@ -82,6 +191,8 @@ export interface ServerOptions {
   redisClient?: RedisLike;
   /** 安全基线覆盖项（测试注入用）；缺省走 VUAGENT_* 环境变量 */
   security?: { authToken?: string; allowByoProvider?: boolean; extraOrigins?: string[] };
+  /** 限流规则覆盖（TASK-088，编程注入优先于 env）；缺省 env > 默认 240/12 每分钟，limit=0 关闭 */
+  rateLimit?: RateLimitOptions;
   /** 运维事件出口（TASK-051）：缺省 console NDJSON；测试注入内存 sink 断言事件流 */
   eventSink?: HarnessEventSink;
   /** 计价表来源（TASK-052）：JSON 文件路径或内存表；缺省 `${cwd}/config/model-pricing.json`（缺失=只记量不记钱） */
@@ -134,22 +245,147 @@ export const defaultSceneComponents: UIComponentDefinition[] = [
 ];
 
 export function createHarnessServer(options: ServerOptions = {}) {
-  const app = new Hono();
+  const app = new Hono<{ Variables: { requestId: string } }>();
+
+  // TASK-089：安全响应头（Hono 内建 nosniff / frame 防嵌套等，零配置默认档）
+  app.use("*", secureHeaders());
+
+  // TASK-089：请求 ID 生成/透传——贯穿错误信封与服务端日志，客户端报障可对账。
+  // 客户端提供的 ID 须过白名单（长度 ≤64、字符集受限）——原样采信可注入任意长
+  // 日志噪声与伪造对账 id（审查 Optional 修复）。
+  const CLIENT_REQUEST_ID_RE = /^[A-Za-z0-9._-]{1,64}$/;
+  app.use("/api/*", async (c, next) => {
+    const provided = c.req.header("x-request-id") || "";
+    const requestId = CLIENT_REQUEST_ID_RE.test(provided) ? provided : `req-${randomUUID().slice(0, 8)}`;
+    c.set("requestId", requestId);
+    c.header("x-request-id", requestId);
+    await next();
+  });
+
+  // TASK-089：全局错误收口——handler 抛错统一 500 信封，err.message 不外泄
+  // （原样回传可能携带内部路径/密钥样字符串）；详情进 NDJSON 带 requestId 供排查。
+  app.onError((err, c) => {
+    const requestId = c.get("requestId") ?? "req-unknown";
+    console.error(
+      JSON.stringify({
+        level: "error",
+        code: "UNHANDLED_ERROR",
+        requestId,
+        method: c.req.method,
+        path: c.req.path,
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      })
+    );
+    return c.json({ error: "服务器内部错误（详情见服务端日志）", code: "INTERNAL_ERROR", requestId }, 500);
+  });
+
+  // TASK-089：404 统一信封（此前落 Hono 默认 404 text，响应格式不一致）
+  app.notFound((c) => c.json({ error: `Not Found: ${c.req.method} ${c.req.path}`, code: "NOT_FOUND" }, 404));
   // TASK-051 运维事件出口：缺省 console NDJSON（error 级走 stderr）
   // 可观测出口（三轨 composite，注入 sink 的宿主/测试仍整链接管）：
   // ① console NDJSON（运维日志）；② Prometheus 指标注册表（GET /metrics 拉取）；
   // ③ 可选 OTLP HTTP JSON 推送（OTEL_EXPORTER_OTLP_ENDPOINT 配置启用）
   const metricsRegistry = new MetricsRegistry();
+
+  // TASK-097：进程级指标——eventloop 延迟周期采样（1s，unref 不阻退出），
+  // 内存快照走抓取时采集器（无定时器常驻）
+  {
+    const eventloopTimer = setInterval(() => {
+      const start = process.hrtime.bigint();
+      setImmediate(() => {
+        const lagMs = Number(process.hrtime.bigint() - start) / 1e6;
+        metricsRegistry.setGauge("vuagent_eventloop_lag_ms", Math.round(lagMs * 100) / 100);
+      });
+    }, 1_000);
+    eventloopTimer.unref?.();
+
+    metricsRegistry.setGaugeCollector("vuagent_process_heap_bytes", () => [
+      { value: process.memoryUsage().heapUsed },
+    ]);
+    metricsRegistry.setGaugeCollector("vuagent_process_rss_bytes", () => [
+      { value: process.memoryUsage().rss },
+    ]);
+  }
+
   const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+  // TASK-098：可选 OTLP traces 推送（独立端点变量；未配置零开销——不创建 sink）
+  const otlpTracesEndpoint = process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
   const eventSink: HarnessEventSink = options.eventSink ?? compositeSink(
     createConsoleNdjsonSink(),
     createOpsMetricsSink(metricsRegistry),
     ...(otlpEndpoint
       ? [createOtlpSink({ endpoint: otlpEndpoint, serviceName: "vuagent-server" })]
+      : []),
+    ...(otlpTracesEndpoint
+      ? [createOtlpTraceSink({ endpoint: otlpTracesEndpoint, serviceName: "vuagent-server" })]
       : [])
   );
-  // 安全基线（TASK-011）：CORS/Origin 白名单 + 可选 Bearer 鉴权，替代原先 cors() 全开
+  // 安全基线（TASK-011）：CORS/Origin 白名单 + 可选 Bearer 鉴权，替代原先 cors() 全开。
+  // 注意装配顺序：限流与 bodyLimit 先于本函数注册（见下），鉴权失败/超限请求
+  // 都必须在中间件层可见。
   const security = resolveSecurityConfig(options.security);
+
+  // 限流（TASK-088 + 审查 Critical 修复）：**必须注册在鉴权之前**——原「鉴权之后
+  // 计数」口径下，错令牌被鉴权中间件 401 短路，限流器永远看不到爆破流量；
+  // 且旧 key 含请求方令牌指纹，每次错误猜测都是新桶（计数归 1）。现口径：
+  // 无效/缺失令牌共享 IP 桶，仅有效令牌进指纹分桶；X-Forwarded-For 默认不采信
+  // （直连可伪造），显式 VUAGENT_TRUST_PROXY=1（反代形态）才取 XFF 末段。
+  const rateLimits = options.rateLimit ?? {
+    global: {
+      windowMs: DEFAULT_RATE_LIMITS.global.windowMs,
+      limit: readIntEnv("VUAGENT_RATE_LIMIT_GLOBAL", DEFAULT_RATE_LIMITS.global.limit),
+    },
+    probe: {
+      windowMs: DEFAULT_RATE_LIMITS.probe.windowMs,
+      limit: readIntEnv("VUAGENT_RATE_LIMIT_PROBE", DEFAULT_RATE_LIMITS.probe.limit),
+    },
+  };
+  app.use(
+    "/api/*",
+    createRateLimitMiddleware({
+      ...rateLimits,
+      trustProxy: ["1", "true"].includes((process.env.VUAGENT_TRUST_PROXY || "").trim().toLowerCase()),
+      isValidToken: security.authToken
+        ? (token) => secureEqual(token, security.authToken)
+        : undefined,
+    })
+  );
+
+  // TASK-087/084：请求体上限（审查 Required 修复：**必须注册在所有路由之前**——
+  // Hono 后注册的中间件不包裹先注册的终态 handler，原注册点在 PATCH /api/tools/:name
+  // 与 PATCH /api/config/:namespace 之后，两条路由静默绕过 1MB 上限，无界请求体
+  // 全量进内存恰是本闸门要堵的 DoS 面）。实例提升为常量（原闭包每请求重建）。
+  const globalApiBodyLimit = bodyLimit({
+    maxSize: 1024 * 1024,
+    onError: (c) => c.json({ error: "请求体过大（上限 1MB）", code: "PAYLOAD_TOO_LARGE" }, 413),
+  });
+  const chatBodyLimit = bodyLimit({
+    maxSize: 32 * 1024 * 1024,
+    onError: (c) =>
+      c.json(
+        { error: "请求体过大（上限 32MB）：请压缩图片或减少单次附件数量", code: "PAYLOAD_TOO_LARGE" },
+        413
+      ),
+  });
+  // 其余 /api/* 全局 1MB（解析前拦截）。workspaces/sessions/providers/models/config
+  // 等实体路由 payload 均为小 JSON，1MB 已富余；/api/chat* 跳过（下方 32MB 专属
+  // 上限接管），避免链式叠加后 1MB 误杀图片大载荷。
+  app.use("/api/*", (c, next) => {
+    if (c.req.path === "/api/chat" || c.req.path.startsWith("/api/chat/")) return next();
+    return globalApiBodyLimit(c, next);
+  });
+  // /api/chat 请求体硬上限：视觉通道让多 MB base64 载荷常态化（4 张 ×5MB 解码
+  // ≈ base64 26.7MB + prompt/JSON 开销），32MB 兼容满载图片请求。
+  app.use("/api/chat", chatBodyLimit);
+
+  // 入站 traceparent 解析（TASK-098 基建接线）：写入 AsyncLocalStorage 供出站
+  // LLM 请求注入 traceparent 与 otlp-trace-sink 根 span 关联；非法/缺失静默跳过
+  app.use("/api/*", (c, next) => {
+    setCurrentTraceContext(c.req.header("traceparent"));
+    return next();
+  });
+
   applySecurityBaseline(app, security);
 
   // 统一请求日志中间件 (TASK: 服务端日志增强)
@@ -160,7 +396,20 @@ export function createHarnessServer(options: ServerOptions = {}) {
     await next();
     const duration = Date.now() - start;
     const status = c.res.status;
-    console.log(`[Vuagent Server] ${method} ${path} -> ${status} (${duration}ms)`);
+    // TASK-097：HTTP 指标（route 用路由模板防标签基数爆炸）
+    const route = httpRouteTemplate(c);
+    metricsRegistry.incCounter("vuagent_http_requests_total", {
+      method,
+      route,
+      status: String(status),
+    });
+    metricsRegistry.observeHistogram("vuagent_http_request_duration_ms", duration, { route });
+    // TASK-089/096：日志行携带 requestId，与 x-request-id 响应头对账；LOG_LEVEL 门控
+    if (shouldLog("info")) {
+      console.log(
+        `[Vuagent Server] ${method} ${path} -> ${status} (${duration}ms) req=${c.get("requestId")}`
+      );
+    }
   });
 
   // 1. 初始化存储层
@@ -182,11 +431,31 @@ export function createHarnessServer(options: ServerOptions = {}) {
   const costRepo = new CostRecordRepository(driver);
   const pricingTable = new ModelPricingTable(options.pricingTable ?? options.pricingPath);
 
+  // TASK-093：台账保留策略——启动时修剪过期记录（缺省 30 天，0=不清理；fire-and-forget）
+  const costRetentionDays = readIntEnv("VUAGENT_COST_RETENTION_DAYS", 30);
+  if (costRetentionDays > 0) {
+    void costRepo
+      .pruneBefore(Date.now() - costRetentionDays * 24 * 60 * 60 * 1000)
+      .catch(() => {
+        // fail-open：修剪失败不影响启动
+      });
+  }
+
   // 2. 初始化核心组件与工具注册中心
   const toolRegistry = new ToolRegistry();
   for (const t of CoreSystemTools) {
+    // TASK-088：bash_run 以下方配置中心驱动的工厂注册（环境策略运行中生效），跳过静态注册
+    if (t === BashRunTool) continue;
     toolRegistry.register(t);
   }
+  toolRegistry.register(
+    createBashRunTool(async () => {
+      // envLock 的 env 值不经选项校验直通（config-resolver 口径），此处防御性归一：非法值 fail-closed 回落 safe
+      const tools = await configResolver.resolve("tools");
+      const raw = tools?.bashEnvPolicy;
+      return raw === "inherit" || raw === "strict" ? raw : "safe";
+    })
+  );
   toolRegistry.register(GlobTool);
   toolRegistry.register(GrepTool);
   // 显式终态协议工具：注册进 registry（执行链可见性由 finishTaskMode 推导的
@@ -227,7 +496,12 @@ export function createHarnessServer(options: ServerOptions = {}) {
     }
   }
 
-  const actionHub = new ActionHub();
+  // TASK-100：Redis 形态外置——挂起持久化（审批跨重启可落账/回写）与事件缓冲 ring
+  //（SQLite 单机形态两者皆 undefined，零改动路径）
+  const actionPersist = options.redisClient
+    ? createRedisActionPersist(options.redisClient)
+    : undefined;
+  const actionHub = new ActionHub(actionPersist);
   // TASK-008：压缩器单例，AgentLoop（自动滑动窗口）与会话压缩接口（手动摘要化）共用裁剪口径
   const compactor = new ContextCompactor();
   // 模型驱动透传（宿主/测试注入用）；缺省由 AgentLoop 按所选模型档案逐轮构造，
@@ -269,7 +543,9 @@ export function createHarnessServer(options: ServerOptions = {}) {
         instanceId,
       }
     : undefined;
-  const executionHub = new SessionExecutionHub(agentLoop, eventSink, lease);
+  const executionHub = new SessionExecutionHub(agentLoop, eventSink, lease, {
+    eventLog: options.redisClient ? createRedisEventLog(options.redisClient) ?? undefined : undefined,
+  });
 
   // 启动清扫（Redis 形态）：清理本实例上次进程崩溃/重启遗留的租约（fire-and-forget）
   if (lease) {
@@ -308,15 +584,14 @@ export function createHarnessServer(options: ServerOptions = {}) {
   // 3. 注册路由
 
   // Prometheus 指标拉取端点（文本格式 v0.0.4）：配置 VUAGENT_TOKEN 时同样要求
-  // Bearer 令牌（与 /api/* 同一口径，Prometheus scrape 配置 bearer_token 即可）
+  // Bearer 令牌（与 /api/* 同一口径，Prometheus scrape 配置 bearer_token 即可）。
+  // 鉴权判定复用 security.ts 的 bearerMatches（原手写副本存在漂移风险）；
+  // Origin 主动拒绝已由 applySecurityBaseline 对 /metrics 同口径注册（防无令牌
+  // 模式下 DNS-rebinding 同源读取运维指标）。
   app.get("/metrics", (c) => {
     const security = resolveSecurityConfig(options.security);
-    if (security.authToken) {
-      const header = c.req.header("Authorization") || "";
-      const provided = header.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : "";
-      if (!provided || !secureEqual(provided, security.authToken)) {
-        return c.json({ error: "Unauthorized: /metrics 需要 Bearer 令牌（VUAGENT_TOKEN）" }, 401);
-      }
+    if (security.authToken && !bearerMatches(c.req.header("Authorization") || "", security.authToken)) {
+      return c.json({ error: "Unauthorized: /metrics 需要 Bearer 令牌（VUAGENT_TOKEN）" }, 401);
     }
     return c.text(metricsRegistry.renderPrometheus(), 200, {
       "Content-Type": "text/plain; version=0.0.4; charset=utf-8",
@@ -324,13 +599,51 @@ export function createHarnessServer(options: ServerOptions = {}) {
   });
 
   // 健康探针
-  app.get("/api/health", (c) => {
-    return c.json({
+  app.get("/api/health", async (c) => {
+    const base = {
       status: "ok",
       timestamp: Date.now(),
       registeredToolsCount: toolRegistry.list().length,
       suspendedActionsCount: actionHub.listSuspended().length,
-    });
+    };
+    // TASK-096：deep=1 = readiness 深度探测（依赖连通性），默认浅探 = liveness。
+    // detail 收口（审查 Required 修复）：驱动层 err.message 可能含 sqlite 文件路径/
+    // redis 主机与连接错误原文，而 health 免鉴权免限流（可被无限制反复触发）——
+    // 原因明细只进服务端日志（带 requestId 对账），响应只给泛化 detail。
+    if (c.req.query("deep") !== "1") return c.json(base);
+    const requestId = c.get("requestId") ?? "req-unknown";
+
+    const checks: Record<string, { ok: boolean; latencyMs: number; detail?: string }> = {};
+    const probe = async (name: string, fn: () => Promise<unknown>) => {
+      const start = Date.now();
+      try {
+        await fn();
+        checks[name] = { ok: true, latencyMs: Date.now() - start };
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        console.warn(
+          JSON.stringify({
+            level: "warn",
+            code: "HEALTH_PROBE_FAILED",
+            requestId,
+            component: name,
+            detail: reason,
+          })
+        );
+        checks[name] = { ok: false, latencyMs: Date.now() - start, detail: "探测失败（原因见服务端日志）" };
+      }
+    };
+    // 存储驱动连通性（泛型 get 探针——sqlite prepare / memory / redis GET 均覆盖）
+    await probe("db", () => driver.get("__health_probe__", "noop"));
+    if (options.redisClient) {
+      await probe("redis", async () => {
+        const client = options.redisClient as unknown as { ping?: () => Promise<unknown> };
+        if (typeof client.ping === "function") await client.ping();
+        else await options.redisClient!.get("__health_probe__");
+      });
+    }
+    const degraded = Object.values(checks).some((check) => !check.ok);
+    return c.json({ ...base, status: degraded ? "degraded" : "ok", checks }, degraded ? 503 : 200);
   });
 
   // 工具配置（TASK-019 启停；TASK-026 per-tool timeoutMs/requiresApproval 覆盖）：
@@ -455,20 +768,8 @@ export function createHarnessServer(options: ServerOptions = {}) {
     });
   });
 
-  // TASK-084：/api/chat 请求体硬上限（解析前拦截）。视觉通道让多 MB base64 载荷
-  // 常态化（4 张 ×5MB 解码 ≈ base64 26.7MB + prompt/JSON 开销），32MB 兼容满载图片
-  // 请求，同时挡住无界 body 全量进内存的 DoS 面。
-  app.use(
-    "/api/chat",
-    bodyLimit({
-      maxSize: 32 * 1024 * 1024,
-      onError: (c) =>
-        c.json(
-          { error: "请求体过大（上限 32MB）：请压缩图片或减少单次附件数量", code: "PAYLOAD_TOO_LARGE" },
-          413
-        ),
-    })
-  );
+  // TASK-087/084 的 bodyLimit 已前移至鉴权前统一注册（见中间件装配段）——
+  // 此处原注册点在 PATCH 路由之后会使那两条路由绕过上限，已删除。
 
   // 核心对话流式接口 (SSE，委托 SessionExecutionHub 独立生命周期)
   // 会话级成本聚合（TASK-056 会话徽标数据源，一次批量避免逐会话 N+1）。
@@ -480,7 +781,11 @@ export function createHarnessServer(options: ServerOptions = {}) {
     return c.json({ windowMs, bySession: await costRepo.sumWindowBySession(windowMs) });
   });
 
-  app.post("/api/chat", async (c) => {    const body = await c.req.json().catch(() => ({}));
+  app.post("/api/chat", async (c) => {
+    // TASK-101：协议版本协商（显式头且不兼容 → 426）
+    const mismatch = negotiateProtocolOr426(c);
+    if (mismatch) return mismatch;
+    const body = await c.req.json().catch(() => ({}));
     const prompt = String(body.prompt || "").trim();
 
     if (!prompt) {
@@ -660,8 +965,8 @@ export function createHarnessServer(options: ServerOptions = {}) {
         { preempt }
       );
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return c.json({ error: msg }, 500);
+      // TASK-089：详情只进服务端日志，不再把 err.message 原样回传客户端
+      return serverError(c, "CHAT_SUBMIT_FAILED", err);
     }
     if (!claim.ok) {
       const code: HarnessOpsCode =
@@ -682,54 +987,20 @@ export function createHarnessServer(options: ServerOptions = {}) {
     }
 
     // 设置 SSE 流式响应：claim 成功后仅订阅事件流（claim 与订阅之间的
-    // 事件缓冲在 run.events 中，subscribe 从头重放保证顺序完整）
-    const stream = new ReadableStream({
-      start(controller) {
-        const encoder = new TextEncoder();
-        const sub = executionHub.subscribe(
-          sessionId,
-          (event) => {
-            if (event === "[DONE]") {
-              controller.enqueue(encoder.encode(StreamOrchestrator.formatDone()));
-              try {
-                controller.close();
-              } catch {}
-            } else {
-              controller.enqueue(encoder.encode(StreamOrchestrator.formatSSE(event)));
-            }
-          },
-          0
-        );
-
-        if (!sub) {
-          // 极端竞态：claim 后 run 被（另一 preempt 请求）顶替——回退错误事件收尾
-          controller.enqueue(
-            encoder.encode(
-              StreamOrchestrator.formatSSE({
-                type: "error",
-                message: "会话执行已被新请求顶替，本次连接不承载事件流",
-                code: "TURN_PREEMPTED",
-              })
-            )
-          );
-          try {
-            controller.close();
-          } catch {}
-          return;
-        }
-
+    // 事件缓冲在 run.events 中，subscribe 从头重放保证顺序完整）。
+    // TASK-090：改走 createSSEResponse（心跳注释帧保活 + 订阅先行缓冲）；
+    // 新开轮次无重连语义，fromSeq 不适用（全量重放缓冲）。
+    return createSSEResponse({
+      signal: c.req.raw.signal,
+      heartbeatMs: SSE_HEARTBEAT_MS,
+      metrics: sseMetricsOf(metricsRegistry),
+      attach: (pump) => {
+        const sub = executionHub.subscribeFromSeq(sessionId, pump);
+        if (!sub) return null;
         // 当单次 HTTP 请求断开（如前端切换会话），仅退订事件流，后台 Agent 执行绝不中断
-        c.req.raw.signal.addEventListener("abort", () => {
-          sub();
-        });
+        return { unsubscribe: sub.unsubscribe, replayMode: sub.replayMode };
       },
-    });
-
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream; charset=utf-8",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
+      extraHeaders: {
         // TASK-054：协议版本头（增量重连/跨端协商的锚点）
         "x-vuagent-protocol-version": "1",
       },
@@ -738,6 +1009,8 @@ export function createHarnessServer(options: ServerOptions = {}) {
 
   // 中止正在运行的会话轮次
   app.post("/api/chat/abort", async (c) => {
+    const mismatch = negotiateProtocolOr426(c);
+    if (mismatch) return mismatch;
     const body = await c.req.json().catch(() => ({}));
     const sessionId = body.sessionId;
     const ok = executionHub.abort(sessionId);
@@ -745,61 +1018,149 @@ export function createHarnessServer(options: ServerOptions = {}) {
   });
 
   app.post("/api/sessions/:id/abort", async (c) => {
+    const mismatch = negotiateProtocolOr426(c);
+    if (mismatch) return mismatch;
     const sessionId = c.req.param("id");
     const ok = executionHub.abort(sessionId);
     return c.json({ success: ok });
   });
 
   // 断点重连 / 切换回会话 / 页面刷新后重新连入会话事件流
+  // TASK-090：消费 Last-Event-ID 头（SSE 标准重连寻址）或 ?fromSeq= 查询参数，
+  // 按 seq 增量重放未读事件；缺口（缓冲淘汰）诚实回退全量并以 x-vuagent-replay: full 标注。
   app.get("/api/sessions/:id/stream", async (c) => {
+    // TASK-101：协议版本协商（显式头且不兼容 → 426）
+    const mismatch = negotiateProtocolOr426(c);
+    if (mismatch) return mismatch;
     const sessionId = c.req.param("id");
+    // fromSeq 解析前置（TASK-100 外置回放预检也需要）
+    const lastEventId = Number.parseInt(c.req.header("Last-Event-ID") || "", 10);
+    const fromQuery = Number.parseInt(c.req.query("fromSeq") || "", 10);
+    const fromSeq = Number.isFinite(lastEventId) && lastEventId >= 0
+      ? lastEventId
+      : Number.isFinite(fromQuery) && fromQuery >= 0
+        ? fromQuery
+        : undefined;
+
     const activeRun = executionHub.getActiveRun(sessionId);
     if (!activeRun || activeRun.isDone) {
-      return c.json({ isRunning: false }, 200);
+      // TASK-100：无活跃 run 但带 fromSeq 且外置缓冲存在 → 回放中断前增量后收尾
+      //（轮次本身已随重启中断，诚实语义：重放历史 + DONE，不假装活跃）
+      // 缺口诚实回退（审查 Optional 修复，对齐内存缓冲语义）：ring 被裁剪/
+      // 过期导致 seq 不连续时，从 ring 头全量重放并标 full——客户端「首条
+      // seq > fromSeq+1 静默缺失且无从察觉」的 partial 不再出现。
+      const eventLog = executionHub.getEventLog();
+      let buffered: HarnessStreamEvent[] = [];
+      let replayMode: "full" | "partial" = "partial";
+      if (eventLog && fromSeq !== undefined) {
+        const { events, gap } = await eventLog.readAfter(sessionId, fromSeq);
+        if (gap) {
+          // 缺口（ring 裁剪/过期/seq 越界）：从 ring 头全量重放——不判 events.length，
+          // fromSeq 越界而 ring 有事件时同样回退（否则仍会静默丢缓冲）
+          const fromHead = await eventLog.readAfter(sessionId, 0);
+          buffered = fromHead.events;
+          replayMode = "full";
+        } else {
+          buffered = events;
+        }
+      }
+      if (buffered.length === 0) {
+        return c.json({ isRunning: false }, 200);
+      }
+      return createSSEResponse({
+        signal: c.req.raw.signal,
+        heartbeatMs: SSE_HEARTBEAT_MS,
+        metrics: sseMetricsOf(metricsRegistry),
+        attach: (pump) => {
+          for (const event of buffered) pump(event as HarnessStreamEvent);
+          pump("[DONE]");
+          return { unsubscribe: () => {}, replayMode };
+        },
+        extraHeaders: {
+          "x-vuagent-protocol-version": "1",
+          // 历史补看标注：客户端可据此区分「活跃直播」与「中断后补看」
+          "x-vuagent-history-only": "1",
+        },
+      });
     }
 
-    const stream = new ReadableStream({
-      start(controller) {
-        const encoder = new TextEncoder();
-        const unsub = executionHub.subscribe(
-          sessionId,
-          (event) => {
-            if (event === "[DONE]") {
-              controller.enqueue(encoder.encode(StreamOrchestrator.formatDone()));
-              try {
-                controller.close();
-              } catch {}
-            } else {
-              controller.enqueue(encoder.encode(StreamOrchestrator.formatSSE(event)));
-            }
-          },
-          0
-        );
-
-        c.req.raw.signal.addEventListener("abort", () => {
-          unsub?.();
-        });
+    return createSSEResponse({
+      signal: c.req.raw.signal,
+      heartbeatMs: SSE_HEARTBEAT_MS,
+      metrics: sseMetricsOf(metricsRegistry),
+      attach: (pump) => {
+        const sub = executionHub.subscribeFromSeq(sessionId, pump, fromSeq);
+        if (!sub) return null;
+        return { unsubscribe: sub.unsubscribe, replayMode: sub.replayMode };
       },
-    });
-
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream; charset=utf-8",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
+      extraHeaders: {
         "x-vuagent-protocol-version": "1",
+        // x-vuagent-replay 由 sse-response 按 subscribeFromSeq 的实际模式自动标注
       },
     });
   });
 
   // HITL 交互提交回调（同时支持 /api/action/:actionId 与 /api/actions/:actionId/approval 别名）
   const handleResolveAction = async (c: any) => {
+    // TASK-101：协议版本协商——审批决策是交互面，新协议客户端不得在未协商端点
+    // 上以不兼容语义提交（覆盖 chat/stream 之外的遗留面）
+    const mismatch = negotiateProtocolOr426(c);
+    if (mismatch) return mismatch;
     const actionId = c.req.param("actionId");
     const payload = await c.req.json().catch(() => ({}));
-    console.log(`[Vuagent Server] Resolving action [${actionId}], payload:`, payload);
+    console.log(`[Vuagent Server] Resolving action [${actionId}], payload: ${sanitizeForLog(payload)}`);
+
+    // 幂等消费（审查 Optional 修复：getDecision 此前只写不读）——孤儿决策落账后
+    // 的重复 POST 直接返回已记录决策，不再走 fallbackScan 404 谎报「无此挂起」
+    if (actionPersist) {
+      const prior = await actionPersist.getDecision(actionId).catch(() => undefined);
+      if (prior) {
+        return c.json({
+          success: true,
+          delivered: false,
+          prior,
+          note: "该决策已落账（先前孤儿路径记录），本次为重复提交，未重复处理",
+        });
+      }
+    }
+
     // TASK-005：命中挂起索引时按 sessionId 直达目标会话，免除全库 O(N) 扫描
     const indexedSessionId = actionHub.getSessionIdForAction(actionId);
     const ok = actionHub.resolveAction(actionId, payload);
+
+    // TASK-100：孤儿挂起（Redis 形态下进程重启后到达的决策）——等待协程已随进程
+    // 消失，唤醒不可能；诚实语义 = 决策落账（防重复处理）+ 审批卡回写，delivered:false。
+    // 两道防谎报闸门（审查 Required/Optional 修复）：
+    // ① 本副本活挂起复查：正常 resolve 的 fire-and-forget 删除落盘前的重复 POST
+    //    不再误判孤儿（毫秒级竞态窗口）；
+    // ② 多副本归属校验：挂起记录携带发起副本 instanceId，非本实例持有时不落孤儿账
+    //    （决策 POST 被负载均衡到其他副本时，原协程仍在等待——伪造「已随重启中断」
+    //    会丢失人的真实决策），返回 409 让客户端重试/由持有副本处理。
+    let orphanSessionId: string | undefined;
+    let orphanFound = false;
+    if (!ok && actionPersist) {
+      const liveHere = (actionHub as { hasPending?: (id: string) => boolean }).hasPending?.(actionId) ?? false;
+      const pendingList = await actionPersist.listPending().catch(() => []);
+      const orphan = pendingList.find((a) => a.actionId === actionId);
+      const ownerInstanceId = (orphan as { instanceId?: string } | undefined)?.instanceId;
+      if (orphan && !liveHere) {
+        if (ownerInstanceId && ownerInstanceId !== instanceId) {
+          return c.json(
+            {
+              success: false,
+              delivered: false,
+              code: "PENDING_OWNED_BY_OTHER_INSTANCE",
+              note: `该挂起轮次由其他副本（instanceId=${ownerInstanceId}）持有，本副本不能判定其中断；请重试路由到持有副本，或等待其超时收尾`,
+            },
+            409
+          );
+        }
+        orphanFound = true;
+        orphanSessionId = orphan.sessionId;
+        await actionPersist.saveDecision(actionId, payload).catch(() => {});
+        await actionPersist.deletePending(actionId).catch(() => {});
+      }
+    }
 
     // 同步更新数据库中历史会话的审批卡片状态，保证切换会话或刷新后状态依然保持
     const updateSessionCards = async (sessionId: string): Promise<void> => {
@@ -817,14 +1178,18 @@ export function createHarnessServer(options: ServerOptions = {}) {
         }
       }
       if (modified) {
-        await sessionRepo.update(sess.id, { turns: sess.turns });
+        // TASK-092：轮次已拆行存储——走全量回写兼容通道
+        await sessionRepo.replaceTurns(sess.id, sess.turns);
       }
     };
 
+    const fallbackScan = !indexedSessionId && !orphanFound;
     try {
       if (indexedSessionId) {
         await updateSessionCards(indexedSessionId);
-      } else {
+      } else if (orphanSessionId) {
+        await updateSessionCards(orphanSessionId);
+      } else if (fallbackScan) {
         // 兜底：无索引信息（如进程重启后遗留的 actionId）退回全库扫描
         const allSessions = await sessionRepo.list();
         for (const sess of allSessions) {
@@ -835,6 +1200,13 @@ export function createHarnessServer(options: ServerOptions = {}) {
       console.warn("更新会话卡片审批持久化状态失败:", e);
     }
 
+    if (!ok && orphanFound) {
+      return c.json({
+        success: true,
+        delivered: false,
+        note: "决策已记录并回写审批卡；所属轮次已随进程重启中断（恢复机制诚实标记），不会唤醒执行",
+      });
+    }
     return c.json({ success: ok }, ok ? 200 : 404);
   };
 
@@ -842,8 +1214,17 @@ export function createHarnessServer(options: ServerOptions = {}) {
   app.post("/api/actions/:actionId/approval", handleResolveAction);
 
   // 查询当前挂起的动作列表
-  app.get("/api/action/suspended", (c) => {
-    return c.json(actionHub.listSuspended());
+  // TASK-100：Redis 形态合并外置挂起（进程重启后仍可见；去重 + 过期剔除）
+  app.get("/api/action/suspended", async (c) => {
+    const inMemory = actionHub.listSuspended();
+    if (!actionPersist) return c.json(inMemory);
+    const persisted = await actionPersist.listPending().catch(() => []);
+    const inMemoryIds = new Set(inMemory.map((a) => a.actionId));
+    const now = Date.now();
+    const orphans = persisted.filter(
+      (a) => !inMemoryIds.has(a.actionId) && a.expiresAt > now
+    );
+    return c.json([...inMemory, ...orphans]);
   });
 
   // TASK-052 成本台账查询出口：滚动窗口累计与按模型聚合（TASK-075 起由前端用量面板消费）
@@ -883,8 +1264,14 @@ export function createHarnessServer(options: ServerOptions = {}) {
   });
 
   app.post("/api/workspaces", async (c) => {
-    const body = await c.req.json();
-    const ws = await workspaceRepo.create(body);
+    // TASK-086：body 直通曾让任意 rootPath 迁移 fs/bash 沙箱——白名单 + 绝对路径
+    // + 可选 VUAGENT_WORKSPACE_ROOTS 前缀白名单（沙箱边界闸门）
+    const body = await c.req.json().catch(() => null);
+    const guard = validateCreateWorkspaceBody(body);
+    if (!guard.ok) return c.json({ error: guard.error }, 400);
+    // 实体 permission 为必填而 API 层保持可选（存量语义：未传由仓储落 undefined），
+    // 校验器已枚举把关，此处受控断言
+    const ws = await workspaceRepo.create(guard.value as Parameters<typeof workspaceRepo.create>[0]);
     return c.json(ws, 201);
   });
 
@@ -903,7 +1290,8 @@ export function createHarnessServer(options: ServerOptions = {}) {
       const result = await buildFileTree(ws.rootPath);
       return c.json({ root: ws.rootPath, ...result });
     } catch (e) {
-      return c.json({ error: `读取目录失败: ${e instanceof Error ? e.message : String(e)}` }, 500);
+      // TASK-089：目录错误详情进服务端日志，响应侧通用信封（500 不外泄内部路径细节）
+      return serverError(c, "WORKSPACE_FILES_READ_FAILED", e);
     }
   });
 
@@ -942,15 +1330,20 @@ export function createHarnessServer(options: ServerOptions = {}) {
 
       return c.json(ws, 201);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return c.json({ error: msg }, 500);
+      // TASK-089：osascript/powershell 失败详情进服务端日志，响应侧通用信封
+      return serverError(c, "PICK_DIRECTORY_FAILED", err);
     }
   });
 
   // 会话接口
   app.get("/api/sessions", async (c) => {
     const workspaceId = c.req.query("workspaceId");
-    const list = await sessionRepo.list(workspaceId ? (s) => s.workspaceId === workspaceId : undefined);
+    // TASK-093：列表瘦身——只读主文档元数据（不含 turns/checkpoints 全文档），
+    // isRunning 由执行中心在途集合补齐（此前为加该字段全量装配每个会话的全部轮次）。
+    // 轮次正文走 GET /api/sessions/:id 详情端点。
+    const list = await sessionRepo.listMeta(
+      workspaceId ? (s) => s.workspaceId === workspaceId : undefined
+    );
     const enriched = list.map((s) => ({
       ...s,
       isRunning: executionHub.isRunning(s.id),
@@ -959,15 +1352,24 @@ export function createHarnessServer(options: ServerOptions = {}) {
   });
 
   app.post("/api/sessions", async (c) => {
-    const body = await c.req.json();
-    const sess = await sessionRepo.create(body);
+    // TASK-086：白名单校验（workspaceId 必填；id/turns/status 等服务端属主字段不可由客户端指定）
+    const body = await c.req.json().catch(() => null);
+    const guard = validateCreateSessionBody(body);
+    if (!guard.ok) return c.json({ error: guard.error }, 400);
+    const sess = await sessionRepo.create(guard.value);
     return c.json(sess, 201);
   });
 
   app.patch("/api/sessions/:id", async (c) => {
     const id = c.req.param("id");
-    const body = await c.req.json();
-    const updated = await sessionRepo.update(id, body);
+    // TASK-086：只能改元数据（title/status/pinned/archived/activeModelProfileId/permission/systemContext），
+    // turns/workspaceId/compaction 等属主数据不在白名单
+    const body = await c.req.json().catch(() => null);
+    const guard = validateUpdateSessionBody(body);
+    if (!guard.ok) return c.json({ error: guard.error }, 400);
+    // status 的存量事实值 "archived"（playground 归档切换）不在 SessionStatus 类型联合内，
+    // 校验器已白名单把关，此处受控断言（见 http-body-guards.ts SESSION_STATUSES 注释）
+    const updated = await sessionRepo.update(id, guard.value as Partial<SessionEntity>);
     if (!updated) return c.json({ error: "Session not found" }, 404);
     return c.json(updated);
   });
@@ -1101,10 +1503,10 @@ export function createHarnessServer(options: ServerOptions = {}) {
       compactedAt: Date.now(),
     };
     session.compaction = compactionRecord;
-    await sessionRepo.update(sessionId, {
-      turns: session.turns,
-      compaction: compactionRecord,
-    });
+    // TASK-092：轮次已拆行存储——turns 变更（compaction checkpoint + 仪表水合值）走
+    // 全量回写兼容通道；compaction 元数据走主文档 update
+    await sessionRepo.replaceTurns(sessionId, session.turns);
+    await sessionRepo.update(sessionId, { compaction: compactionRecord });
 
     return c.json({
       success: true,
@@ -1228,14 +1630,25 @@ export function createHarnessServer(options: ServerOptions = {}) {
     return out.length > 0 ? out : undefined;
   };
 
-  /** 只接受 http(s)：provider.baseUrl 会被服务端拿去发请求，file:// 等协议须挡在门外 */
-  const isHttpUrl = (raw: string): boolean => {
-    try {
-      const u = new URL(raw);
-      return u.protocol === "http:" || u.protocol === "https:";
-    } catch {
-      return false;
-    }
+  /** http(s) 判定收口至 core/http-body-guards.ts（TASK-086，模型/供应商共用） */
+
+  /**
+   * 500 收口（TASK-089）：err 详情进 NDJSON 带 requestId 供排查，响应侧只给
+   * 通用信封——err.message 原样回传可能携带内部路径/密钥样字符串。
+   */
+  const serverError = (c: Context, code: string, err: unknown) => {
+    const requestId = c.get("requestId");
+    const msg = clipExternalError(err instanceof Error ? err.message : String(err));
+    console.error(
+      JSON.stringify({
+        level: "error",
+        code,
+        requestId,
+        message: msg,
+        stack: err instanceof Error ? err.stack : undefined,
+      })
+    );
+    return c.json({ error: "服务器内部错误（详情见服务端日志）", code, requestId }, 500);
   };
 
   app.get("/api/settings/providers", async (c) => {
@@ -1388,7 +1801,7 @@ export function createHarnessServer(options: ServerOptions = {}) {
         items: detected,
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = clipExternalError(err instanceof Error ? err.message : String(err));
       return c.json({ ok: false, endpoint, error: msg }, 200);
     } finally {
       clearTimeout(timeout);
@@ -1466,7 +1879,7 @@ export function createHarnessServer(options: ServerOptions = {}) {
         }
         return { capability, ok: null, detail: `HTTP ${res.status}：${text || "无响应体"}` };
       } catch (err: unknown) {
-        return { capability, ok: null, detail: `探测失败：${err instanceof Error ? err.message : String(err)}` };
+        return { capability, ok: null, detail: `探测失败：${clipExternalError(err instanceof Error ? err.message : String(err))}` };
       } finally {
         clearTimeout(timer);
       }
@@ -1577,7 +1990,7 @@ export function createHarnessServer(options: ServerOptions = {}) {
         model,
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = clipExternalError(err instanceof Error ? err.message : String(err));
       return c.json(
         { ok: false, latencyMs: Date.now() - startedAt, endpoint, model, error: msg },
         200
@@ -1588,8 +2001,12 @@ export function createHarnessServer(options: ServerOptions = {}) {
   });
 
   app.post("/api/settings/models", async (c) => {
-    const body = await c.req.json();
-    const profile = await settingsRepo.createProfile(body);
+    // TASK-086：遗留内联创建路径补白名单校验（provider 走 isProviderKind 枚举闸门，
+    // baseUrl http(s) 校验；id/时间戳等属主字段不可由客户端指定）
+    const body = await c.req.json().catch(() => null);
+    const guard = validateCreateModelProfileBody(body, isProviderKind);
+    if (!guard.ok) return c.json({ error: guard.error }, 400);
+    const profile = await settingsRepo.createProfile(guard.value);
     return c.json(sanitizeModelProfile(profile), 201);
   });
 
@@ -1621,5 +2038,16 @@ export function createHarnessServer(options: ServerOptions = {}) {
     uiRegistry,
     actionHub,
     agentLoop,
+    /** 执行中心（优雅停机抽干等待 / 指标观测的入口） */
+    executionHub,
+    /** 关闭底层存储（TASK-095 优雅停机收口；sqlite close，无句柄驱动为空操作）。
+     *  关闭前先批量 flush 在途轮次持久化缓冲（审查 O1 修复）：抽干超时被放弃的
+     *  轮次其 ≤250ms 防抖窗口内的进度不再直接丢失，缩小恢复状态回退窗口；
+     *  flush fail-open，不阻塞停机。 */
+    close: async () => {
+      await agentLoop.flushInFlightPersistence();
+      const closable = driver as unknown as { close?: () => void };
+      closable.close?.();
+    },
   };
 }

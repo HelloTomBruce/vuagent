@@ -25,6 +25,13 @@ export interface ActiveExecution {
 /** 中止成因：user=用户显式停止 / new_task=同会话新请求顶替（TASK-050） */
 export type AbortKind = "user" | "new_task";
 
+/**
+ * 活跃 run 事件缓冲上限（TASK-090）：防长轮次 delta 把缓冲撑爆内存。
+ * 淘汰最旧（seq 保序）；增量重连检测到缺口（请求 fromSeq 早于缓冲最旧 seq）
+ * 时回退全量重放并以 x-vuagent-replay: full 标注——诚实降级优于静默丢事件。
+ */
+export const RUN_EVENT_BUFFER_CAP = 2000;
+
 /** claimTurn 结果：ok=false 时 reason 区分冲突形态（路由据此映射 409 code） */
 export type ClaimTurnResult =
   | { ok: true }
@@ -54,16 +61,58 @@ export interface LeaseOptions {
   maxHeartbeatFailures?: number;
 }
 
+/**
+ * 事件缓冲外置（TASK-100，可选）：Redis 形态下广播事件同步落 Redis ring，
+ * 进程重启后客户端重连可补看中断前增量（轮次本身由恢复机制诚实标记）。
+ */
+export interface EventLogStore {
+  append(sessionId: string, event: HarnessStreamEvent & { seq?: number }): Promise<void>;
+  /**
+   * 读取 seq > fromSeq 的缓冲事件（评审 #5 诚实缺口语义）：
+   * - gap=false：返回事件与客户端进度连续（首条返回 seq === fromSeq+1，或无可补事件
+   *   且缓冲确认覆盖到 fromSeq）；
+   * - gap=true：无法确认连续——ring 头部已被裁剪（首条返回 seq > fromSeq+1）、
+   *   ring 空但 fromSeq>0、或 ring 最大 seq 落后于客户端进度。调用方应从 ring 头
+   *   全量重放（readAfter(sessionId, 0)）并以 full 标注，不得静默当作增量。
+   */
+  readAfter(
+    sessionId: string,
+    fromSeq: number
+  ): Promise<{ events: Array<HarnessStreamEvent & { seq?: number }>; gap: boolean }>;
+}
+
+export interface SessionExecutionHubOptions {
+  eventLog?: EventLogStore;
+}
+
 export class SessionExecutionHub {
   private activeRuns = new Map<string, ActiveExecution>();
   /** 运维事件出口（TASK-051）：preempt/abort 等生命周期事件 */
   private sink: HarnessEventSink;
   /** 跨副本租约（Redis 形态可选；缺省单副本无租约语义） */
   private lease?: LeaseOptions;
+  /** 事件缓冲外置（TASK-100，Redis 形态可选） */
+  private eventLog?: EventLogStore;
 
-  constructor(private agentLoop: AgentLoop, sink?: HarnessEventSink, lease?: LeaseOptions) {
+  constructor(
+    private agentLoop: AgentLoop,
+    sink?: HarnessEventSink,
+    lease?: LeaseOptions,
+    options?: SessionExecutionHubOptions
+  ) {
     this.sink = sink ?? createNoopSink();
     this.lease = lease;
+    this.eventLog = options?.eventLog;
+  }
+
+  /** 外置缓冲读取（路由层重连回放用；未启用返回 undefined） */
+  getEventLog(): EventLogStore | undefined {
+    return this.eventLog;
+  }
+
+  /** 外置缓冲追加（fire-and-forget fail-open） */
+  private logEvent(sessionId: string, event: HarnessStreamEvent): void {
+    this.eventLog?.append(sessionId, event).catch(() => {});
   }
 
   /** sink 故障不阻断主链路 */
@@ -265,6 +314,12 @@ export class SessionExecutionHub {
           // TASK-054：广播时注入递增 seq（事件寻址，增量重连去重用）
           const sequenced = Object.assign({}, event, { seq: ++run.seqCounter });
           run.events.push(sequenced);
+          // TASK-090：缓冲上限淘汰最旧（seq 保序），缺口由 subscribeFromSeq 检测并诚实回退全量
+          if (run.events.length > RUN_EVENT_BUFFER_CAP) {
+            run.events.splice(0, run.events.length - RUN_EVENT_BUFFER_CAP);
+          }
+          // TASK-100：外置缓冲追加（Redis 形态；fire-and-forget）
+          this.logEvent(run.sessionId, sequenced);
           for (const sub of run.subscribers) {
             try {
               sub(sequenced);
@@ -280,6 +335,9 @@ export class SessionExecutionHub {
           { seq: ++run.seqCounter }
         );
         run.events.push(errEvent);
+        // 评审 #9：终态事件与普通事件同一 seq 序列同步落外置缓冲——
+        // 重启后补看才能看到错误徽标（内存流只 push 这一次，不重复）
+        this.logEvent(run.sessionId, errEvent);
         for (const sub of run.subscribers) {
           try {
             sub(errEvent);
@@ -369,6 +427,57 @@ export class SessionExecutionHub {
   }
 
   /**
+   * 按 seq 寻址订阅（TASK-090 增量重连）：重放缓冲中 seq > fromSeq 的事件后接入实时流。
+   * fromSeq 缺省 = 全量重放缓冲（与 legacy subscribe(fromEventIndex=0) 等价）。
+   * replayMode 语义（路由以 x-vuagent-replay 头标注给客户端）：
+   * - "full"：无 fromSeq，或请求的 fromSeq 早于缓冲最旧 seq（缺口 = 事件已被
+   *   缓冲上限淘汰）→ 从缓冲头全量重放——诚实降级优于静默丢事件；
+   * - "partial"：无缺口且缓冲中有 seq > fromSeq 的未读事件；
+   * - "live"：无未读事件，直接接入实时流。
+   * 返回 null 与 legacy subscribe 同义（会话无活跃 run 或已中止抽干中）。
+   */
+  subscribeFromSeq(
+    sessionId: string,
+    onEvent: (event: HarnessStreamEvent | "[DONE]") => void,
+    fromSeq?: number
+  ): { unsubscribe: () => void; replayMode: "full" | "partial" | "live" } | null {
+    const run = this.activeRuns.get(sessionId);
+    if (!run || run.aborted) return null;
+
+    const seqOf = (ev: HarnessStreamEvent): number =>
+      (ev as HarnessStreamEvent & { seq?: number }).seq ?? 0;
+
+    let replayMode: "full" | "partial" | "live" = "full";
+    if (fromSeq === undefined) {
+      for (const ev of run.events) onEvent(ev);
+    } else {
+      const oldest = run.events.length > 0 ? seqOf(run.events[0]) : null;
+      // 评审 #2：客户端 seq 空间换代检测——fromSeq 超前于本 run 全部已知 seq
+      // （重启后 seqCounter 归零 / 新 run 重新计数）时，缓冲里没有任何可信增量，
+      // 静默 live 会永久丢事件；诚实语义 = 从缓冲头全量重放并标 full
+      // （与缓冲淘汰缺口同一处理）。恰好追平（fromSeq === 已知最大 seq）仍是
+      // 活跃 run 的正常 live 契约，不在此列。
+      const latestSeq = run.events.length > 0 ? seqOf(run.events[run.events.length - 1]) : 0;
+      const fromBeyondRun = fromSeq > latestSeq;
+      if (fromBeyondRun || (oldest !== null && fromSeq < oldest - 1)) {
+        // 缺口/换代：淘汰或换代前的历史无法按增量补发，全量重放
+        for (const ev of run.events) onEvent(ev);
+      } else {
+        const missed = run.events.filter((ev) => seqOf(ev) > fromSeq);
+        replayMode = missed.length > 0 ? "partial" : "live";
+        for (const ev of missed) onEvent(ev);
+      }
+    }
+
+    if (run.isDone) {
+      onEvent("[DONE]");
+      return { unsubscribe: () => {}, replayMode };
+    }
+    run.subscribers.add(onEvent);
+    return { unsubscribe: () => run.subscribers.delete(onEvent), replayMode };
+  }
+
+  /**
    * 中止指定会话的执行
    * 广播中止提示并断开订阅者，但不销毁 run：后台事件循环继续抽干，
    * 让 AgentLoop 在 abort 分支里走完 turn_end 并 appendTurn 落库
@@ -401,6 +510,12 @@ export class SessionExecutionHub {
     };
     const seq = ++run.seqCounter;
     run.events.push(Object.assign(abortedEvent, { seq }));
+    if (run.events.length > RUN_EVENT_BUFFER_CAP) {
+      run.events.splice(0, run.events.length - RUN_EVENT_BUFFER_CAP);
+    }
+    // 评审 #9：中止控制事件与普通事件同一 seq 序列同步落外置缓冲（不重复进内存流），
+    // 重启后补看含中止徽标
+    this.logEvent(run.sessionId, abortedEvent);
     for (const sub of run.subscribers) {
       try {
         sub(abortedEvent);

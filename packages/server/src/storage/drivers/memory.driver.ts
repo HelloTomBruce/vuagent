@@ -42,6 +42,20 @@ export class MemoryStorageDriver implements IStorageDriver {
     return items;
   }
 
+  /**
+   * 键前缀读取（PrefixListSupport，存储域审查 R2）：单会话行装配等前缀场景
+   * 只扫命中键，不再全集合物化。语义与 list 一致，仅键空间收窄。
+   */
+  async listByPrefix<T>(collection: string, prefix: string): Promise<T[]> {
+    const col = this.getCollection(collection);
+    const items: T[] = [];
+    for (const [id, value] of col) {
+      if (!id.startsWith(prefix)) continue;
+      items.push(JSON.parse(JSON.stringify(value)) as T);
+    }
+    return items;
+  }
+
   async clear(collection?: string): Promise<void> {
     if (collection) {
       this.store.delete(collection);

@@ -52,11 +52,17 @@ export interface TurnFinalState {
 }
 
 export class TurnPersistence {
+  /** TASK-091：turn 内进度落盘防抖窗口——窗口内多次 step 合并为一次 updateTurn（永远写最新态） */
+  static readonly PROGRESS_WINDOW_MS = 250;
+
+  private progressTimer: ReturnType<typeof setTimeout> | null = null;
+  private pendingProgress: { state: TurnProgressState; startAt: number } | null = null;
+
   constructor(private opts: TurnPersistenceOptions) {}
 
   /**
    * TASK-049 即时落库：轮次开始即落 running 行（中途崩溃留痕），
-   * 每 step 增量更新，终态 appendTurn upsert 兜底（幂等替换，不产生重复行）。
+   * 终态 appendTurn upsert 兜底（幂等替换，不产生重复行）。
    * 初始落库失败不阻断执行；终态 appendTurn 仍会兜底落库。
    */
   async appendRunningRow(input: {
@@ -82,15 +88,54 @@ export class TurnPersistence {
   }
 
   /**
-   * 每 step 结束后的增量进度落盘（best-effort，失败不影响主链路）：
-   * 先发 TASK-051 step 级运维事件，再 updateTurn（含本步 checkpoint，崩溃时已完成步骤留痕）。
+   * TASK-091 进度落盘防抖：step 边界只更新缓冲并调度时间窗（缺省已有定时器则不重复调度），
+   * 窗口到期一次性写最新态。step 级运维事件（TASK-051）每步照发——观测轨不受落盘合并影响。
+   * 强制落盘点：HITL 挂起前（beforeSuspend）；终态收尾走 dropProgressBuffer——终态 upsert
+   * 整体替换 running 行，缓冲再写一次是纯浪费。
    */
-  async persistProgress(state: TurnProgressState, startAt: number): Promise<void> {
+  scheduleProgress(state: TurnProgressState, startAt: number): void {
     // TASK-051：step 级运维事件
     this.opts.ops.stepFinish({
       step: state.stepCount,
       durationMs: Date.now() - startAt,
     });
+    this.pendingProgress = { state, startAt };
+    if (this.progressTimer) return;
+    this.progressTimer = setTimeout(() => {
+      this.progressTimer = null;
+      void this.flushProgress().catch(() => {
+        // 落盘失败静默：终态收尾仍会兜底
+      });
+    }, TurnPersistence.PROGRESS_WINDOW_MS);
+  }
+
+  /** 强制落盘缓冲中的最新进度（HITL 挂起前调用；挂起窗口可达 180s，期间崩溃须留痕） */
+  async flushProgress(): Promise<void> {
+    if (this.progressTimer) {
+      clearTimeout(this.progressTimer);
+      this.progressTimer = null;
+    }
+    const pending = this.pendingProgress;
+    this.pendingProgress = null;
+    if (!pending) return;
+    await this.persistProgress(pending.state, pending.startAt);
+  }
+
+  /** 丢弃未落盘缓冲（终态 upsert 整体替换 running 行，缓冲写入了也是白写） */
+  dropProgressBuffer(): void {
+    if (this.progressTimer) {
+      clearTimeout(this.progressTimer);
+      this.progressTimer = null;
+    }
+    this.pendingProgress = null;
+  }
+
+  /**
+   * 每 step 结束后的增量进度落盘（best-effort，失败不影响主链路）：
+   * updateTurn（含本步 checkpoint，崩溃时已完成步骤留痕）。
+   * TASK-091：仅由 flushProgress 内部调用——step 边界入口已改为 scheduleProgress。
+   */
+  private async persistProgress(state: TurnProgressState, startAt: number): Promise<void> {
     try {
       await this.opts.sessionRepo.updateTurn(this.opts.sessionId, this.opts.turnId, {
         status: "running",
@@ -115,8 +160,10 @@ export class TurnPersistence {
     }
   }
 
-  /** 终态 upsert：done / error 实体整体落库（幂等替换 running 行） */
+  /** 终态 upsert：done / error 实体整体落库（幂等替换 running 行）。
+   * TASK-091：先丢弃进度缓冲——终态实体即全量，缓冲写入是重复劳动。 */
   async finalizeTurn(entity: TurnEntity): Promise<void> {
+    this.dropProgressBuffer();
     await this.opts.sessionRepo.appendTurn(this.opts.sessionId, entity);
   }
 

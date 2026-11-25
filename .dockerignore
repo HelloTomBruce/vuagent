@@ -1,0 +1,39 @@
+# deploy/Dockerfile 的构建上下文裁剪（与 Dockerfile 的 COPY 清单配套维护：
+# 被 ! 反排除的成员 package.json 必须保留在场，pnpm frozen 安装要求 lockfile 全部 importer 可见）
+
+# ===== 版本控制与本地状态 =====
+.git
+.gitignore
+
+# ===== 依赖与构建产物（镜像内重新安装） =====
+**/node_modules
+**/dist
+**/coverage
+
+# ===== 运行数据 / 机密 / 本地工具状态 =====
+.vuagent
+.env
+.env.local
+.env.*.local
+.dsh-browser
+
+# ===== 与 server 镜像无关的目录（源码不进镜像；成员清单文件经 ! 反排除保留） =====
+packages/ui/**
+!packages/ui/package.json
+apps/docs/**
+!apps/docs/package.json
+apps/playground/**
+!apps/playground/package.json
+examples/**
+!examples/*/package.json
+docs
+meta
+promo
+logo
+scripts
+tasks
+.github
+.changeset
+**/*.md
+llms.txt
+llms-full.txt

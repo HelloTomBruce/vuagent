@@ -183,6 +183,20 @@ export interface SessionEntity {
   pinned?: boolean;
   systemContext?: string;
   turns: TurnEntity[];
+  /**
+   * TASK-092 存储元数据：行存储形态下的轮次计数（主文档不再内联 turns）。
+   * 写路径维护（appendTurn 递增 / 迁移搬库时赋初值）；读路径仅作 append 分配
+   * index 的依据，不参与业务语义。旧格式文档（内联 turns）无此字段。
+   */
+  turnCount?: number;
+  /**
+   * TASK-092 拆表迁移的显式存储标记：true = 本文档 turns 已拆行存储
+   * （session_turns 集合）。仓储以「标记在不在」判定迁移状态，不再以
+   * 「内联非空 turns」猜测旧格式——assemble 水合出的实体会被该启发式
+   * 永远误判为 legacy（存储域审查 C2/R1 的根因）。
+   * 仅 ensureMigrated（首写搬库）写入；旧格式文档无此字段，写路径透传保留。
+   */
+  turnsSplit?: boolean;
   /** 最近一次手动压缩记录（TASK-008），历史重建时据此折叠轮次并注入摘要 */
   compaction?: SessionCompactionEntity;
   createdAt: number;

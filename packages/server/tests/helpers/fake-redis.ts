@@ -187,6 +187,43 @@ export class FakeRedis implements RedisLike {
     throw new Error(`FakeRedis.eval: 未模拟的 Lua 脚本（${script.slice(0, 40)}…）`);
   }
 
+  /** 可选 list 操作（TASK-100 事件缓冲外置测试用）：内存数组模拟 RPUSH/LRANGE/LTRIM */
+  private lists = new Map<string, string[]>();
+
+  async rpush(key: string, ...values: string[]): Promise<number> {
+    this.assertAlive();
+    const list = this.lists.get(key) ?? [];
+    list.push(...values);
+    this.lists.set(key, list);
+    return list.length;
+  }
+
+  async lrange(key: string, start: number, stop: number): Promise<string[]> {
+    this.assertAlive();
+    const list = this.lists.get(key) ?? [];
+    // 语义对齐 Redis：负索引从尾部计；超出边界钳制
+    const norm = (i: number) => (i < 0 ? Math.max(list.length + i, 0) : Math.min(i, list.length));
+    const from = norm(start);
+    const to = stop < 0 ? list.length + stop : Math.min(stop, list.length - 1);
+    return from > to ? [] : list.slice(from, to + 1);
+  }
+
+  async ltrim(key: string, start: number, stop: number): Promise<unknown> {
+    this.assertAlive();
+    const list = this.lists.get(key);
+    if (!list) return "OK";
+    const norm = (i: number) => (i < 0 ? Math.max(list.length + i, 0) : Math.min(i, list.length));
+    const from = norm(start);
+    const to = stop < 0 ? list.length + stop : Math.min(stop, list.length - 1);
+    this.lists.set(key, from > to ? [] : list.slice(from, to + 1));
+    return "OK";
+  }
+
+  /** 测试直读 list（断言缓冲形态用） */
+  peekList(key: string): string[] {
+    return this.lists.get(key) ?? [];
+  }
+
   /** 两段租约 Lua 的共同语义：值 JSON 解码后 turnId+instanceId 匹配才执行动作 */
   private luaMatchedWrite(
     key: string,

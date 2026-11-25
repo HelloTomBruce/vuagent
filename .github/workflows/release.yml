@@ -1,0 +1,114 @@
+name: Release
+
+# 手动两段式发布（TASK-096，与 ci.yml 同工具链：Node 22 + pnpm 12）：
+#
+#   ① Actions → Release → Run workflow，action=version
+#      → changesets 消费 .changeset/ 下 pending 变更，生成/更新「Version Packages」PR；
+#   ② 人工审阅并合并该 PR（版本号、CHANGELOG 汇总在此定型，同时触发 ci.yml 全量门禁）；
+#   ③ 再 Run workflow，action=publish
+#      → build + `changeset publish`（NPM_TOKEN + npm provenance）+ push git tag。
+#
+# 为何不自动发包（不用 changesets/action 的 publish 参数接 main push）：
+# 自动发布等于「合并即上线」——主分支任何误合并（半成品 / 提前 bump / CI 尚红）都会
+# 直接变成一次真实的 npm release，而 unpublish/deprecate 的回撤成本远高于不合 PR。
+# 两段式在「改版本」与「发版」之间保留人工审阅口；NPM_TOKEN 也只在显式 publish 的
+# run 中生效（version 阶段仅用 GITHUB_TOKEN，无 npm 凭据）。
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "version = 生成/更新 Version Packages PR；publish = 发布到 npm（需先合并 Version PR）"
+        required: true
+        type: choice
+        default: version
+        options:
+          - version
+          - publish
+
+# 默认最小权限，各 job 按需放大
+permissions:
+  contents: read
+
+# 同一时间只允许一个发布动作，防双发
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    if: ${{ github.event.inputs.action == 'version' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 推 version 分支
+      pull-requests: write # 开/更新 Version Packages PR
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # 官方 changesets action：无 pending changesets 时本次 run 静默结束（不开 PR）
+      - uses: changesets/action@v1
+        with:
+          version: pnpm exec changeset version
+          title: "chore(changesets): Version Packages"
+          commit: "chore(changesets): Version Packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    if: ${{ github.event.inputs.action == 'publish' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # changeset publish 打 git tag + 推送 tag
+      id-token: write # npm provenance（SLSA 出处证明）需要 OIDC
+      # 如需发布前再加一道人工批准门：在仓库 Settings → Environments 建 `npm`
+      # （可配 required reviewers）后取消下一行注释
+      # environment: npm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      # registry-url 触发 setup-node 写入用户级 .npmrc
+      # （//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN} 占位）
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      # changeset publish：仅发布「版本号在 registry 中不存在」的包（没合并 Version PR
+      # 时本步为空操作，不会误发）；仓库含 pnpm-lock.yaml → changesets 自动走
+      # `pnpm publish` 子进程，workspace:* 依赖在发包时正确替换。
+      - name: Publish to npm
+        run: pnpm exec changeset publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # provenance：pnpm publish（npm 兼容）读 npm_config_* / .npmrc 的 provenance 配置；
+          # 需配 id-token: write（OIDC）+ 公开仓库 + npmjs 官方源
+          NPM_CONFIG_PROVENANCE: "true"
+          npm_config_provenance: "true"
+
+      # changeset publish 已为每个发布的版本打 pkg@x.y.z 标签，此处推送
+      - name: Push git tags
+        run: git push origin --tags

@@ -138,6 +138,30 @@ export class OpsReporter {
     });
   }
 
+  /** TASK-101：partial JSON 静默修复可观测化——修复发生即发事件，不再无声吞掉模型格式错误 */
+  partialRepair(toolName: string): void {
+    this.emit({
+      type: "warn",
+      at: Date.now(),
+      sessionId: this.ids.sessionId,
+      turnId: this.ids.turnId,
+      code: "MODEL_PARTIAL_REPAIR",
+      detail: `工具 ${toolName} 的入参 JSON 未闭合，容错修补后放行（模型输出格式疑似异常）`,
+    });
+  }
+
+  /** TASK-101 实验原型：mid-turn resume 归因（VUAGENT_EXPERIMENT_RESUME 门控，不进默认路径） */
+  turnResumed(checkpointId: string): void {
+    this.emit({
+      type: "info",
+      at: Date.now(),
+      sessionId: this.ids.sessionId,
+      turnId: this.ids.turnId,
+      code: "TURN_RESUMED",
+      detail: `从 checkpoint ${checkpointId} 快照续跑（实验原型，诚实归因 resumed）`,
+    });
+  }
+
   /** 轮次收尾（done/error；turnFinishCode 存在时代表被中止/超时后收尾） */
   turnFinish(input: {
     status: "done" | "error";

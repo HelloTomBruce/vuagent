@@ -151,6 +151,15 @@ export const CONFIG_SCHEMA: ConfigNamespaceSchema[] = [
         maxLength: 400,
       },
       {
+        // TASK-094：并行是新增能力而非旧硬编码行为——默认开，关闭回退旧串行语义
+        key: "parallelTools",
+        title: "工具并行执行",
+        description:
+          "同一步骤内不同名工具并行执行（同名工具互斥串行）；关闭后回退逐工具串行的旧行为",
+        type: "boolean",
+        default: true,
+      },
+      {
         key: "finishTaskMode",
         title: "显式终态协议（finish_task）",
         description:
@@ -162,6 +171,24 @@ export const CONFIG_SCHEMA: ConfigNamespaceSchema[] = [
         options: [
           { value: "off", label: "关闭（自然停机）" },
           { value: "enforced", label: "强制（显式终态 + 交付断言）" },
+        ],
+      },
+      {
+        // TASK-099：新增能力（本字段不适用头注释「默认值与现行硬编码行为严格等价」
+        // 约定）——Anthropic prompt caching 此前只计量（cache_creation/cache_read 落账）
+        // 不控制（请求从未设 cache_control），默认 auto 即开启断点注入的新行为；
+        // off 才等价旧版请求形态。
+        key: "promptCaching",
+        title: "Prompt 缓存（Anthropic）",
+        description:
+          "auto = 在 Anthropic 请求的 system 尾部与倒数第 1/2 条消息边界设 cache_control " +
+          "断点（总数 ≤4 上限，Anthropic 约束），命中后大幅降低重复前缀的输入成本；" +
+          "off = 不注入断点，请求形态与旧版一致",
+        type: "select",
+        default: "auto",
+        options: [
+          { value: "auto", label: "auto（自动断点）" },
+          { value: "off", label: "off（不注入）" },
         ],
       },
     ],
@@ -217,6 +244,23 @@ export const CONFIG_SCHEMA: ConfigNamespaceSchema[] = [
         default: 60_000,
         min: 1_000,
         max: 600_000,
+      },
+      {
+        // TASK-088：默认 safe 相对旧硬编码行为（完整继承）是安全收紧——
+        // 防模型 printenv 读出服务进程环境中的 API key / 令牌
+        key: "bashEnvPolicy",
+        title: "Bash 环境变量策略",
+        description:
+          "bash_run 子进程环境：safe=安全白名单（默认，密钥类变量一律剥离）；strict=最小集；inherit=完整继承服务进程环境（模型可 printenv 读出 API key 等密钥，风险自担）",
+        type: "select",
+        default: "safe",
+        options: [
+          { value: "safe", label: "safe（安全白名单）" },
+          { value: "strict", label: "strict（最小集）" },
+          { value: "inherit", label: "inherit（完整继承，慎用）" },
+        ],
+        risk: "high",
+        envLock: "VUAGENT_BASH_ENV_POLICY",
       },
     ],
   },

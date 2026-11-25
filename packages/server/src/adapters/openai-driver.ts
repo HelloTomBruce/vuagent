@@ -1,4 +1,5 @@
 import type { IModelDriver, ModelDriverRequest, ModelStreamChunk } from "./model-driver.js";
+import { childTraceparent } from "../core/trace-context.js";
 import {
   ClassifiedModelError,
   classifyHttpError,
@@ -56,6 +57,13 @@ export class OpenAICompatibleDriver implements IModelDriver {
     };
     if (this.apiKey) {
       headers["Authorization"] = `Bearer ${this.apiKey}`;
+    }
+    // TASK-098 出站 trace 传播：入站 traceparent 在 AsyncLocalStorage 中时
+    // 注入子 span traceparent（同 traceId + 新 span id）；无上下文不加头，
+    // 请求形态与注入前逐字节一致（零开销短路）
+    const outboundTraceparent = childTraceparent();
+    if (outboundTraceparent) {
+      headers["traceparent"] = outboundTraceparent;
     }
 
     const payload: Record<string, unknown> = {

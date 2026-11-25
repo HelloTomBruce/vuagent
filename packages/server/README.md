@@ -7,7 +7,7 @@ Vuagent Agent Harness 服务端：以 ReAct 循环驱动模型与工具的协作
 ```bash
 pnpm install
 
-pnpm --filter @vuagent/server dev          # 开发热载（tsx watch），默认 http://localhost:3001
+pnpm --filter @vuagent/server dev          # 开发热载（tsx watch），默认 http://127.0.0.1:6880
 pnpm --filter @vuagent/server start        # 直跑（tsx，免构建），部署用此入口 + 环境变量
 pnpm --filter @vuagent/server test         # 全量测试
 pnpm --filter @vuagent/server verify:redis redis://127.0.0.1:6379  # Redis 形态部署验证
@@ -134,7 +134,7 @@ pnpm --filter @vuagent/server verify:redis redis://127.0.0.1:6379  # Redis 形�
 
 面向两类读者，刻意分离：
 
-- **运维轨**：类型化事件出口（NDJSON），带可 grep 的错误分类码（模型面 / 工具面 / 轮次生命周期 / 准入恢复），供日志采集器结构化摄取；同一事件流并行驱动 **Prometheus 指标注册表**（`GET /metrics` 文本格式拉取，配置 `VUAGENT_TOKEN` 后同样要求 Bearer）与**可选 OTLP 推送**（设置 `OTEL_EXPORTER_OTLP_ENDPOINT` 即启用，OTLP Logs JSON 推 collector，fail-open）；不落库，随进程注入；
+- **运维轨**：类型化事件出口（NDJSON），带可 grep 的错误分类码（模型面 / 工具面 / 轮次生命周期 / 准入恢复），供日志采集器结构化摄取；同一事件流并行驱动 **Prometheus 指标注册表**（`GET /metrics` 文本格式拉取，配置 `VUAGENT_TOKEN` 后同样要求 Bearer；TASK-097 起 含 HTTP 请求计数/时延直方图（route 模板归一防基数爆炸）、SSE 连接与事件计数、事件循环延迟、进程内存）与**可选 OTLP 推送**（`OTEL_EXPORTER_OTLP_ENDPOINT` = Logs JSON；`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` = Traces JSON，span 树 turn→step→tool_call，W3C traceparent 入站透传/出站注入，均 fail-open）；不落库，随进程注入；`@hono/otel` 官方中间件经评估暂不引入——其全量 instrumentation 与本包「事件流即可观测面」的零依赖架构重叠，待真实需求再议；
 - **产品轨**：轨迹台账（lane × role 时间线、TTFT、步数、token、成本）落库，前端执行轨迹回放直接消费。
 
 进程重启时的恢复策略是**诚实标记**：扫描遗留的 running 轮次，标记为 `error/process_restart`——不做「假装可续跑」，崩溃前已完成的 checkpoint 与内容原样保留可查。
@@ -149,17 +149,20 @@ pnpm --filter @vuagent/server verify:redis redis://127.0.0.1:6379  # Redis 形�
 
 ### 威胁模型
 
-恶意网页驱动 localhost 服务（跨站请求 / DNS rebinding）：携带任意工作区路径 → 自动执行档 → 任意命令，形成 RCE 链。同机其他端口上被攻陷的开发服务同属此威胁面。
+两个方向：①恶意网页驱动 localhost 服务（跨站请求 / DNS rebinding）：携带任意工作区路径 → 自动执行档 → 任意命令，形成 RCE 链，同机其他端口上被攻陷的开发服务同属此威胁面；②非浏览器客户端直接访问（curl / 网络可达的本机或内网进程）：无 Origin 头的请求不在白名单语义覆盖内——由绑定闸门把这一面收窄到「本机进程」（默认回环绑定）。
 
 ### 默认边界（零配置即安全）
 
 | 防线 | 行为 |
 | --- | --- |
-| Origin 白名单 | 仅放行本地前端 Origin；其余 Origin 的请求服务端直接 403（不只是不下发 CORS 头）；无 Origin 头的请求（同源 / 非浏览器客户端）放行 |
-| Bearer 鉴权 | 默认关闭（本地白名单已够用）；设置 `VUAGENT_TOKEN` 后 `/api/*` 全部要求令牌（健康检查免检）；启用后 CORS 放开，访问由令牌把守 |
+| 绑定闸门 | 默认仅监听 `127.0.0.1`；对外绑定需显式 `VUAGENT_HOST`，且未配置 `VUAGENT_TOKEN` 时**拒绝启动**（`VUAGENT_ALLOW_UNSAFE_NETWORK=1` 显式豁免 + 横幅警告）——无 Origin 头请求恒放行的语义因此只暴露给本机进程 |
+| Origin 白名单 | 仅放行本地前端 Origin；其余 Origin 的请求服务端直接 403（不只是不下发 CORS 头）；无 Origin 头的请求（同源 / 非浏览器客户端）放行；`/metrics` 同口径（防无令牌模式下 DNS-rebinding 同源读取运维指标） |
+| Bearer 鉴权 | 默认关闭（本地白名单已够用）；设置 `VUAGENT_TOKEN` 后 `/api/*` 与 `/metrics` 全部要求令牌（健康检查免检）；启用后 CORS 放开，访问由令牌把守 |
+| HTTP 限流 | 全局 240 次/分钟、探测类端点（discover / verify-capabilities / models/test，每次真实外呼）独立 12 次/分钟；**注册在鉴权之前**——鉴权失败请求同样计数，令牌爆破被窗口硬顶约束（无效/缺失令牌共享 IP 桶，仅有效令牌进指纹分桶）；直连部署不采信 `X-Forwarded-For`（可伪造），反代形态设 `VUAGENT_TRUST_PROXY=1` 后取 XFF 末段 |
+| 请求体上限 | `/api/*` 全局 1MB、`/api/chat` 32MB（视觉通道载荷），解析前拦截、全路由覆盖（413 `PAYLOAD_TOO_LARGE`）——无界请求体不再能全量进内存 |
 | apiKey 脱敏 | 模型与供应商配置的一切响应不含明文密钥，只回显掩码（末 4 位）；明文仅存服务端；PATCH 掩码值或空值视为「保持原密钥」 |
 | providerConfig 边界 | 默认拒绝前端自带供应商配置（任意 baseUrl 转发 = SSRF + 凭据外带面），仅允许切换服务端已登记的模型档案；显式开启 BYO 模式后风险自担 |
-| 私网访问 | web_fetch 默认拒绝私网 / 本机地址（SSRF 防护），env 显式放行且锁定配置项 |
+| 私网访问 | web_fetch 默认拒绝私网 / 本机地址（SSRF 防护，含 IPv4-mapped IPv6 形态与重定向逐跳复检），env 显式放行且锁定配置项 |
 
 风险声明：开启远端访问等于把本机执行权暴露给令牌持有者；生产部署需要 TLS + 完整多租户隔离（另行规划）。
 
@@ -169,14 +172,17 @@ pnpm --filter @vuagent/server verify:redis redis://127.0.0.1:6379  # Redis 形�
 
 | 变量 | 作用 | 缺省 |
 | --- | --- | --- |
-| `PORT` | HTTP 监听端口 | `3001` |
+| `PORT` | HTTP 监听端口 | `6880` |
+| `VUAGENT_HOST` | HTTP 监听网卡；对外部署显式设置（如 `0.0.0.0` 或内网 IP），并遵从绑定闸门（见「安全模型」） | `127.0.0.1` |
 | `DB_PATH` | SQLite 数据库文件路径 | `.vuagent/harness.db` |
 | `REDIS_URL` | Redis 分布式形态开关（见下节），如 `redis://:password@host:6379/0` | 不设 = 单副本 |
 | `VUAGENT_INSTANCE_ID` | 本副本实例标识（租约归属与清扫目标）；建议取 pod 名等部署侧稳定标识 | `os.hostname()` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP Logs 推送端点，设置即启用运维事件推送 | 不设 = 仅本地双轨 |
+| `VUAGENT_COST_RETENTION_DAYS` | 成本台账保留天数，启动时周期修剪（0 = 不清理） | `30` |
+| `LOG_LEVEL` | 日志可见度门控（`error`/`warn`/`info`/`debug`）：运维 NDJSON 事件与请求日志共用同一 `shouldLog` 口径；未设或非法值回落 info（fail-safe） | `info` |
 | `OPENAI_API_KEY` / `OPENAI_BASE_URL` / `DEFAULT_MODEL` | 兜底模型凭据（未登记任何档案时使用） | — |
 
-安全相关环境变量（`VUAGENT_TOKEN` / `VUAGENT_ALLOW_BYO_PROVIDER` / `VUAGENT_ALLOW_PRIVATE_FETCH` / `VUAGENT_CORS_ORIGINS`）见「安全模型」一节。
+安全相关环境变量（`VUAGENT_TOKEN` / `VUAGENT_ALLOW_UNSAFE_NETWORK` / `VUAGENT_ALLOW_BYO_PROVIDER` / `VUAGENT_ALLOW_PRIVATE_FETCH` / `VUAGENT_CORS_ORIGINS`）见「安全模型」一节。限流相关（`VUAGENT_RATE_LIMIT_GLOBAL` / `VUAGENT_RATE_LIMIT_PROBE` / `VUAGENT_TRUST_PROXY`）见 `.env.example` 注释——`VUAGENT_TRUST_PROXY=1` 仅限反代部署（客户端 IP 取 XFF 末段），直连保持默认。
 
 ### 存储形态
 
@@ -203,13 +209,29 @@ pnpm --filter @vuagent/server start
 
 ### 可观测部署
 
-- **Prometheus 拉取**：`GET /metrics`（文本格式 v0.0.4）；配置 `VUAGENT_TOKEN` 后同样要求 Bearer（scrape 配置带 `bearer_token`）；
-- **OTLP 推送**：设置 `OTEL_EXPORTER_OTLP_ENDPOINT` 即启用运维事件推送（Logs JSON，fail-open 不影响主链路）；
-- **本地日志**：console NDJSON 带可 grep 错误分类码。
+- **Prometheus 拉取**：`GET /metrics`（文本格式 v0.0.4）；配置 `VUAGENT_TOKEN` 后同样要求 Bearer（scrape 配置带 `bearer_token`）；指标 series 数量内置 500 上限保险丝（未知路径标签不撑爆注册表，溢出计入 `vuagent_metric_series_overflow_total`）；
+- **健康探测**：`GET /api/health` 存活浅探；`?deep=1` 深探 db/redis 连通性（degraded → 503）——组件错误原因只进服务端日志（`HEALTH_PROBE_FAILED`，带 requestId 对账），响应体只给泛化 detail（该端点免鉴权，不回显驱动层原文）；
+- **OTLP 推送**：`OTEL_EXPORTER_OTLP_ENDPOINT`（Logs JSON）与 `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`（Traces JSON，TASK-098：turn 根 span + step/tool_call 子 span，入站 traceparent 关联根上下文、出站 LLM 请求注入子 traceparent）分别设置即启用，fail-open 不影响主链路；traces flush 内置并发上限（默认 8）防批量收尾打满出站连接；
+- **本地日志**：console NDJSON 带可 grep 错误分类码；可见度由 `LOG_LEVEL` 门控（事件→级别映射见 `core/event-sink.ts` `levelForEvent`，缺省 info 不改变既有输出）。
+
+### Docker 运行
+
+仓库自带容器化部署样例（[`deploy/`](../../deploy/)）：node:22-alpine 多阶段镜像（non-root + HEALTHCHECK 探测 `/api/health`）与 docker-compose 编排（server + 可选 Redis profile + named volume 数据卷）。
+
+```bash
+cd deploy
+VUAGENT_TOKEN=$(openssl rand -hex 32) docker compose up -d --build   # 令牌必填（见下）
+docker compose ps                                                    # STATUS 应为 healthy
+docker compose down                                                  # 停机（保留数据卷）
+```
+
+- **绑定闸门语义**：容器内监听 `VUAGENT_HOST=0.0.0.0`（端口映射的前提），按「安全模型」一节的绑定闸门，未配置 `VUAGENT_TOKEN` 时服务拒绝启动——compose 已把该变量设为必填（缺省即拒绝起容器）。对外暴露建议宿主侧收口到 `127.0.0.1:6880:6880` 并前置反代 TLS。
+- **数据持久化**：SQLite 落 named volume `vuagent-data`（容器内 `/app/.vuagent`）；可选 Redis 分布式形态经 `--profile redis` 启用（语义与已知边界见「存储形态」）。
+- **镜像细节**：容器内以 node 直跑（`--import tsx` 装载 TS，node 作 PID1 原生接收 SIGTERM，优雅停机链路在容器中真实生效）、tsc 编译自检闸门与构建上下文裁剪见 `deploy/Dockerfile` 头部注释；起停与安全注意见 [`deploy/README.md`](../../deploy/README.md)。
 
 ### Redis 分布式形态的已知边界
 
-1. **ActionHub（HITL 审批等待/唤醒）仍是进程内**：跨副本时审批中断可能落在 A 副本、回调打到 B 副本唤醒不到，需 Redis pub/sub 唤醒通道（后续任务）；
+1. **ActionHub（HITL 审批等待/唤醒）仍是进程内**：跨副本时审批中断可能落在 A 副本、回调打到 B 副本唤醒不到。挂起记录现携带发起副本 `instanceId`：非持有副本收到决策回调时**诚实拒绝**（409 `PENDING_OWNED_BY_OTHER_INSTANCE`，不伪造「已随重启中断」的孤儿落账），客户端应重试路由到持有副本；跨副本唤醒仍需 pub/sub 通道（后续任务）；
 2. **事件缓冲重放仍是进程内**：跨副本 SSE 重连无法从其他副本重放（后续任务：事件流外置）；
 3. **session 文档读-改-写非原子**：轮次租约保证主执行路径互斥后冲突面大幅缩小，但管理类接口（重命名 / 置顶 / 并发改配置）跨副本并发仍需注意；
 4. **list/clear 是全域 SCAN**：集合大时为 O(keyspace) 扫描，数据量大后可引入分页或二级索引；
@@ -242,7 +264,9 @@ pnpm --filter @vuagent/server start
 | collection | 实体 | 说明 |
 |---|---|---|
 | `workspaces` | 工作区 | rootPath / 权限档 / 忽略规则 / 工作区级指令 |
-| `sessions` | 会话 + 轮次 + 检查点 | 一条会话文档内嵌全部 turns（含逐轮 checkpoints 快照与轨迹明细） |
+| `sessions` | 会话 + 轮次 + 检查点 | 主文档含会话元数据（内嵌 turns 字段留空），轮次拆独立行存储（TASK-092，消除写放大）；旧版单文档内联格式读时自动迁移 |
+
+> ⚠️ **会话拆表迁移不支持降级**（TASK-092）：迁移后的库（主文档 `turns: []` + 独立轮次行）**不能**被旧版本代码打开——旧版会把会话读成空、写入的内联轮次与行存储互相覆盖造成数据错乱。升级前请备份 `DB_PATH`；回滚版本必须连数据文件一起回退到备份点。
 | `providers` | 供应商 | 端点 / apiKey / 协议类型 / 供应商级默认参数（一切对外响应只回显掩码） |
 | `model_profiles` | 模型档案 | 模型标识 / 能力元数据 / 模型级参数；凭证经 `providerId` 继承供应商（遗留内联配置由迁移归并） |
 | `tool_configs` | 工具策略 | 启停 / 超时覆盖 / 审批覆盖（deny-wins） |

@@ -5,6 +5,8 @@
  * （POST /api/workspaces 任意 rootPath → permission:"auto" bash_run 任意命令）。
  *
  * 三层防线：
+ * 0. 绑定闸门（TASK-085）：默认 127.0.0.1 回环绑定；对外绑定需 VUAGENT_TOKEN，
+ *    否则 VUAGENT_ALLOW_UNSAFE_NETWORK=1 显式豁免，拒绝静默裸奔（见 resolveBindPlan）
  * 1. CORS/Origin 白名单：未配置令牌时仅允许本地前端 Origin（vite dev 5173 / preview 4173）
  * 2. Bearer 鉴权：配置 VUAGENT_TOKEN 后全部 /api/*（除 /api/health）要求令牌
  * 3. providerConfig 信任边界：默认拒绝前端自备 baseUrl/apiKey（SSRF 面），
@@ -69,8 +71,11 @@ export function secureEqual(a: string, b: string): boolean {
  * 在 Hono 应用上注册安全基线中间件（CORS → Origin 主动拒绝 → Bearer 鉴权）。
  * 说明：hono cors 对 OPTIONS 预检短路返回 204，因此预检无需令牌；
  * /api/health 无敏感数据，免鉴权免 Origin 检查，供存活探针使用。
+ * 入参放宽为 Hono<any>：宿主 app 的 Variables 泛型各异（如 server.ts 注入 requestId），
+ * 本函数只用 req/header/json 等稳定 API，与泛型无关。
  */
-export function applySecurityBaseline(app: Hono, config: SecurityConfig): void {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function applySecurityBaseline(app: Hono<any>, config: SecurityConfig): void {
   // 1) CORS：未启用令牌时仅白名单 Origin 下发 CORS 头；启用令牌后允许任意 Origin（访问由令牌把守）
   app.use(
     "/api/*",
@@ -87,7 +92,9 @@ export function applySecurityBaseline(app: Hono, config: SecurityConfig): void {
   );
 
   // 2) Origin 主动拒绝（纵深防御：CORS 头缺失只阻止浏览器读响应，这里直接拒绝处理请求）
-  app.use("/api/*", async (c, next) => {
+  //    /metrics 同口径：无令牌模式下 DNS-rebinding 页面（rebind 后同源、无 Origin 头
+  //    校验）可读运维指标——Origin 主动拒绝同样覆盖。
+  const rejectForeignOrigin = async (c: { req: { header: (n: string) => string | undefined; path: string }; json: (b: unknown, s: 403) => Response }, next: () => Promise<void>) => {
     const origin = c.req.header("Origin") || "";
     if (
       origin &&
@@ -103,15 +110,15 @@ export function applySecurityBaseline(app: Hono, config: SecurityConfig): void {
       );
     }
     await next();
-  });
+  };
+  app.use("/api/*", rejectForeignOrigin);
+  app.use("/metrics", rejectForeignOrigin);
 
   // 3) Bearer 鉴权：配置 VUAGENT_TOKEN 后启用；/api/health 免检
   if (config.authToken) {
     app.use("/api/*", async (c, next) => {
       if (c.req.path === "/api/health") return next();
-      const header = c.req.header("Authorization") || "";
-      const provided = header.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : "";
-      if (provided && secureEqual(provided, config.authToken)) return next();
+      if (bearerMatches(c.req.header("Authorization") || "", config.authToken)) return next();
       return c.json(
         { error: "Unauthorized: 缺少或错误的 Bearer 令牌，请携带 Authorization: Bearer <VUAGENT_TOKEN>" },
         401,
@@ -119,6 +126,76 @@ export function applySecurityBaseline(app: Hono, config: SecurityConfig): void {
       );
     });
   }
+}
+
+/** 从 Authorization 头提取 Bearer 令牌（无前缀/空值返回空串） */
+export function extractBearerToken(header: string): string {
+  return header.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : "";
+}
+
+/** Bearer 令牌与配置令牌常时比较（供鉴权中间件与 /metrics 等免 /api 前缀路由复用） */
+export function bearerMatches(header: string, authToken: string): boolean {
+  const provided = extractBearerToken(header);
+  return !!provided && secureEqual(provided, authToken);
+}
+
+/* ==========================================================================
+   绑定闸门（TASK-085）：默认回环绑定，对外绑定需令牌或显式豁免
+   ========================================================================== */
+
+/** 主机名是否为回环地址：localhost / 127.x / ::1（含 [::1] 括号形态与首尾空白） */
+export function isLoopbackHost(host: string): boolean {
+  const h = host
+    .trim()
+    .toLowerCase()
+    .replace(/^\[/, "")
+    .replace(/\]$/, "");
+  return h === "localhost" || h === "::1" || h.startsWith("127.");
+}
+
+export interface BindPlan {
+  /** 实际监听主机（缺省 127.0.0.1；显式 VUAGENT_HOST 覆盖） */
+  host: string;
+  /** 是否对外（非回环）绑定 */
+  external: boolean;
+  /** 对外且未配置令牌，但被 VUAGENT_ALLOW_UNSAFE_NETWORK=1 豁免放行 */
+  unsafeExempted: boolean;
+  /** 对外且未配置令牌且未豁免 → 拒绝启动 */
+  refused: boolean;
+  /** 拒绝时的多行指引文案（refused=false 时为空串） */
+  refusalReason: string;
+}
+
+/**
+ * 解析监听绑定计划（TASK-085 启动闸门，index.ts 直启路径消费）：
+ * - 默认 127.0.0.1（本机零配置即安全）；
+ * - 非回环绑定需显式 VUAGENT_HOST；未配置 VUAGENT_TOKEN 时进一步要求
+ *   VUAGENT_ALLOW_UNSAFE_NETWORK=1 显式豁免，否则拒绝启动——
+ *   安全基线对「无 Origin 头」请求恒放行，对外裸奔等于把 bash 执行权暴露给网络可达者（RCE 面）。
+ * 入参化 env 便于测试；宿主以编程方式嵌入时也可复用本函数做启动前自检。
+ */
+export function resolveBindPlan(
+  env: Record<string, string | undefined> = process.env
+): BindPlan {
+  const host = (env.VUAGENT_HOST || "").trim() || "127.0.0.1";
+  const external = !isLoopbackHost(host);
+  const hasToken = !!(env.VUAGENT_TOKEN || "").trim();
+  if (!external || hasToken) {
+    return { host, external, unsafeExempted: false, refused: false, refusalReason: "" };
+  }
+  const exempt = ["1", "true"].includes((env.VUAGENT_ALLOW_UNSAFE_NETWORK || "").trim());
+  if (exempt) {
+    return { host, external, unsafeExempted: true, refused: false, refusalReason: "" };
+  }
+  const refusalReason = [
+    `[Vuagent Harness Server] 拒绝启动：监听 ${host}（对外绑定）但未配置 VUAGENT_TOKEN。`,
+    `  安全基线对「无 Origin 头」的请求恒放行，对外裸奔等于把 bash 执行权暴露给网络可达者（RCE 面）。`,
+    `  两种放行方式：`,
+    `    1) 配置 VUAGENT_TOKEN=<随机长令牌>，客户端以 Authorization: Bearer <token> 访问（推荐）；`,
+    `    2) VUAGENT_ALLOW_UNSAFE_NETWORK=1 显式豁免（仅限隔离网络，自担风险）。`,
+    `  本机使用请勿设置 VUAGENT_HOST（默认 127.0.0.1）。`,
+  ].join("\n");
+  return { host, external, unsafeExempted: false, refused: true, refusalReason };
 }
 
 /* ==========================================================================
@@ -151,6 +228,40 @@ export function sanitizeProvider<T extends ProviderEntity>(
   const { apiKey, ...rest } = provider;
   const masked = maskApiKey(apiKey);
   return masked ? { ...rest, maskedApiKey: masked } : { ...rest };
+}
+
+/* ==========================================================================
+   日志脱敏（TASK-089）
+   ========================================================================== */
+
+/** 键名含这些词的字符串值在日志输出中一律替换（args / 审批 payload 等均可能携带）。
+ *  注：`auth` 词根会连带遮蔽 `author` 等罕见键——宁过遮不漏遮（安全侧偏置）。 */
+const LOG_SECRET_KEY_RE = /key|token|secret|password|passwd|passphrase|pwd|credential|authorization|auth/i;
+/** 单个字符串值的安全长度（base64 图片、长文件内容不进日志正文） */
+const LOG_VALUE_MAX_CHARS = 500;
+/** 最终输出行的安全长度 */
+const LOG_LINE_MAX_CHARS = 4_000;
+
+/**
+ * 结构化日志脱敏（TASK-089）：JSON 序列化 + 键名模式掩码 + 长字符串截断。
+ * 用于工具 args / 审批 payload 等落 stdout 的调试输出——文件内容与密钥样
+ * 字符串不再原样进日志。循环引用/序列化失败回落 String(value)。
+ */
+export function sanitizeForLog(value: unknown, maxChars: number = LOG_LINE_MAX_CHARS): string {
+  let json: string;
+  try {
+    json =
+      JSON.stringify(value, (k, v) => {
+        if (typeof v === "string" && v && LOG_SECRET_KEY_RE.test(k)) return "[REDACTED]";
+        if (typeof v === "string" && v.length > LOG_VALUE_MAX_CHARS) {
+          return `${v.slice(0, LOG_VALUE_MAX_CHARS)}…[+${v.length - LOG_VALUE_MAX_CHARS} 字符]`;
+        }
+        return v;
+      }) ?? String(value);
+  } catch {
+    json = String(value);
+  }
+  return json.length > maxChars ? `${json.slice(0, maxChars)}…[+${json.length - maxChars} 字符]` : json;
 }
 
 /* ==========================================================================

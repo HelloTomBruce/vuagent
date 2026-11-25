@@ -4,8 +4,10 @@ import { MockDriver } from "./helpers/mock-driver.js";
 import {
   DEFAULT_LOCAL_ORIGINS,
   isAllowedOrigin,
+  isLoopbackHost,
   isProfileSelectionOnly,
   maskApiKey,
+  resolveBindPlan,
   resolveSecurityConfig,
   sanitizeModelProfile,
 } from "../src/security.js";
@@ -391,5 +393,79 @@ describe("isProfileSelectionOnly 单元", () => {
     expect(isProfileSelectionOnly(null)).toBe(false);
     expect(isProfileSelectionOnly(undefined)).toBe(false);
     expect(isProfileSelectionOnly(["prof-1"])).toBe(false);
+  });
+});
+
+describe("绑定闸门 resolveBindPlan（TASK-085）", () => {
+  const baseEnv = { VUAGENT_HOST: "", VUAGENT_TOKEN: "", VUAGENT_ALLOW_UNSAFE_NETWORK: "" };
+
+  it("默认绑 127.0.0.1：回环、不拒绝、不豁免", () => {
+    const plan = resolveBindPlan({ ...baseEnv });
+    expect(plan.host).toBe("127.0.0.1");
+    expect(plan.external).toBe(false);
+    expect(plan.refused).toBe(false);
+    expect(plan.unsafeExempted).toBe(false);
+    expect(plan.refusalReason).toBe("");
+  });
+
+  it("isLoopbackHost：localhost / 127.x / ::1 / [::1] 视为回环；0.0.0.0 / 内网 IP / 域名非回环", () => {
+    for (const host of ["localhost", "LOCALHOST", "127.0.0.1", "127.8.8.8", "::1", "[::1]", "  ::1  "]) {
+      expect(isLoopbackHost(host)).toBe(true);
+    }
+    for (const host of ["0.0.0.0", "192.168.1.5", "example.com", "[::]", ""]) {
+      expect(isLoopbackHost(host)).toBe(false);
+    }
+  });
+
+  it("对外绑定（0.0.0.0）且无令牌 → 拒绝启动，指引含令牌与豁免开关", () => {
+    const plan = resolveBindPlan({ ...baseEnv, VUAGENT_HOST: "0.0.0.0" });
+    expect(plan.host).toBe("0.0.0.0");
+    expect(plan.external).toBe(true);
+    expect(plan.refused).toBe(true);
+    expect(plan.unsafeExempted).toBe(false);
+    expect(plan.refusalReason).toContain("VUAGENT_TOKEN");
+    expect(plan.refusalReason).toContain("VUAGENT_ALLOW_UNSAFE_NETWORK");
+    expect(plan.refusalReason).toContain("127.0.0.1");
+  });
+
+  it("内网 IP 对外绑定同样受闸门约束（回环判断不看私网段）", () => {
+    expect(resolveBindPlan({ ...baseEnv, VUAGENT_HOST: "192.168.1.5" }).refused).toBe(true);
+  });
+
+  it("VUAGENT_ALLOW_UNSAFE_NETWORK=1 豁免放行（unsafeExempted，非 refused）", () => {
+    const plan = resolveBindPlan({
+      ...baseEnv,
+      VUAGENT_HOST: "0.0.0.0",
+      VUAGENT_ALLOW_UNSAFE_NETWORK: "1",
+    });
+    expect(plan.external).toBe(true);
+    expect(plan.refused).toBe(false);
+    expect(plan.unsafeExempted).toBe(true);
+  });
+
+  it("对外绑定 + 已配置令牌 → 正常放行且不视为豁免", () => {
+    const plan = resolveBindPlan({
+      ...baseEnv,
+      VUAGENT_HOST: "192.168.1.5",
+      VUAGENT_TOKEN: "secret-token",
+    });
+    expect(plan.external).toBe(true);
+    expect(plan.refused).toBe(false);
+    expect(plan.unsafeExempted).toBe(false);
+  });
+
+  it("令牌仅空白等同未配置（拒绝）；含实际内容则放行（trim 口径与 resolveSecurityConfig 一致）", () => {
+    expect(resolveBindPlan({ ...baseEnv, VUAGENT_HOST: "0.0.0.0", VUAGENT_TOKEN: "   " }).refused).toBe(
+      true
+    );
+    expect(resolveBindPlan({ ...baseEnv, VUAGENT_HOST: "0.0.0.0", VUAGENT_TOKEN: " t " }).refused).toBe(
+      false
+    );
+  });
+
+  it("回环绑定下令牌无关紧要：无令牌也放行", () => {
+    const plan = resolveBindPlan({ ...baseEnv, VUAGENT_HOST: "localhost" });
+    expect(plan.host).toBe("localhost");
+    expect(plan.refused).toBe(false);
   });
 });
