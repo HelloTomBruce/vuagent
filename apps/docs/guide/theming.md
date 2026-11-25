@@ -71,11 +71,12 @@ function setPreference(value: Pref) {
 
 | 令牌 | 值 | 用途 |
 | --- | --- | --- |
-| `--va-dur-1` / `-2` / `-3` | 120 / 200 / 300ms | hover/按压等微交互 |
+| `--va-dur-1` / `-2` / `-3` | 120 / 200 / 300ms | hover/按压等微交互与浮层进出 |
+| `--va-dur-4` | 600ms | 慢速状态条（进度收缩/倒计时感，如 ContextWindow 收缩） |
 | `--va-dur-in` + `--va-ease-out-quart` | 180ms | 浮层入场 |
 | `--va-dur-out` + `--va-ease-in-quad` | 140ms | 浮层离场（更快更短） |
 | `--va-ease-spring` | 弹性曲线 | 成功/强调反馈过冲 |
-| `--va-dur-loop` | 1.8s | 循环动画底速（shimmer/spinner，组件内 calc 倍率） |
+| `--va-dur-loop` | 1.8s | 循环动画底速（shimmer/spinner/pulse，组件内 calc 倍率微调；时长字面量由 `tokens:check` 门禁拦截） |
 | `--va-dist-s` / `-m` | 4 / 8px | 进出位移距离 |
 
 `prefers-reduced-motion: reduce` 下：装饰动画（shimmer/breathe 等循环）全关；功能动画（浮层进出/按压反馈）降级为纯 opacity 过渡，保留状态可感知。
@@ -95,7 +96,7 @@ blur 档位、发光、渐变端点、舞台表面与错峰步长的规范档位
 | `--va-shadow-4` | `0 30px 80px …`（亮暗独立） | 舞台级深投影：hero/聚光卡等大表面 |
 | `--va-stage` / `--va-stage-raised` | 亮 `#efede7`/`#ffffff` · 暗 `#141311`/`#1c1a17` | 舞台表面对：大表面底 + 其上抬升面 |
 
-配套共享动效工具类随 `@vuagent/ui/styles.css` 分发（`packages/ui/src/styles/motion.css`）：`.va-enter-up/-left/-scale`、`.va-exit-*`（离场更短更快，映射 `--va-dur-in/out` 骨架）、`.va-crossfade`（骨架→内容交叉淡入）、`.va-fade-in`（空态/轻量状态渐入，仅 opacity 弱化档）；reduced-motion 下整体降级为纯 opacity。
+配套共享动效工具类随 `@vuagent/ui/styles.css` 分发（`packages/ui/src/styles/motion.css`）：`.va-enter-up/-left/-scale`、`.va-exit-*`（离场更短更快，映射 `--va-dur-in/out` 骨架）、`.va-crossfade`（骨架→内容交叉淡入）、`.va-fade-in`（空态/轻量状态渐入，仅 opacity 弱化档）、`.va-shake`（校验失败横向微振，±3px × `--va-dur-2`）；reduced-motion 下进出场整体降级为纯 opacity，`.va-shake` 不播（错误可感知性由错误样式本身承担）。
 
 ```html
 <!-- 进出场：Vue Transition（fill-mode both，无需再配 enter-from/leave-to 类） -->
@@ -116,11 +117,16 @@ blur 档位、发光、渐变端点、舞台表面与错峰步长的规范档位
 ```ts
 // 步长默认 40ms（--va-stagger），reduced-motion 下自动归零；SSR 安全
 const { delayStyle } = useStagger();
+
+// 错误微振：校验失败时调用组件暴露的 shake()（VaStepperForm / VaOtpInput 已暴露）
+stepperRef.value?.shake();
 ```
 
-### 按压反馈 / 光斑 / 复制反馈（TASK-105/106 标准）
+### 按压反馈 / 错误微振 / 光斑 / 复制反馈（TASK-105/106 标准扩展）
 
 - **按压反馈**：动作按钮统一挂 `.va-act` 基类（`styles/button.css`），`:active` 统一 `translateY(0.5px) scale(0.985)`（`--va-dur-1`）；reduced-motion 下去位移只留透明度反馈。组件不再逐个发明缩放值。
+- **行级按压（分轨口径）**：全宽交互行（文件树/通知/会话行）与浮层选项行（command-menu/dropdown/select）不做位移/缩放，`:active` 统一「表面朝 `--va-ink` 混 15% 加深」——ink 随主题翻转，亮色变深/暗色变浅方向自适应；选中/高亮行保持自身色相（accent 面混 accent）。
+- **错误微振**：校验失败目标元素挂 `.va-shake` 播一次 ±3px 横向微振（`--va-dur-2` × 2）；库内经 `useShake()` 程序化触发（VaStepperForm / VaOtpInput `defineExpose({ shake })`，宿主 `ref.value.shake()`），自绘表单可直接挂类。微振只做注意力引导，错误语义须同时以文案/aria 披露。
 - **静态光斑**：宿主元素挂 `.va-spotlight` + `useSpotlight()`（composable，rAF 节流写 `--va-spot-x/y`）；`:hover` 点亮 radial 光斑。`hover: none` 与 reduced-motion 不启用（JS/CSS 双兜底）；SSR 安全。尺寸/颜色走 L3 钩子 `--va-spot-size` / `--va-spot-color`。
 - **复制反馈**：copy→check 内容放 `.va-copy` 结构（`__idle`/`__done` 同格堆叠，切换零跳动），copied 置真挂 `.va-copy--done`——120ms 交叉过渡 + check 侧 ease-spring 微弹。库内消费方：terminal-log / code-diff / message-actions。
 
