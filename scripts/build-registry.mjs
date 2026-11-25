@@ -22,8 +22,12 @@ const OUT_DIR = path.join(ROOT, "packages/ui/registry");
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
-/** 内联 SFC 的 <style src="...">，使拷出的单文件自带样式；用到 .va-act 时自动附带按钮基类 */
+/** 内联 SFC 的 <style src="...">，使拷出的单文件自带样式；用到 .va-act 时自动附带按钮基类，
+ *  用到 motion.css 动效工具类（va-enter、va-exit、va-crossfade、va-fade-in、va-copy、va-spotlight、va-shake 家族）时
+ *  自动附带共享动效基建（否则拷出后进出场/复制反馈/微振静默失效） */
 const BUTTON_BASE = path.join(ROOT, "packages/ui/src/styles/button.css");
+const MOTION_BASE = path.join(ROOT, "packages/ui/src/styles/motion.css");
+const MOTION_UTILITY_RE = /\b(va-enter-[\w-]+|va-exit-[\w-]+|va-crossfade|va-fade-in|va-copy[\w-]*|va-spotlight|va-shake)\b/;
 
 function inlineCss(sfcContent, dir) {
   let out = sfcContent.replace(
@@ -34,6 +38,11 @@ function inlineCss(sfcContent, dir) {
   if (/class="[^"]*\bva-act\b/.test(out)) {
     const base = fs.readFileSync(BUTTON_BASE, "utf8").trim();
     out = out.replace(/<style>\n([\s\S]*?)\n<\/style>/, (_, css) => `<style>\n${css}\n\n/* 按钮基类（自动附带） */\n${base}\n</style>`);
+  }
+  // 组件使用了动效工具类 → 追加 motion.css（同 button 基类口径；全文件附带保持单一来源）
+  if (MOTION_UTILITY_RE.test(out)) {
+    const motion = fs.readFileSync(MOTION_BASE, "utf8").trim();
+    out = out.replace(/<style>\n([\s\S]*?)\n<\/style>/, (_, css) => `<style>\n${css}\n\n/* 动效工具类（自动附带，源码中来自全局 motion.css） */\n${motion}\n</style>`);
   }
   return out;
 }

@@ -10,8 +10,9 @@
  * - 用户滚回底部自动恢复跟随；发送消息 / 切换会话等场景走 force 通道强制回底；
  * - 同一帧内的多次调用经 requestAnimationFrame 合并为一次滚动。
  */
-import { getCurrentInstance, onBeforeUnmount, ref } from "vue";
-import type { Ref } from "vue";
+// type 成员必须内联（import { type X }）：registry 共享模块内联器会剥整句 import type 的
+// type 语义，拷出单文件在严格 ESM 宿主会因值导入类型而报错
+import { getCurrentInstance, onBeforeUnmount, ref, type Ref } from "vue";
 
 /** 默认距底部多少像素以内视为「贴底」（聊天流内容较高，略宽于终端流的 32px） */
 export const BOTTOM_THRESHOLD_PX = 64;
