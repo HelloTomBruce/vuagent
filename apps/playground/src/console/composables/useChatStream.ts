@@ -110,6 +110,9 @@ export function useChatStream(options: ChatStreamOptions) {
               { isActiveSession: isActiveSession(targetSessionId) },
               { setPlanSteps: plan.setPlanSteps }
             );
+            // 钉底跟随：正文长高后回底。rAF 晚于 Vue DOM patch（scrollHeight 已是新值），
+            // isPinned 门控与同帧合并由 useStickToBottom 承担——非 force，用户上翻不打扰
+            options.scrollToBottom();
           },
         });
         turnDeltaBuffers.set(turn, buffer);
@@ -127,6 +130,11 @@ export function useChatStream(options: ChatStreamOptions) {
         setPlanSteps: plan.setPlanSteps,
       }
     );
+    // 钉底跟随：thought_delta 长高思考框 / 卡片与审批卡插入等改变消息流高度的事件后
+    // 回底（usage/traj 已提前 return，不影响消息流高度，天然不触发）。
+    // 后台会话的事件写入缓存 turns 时视图内容未变，钉底态下 scrollTop=scrollHeight
+    // 为无感 no-op，非钉底被门控——均无副作用
+    options.scrollToBottom();
   }
 
   /**

@@ -33,12 +33,12 @@ function sseResponse(chunks: string[]): Response {
   return new Response(stream, { status: 200 });
 }
 
-function setup() {
+function setup(scrollToBottom?: ReturnType<typeof vi.fn>) {
   frameQueue.length = 0;
   const chat = useChatStream({
     getActiveSessionId: () => "sess-1",
     refreshSessions: async () => {},
-    scrollToBottom: () => {},
+    scrollToBottom: scrollToBottom ?? (() => {}),
   });
   return chat;
 }
@@ -84,6 +84,42 @@ describe("useChatStream text_delta rAF 合帧（TASK-114）", () => {
     const assistantTurns = turns.filter((t) => t.role === "assistant");
     expect(assistantTurns).toHaveLength(1);
     expect(assistantTurns[0]!.content).toBe("x");
+  });
+
+  it("钉底跟随：流式增量（text_delta/thought_delta）期间 scrollToBottom 被调用（R9 回归）", async () => {
+    openChatStream.mockResolvedValue(
+      sseResponse([
+        'data: {"type":"thought_delta","delta":"思考中"}\n\n',
+        'data: {"type":"text_delta","delta":"a"}\n\n',
+        'data: {"type":"text_delta","delta":"b"}\n\ndata: [DONE]\n\n',
+      ])
+    );
+    const scrollToBottom = vi.fn();
+    const chat = setup(scrollToBottom);
+    chat.sendPrompt("hello", { sessionId: "sess-1", workspaceId: "w", permission: "auto" });
+    await new Promise((r) => setTimeout(r, 10));
+
+    // 回归背景：scrollToBottom 只在发送（force）与流结束 finally 被调，流式增量让
+    // 内容长高时无人回底——钉底用户停在发送瞬间的画面。修复后每次归约都请求回底
+    // （thought_delta 主路径 1 次 + 合帧 commit 1 次），实际滚动由 useStickToBottom
+    // 的 rAF 合帧与 isPinned 门控兜底
+    expect(scrollToBottom.mock.calls.length).toBeGreaterThanOrEqual(2);
+    // 发送时还有一次 force 回底
+    expect(scrollToBottom).toHaveBeenCalledWith({ force: true });
+    // usage/traj 不影响消息流高度：不应触发回底
+    openChatStream.mockResolvedValue(
+      sseResponse([
+        'data: {"type":"usage","totalTokens":1}\n\n',
+        'data: {"type":"traj","event":{"kind":"llm_call"}}\n\ndata: [DONE]\n\n',
+      ])
+    );
+    const before = scrollToBottom.mock.calls.length;
+    const chat2 = setup(scrollToBottom);
+    chat2.sendPrompt("m", { sessionId: "sess-1", workspaceId: "w", permission: "auto" });
+    await new Promise((r) => setTimeout(r, 10));
+    // 只多出结构性两次：发送 force + 流结束 finally（usage/traj 各自提前 return，
+    // 不产生回底调用——若实现回归为 usage/traj 也回底，这里会变成 before+3）
+    expect(scrollToBottom.mock.calls.length).toBe(before + 2);
   });
 
   it("text/thought 交错：非文本事件前 flush 已收文本（保序）", async () => {
