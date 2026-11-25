@@ -58,10 +58,10 @@ describe("CONFIG_SCHEMA 描述表", () => {
     }
   });
 
-  it("默认值与现行硬编码行为等价（执行层既有旋钮）", () => {
+  it("执行层默认值（TASK-024 接线时与硬编码等价；R10 起默认无硬上限：maxSteps=0，看门狗仍默认开启）", () => {
     const d = defaultNamespaceValues(execution);
     expect(d).toMatchObject({
-      maxSteps: 15,
+      maxSteps: 0,
       approvalTimeoutMs: 180_000,
       contextBudgetRatio: 0.85,
       preserveRecentTurns: 4,
@@ -107,7 +107,7 @@ describe("HarnessConfigRepository（merge/reset，缺记录=全默认）", () =>
 
 describe("resolveNamespaceValues（读路径容错，永不抛异常）", () => {
   it("无存储 → 全默认；存储覆盖 → 覆盖生效；未知 key 忽略", () => {
-    expect(resolveNamespaceValues(execution, null).maxSteps).toBe(15);
+    expect(resolveNamespaceValues(execution, null).maxSteps).toBe(0); // 0 = 无步数上限
     expect(resolveNamespaceValues(execution, { maxSteps: 3 }).maxSteps).toBe(3);
     const out = resolveNamespaceValues(execution, { legacyKey: "x", maxSteps: 7 });
     expect(out.maxSteps).toBe(7);
@@ -115,9 +115,10 @@ describe("resolveNamespaceValues（读路径容错，永不抛异常）", () => 
   });
 
   it("类型不符回落默认；number 越界钳制；select 非法回落；text 超长截断", () => {
-    expect(resolveNamespaceValues(execution, { maxSteps: "many" }).maxSteps).toBe(15);
+    expect(resolveNamespaceValues(execution, { maxSteps: "many" }).maxSteps).toBe(0);
     expect(resolveNamespaceValues(execution, { maxSteps: 999 }).maxSteps).toBe(100);
-    expect(resolveNamespaceValues(execution, { maxSteps: 0 }).maxSteps).toBe(1);
+    // min=0：0 从「钳到 1」变为合法值 = 无步数上限
+    expect(resolveNamespaceValues(execution, { maxSteps: 0 }).maxSteps).toBe(0);
     expect(resolveNamespaceValues(security, { defaultPermissionMode: "yolo" }).defaultPermissionMode).toBe("review");
 
     const prompt = getNamespaceSchema("prompt")!;
@@ -172,7 +173,7 @@ describe("ConfigResolver（无缓存门面）", () => {
     const repo = new HarnessConfigRepository(new MemoryStorageDriver());
     const resolver = new ConfigResolver(repo);
 
-    expect((await resolver.resolve("execution"))?.maxSteps).toBe(15);
+    expect((await resolver.resolve("execution"))?.maxSteps).toBe(0);
     expect(await resolver.isDefault("execution")).toBe(true);
 
     await repo.patchNamespace("execution", { maxSteps: 2 });
@@ -207,10 +208,10 @@ describe("配置中心 HTTP 路由", () => {
     ]);
 
     const exec = body.namespaces.find((ns) => ns.id === "execution")!;
-    expect(exec.values.maxSteps).toBe(15);
+    expect(exec.values.maxSteps).toBe(0);
     expect(exec.isDefault).toBe(true);
     // schema 下发给前端做表驱动渲染
-    expect(exec.fields.find((f) => f.key === "maxSteps")?.default).toBe(15);
+    expect(exec.fields.find((f) => f.key === "maxSteps")?.default).toBe(0);
 
     // envLock 元数据随 schema 下发（供 UI 展示锁标记）
     const sec = body.namespaces.find((ns) => ns.id === "security")!;
@@ -238,7 +239,7 @@ describe("配置中心 HTTP 路由", () => {
 
     const reset = await app.request("/api/config/execution/reset", { method: "POST" });
     expect(reset.status).toBe(200);
-    expect((await reset.json()).values.maxSteps).toBe(15);
+    expect((await reset.json()).values.maxSteps).toBe(0);
   });
 
   it("PATCH 错误分支：未知命名空间 404；未知 key / 类型不符 400；越界钳制", async () => {

@@ -148,12 +148,16 @@ export class AgentLoop {
     const startAt = Date.now();
 
     // TASK-025：执行层配置每轮解析一次（运行中改配置下一轮生效，与工具启停同口径）；
-    // 未注入 resolver 时回落 schema 默认（与硬编码时代行为严格等价）。
+    // 未注入 resolver 时回落 schema 默认。
     // req.maxSteps 请求级覆盖优先级最高（解析链：请求 > 全局配置 > 内置默认）。
+    // 步数上限 0 = 无硬上限（R10，对齐 Claude Code 交互模式）：死循环风险由整轮
+    // 看门狗 / token 预算熔断 / 上下文压缩 / 人工中止四层兜底，finishReason=truncated
+    // 仅在显式设置了正数上限时可达。
     const execCfg =
       (await this.services.configResolver?.resolve("execution")) ??
       defaultNamespaceValues(EXECUTION_NS);
     const maxSteps = req.maxSteps ?? (execCfg.maxSteps as number);
+    const maxStepsLimit = maxSteps > 0 ? maxSteps : Number.POSITIVE_INFINITY;
     const approvalTimeoutMs = execCfg.approvalTimeoutMs as number;
     // TASK-094：工具并行执行开关（缺省 true，配置 false 回退旧串行语义）
     const parallelTools = execCfg.parallelTools !== false;
@@ -163,19 +167,24 @@ export class AgentLoop {
     // 降级链备用档案 id（逗号分隔，按序尝试）
     const modelFallbackIdsCfg = String(execCfg.modelFallbackIds ?? "");
     // TASK-048 整轮看门狗：解析链 请求级 req.timeoutMs > 配置中心 execution.turnTimeoutMs > 内置默认；
-    // 请求级覆盖同样受 30s–1h 钳制。此前该参数被接收但从未消费（SSE 停滞可致轮次永久挂起）。
+    // 请求级覆盖同样受 30s–1h 钳制；0 = 显式禁用（无步数上限跑法的配套开关，
+    // 防前述 SSE 停滞永久挂起的守卫按需重新开启）。此前该参数被接收但从未消费。
     const configuredTimeout = Number(execCfg.turnTimeoutMs);
     const requestedTimeout = Number(req.timeoutMs);
-    const rawTurnTimeout =
-      Number.isFinite(requestedTimeout) && requestedTimeout > 0
-        ? requestedTimeout
-        : Number.isFinite(configuredTimeout) && configuredTimeout > 0
-        ? configuredTimeout
-        : TURN_TIMEOUT_DEFAULT_MS;
-    const turnTimeoutMs = Math.min(
-      Math.max(Math.round(rawTurnTimeout), TURN_TIMEOUT_MIN_MS),
-      TURN_TIMEOUT_MAX_MS
-    );
+    const requestedValid = Number.isFinite(requestedTimeout) && requestedTimeout > 0;
+    const configuredValid = Number.isFinite(configuredTimeout) && configuredTimeout >= 0;
+    const rawTurnTimeout = requestedValid
+      ? requestedTimeout
+      : configuredValid
+      ? configuredTimeout
+      : TURN_TIMEOUT_DEFAULT_MS;
+    const watchdogDisabled = rawTurnTimeout === 0;
+    const turnTimeoutMs = watchdogDisabled
+      ? 0
+      : Math.min(
+          Math.max(Math.round(rawTurnTimeout), TURN_TIMEOUT_MIN_MS),
+          TURN_TIMEOUT_MAX_MS
+        );
     const turnTimeoutSeconds = Math.round(turnTimeoutMs / 1000);
     this.compactor.configure({
       preserveRecentTurns: execCfg.preserveRecentTurns as number,
@@ -427,16 +436,21 @@ export class AgentLoop {
 
     // TASK-048 整轮看门狗：独立 controller + 定时器，与客户端 abort 信号合并。
     // 超时/用户停止共用同一收尾路径（中止 → 抽干 → 落库），消息按 watchdogFired 区分成因。
+    // 看门狗禁用（turnTimeoutMs=0）时不设定时器、runSignal 只挂客户端 abort。
     const watchdogController = new AbortController();
     let watchdogFired = false;
-    const watchdogTimer = setTimeout(() => {
-      watchdogFired = true;
-      watchdogController.abort();
-    }, turnTimeoutMs);
+    const watchdogTimer = watchdogDisabled
+      ? null
+      : setTimeout(() => {
+          watchdogFired = true;
+          watchdogController.abort();
+        }, turnTimeoutMs);
     // TASK-060：AbortSignal.any 原生组合（替代已废弃的 combineAbortSignals）
-    const runSignal = abortSignal
-      ? AbortSignal.any([abortSignal, watchdogController.signal])
-      : watchdogController.signal;
+    const runSignal = !watchdogDisabled
+      ? abortSignal
+        ? AbortSignal.any([abortSignal, watchdogController.signal])
+        : watchdogController.signal
+      : (abortSignal ?? watchdogController.signal);
     const abortMessage = () =>
       tokenBudgetFired
         ? `本轮累计 token 消耗（${runTokensUsed}）已达预算上限（${maxRunTokens}），已自动中止并保留已完成进度`
@@ -513,7 +527,7 @@ export class AgentLoop {
       yield { type: "turn_start", turnId, startedAt: startAt };
 
       // 4. 进入 ReAct 核心回环
-      while (currentStep < maxSteps) {
+      while (currentStep < maxStepsLimit) {
         if (runSignal.aborted) {
           // R5 修复：成因经 mapAbortCause 集中映射（token 预算 > watchdog > signal.reason=new_task > user），
           // hub abort(kind) 透传的 preempt 不再被误记为 TURN_ABORTED
@@ -744,7 +758,7 @@ export class AgentLoop {
         if (pendingToolCalls.size === 0) {
           // 显式终态协议（enforced）：自然停机同样过交付断言——无实质产出的空跑
           // 不放行，注入纠偏指令继续执行；步数耗尽/中止信号在即则兜底放行
-          if (finishTaskMode === "enforced" && !runSignal.aborted && currentStep < maxSteps) {
+          if (finishTaskMode === "enforced" && !runSignal.aborted && currentStep < maxStepsLimit) {
             const verdict = (this.services.deliverableAssertion ?? defaultDeliverableAssertion)({
               args: {},
               content: accumulatedContent,
@@ -940,7 +954,8 @@ export class AgentLoop {
         await persistProgress();
       }
 
-      // while 条件耗尽（非 break 退出）= 步数截断收尾；中止路径 finishReason 保持 undefined
+      // while 条件耗尽（非 break 退出）= 步数截断收尾（仅显式设置正数上限时可达，
+      // 0=无上限时循环只能经 natural/explicit/中止路径退出）；中止路径 finishReason 保持 undefined
       if (!finishReason && !turnFinishCode) {
         finishReason = "truncated";
       }
@@ -1051,7 +1066,8 @@ export class AgentLoop {
       });
     } finally {
       // 看门狗定时器在轮次终态（done/error）后必须清除，避免悬挂计时器
-      clearTimeout(watchdogTimer);
+      //（watchdogDisabled 时为 null，无需清除）
+      if (watchdogTimer) clearTimeout(watchdogTimer);
       // 轮次终态后在途登记摘除（停机 flush 只针对真正的在途轮次）
       this.inFlightPersistence.delete(persistence);
     }

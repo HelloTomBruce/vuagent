@@ -6,13 +6,17 @@
  * - resolver 读路径以它为容错准绳（未知 key 忽略 / 类型不符回落默认 / 越界钳制）；
  * - 路由写路径以它为严格校验准绳（未知 key、类型不符、env 锁定 → 400）。
  *
- * 默认值与现行硬编码行为严格等价（下游任务接线时不得改变默认语义）：
- * maxSteps=15（agent-loop.ts）、approvalTimeoutMs=180_000（action-hub.ts HITL 挂起）、
+ * 默认值来源：TASK-024 接线时与既有硬编码行为严格等价（maxSteps=15 等）；
+ * 后续默认值调整属产品决策，在此处改即全库生效（运行中改配置下一轮生效）。
+ * R10（动效审视轮顺带的执行语义决策）：maxSteps 默认 0 = 无硬上限（对齐 Claude Code
+ * 交互模式，死循环由整轮看门狗 / token 预算 / 人工中止兜底，truncated 仅显式设限可达）；
+ * turnTimeoutMs=600_000 是 TASK-048 新增能力（整轮看门狗，修复 SSE 停滞永久挂起），
+ * 非既有硬编码行为的搬移；与 approvalTimeoutMs（审批挂起等待人工）语义正交，勿混淆。
+ * turnTimeoutMs=0 表示禁用看门狗（无步数上限跑法的配套开关）。
+ * 其余执行层默认：approvalTimeoutMs=180_000（action-hub.ts HITL 挂起）、
  * contextBudgetRatio=0.85（agent-loop.ts）、preserveRecentTurns=4 /
  * maxToolResultChars=2000（context-compactor.ts）、
  * bashTimeoutCeilingMs=60_000（tool-registry.ts 执行器超时上限，bash_run 命令超时的全局封顶）。
- * turnTimeoutMs=600_000 是 TASK-048 新增能力（整轮看门狗，修复 SSE 停滞永久挂起），
- * 非既有硬编码行为的搬移；与 approvalTimeoutMs（审批挂起等待人工）语义正交，勿混淆。
  */
 
 /** 字段控件类型：boolean→开关、number→数字输入、string→单行文本、text→多行文本、select→下拉 */
@@ -63,10 +67,12 @@ export const CONFIG_SCHEMA: ConfigNamespaceSchema[] = [
       {
         key: "maxSteps",
         title: "单轮最大步数",
-        description: "单轮执行允许的模型-工具往返上限，达到后强制收尾",
+        description:
+          "单轮执行的模型-工具往返上限，达到后强制收尾（finishReason=truncated）；" +
+          "0 = 无步数上限（由整轮超时 / token 预算 / 人工中止兜底）",
         type: "number",
-        default: 15,
-        min: 1,
+        default: 0,
+        min: 0,
         max: 100,
       },
       {
@@ -110,10 +116,11 @@ export const CONFIG_SCHEMA: ConfigNamespaceSchema[] = [
         title: "单轮执行超时（毫秒）",
         description:
           "整轮执行的看门狗上限：超时自动中止并保留已完成进度（TASK-048 新增能力，" +
-          "此前轮次可因模型流停滞永久挂起）。请求级 timeoutMs 可逐请求覆盖（同样受钳制）",
+          "此前轮次可因模型流停滞永久挂起）。请求级 timeoutMs 可逐请求覆盖（同样受钳制）；" +
+          "0 = 禁用看门狗（无步数上限的长时间任务配套，流停滞挂起风险自担）",
         type: "number",
         default: 600_000,
-        min: 30_000,
+        min: 0,
         max: 3_600_000,
       },
       {
