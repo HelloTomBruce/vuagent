@@ -5,10 +5,16 @@
  * aria-live 语义。
  */
 // @vitest-environment happy-dom
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { nextTick } from "vue";
 import VaThinkingLoader from "../src/components/thinking-loader/VaThinkingLoader.vue";
+
+// 静态断言读文件统一走 fileURLToPath(import.meta.url) + path 组合（不经全局 URL）
+const here = path.dirname(fileURLToPath(import.meta.url));
 
 const text = () => document.body.querySelector(".va-think__label-text")?.textContent?.trim();
 const label = () => document.body.querySelector<HTMLElement>(".va-think__label");
@@ -72,7 +78,8 @@ describe("VaThinkingLoader", () => {
     expect(text()).toBe("已完成 · 1.2s");
     expect(document.body.querySelector(".va-think__icon svg")).toBeTruthy();
     expect(document.body.querySelector(".va-think__spin")).toBeNull();
-    expect(document.body.querySelector(".va-think__label-text")?.hasAttribute("data-shine")).toBe(false);
+    // shine 载体是内层 label-shine span：done 态 data-shine 摘除（流式中的微光停止）
+    expect(document.body.querySelector(".va-think__label-shine")?.hasAttribute("data-shine")).toBe(false);
     vi.advanceTimersByTime(5000);
     expect(text()).toBe("已完成 · 1.2s");
   });
@@ -89,5 +96,27 @@ describe("VaThinkingLoader", () => {
     wrapper = mount(VaThinkingLoader, { attachTo: document.body });
     expect(document.body.querySelector(".va-think")?.getAttribute("role")).toBe("status");
     expect(label()?.getAttribute("aria-live")).toBe("polite");
+  });
+
+  it("静态断言（R8 重构不变量）：shine 在内层 span、过渡子节点非 inline 且无无限动画", () => {
+    // 重构背景：shine 无限动画若挂在过渡子节点自身，Vue 过渡时长探测等
+    // animationend 永不触发 → 旧节点滞留 → 被迫 :duration 硬编码绕过 token。
+    // shine 已挪到内层 label-shine；子节点 label-text 必须保持非 inline
+    // （transform 对纯 inline 元素不生效，va-think-phase 的 translateY 会静默失效）。
+    const css = fs.readFileSync(
+      path.resolve(here, "../src/components/thinking-loader/VaThinkingLoader.css"),
+      "utf8",
+    );
+    const textBlock = /(?:^|\n)\.va-think__label-text\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(textBlock).toMatch(/display:\s*inline-block/);
+    expect(textBlock).not.toMatch(/animation:/);
+    expect(css).toMatch(/\.va-think__label-shine\[data-shine\]\s*\{[^}]*animation:\s*va-think-shine/);
+    // 过渡时长留在 CSS（--va-dur-1），SFC 不再出现 :duration 硬编码
+    const sfc = fs.readFileSync(
+      path.resolve(here, "../src/components/thinking-loader/VaThinkingLoader.vue"),
+      "utf8",
+    );
+    expect(sfc).not.toMatch(/:duration=/);
+    expect(sfc).toMatch(/class="va-think__label-shine"/);
   });
 });

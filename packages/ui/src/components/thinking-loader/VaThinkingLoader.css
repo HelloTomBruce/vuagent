@@ -49,9 +49,26 @@
   color: var(--va-ink-2, #43413c);
   line-height: 1.5;
 }
+/* shine 承载在内层 span（va-think__label-shine）：过渡子节点（外层 label-text）
+   自身只带 transition，Vue 的过渡时长自动探测不被无限动画干扰 */
+/* 过渡子节点必须非 inline（inline-block）：transform 对纯 inline 元素不生效，
+   va-think-phase 的 translateY 上浮/下浮会静默失效 */
 .va-think__label-text {
   display: inline-block;
   white-space: nowrap;
+}
+.va-think__label-shine {
+  display: inline-block;
+  white-space: nowrap;
+}
+.va-think__label-shine[data-shine] {
+  background: linear-gradient(100deg, var(--_muted) 40%, var(--va-ink, #1a1917) 50%, var(--_muted) 60%);
+  background-size: 200% 100%;
+  background-position: 200% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: va-think-shine calc(var(--va-dur-loop, 1.8s) * 5 / 6) linear infinite; /* 1.5s = 底速 × 5/6 */
 }
 .va-think--done .va-think__label { color: var(--_success); font-weight: var(--va-fw-semibold, 600); }
 
@@ -62,16 +79,6 @@
 }
 .va-think-phase-enter-from { opacity: 0; transform: translateY(3px); }
 .va-think-phase-leave-to { opacity: 0; transform: translateY(-3px); }
-
-.va-think__label-text[data-shine] {
-  background: linear-gradient(100deg, var(--_muted) 40%, var(--va-ink, #1a1917) 50%, var(--_muted) 60%);
-  background-size: 200% 100%;
-  background-position: 200% 0;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: va-think-shine 1.5s linear infinite;
-}
 @keyframes va-think-shine {
   from { background-position: 200% 0; }
   to { background-position: -200% 0; }
@@ -79,8 +86,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .va-think { animation: none; }
-  .va-think__spin { animation-duration: 2s; }
+  .va-think__spin { animation-duration: calc(var(--va-dur-loop, 1.8s) * 10 / 9); } /* 2s：减速不停，加载态可感知 */
   .va-think-phase-enter-active,
   .va-think-phase-leave-active { transition: none; }
-  .va-think__label-text[data-shine] { animation: none; color: var(--_muted); background: none; }
+  .va-think__label-shine[data-shine] { animation: none; color: var(--_muted); background: none; }
 }

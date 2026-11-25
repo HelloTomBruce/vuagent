@@ -30,10 +30,13 @@ const labelStyle = computed(() => ({ minWidth: `${maxPhaseChars.value}em` }));
       <span v-else class="va-think__spin" />
     </span>
     <span class="va-think__label" :style="labelStyle" aria-live="polite">
-      <!-- 显式 duration：label-text 上有 shine 无限动画，Vue 按 computed
-           时长等待 animationend（永不触发），旧节点会滞留——显式时长跳过探测 -->
-      <Transition name="va-think-phase" mode="out-in" :duration="{ enter: 120, leave: 120 }">
-        <span :key="labelKey" class="va-think__label-text" :data-shine="!props.done || undefined">{{ labelText }}</span>
+      <!-- 过渡时长由 CSS（--va-dur-1）驱动、Vue 自动探测；shine 无限动画放在内层
+           span——若挂在过渡子节点自身，Vue 按 computed 时长等 animationend（永不
+           触发）会滞留旧节点，被迫显式 :duration 硬编码绕过 token -->
+      <Transition name="va-think-phase" mode="out-in">
+        <span :key="labelKey" class="va-think__label-text">
+          <span class="va-think__label-shine" :data-shine="!props.done || undefined">{{ labelText }}</span>
+        </span>
       </Transition>
     </span>
   </div>
