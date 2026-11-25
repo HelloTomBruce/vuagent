@@ -929,7 +929,7 @@
       </div>
       <div class="footer-row" onclick="alert('打开模型 Provider 配置面板')">
         <span>⚙️ 全局设置 & API Key</span>
-        <span>● 已连接 (3001)</span>
+        <span>● 已连接 (6880)</span>
       </div>
     </div>
   </aside>
@@ -1592,7 +1592,7 @@
     async function triggerSystemFolderPicker() {
       hideDropdowns();
       try {
-        const res = await fetch("http://localhost:3001/api/workspaces/pick-directory", { method: "POST" });
+        const res = await fetch("http://localhost:6880/api/workspaces/pick-directory", { method: "POST" });
         if (res.ok) {
           const ws = await res.json();
           if (ws && !ws.cancelled && ws.rootPath) {
