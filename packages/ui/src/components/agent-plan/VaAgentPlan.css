@@ -161,6 +161,39 @@
 .va-plan .va-plan__add-btn:disabled { opacity: 0.4; cursor: default; }
 .va-plan .va-plan__add-btn:focus-visible { outline: 2px solid var(--_accent); outline-offset: 1px; }
 
+/* L3 协作出口（挂起等待人工确认/放弃） */
+.va-plan .va-plan__collab { margin-top: var(--va-s4, 12px); display: grid; gap: var(--va-s2, 4px); }
+.va-plan .va-plan__errors { display: grid; gap: 2px; }
+.va-plan .va-plan__error { font-size: var(--va-fs-sm, 12px); color: var(--_danger); }
+.va-plan .va-plan__collab-actions { display: flex; align-items: center; gap: var(--va-s2, 4px); }
+.va-plan .va-plan__confirm {
+  border: 1px solid color-mix(in srgb, var(--_accent) 45%, transparent);
+  background: color-mix(in srgb, var(--_accent) 10%, var(--va-card, #ffffff));
+  color: var(--_accent);
+  border-radius: var(--va-radius-m, 10px);
+  padding: 5px var(--va-s4, 12px);
+  font-size: var(--va-fs-md, 13px);
+  font-weight: var(--va-fw-semibold, 600);
+  cursor: pointer;
+  font-family: inherit;
+}
+.va-plan .va-plan__confirm:hover:not(:disabled) { background: color-mix(in srgb, var(--_accent) 18%, var(--va-card, #ffffff)); }
+.va-plan .va-plan__confirm:focus-visible { outline: 2px solid var(--_accent); outline-offset: 1px; }
+.va-plan .va-plan__giveup {
+  border: 1px solid var(--_edge);
+  background: var(--va-card, #ffffff);
+  color: var(--_muted);
+  border-radius: var(--va-radius-m, 10px);
+  padding: 5px var(--va-s4, 12px);
+  font-size: var(--va-fs-md, 13px);
+  cursor: pointer;
+  font-family: inherit;
+}
+.va-plan .va-plan__giveup:hover:not(:disabled) { color: var(--_ink); background: var(--va-bg-subtle, #efede7); }
+.va-plan .va-plan__giveup:focus-visible { outline: 2px solid var(--_accent); outline-offset: 1px; }
+.va-plan .va-plan__confirm:disabled,
+.va-plan .va-plan__giveup:disabled { opacity: 0.4; cursor: default; }
+
 /* FLIP 与离场 */
 .va-plan-move { transition: transform var(--va-dur-3, 300ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)); }
 .va-plan-leave-active { position: absolute; left: 0; right: 0; transition: opacity var(--va-dur-2, 200ms) ease; }

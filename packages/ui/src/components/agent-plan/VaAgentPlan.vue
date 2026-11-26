@@ -6,7 +6,12 @@ import { formatMs } from "../../utils/format";
 
 const props = withDefaults(defineProps<AgentPlanProps>(), { editable: false, title: "执行计划" });
 
-const emit = defineEmits<{ "update:steps": [steps: PlanStep[]]; retry: [step: PlanStep] }>();
+const emit = defineEmits<{
+  "update:steps": [steps: PlanStep[]];
+  retry: [step: PlanStep];
+  confirm: [];
+  cancel: [];
+}>();
 
 const {
   elapsedOf,
@@ -28,6 +33,11 @@ const timeOf = computed(() => (s: PlanStep) => {
   const ms = elapsedOf(s);
   return ms === undefined ? undefined : formatMs(ms);
 });
+
+/* L3 协作出口（挂起等待用户编辑/确认）：fieldErrors 逐条展开为错误行 */
+const errorLines = computed(() =>
+  Object.entries(props.fieldErrors ?? {}).map(([key, message]) => `${key}：${message}`)
+);
 </script>
 
 <template>
@@ -102,6 +112,17 @@ const timeOf = computed(() => (s: PlanStep) => {
       />
       <button class="va-plan__add-btn" type="button" :disabled="!addDraft.trim()" @click="add">＋ 添加</button>
     </div>
+
+    <!-- L3 协作出口：仅 collaborative（挂起等待人工）时渲染；confirm/cancel 均为终态 -->
+    <footer v-if="props.collaborative" class="va-plan__collab">
+      <div v-if="errorLines.length" class="va-plan__errors" role="alert">
+        <span v-for="line in errorLines" :key="line" class="va-plan__error">{{ line }}</span>
+      </div>
+      <div class="va-plan__collab-actions">
+        <button class="va-plan__confirm" type="button" :disabled="props.disabled" @click="emit('confirm')">确认计划</button>
+        <button class="va-plan__giveup" type="button" :disabled="props.disabled" @click="emit('cancel')">放弃</button>
+      </div>
+    </footer>
   </div>
 </template>
 

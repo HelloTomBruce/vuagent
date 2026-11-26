@@ -18,7 +18,7 @@
     {
       "name": "agent-plan",
       "title": "Agent Plan",
-      "description": "执行计划：编辑态可重命名/排序/增删，运行态逐项计时打勾、失败可重试。",
+      "description": "执行计划：编辑态可重命名/排序/增删，运行态逐项计时打勾、失败可重试；collaborative 协作态（L3）支持步骤编辑发 patch 增量、「确认计划/放弃」终态收口与 server 422 fieldErrors 就地回显。",
       "type": "registry:ui"
     },
     {
@@ -493,6 +493,12 @@
       "name": "illustrations",
       "title": "Voice Orb / Agent Team / Model Wheel",
       "description": "插画三件：VoiceOrb 语音球（idle/listening/speaking 三态波纹与声浪）；AgentTeam 环形悬浮徽标阵；ModelWheel 模型轮盘（缓慢自转）。纯装饰、reduced-motion 全降级。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "form",
+      "title": "Form",
+      "description": "L2 值采集表单卡（ui_form）：六型字段（text/textarea/number/boolean/select/date）、必填星标、敏感字段密码态与显隐切换、单位后缀、server 422 fieldErrors 就地回显（用户修正后重提，§4.2 重填闭环）。resultSchema 由 fields 派生（deriveFormResultSchema，模型不允许自行声明）。",
       "type": "registry:ui"
     }
   ]

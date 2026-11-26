@@ -318,6 +318,10 @@ export type {
 export { VaAiAnswer } from "./components/ai-answer";
 export type { AiAnswerEvents, AiAnswerProps, AnswerSource } from "./components/ai-answer";
 
+// TASK-092 · L2 表单组件
+export { VaForm } from "./components/form";
+export type { FormFieldItem, FormFieldOption, FormFieldType, VaFormEvents, VaFormProps } from "./components/form";
+
 // M7 · 动效补齐
 export { VaTiltCard } from "./components/tilt-card";
 export type { TiltCardProps } from "./components/tilt-card";
@@ -412,18 +416,28 @@ export {
 } from "./runtime/registry";
 export { useAgentChat } from "./runtime/useAgentChat";
 export type { ChatMessage, SendMessageOptions, UseAgentChatOptions } from "./runtime/useAgentChat";
+// TASK-090：交互信封本地预校验（提交前拦截必败请求；server 边界复核仍是权威）
+export { UIActionLocalValidationError } from "./runtime/interaction-validation";
 // TASK-114：共享流式消费件（库 runtime 与宿主流式数据域同一实现）
 export { consumeSSEStream, parseSSEChunk } from "./runtime/sse";
 export type { SSEConsumeOptions, SSEConsumeResult, SSEParseResult } from "./runtime/sse";
 export { createDeltaBuffer } from "./runtime/useDeltaBuffer";
 export type { DeltaBuffer } from "./runtime/useDeltaBuffer";
 export type {
+  ActionMeta,
   AgentComponentBaseProps,
   AgentComponentStatus,
   AgentRendererProps,
   CustomProviderConfig,
   MessageBlock,
   RegisteredComponentEntry,
+  UIActionCancelEnvelope,
+  UIActionEnvelope,
+  UIActionKind,
+  UIActionPatchEnvelope,
+  UIActionSubmitEnvelope,
+  UIComponentInteraction,
+  UIInteractionLevel,
   UIStreamEvent,
 } from "./runtime/types";
 export { default as VaAgentRenderer } from "./runtime/VaAgentRenderer.vue";

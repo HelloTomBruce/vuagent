@@ -4,10 +4,17 @@
  */
 
 import { getCurrentInstance, onBeforeUnmount, ref, shallowRef } from "vue";
-import type { MessageBlock, UIStreamEvent, CustomProviderConfig } from "./types.js";
-import { setupDefaultAgentRegistry } from "./registry.js";
+import type { MessageBlock, UIActionEnvelope, UIStreamEvent, CustomProviderConfig } from "./types.js";
+import { getAgentComponent, setupDefaultAgentRegistry } from "./registry.js";
+import {
+  UIActionLocalValidationError,
+  localValidationSchemaOf,
+  validateValuesLocally,
+} from "./interaction-validation.js";
 import { consumeSSEStream } from "./sse.js";
 import { createDeltaBuffer } from "./useDeltaBuffer.js";
+import { clearAllFormFieldErrors, clearFormFieldErrors, setFormFieldErrors } from "./form-errors.js";
+import { clearAllPlanStepsMirrors } from "./plan-steps-mirror.js";
 
 export interface ChatMessage {
   id: string;
@@ -342,27 +349,89 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
   };
 
   /**
-   * 提交 HITL 交互动作
+   * 提交 HITL 交互动作（TASK-090：前端提交一律走信封）
+   *
+   * - envelope 为判别联合（submit/cancel/patch，见 runtime/protocol-types.ts）；
+   * - 组件声明了 interaction.resultSchema 且信封携带 values 时先做本地预校验：
+   *   失败抛 UIActionLocalValidationError，**不发请求、不做乐观更新**；
+   *   通过则在 meta 上标记 clientValidated（server 边界仍复核，设计文档 §8）；
+   * - 乐观更新迁移到信封语义：submit 与 cancel 都标 done，
+   *   result 记信封本身（UI 据此区分「已提交」与「已取消」展示）。
    */
-  const submitAction = async <TPayload = unknown>(toolCallId: string, payload: TPayload) => {
+  /** 在途提交集合（按 toolCallId）：同挂起的上一次请求返回前拒绝新提交 */
+  const inFlightActions = new Set<string>();
+  const submitAction = async (toolCallId: string, envelope: UIActionEnvelope) => {
     const baseUrl = options.apiBaseUrl || "";
-    const res = await fetch(`${baseUrl}/api/action/${toolCallId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
 
-    if (!res.ok) {
-      throw new Error(`Failed to submit action: status ${res.status}`);
+    // 在途去重（评审 R2）：同一挂起的上一次提交尚未返回前拒绝新提交——
+    // 防双击重复信封（同体靠 server 幂等无害，但「确认后立刻放弃」这类
+    // 异体二次提交会产生无 fieldErrors 的 422 混淆）
+    if (inFlightActions.has(toolCallId)) {
+      throw new Error("上一交互仍在提交中，请稍候");
     }
+    inFlightActions.add(toolCallId);
 
-    // 乐观更新对应组件状态
-    const block = findComponentBlock(toolCallId);
-    if (block) {
-      block.status = "done";
-      block.result = payload;
+    // 本地预校验与网络提交（含在途去重 try/finally）——见 try 块内实现
+    let outgoing = envelope;
+    try {
+      // 本地预校验（resultSchema 可获取时）：组件块在历史消息中或组件未声明
+      // interaction 时 schema 不可得，跳过本地校验（server 边界是权威）。
+      // TASK-092：resultSchema 可由 interaction.deriveResultSchema 按挂起 args
+      // 派生（ui_form：fields → resultSchema，模型不允许自行声明，设计文档 §7）。
+      const block = findComponentBlock(toolCallId);
+      const entry = block?.componentName ? getAgentComponent(block.componentName) : undefined;
+      const interaction = entry?.interaction;
+      const valueCarrying = envelope.kind === "submit" || envelope.kind === "patch";
+      const localSchema =
+        localValidationSchemaOf(interaction, envelope.kind) ??
+        (valueCarrying && interaction?.deriveResultSchema && block
+          ? interaction.deriveResultSchema(block.args ?? {})
+          : undefined);
+
+      if (localSchema && valueCarrying) {
+        const fieldErrors = validateValuesLocally(envelope.values, localSchema);
+        if (Object.keys(fieldErrors).length > 0) {
+          // 设计文档 §4.2：校验失败就地回显（不唤醒 agent、不发请求、不做乐观更新）
+          setFormFieldErrors(toolCallId, fieldErrors);
+          throw new UIActionLocalValidationError(fieldErrors);
+        }
+        outgoing = { ...envelope, meta: { ...envelope.meta, clientValidated: true } };
+      }
+
+      clearFormFieldErrors(toolCallId);
+      const res = await fetch(`${baseUrl}/api/action/${toolCallId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(outgoing),
+      });
+
+      if (!res.ok) {
+        // TASK-092（§4.2 重填闭环）：server 边界校验失败 422 携带 fieldErrors——
+        // 同样就地回显在表单卡片（组件保持 executing 态，用户修正后重提交），
+        // 不做乐观更新。其余非 2xx（含同键异体 422）维持通用失败语义。
+        if (res.status === 422) {
+          const body = (await res.json().catch(() => null)) as {
+            fieldErrors?: Record<string, string>;
+          } | null;
+          if (body?.fieldErrors && Object.keys(body.fieldErrors).length > 0) {
+            setFormFieldErrors(toolCallId, body.fieldErrors);
+            throw new UIActionLocalValidationError(body.fieldErrors);
+          }
+        }
+        throw new Error(`Failed to submit action: status ${res.status}`);
+      }
+
+      // 乐观更新对应组件状态：仅限**终态信封**（submit / cancel）。patch 是增量
+      // （server 200 accepted 但挂起不终结，设计文档 §3/§8）——标 done 会让
+      // propAdapter 停发协作出口（确认/放弃按钮消失），L3 第一次编辑即死锁
+      if (block && envelope.kind !== "patch") {
+        block.status = "done";
+        block.result = outgoing;
+      }
+      return await res.json();
+    } finally {
+      inFlightActions.delete(toolCallId);
     }
-    return await res.json();
   };
 
   /**
@@ -386,6 +455,8 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
 
   const clearMessages = () => {
     dropTextBuffer(); // 旧消息整体丢弃，缓冲块已不可达，直接丢弃不提交
+    clearAllFormFieldErrors(); // TASK-092：表单错误通道随消息换血整体清空（防泄漏）
+    clearAllPlanStepsMirrors(); // 协作计划 steps 镜像随消息换血整体清空（防泄漏）
     messages.value = [];
     currentAssistantMsg.value = null;
     error.value = null;

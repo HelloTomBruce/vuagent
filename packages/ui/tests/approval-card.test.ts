@@ -10,6 +10,7 @@ import { h } from "vue";
 import { VaApprovalCard } from "../src/components/approval-card/index";
 import { useApprovalCard } from "../src/components/approval-card/useApprovalCard";
 import type { ApprovalCardProps } from "../src/components/approval-card/types";
+import { getAgentComponent, setupDefaultAgentRegistry } from "../src/runtime/registry";
 
 // composable 直测脱离组件实例，onBeforeUnmount 会告警；属预期噪音，压掉
 beforeAll(() => {
@@ -153,5 +154,58 @@ describe("VaApprovalCard - SSR a11y 语义", () => {
     const html = await renderToString(h(VaApprovalCard, { title: "t", detail: "将影响 3 张表" }));
     expect(html).toContain("aria-describedby");
     expect(html).toContain("将影响 3 张表");
+  });
+});
+
+describe("VaApprovalCard - 回传信封形状（TASK-090，设计文档 §3）", () => {
+  beforeAll(() => {
+    setupDefaultAgentRegistry();
+  });
+
+  /** 经注册中心 propAdapter 接线（组件事件 → ctx.onSubmitAction 信封） */
+  const wireAdapter = (status: "executing" | "done" = "executing") => {
+    const envelopes: unknown[] = [];
+    const props = getAgentComponent("ui_approval_card")!.propAdapter!(
+      { title: "t" },
+      {
+        toolCallId: "tc-env",
+        status,
+        onSubmitAction: (p: unknown) => {
+          envelopes.push(p);
+        },
+      },
+    );
+    return { props, envelopes };
+  };
+
+  it("approve → submit 信封（values.approved=true，meta.editedFields 空表意『无字段编辑』）", () => {
+    const { props, envelopes } = wireAdapter();
+    props.onApprove();
+    expect(envelopes).toEqual([
+      { kind: "submit", values: { approved: true }, meta: { editedFields: [] } },
+    ]);
+  });
+
+  it("deny 是 submit 的 values 形态而非 cancel（cancel 留给关闭/放弃语义）", () => {
+    const { props, envelopes } = wireAdapter();
+    props.onDeny("manual");
+    expect(envelopes).toEqual([
+      { kind: "submit", values: { approved: false, note: "manual" }, meta: { editedFields: [] } },
+    ]);
+    // 形状守卫：kind 判别位必须是 submit，不允许出现 cancel
+    expect((envelopes[0] as any).kind).toBe("submit");
+  });
+
+  it("超时拒绝以 note=timeout 携带（超时的权威裁决在 server，客户端仅展示性标记）", () => {
+    const { props, envelopes } = wireAdapter();
+    props.onDeny("timeout");
+    expect((envelopes[0] as any).values).toEqual({ approved: false, note: "timeout" });
+  });
+
+  it("非 executing 态组件内自查拦截（渲染层守卫之外的双保险）", () => {
+    const { props, envelopes } = wireAdapter("done");
+    props.onApprove();
+    props.onDeny("manual");
+    expect(envelopes).toEqual([]);
   });
 });

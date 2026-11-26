@@ -1,0 +1,131 @@
+/* VaForm — 表单卡片（TASK-092，设计文档 §7）
+ * 局部覆盖变量（全部带 fallback，单文件拷走可用）；token 约定对齐 VaButton 等既有组件 */
+
+.va-form {
+  --_ink: var(--va-form-ink, var(--va-ink, #1a1917));
+  --_ink2: var(--va-form-ink-2, var(--va-ink-2, #43413c));
+  --_card: var(--va-form-card, var(--va-card, #ffffff));
+  --_edge: var(--va-form-edge, var(--va-edge, rgba(26, 25, 23, 0.12)));
+  --_edge-strong: var(--va-form-edge-strong, var(--va-edge-strong, rgba(26, 25, 23, 0.22)));
+  --_subtle: var(--va-form-bg-subtle, var(--va-bg-subtle, #efede7));
+  --_danger: var(--va-form-danger, var(--va-danger, #d5453c));
+  --_accent: var(--va-form-accent, var(--va-accent, #c2410c));
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--va-s4, 12px);
+  padding: var(--va-s5, 16px);
+  background: var(--_card);
+  border: 1px solid var(--_edge);
+  border-radius: var(--va-radius-m, 10px);
+  font-family: var(--va-font, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif);
+  color: var(--_ink);
+  font-size: var(--va-fs-md, 13px);
+  line-height: 1.5;
+}
+
+.va-form--disabled {
+  opacity: 0.55;
+}
+
+/* 头部 */
+.va-form__head { display: flex; flex-direction: column; gap: 2px; }
+.va-form__title {
+  margin: 0;
+  font-size: var(--va-fs-lg, 14px);
+  font-weight: var(--va-fw-medium, 500);
+}
+.va-form__desc { margin: 0; color: var(--_ink2); font-size: var(--va-fs-md, 13px); }
+
+/* 字段区 */
+.va-form__fields { display: flex; flex-direction: column; gap: var(--va-s4, 12px); }
+.va-form__field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+.va-form__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: var(--va-fw-medium, 500);
+}
+.va-form__req { color: var(--_danger); }
+.va-form__badge {
+  font-size: var(--va-fs-sm, 12px);
+  font-weight: var(--va-fw-medium, 500);
+  color: var(--_accent);
+  border: 1px solid color-mix(in srgb, var(--_accent) 35%, transparent);
+  border-radius: 4px;
+  padding: 0 4px;
+  line-height: 1.4;
+}
+
+.va-form__control-row { display: flex; align-items: center; gap: var(--va-s3, 8px); min-width: 0; }
+
+.va-form__control {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--va-h-md, 36px);
+  padding: 0 var(--va-s4, 12px);
+  border: 1px solid var(--_edge);
+  border-radius: var(--va-radius-m, 10px);
+  background: var(--_card);
+  color: var(--_ink);
+  font: inherit;
+  transition:
+    border-color var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    box-shadow var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+.va-form__control:focus-visible {
+  outline: 2px solid var(--_accent);
+  outline-offset: 1px;
+  border-color: var(--_edge-strong);
+}
+.va-form__control:disabled { cursor: not-allowed; opacity: 0.6; }
+.va-form__control--error { border-color: var(--_danger); }
+
+.va-form__control--area {
+  height: auto;
+  min-height: calc(var(--va-s6, 24px) * 3);
+  padding: var(--va-s3, 8px) var(--va-s4, 12px);
+  resize: vertical;
+}
+
+/* 方案 A：select 字段组合 VaSelect——弹层组件在行内弹性占满（触发器行高对齐输入控件） */
+.va-form__select {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+}
+.va-form__select .va-sel__trigger { min-height: var(--va-h-md, 36px); }
+
+/* boolean 开关行 */
+.va-form__switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--va-s3, 8px);
+  cursor: pointer;
+  user-select: none;
+}
+.va-form__switch input { accent-color: var(--_ink); width: 16px; height: 16px; cursor: pointer; }
+.va-form__switch input:disabled { cursor: not-allowed; }
+
+/* secret 可见性切换：VaButton ghost（组件库组合，方案 A） */
+
+/* 单位后缀 */
+.va-form__unit { flex: none; color: var(--_ink2); }
+
+/* 错误与提示 */
+.va-form__error { margin: 0; color: var(--_danger); font-size: var(--va-fs-md, 13px); }
+.va-form__hint { margin: 0; color: var(--_ink2); font-size: var(--va-fs-md, 13px); }
+
+/* 动作区 */
+.va-form__actions {
+  display: flex;
+  gap: var(--va-s3, 8px);
+  justify-content: flex-end;
+  padding-top: var(--va-s3, 8px);
+  border-top: 1px solid var(--_edge);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-form__control { transition: none; }
+}

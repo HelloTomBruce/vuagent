@@ -8,10 +8,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
+import { defineComponent, h } from "vue";
 import VaAgentRenderer from "../src/runtime/VaAgentRenderer.vue";
-import { setupDefaultAgentRegistry } from "../src/runtime/registry";
+import { registerAgentComponent, setupDefaultAgentRegistry } from "../src/runtime/registry";
 
 // happy-dom 的全局 URL 会把相对解析劫持到其默认 location（http://localhost:3000），
 // 静态断言读文件统一走 fileURLToPath(import.meta.url) + path 组合（不经全局 URL）
@@ -78,5 +79,101 @@ describe("VaAgentRenderer skeleton→内容交叉过渡", () => {
 
     expect(reducedBlock).toContain(".va-crossfade");
     expect(reducedBlock).toContain("animation-name: va-motion-fade-in");
+  });
+});
+
+describe("VaAgentRenderer 渲染层统一守卫（TASK-090，设计文档 §6）", () => {
+  // 探针组件：propAdapter 捕获渲染层透传的 ctx，断言 onSubmitAction 的可得性与行为
+  let capturedCtx: { status: string; onSubmitAction?: (payload: unknown) => unknown } | null = null;
+  registerAgentComponent("test_guard_probe", {
+    component: defineComponent({ setup: () => () => h("div", "probe") }),
+    progressive: true,
+    propAdapter: (_args, ctx) => {
+      capturedCtx = ctx;
+      return {};
+    },
+  });
+
+  afterEach(() => {
+    capturedCtx = null;
+    vi.restoreAllMocks();
+  });
+
+  it("streaming（半截参数）态：不透传真实回调——no-op 拦截桩 + dev 警告，宿主回调与 emit 均不触发", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const onSubmitAction = vi.fn();
+    const wrapper = mount(VaAgentRenderer, {
+      props: {
+        toolCallId: "call-guard-1",
+        componentName: "test_guard_probe",
+        status: "streaming",
+        args: {},
+        onSubmitAction,
+      },
+    });
+
+    expect(capturedCtx).not.toBeNull();
+    // 桩存在（propAdapter 无需判空），但调用不会触达宿主
+    expect(typeof capturedCtx!.onSubmitAction).toBe("function");
+    capturedCtx!.onSubmitAction!({ kind: "submit", values: { hacked: true } });
+
+    expect(onSubmitAction).not.toHaveBeenCalled();
+    expect(wrapper.emitted("submitAction")).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('status="streaming"'),
+      expect.anything(),
+    );
+  });
+
+  it("done（已决策）态：同样被拦截（不允许重复决策）", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const onSubmitAction = vi.fn();
+    mount(VaAgentRenderer, {
+      props: {
+        toolCallId: "call-guard-2",
+        componentName: "test_guard_probe",
+        status: "done",
+        args: {},
+        onSubmitAction,
+      },
+    });
+
+    capturedCtx!.onSubmitAction!({ kind: "submit", values: {} });
+    expect(onSubmitAction).not.toHaveBeenCalled();
+  });
+
+  it("executing（挂起等待交互）态：真实回调透传，宿主 onSubmitAction 收到信封", async () => {
+    const onSubmitAction = vi.fn();
+    mount(VaAgentRenderer, {
+      props: {
+        toolCallId: "call-guard-3",
+        componentName: "test_guard_probe",
+        status: "executing",
+        args: {},
+        onSubmitAction,
+      },
+    });
+
+    const envelope = { kind: "submit", values: { approved: true } };
+    await capturedCtx!.onSubmitAction!(envelope);
+    expect(onSubmitAction).toHaveBeenCalledWith(envelope);
+  });
+
+  it("approval_card 端到端：streaming 态点击批准后宿主零感知（守卫拦截）", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const onSubmitAction = vi.fn();
+    const wrapper = mount(VaAgentRenderer, {
+      props: {
+        toolCallId: "call-guard-4",
+        componentName: "ui_approval_card",
+        status: "streaming",
+        args: { title: "发布生产" },
+        onSubmitAction,
+      },
+    });
+
+    await wrapper.find(".va-act--ink.va-acd__btn").trigger("click");
+    expect(onSubmitAction).not.toHaveBeenCalled();
+    expect(wrapper.emitted("submitAction")).toBeUndefined();
   });
 });

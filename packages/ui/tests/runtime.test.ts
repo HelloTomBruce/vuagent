@@ -7,8 +7,11 @@ import {
   getAgentComponent,
   registerAgentComponent,
   setupDefaultAgentRegistry,
+  CardSkeleton,
+  UIActionLocalValidationError,
 } from "../src/index.js";
 import { postAgentAction } from "../src/runtime/actionClient";
+import type { UIActionEnvelope } from "../src/index.js";
 
 // registry 已无模块顶层副作用：使用内置组件前必须显式初始化（useAgentChat 内部也会兜底调用）
 beforeAll(() => {
@@ -245,5 +248,288 @@ describe("Agent Runtime - postAgentAction 容错（res.ok 检查）", () => {
     vi.stubGlobal("fetch", fetchMock);
     await postAgentAction("http://x", "call-1", null);
     expect(fetchMock.mock.calls[0][1].body).toBe("{}");
+  });
+});
+
+describe("Agent Runtime - submitAction 信封通道（TASK-090）", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // 注册一个声明了 resultSchema 的 L2 测试组件（本地校验触发前提）
+  beforeAll(() => {
+    registerAgentComponent("test_l2_probe", {
+      component: CardSkeleton,
+      interaction: {
+        level: "L2",
+        resultSchema: {
+          type: "object",
+          required: ["replicas"],
+          properties: {
+            replicas: { type: "number" },
+            env: { type: "string", enum: ["staging", "prod"] },
+          },
+        },
+      },
+    });
+  });
+
+  const okFetch = () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ delivered: true }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  };
+
+  /** 驱动组件块进入 executing 挂起态 */
+  const driveToExecuting = (
+    chat: ReturnType<typeof useAgentChat>,
+    toolCallId: string,
+    componentName: string,
+  ) => {
+    chat.handleStreamEvent({ type: "component_start", messageId: "m1", toolCallId, componentName });
+    chat.handleStreamEvent({ type: "component_executing", toolCallId, args: {} });
+  };
+
+  const blockOf = (chat: ReturnType<typeof useAgentChat>, toolCallId: string) =>
+    chat.messages.value[0].blocks?.find(
+      (b) => b.kind === "component" && b.toolCallId === toolCallId,
+    ) as any;
+
+  it("信封原样 POST；乐观更新 status=done 且 result 记信封本身", async () => {
+    const fetchMock = okFetch();
+    const chat = useAgentChat();
+    driveToExecuting(chat, "call-env-1", "ui_approval_card");
+
+    const envelope: UIActionEnvelope = {
+      kind: "submit",
+      values: { approved: true },
+      meta: { editedFields: [] },
+    };
+    await chat.submitAction("call-env-1", envelope);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/action/call-env-1",
+      expect.objectContaining({ method: "POST" }),
+    );
+    // L1 审批卡无 resultSchema：不附加 clientValidated，信封原样发出
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toEqual(envelope);
+
+    const block = blockOf(chat, "call-env-1");
+    expect(block.status).toBe("done");
+    expect(block.result).toEqual(envelope);
+  });
+
+  it("cancel 是一等公民：同样标 done，result 记 cancel 信封（UI 区分展示）", async () => {
+    const fetchMock = okFetch();
+    const chat = useAgentChat();
+    driveToExecuting(chat, "call-env-2", "ui_approval_card");
+
+    const envelope: UIActionEnvelope = { kind: "cancel", reason: "用户放弃本次操作" };
+    await chat.submitAction("call-env-2", envelope);
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toEqual(envelope);
+    const block = blockOf(chat, "call-env-2");
+    expect(block.status).toBe("done");
+    expect(block.result).toEqual(envelope);
+  });
+
+  it("本地校验失败：不发请求、不做乐观更新、抛 UIActionLocalValidationError（带 fieldErrors）", async () => {
+    const fetchMock = okFetch();
+    const chat = useAgentChat();
+    driveToExecuting(chat, "call-l2-1", "test_l2_probe");
+
+    const bad: UIActionEnvelope = {
+      kind: "submit",
+      values: { replicas: "three", env: "moon" }, // 类型错 + 枚举越界
+    };
+    const failure = await chat.submitAction("call-l2-1", bad).catch((e) => e);
+    expect(failure).toBeInstanceOf(UIActionLocalValidationError);
+    expect((failure as UIActionLocalValidationError).fieldErrors).toEqual({
+      replicas: "应为数值",
+      env: '取值不在可选范围内（"staging" / "prod"）',
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(blockOf(chat, "call-l2-1").status).toBe("executing"); // 不乐观更新
+  });
+
+  it("本地校验拦截必填缺失；补全后放行并标记 meta.clientValidated", async () => {
+    const fetchMock = okFetch();
+    const chat = useAgentChat();
+    driveToExecuting(chat, "call-l2-2", "test_l2_probe");
+
+    await expect(
+      chat.submitAction("call-l2-2", { kind: "submit", values: {} }),
+    ).rejects.toBeInstanceOf(UIActionLocalValidationError);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await chat.submitAction("call-l2-2", {
+      kind: "submit",
+      values: { replicas: 3, env: "prod" },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toEqual({
+      kind: "submit",
+      values: { replicas: 3, env: "prod" },
+      meta: { clientValidated: true },
+    });
+  });
+
+  it("HTTP 非 2xx 时抛错且不乐观更新", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    const chat = useAgentChat();
+    driveToExecuting(chat, "call-env-3", "ui_approval_card");
+
+    await expect(
+      chat.submitAction("call-env-3", { kind: "submit", values: { approved: true } }),
+    ).rejects.toThrow("status 500");
+    expect(blockOf(chat, "call-env-3").status).toBe("executing");
+  });
+});
+
+describe("Agent Runtime - deriveResultSchema 派生钩子与 422 重填闭环（TASK-092）", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  beforeAll(() => {
+    // 模拟 ui_form 的「resultSchema 由 args 派生」形态（与真实 ui_form 注册条目同构）
+    registerAgentComponent("test_derived_l2", {
+      component: CardSkeleton,
+      interaction: {
+        level: "L2",
+        deriveResultSchema: (args: Record<string, unknown>) => ({
+          type: "object",
+          required: Array.isArray(args.requiredKeys) ? (args.requiredKeys as string[]) : [],
+          properties: { replicas: { type: "number" } },
+        }),
+      },
+    });
+  });
+
+  const driveToExecuting = (
+    chat: ReturnType<typeof useAgentChat>,
+    toolCallId: string,
+    componentName: string,
+    args: Record<string, unknown> = {},
+  ) => {
+    chat.handleStreamEvent({ type: "component_start", messageId: "m1", toolCallId, componentName });
+    chat.handleStreamEvent({ type: "component_executing", toolCallId, args });
+  };
+
+  it("deriveResultSchema 按挂起 args 派生：本地校验用派生 Schema（required 来自 args）", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ delivered: true }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const chat = useAgentChat();
+    // args 声明 replicas 必填 → 缺失即本地拦截
+    driveToExecuting(chat, "call-d1", "test_derived_l2", { requiredKeys: ["replicas"] });
+
+    const failure = await chat
+      .submitAction("call-d1", { kind: "submit", values: {} })
+      .catch((e: unknown) => e);
+    expect(failure).toBeInstanceOf(UIActionLocalValidationError);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    // 同一组件、不同 args 派生出不同 required → 同 values 现在放行（派生随 args 走）
+    driveToExecuting(chat, "call-d2", "test_derived_l2", { requiredKeys: [] });
+    await chat.submitAction("call-d2", { kind: "submit", values: {} });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("server 422 携带 fieldErrors：就地回显到 formFieldErrors、不乐观更新、错误可再修正重提", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false,
+      status: 422,
+      json: async () => ({
+        success: false,
+        code: "ENVELOPE_VALUES_INVALID",
+        fieldErrors: { replicas: "当前环境最大支持 2 个" },
+      }),
+    }));
+    const chat = useAgentChat();
+    driveToExecuting(chat, "call-d3", "test_derived_l2", { requiredKeys: [] });
+
+    const failure = await chat
+      .submitAction("call-d3", { kind: "submit", values: { replicas: 3 } })
+      .catch((e: unknown) => e);
+    expect(failure).toBeInstanceOf(UIActionLocalValidationError);
+    const block = chat.messages.value[0].blocks?.find(
+      (b) => b.kind === "component" && b.toolCallId === "call-d3",
+    ) as { status?: string };
+    expect(block.status).toBe("executing"); // 不乐观更新：卡片保持可重填
+  });
+
+  it("同键异体 422（无 fieldErrors）：维持通用失败语义，不进重填通道", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false,
+      status: 422,
+      json: async () => ({ code: "ACTION_PAYLOAD_MISMATCH" }),
+    }));
+    const chat = useAgentChat();
+    driveToExecuting(chat, "call-d4", "ui_approval_card");
+
+    await expect(
+      chat.submitAction("call-d4", { kind: "submit", values: { approved: true } }),
+    ).rejects.toThrow("status 422");
+  });
+});
+
+describe("Agent Runtime - patch 信封不乐观更新（评审 C-1 回归）", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const driveToExecuting = (
+    chat: ReturnType<typeof useAgentChat>,
+    toolCallId: string,
+    componentName: string,
+  ) => {
+    chat.handleStreamEvent({ type: "component_start", messageId: "m1", toolCallId, componentName });
+    chat.handleStreamEvent({ type: "component_executing", toolCallId, args: {} });
+  };
+
+  const blockOf = (chat: ReturnType<typeof useAgentChat>, toolCallId: string) =>
+    chat.messages.value[0].blocks?.find(
+      (b) => b.kind === "component" && b.toolCallId === toolCallId,
+    ) as { status?: string; result?: unknown };
+
+  it("patch：请求发出但 block 保持 executing、result 不被污染（patch 不终结挂起）", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, accepted: true, patchKeys: ["steps"] }),
+    }));
+    const chat = useAgentChat();
+    driveToExecuting(chat, "call-patch-1", "ui_approval_card");
+
+    await chat.submitAction("call-patch-1", { kind: "patch", values: { steps: [] } } as UIActionEnvelope);
+
+    const block = blockOf(chat, "call-patch-1");
+    expect(block.status).toBe("executing"); // 修复前：被误标 done → L3 协作出口消失死锁
+    expect(block.result).toBeUndefined();
+  });
+
+  it("对照：submit / cancel 仍乐观更新为 done", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true }),
+    }));
+    const chat = useAgentChat();
+    driveToExecuting(chat, "call-sub-1", "ui_approval_card");
+    await chat.submitAction("call-sub-1", { kind: "submit", values: { approved: true } });
+    expect(blockOf(chat, "call-sub-1").status).toBe("done");
+
+    driveToExecuting(chat, "call-sub-2", "ui_approval_card");
+    await chat.submitAction("call-sub-2", { kind: "cancel" });
+    expect(blockOf(chat, "call-sub-2").status).toBe("done");
   });
 });

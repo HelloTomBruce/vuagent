@@ -52,11 +52,13 @@ function choose(d: Decision, which: DecisionAnswer) {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
               <path d="M5.5 12.5l4 4L18.5 8" />
             </svg>
-            已选择「{{ states[d.id]?.answered === "primary" ? d.primary : d.secondary }}」
+            已选择「{{ states[d.id]?.answered === "primary" ? (d.primary ?? "") : (d.secondary ?? "") }}」
           </div>
-          <div v-else class="va-dib__actions">
-            <button class="va-act va-act--ink va-dib__btn" type="button" @click="choose(d, 'primary')">{{ d.primary }}</button>
-            <button class="va-act va-dib__btn" type="button" @click="choose(d, 'secondary')">{{ d.secondary }}</button>
+          <!-- 无按钮形态（primary/secondary 均缺省）：非决策型挂起（如 L2 表单待填写），detail 承载指引 -->
+          <p v-else-if="!d.primary && !d.secondary && d.detail" class="va-dib__detail">{{ d.detail }}</p>
+          <div v-else-if="d.primary || d.secondary" class="va-dib__actions">
+            <button v-if="d.primary" class="va-act va-act--ink va-dib__btn" type="button" @click="choose(d, 'primary')">{{ d.primary }}</button>
+            <button v-if="d.secondary" class="va-act va-dib__btn" type="button" @click="choose(d, 'secondary')">{{ d.secondary }}</button>
           </div>
         </template>
       </article>

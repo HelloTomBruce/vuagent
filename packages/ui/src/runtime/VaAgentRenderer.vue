@@ -45,6 +45,23 @@ const handleAction = async (payload: unknown) => {
   }
 };
 
+// ---- 渲染层统一守卫（TASK-090，设计文档 §6）----
+// 交互权限从「各组件自查 ctx.status」上收到渲染层统一截断：
+// 仅 executing（挂起等待人工交互）态把真实提交回调透传给 propAdapter；
+// 其余状态（streaming 半截参数 / done 已决策 / error）透传 no-op 拦截桩——
+// 半截 JSON 渲染出的表单不允许提交，已决策卡片不允许重复决策。
+// 组件内（如 approval_card）的 status 自查保留为双保险，但不再是唯一防线。
+const guardedAction = (payload: unknown) => {
+  if (import.meta.env?.DEV) {
+    console.warn(
+      `[VaAgentRenderer] 组件 ${props.componentName}（${props.toolCallId}）在 status="${props.status}" 下的交互提交被渲染层守卫拦截：仅 executing 态允许提交`,
+      payload
+    );
+  }
+};
+const submittable = computed(() => props.status === "executing");
+const submitActionHandler = computed(() => (submittable.value ? handleAction : guardedAction));
+
 // 当前应该渲染的组件：根据状态、是否支持渐进渲染决定
 // 骨架判定：streaming 且不支持渐进渲染且有骨架 → 渲染 skeleton（TASK-103 切换点）
 const showSkeleton = computed(() => {
@@ -77,7 +94,8 @@ const activeProps = computed(() => {
       toolCallId: props.toolCallId,
       status: props.status,
       result: props.result,
-      onSubmitAction: handleAction,
+      // 统一守卫：非 executing 态透传 no-op 拦截桩而非真实回调
+      onSubmitAction: submitActionHandler.value,
     });
   }
   return {
@@ -88,7 +106,7 @@ const activeProps = computed(() => {
     result: props.result,
     error: props.error,
     readonly: props.readonly,
-    onSubmitAction: handleAction,
+    onSubmitAction: submitActionHandler.value,
   };
 });
 </script>

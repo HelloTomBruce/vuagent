@@ -28,13 +28,16 @@ export const components = [
     ],
   },
   {
-    dir: "agent-plan", slug: "agent-plan", title: "Agent Plan", category: "Agent-Ops", components: ["VaAgentPlan"],
-    desc: "执行计划：编辑态可重命名/排序/增删，运行态逐项计时打勾、失败可重试。",
+    dir: "agent-plan", slug: "agent-plan", title: "Agent Plan", category: "Agent-Ops", components: ["VaAgentPlan"], deps: ["button"],
+    desc: "执行计划：编辑态可重命名/排序/增删，运行态逐项计时打勾、失败可重试；collaborative 协作态（L3）支持步骤编辑发 patch 增量、「确认计划/放弃」终态收口与 server 422 fieldErrors 就地回显。",
     props: [
       { name: "steps", type: "PlanStep[]", default: "-", desc: "步骤（id/title/detail/status/startedAt/duration）" },
       { name: "editable", type: "boolean", default: "false", desc: "审阅编辑模式" },
-      { name: "@update:steps", type: "-", default: "-", desc: "编辑后的完整步骤数组" },
-      { name: "@retry", type: "-", default: "-", desc: "点击失败步骤的重试" },
+      { name: "collaborative", type: "boolean", default: "false", desc: "L3 协作态：编辑发 patch 增量（不唤醒模型）、底部渲染确认/放弃终态出口" },
+      { name: "fieldErrors", type: "Record<string, string>", default: "-", desc: "server 422 回填的逐字段错误（重填闭环）" },
+      { name: "@update:steps", type: "-", default: "-", desc: "编辑后的完整步骤数组（协作态发射 patch 信封）" },
+      { name: "@retry", type: "-", default: "-", desc: "点击失败步骤的重试（协作态发射 submit{retryStepId}）" },
+      { name: "@confirm / @cancel", type: "-", default: "-", desc: "协作终态：确认（submit 空值，server 合并 patch）/ 放弃（cancel 信封）" },
     ],
   },
   {
@@ -847,6 +850,18 @@ export const components = [
       { name: "size / color", type: "number / string", default: "96 / accent", desc: "VoiceOrb：尺寸与主色" },
       { name: "agents / models", type: "Array<{id,name}>", default: "-", desc: "Team/Wheel：徽标名单" },
       { name: "floating / spinning", type: "boolean / boolean", default: "true / true", desc: "Team 悬浮 / Wheel 自转" },
+    ],
+  },
+  {
+    dir: "form", slug: "form", title: "Form", category: "Agent-Ops", components: ["VaForm"], deps: ["button", "select"],
+    desc: "L2 值采集表单卡（ui_form）：六型字段（text/textarea/number/boolean/select/date）、必填星标、敏感字段密码态与显隐切换、单位后缀、server 422 fieldErrors 就地回显（用户修正后重提，§4.2 重填闭环）。resultSchema 由 fields 派生（deriveFormResultSchema，模型不允许自行声明）。",
+    props: [
+      { name: "title / description", type: "string / string", default: "-", desc: "表单标题 / 为什么需要这些信息" },
+      { name: "fields", type: "FormFieldItem[]", default: "-", desc: "字段定义（key/label/type/required/default/options/unit/secret/placeholder）" },
+      { name: "fieldErrors", type: "Record<string, string>", default: "-", desc: "server 422 回填的逐字段错误" },
+      { name: "disabled / loading", type: "boolean / boolean", default: "false / false", desc: "非 executing 态禁用整表 / 提交中" },
+      { name: "@submit", type: "(values, editedFields) => void", default: "-", desc: "提交：类型收敛后的值集合 + 用户亲自修改的字段 key" },
+      { name: "@cancel", type: "()", default: "-", desc: "取消（cancel 信封：一等公民而非错误）" },
     ],
   },
 ];

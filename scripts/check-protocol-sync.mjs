@@ -19,6 +19,14 @@
  * 归一化语义：注释与空白不参与比对（两侧格式化差异不误报）；
  * 字段顺序参与比对（副本契约即「逐字同步」，顺序漂移同样应被察觉）。
  *
+ * 【TASK-090】比对范围扩至 interaction.ts（UI ↔ LLM 交互契约）：
+ * 其中 ActionMeta / UIActionEnvelope / UIActionKind / UIAction*Envelope
+ * 在 protocol 侧是 Static<typeof Schema> / Extract<> / 索引访问等**计算类型**，
+ * vendored 副本只能按 Schema 语义展开为字面声明——文本必然不同构，
+ * 故文本比对跳过计算型声明（仅名集合层把关），形状保真由
+ * protocol 侧 Schema 测试与 ui 侧信封快照测试双侧兜底。
+ * 字面声明（UIInteractionLevel / UIComponentInteraction）仍逐字比对。
+ *
  * 已知边界（受控语料下成立）：声明块内不含含 `;`、`{`、`}` 的字符串字面量
  * 类型——语料即本仓两个源文件，若未来出现此类形状需同步扩展扫描器。
  *
@@ -99,6 +107,55 @@ function extractDeclarations(src) {
   return map;
 }
 
+/**
+ * 【TASK-092】函数级 vendored 比对：非导出 interface + 函数文本逐字同步
+ * （deriveFormResultSchema 派生器——ui vendored 副本见
+ * packages/ui/src/runtime/form-result-schema.ts 头注释）。
+ * 从 `(export )?(interface|function|const) NAME` 起做花括号/方括号深度匹配截取声明块
+ * 剥离注释、折叠空白后归一化比对。
+ */
+const FUNCTION_CORPUS = [
+  {
+    label: "deriveFormResultSchema（form 派生器）",
+    protocolPath: "packages/protocol/src/form.ts",
+    vendoredPath: "packages/ui/src/runtime/form-result-schema.ts",
+    names: ["FormFieldSpec", "deriveFormResultSchema"],
+  },
+  {
+    label: "FORM_FIELD_TYPES（六型字段类型集，评审 R5：派生器输入形状同步锁死）",
+    protocolPath: "packages/protocol/src/form.ts",
+    vendoredPath: "packages/ui/src/runtime/registry.ts",
+    names: ["FORM_FIELD_TYPES"],
+  },
+];
+
+function extractNamedBlock(src, name) {
+  const clean = stripComments(src);
+  const re = new RegExp(`(?:export\\s+)?(?:interface|function|const)\\s+${name}\\b`);
+  const m = re.exec(clean);
+  if (!m) return null;
+  let depth = 0;
+  let end = -1;
+  for (let i = m.index; i < clean.length; i++) {
+    const ch = clean[i];
+    if (ch === "{" || ch === "[") depth++;
+    else if (ch === "}" || ch === "]") {
+      depth--;
+      // 花括号归零 = interface/function 声明体结束（无尾分号风格安全）；
+      // 方括号归零继续（new Set([...]) 语句还有闭合括号与分号），由 `;` 终止
+      if (ch === "}" && depth <= 0) {
+        end = i;
+        break;
+      }
+    } else if (ch === ";" && depth <= 0) {
+      end = i;
+      break;
+    }
+  }
+  if (end === -1) return null;
+  return normalizeWhitespace(clean.slice(m.index, end + 1));
+}
+
 // ==========================================
 // 自测（--self-test）：内嵌 fixture 回归，满足 TASK-061 验收
 // 「人为制造字段级漂移脚本必须失败」且不污染真实文件
@@ -147,6 +204,28 @@ function runSelfTest() {
   expect("无尾随分号 interface 不吞并后续声明",
     noSemi.get("A") === "export interface A { x: string }", true);
 
+  // ⑦【TASK-092】函数级比对：函数体漂移被拦截
+  const fnBase = `export function f(x: number): number {\n  return x + 1;\n}`;
+  const fnDrift = fnBase.replace("x + 1", "x + 2");
+  expect("函数体漂移被拦截", extractNamedBlock(fnDrift, "f") !== extractNamedBlock(fnBase, "f"), true);
+  // ⑧ 函数注释/空白差异不误报
+  const fnCommented = `/** doc */\nexport function f(x: number): number {\n  // comment\n  return x + 1;\n}`;
+  expect("函数注释差异不误报",
+    extractNamedBlock(fnCommented, "f") === extractNamedBlock(fnBase, "f"), true);
+  // ⑨ 嵌套花括号（对象字面量）截取正确
+  const fnNested = `export function g(o: Record<string, unknown>) {\n  return { a: { b: 1 } };\n}`;
+  expect("嵌套花括号函数截取",
+    extractNamedBlock(fnNested, "g") === "export function g(o: Record<string, unknown>) { return { a: { b: 1 } }; }",
+    true);
+  // ⑩【TASK-092】无花括号 const（new Set([...]) 语句）：`;` 终止 + 成员漂移拦截
+  const setBase = `export const S = new Set([\n  "a",\n  "b",\n]);\nexport const T = 1;`;
+  expect("Set 常量截取正确",
+    extractNamedBlock(setBase, "S") === "export const S = new Set([ \"a\", \"b\", ]);", true);
+  expect("Set 常量成员漂移被拦截",
+    extractNamedBlock(setBase.replace('"b",', '"b", "c",'), "S") !== extractNamedBlock(setBase, "S"), true);
+  expect("Set 常量不吞并后续声明",
+    extractNamedBlock(setBase, "S") !== extractNamedBlock(setBase, "S") + " export const T = 1;", true);
+
   const failed = cases.filter((c) => !c.ok);
   for (const c of cases) {
     console.log(`  ${c.ok ? "✓" : "✗"} ${c.label}`);
@@ -170,6 +249,8 @@ if (args.includes("--self-test")) {
 const protocolFiles = [
   join(root, "packages/protocol/src/lifecycle.ts"),
   join(root, "packages/protocol/src/events.ts"),
+  // TASK-090：UI ↔ LLM 交互契约（信封 + 组件交互能力声明）
+  join(root, "packages/protocol/src/interaction.ts"),
 ];
 const vendoredFile = join(root, "packages/ui/src/runtime/protocol-types.ts");
 
@@ -209,6 +290,11 @@ if (protocolStatus !== vendoredStatus) {
 }
 
 // 3. 【TASK-061】逐名声明文本对比（字段级漂移拦截：加/删字段、可选性、union 成员）
+// 【TASK-090】计算型声明（Static<typeof …> / Extract<…> / typeof / 索引访问）
+// 无法与 vendored 字面展开做文本同构比对——跳过文本层，仅名集合层把关。
+const COMPUTED_DECL_RE = /\b(?:Static|Extract)\s*<|\btypeof\b|\[\s*"/;
+const isComputedDeclaration = (decl) => COMPUTED_DECL_RE.test(decl);
+
 const protocolDecls = new Map();
 for (const f of protocolFiles) {
   for (const [name, decl] of extractDeclarations(readFileSync(f, "utf-8"))) {
@@ -216,9 +302,14 @@ for (const f of protocolFiles) {
   }
 }
 const vendoredDecls = extractDeclarations(readFileSync(vendoredFile, "utf-8"));
+const nameOnlyCompared = [];
 for (const [name, decl] of protocolDecls) {
   const vendored = vendoredDecls.get(name);
   if (vendored === undefined) continue; // 缺失已由名集合层报告，不重复计数
+  if (isComputedDeclaration(decl)) {
+    nameOnlyCompared.push(name);
+    continue;
+  }
   if (vendored !== decl) {
     const clip = (s) => (s.length > 140 ? `${s.slice(0, 140)}…` : s);
     errors.push(
@@ -230,12 +321,48 @@ for (const [name, decl] of protocolDecls) {
   }
 }
 
+// 4.【TASK-092】函数级 vendored 比对（FUNCTION_CORPUS）：派生器逐字同步
+let functionBlocksCompared = 0;
+for (const corpus of FUNCTION_CORPUS) {
+  const protocolSrc = readFileSync(join(root, corpus.protocolPath), "utf-8");
+  const vendoredSrc = readFileSync(join(root, corpus.vendoredPath), "utf-8");
+  for (const name of corpus.names) {
+    const fromProtocol = extractNamedBlock(protocolSrc, name);
+    const fromVendored = extractNamedBlock(vendoredSrc, name);
+    if (fromProtocol === null || fromVendored === null) {
+      errors.push(
+        `函数级比对语料缺失「${name}」:\n` +
+          `  protocol(${corpus.protocolPath}): ${fromProtocol === null ? "未找到" : "已找到"}\n` +
+          `  vendored(${corpus.vendoredPath}): ${fromVendored === null ? "未找到" : "已找到"}`
+      );
+      continue;
+    }
+    functionBlocksCompared++;
+    if (fromProtocol !== fromVendored) {
+      const clip = (s) => (s.length > 160 ? `${s.slice(0, 160)}…` : s);
+      errors.push(
+        `vendored 副本「${name}」与 protocol 原文文本漂移（${corpus.label}）:\n` +
+          `  protocol: ${clip(fromProtocol)}\n` +
+          `  vendored: ${clip(fromVendored)}\n` +
+          `  → 请按 packages/protocol 侧原文逐字同步 ${corpus.vendoredPath}（该文件刻意只承载语料内的声明）`
+      );
+    }
+  }
+}
+
 if (errors.length > 0) {
   console.error("[protocol-sync] 契约副本不同步：\n");
   for (const e of errors) console.error(`  ✗ ${e}\n`);
   process.exit(1);
 }
 
+const textCompared = protocolDecls.size - nameOnlyCompared.length;
 console.log(
-  `[protocol-sync] OK：${protocolNames.size} 个契约类型名 + ${protocolDecls.size} 个声明文本逐字比对一致（AgentComponentStatus=${protocolStatus}）`
+  `[protocol-sync] OK：${protocolNames.size} 个契约类型名一致；` +
+    `${textCompared} 个字面声明逐字比对一致` +
+    (nameOnlyCompared.length > 0
+      ? `；${nameOnlyCompared.length} 个计算型声明仅名集合比对（${nameOnlyCompared.join(", ")}）`
+      : "") +
+    `；${functionBlocksCompared} 个函数级语料逐字比对一致` +
+    `（AgentComponentStatus=${protocolStatus}）`
 );
