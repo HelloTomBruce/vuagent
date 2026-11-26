@@ -105,10 +105,23 @@ registerCardComponent("ui_cluster_health", ClusterHealthCard);`,
 </template>
 
 <style scoped>
-.lh-steps { background: #141311; }
+.lh-steps {
+  /* 亮暗双主题：本地变量承载版块配色，.dark 祖先类翻转（与 tokens.css 的 .dark 块同机制） */
+  --_bg: #f7f5f1;
+  --_panel: #ffffff;
+  --_ink: #1a1917;
+  --_accent: #c2410c;
+}
+.dark .lh-steps {
+  --_bg: #141311;
+  --_panel: #1c1a17;
+  --_ink: #f0eee9;
+  --_accent: #e8925e;
+}
+.lh-steps { background: var(--_bg); }
 .lh-steps__inner { max-width: 1280px; margin: 0 auto; padding: 76px 32px; }
-.lh-sec-title { margin: 0; font-size: 34px; font-weight: 800; color: #f0eee9; }
-.lh-sec-sub { margin: 12px 0 0; font-size: 15px; color: rgba(240, 238, 233, 0.74); max-width: 780px; line-height: 1.8; }
+.lh-sec-title { margin: 0; font-size: 34px; font-weight: 800; color: var(--_ink); }
+.lh-sec-sub { margin: 12px 0 0; font-size: 15px; color: color-mix(in srgb, var(--_ink) 74%, transparent); max-width: 780px; line-height: 1.8; }
 .lh-steps__row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -117,8 +130,8 @@ registerCardComponent("ui_cluster_health", ClusterHealthCard);`,
   align-items: start;
 }
 .lh-steps__card {
-  background: #1c1a17;
-  border: 1px solid rgba(240, 238, 233, 0.14);
+  background: var(--_panel);
+  border: 1px solid color-mix(in srgb, var(--_ink) 14%, transparent);
   border-radius: 14px;
   overflow: hidden;
 }
@@ -127,15 +140,15 @@ registerCardComponent("ui_cluster_health", ClusterHealthCard);`,
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(240, 238, 233, 0.1);
+  border-bottom: 1px solid color-mix(in srgb, var(--_ink) 10%, transparent);
 }
 .lh-steps__num {
   width: 24px; height: 24px; border-radius: 50%;
-  background: var(--va-accent, #c2410c); color: #ffffff;
+  background: var(--va-accent, #c2410c); color: var(--va-accent-contrast, #ffffff);
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 700;
 }
-.lh-steps__title { font-size: 13px; font-weight: 700; color: #f0eee9; }
+.lh-steps__title { font-size: 13px; font-weight: 700; color: var(--_ink); }
 .lh-steps__codebox { position: relative; }
 .lh-steps__copy {
   position: absolute;
@@ -144,14 +157,14 @@ registerCardComponent("ui_cluster_health", ClusterHealthCard);`,
   z-index: 1;
   font-size: 11px;
   font-weight: 600;
-  color: rgba(240, 238, 233, 0.72);
-  background: rgba(20, 19, 17, 0.85);
-  border: 1px solid rgba(240, 238, 233, 0.2);
+  color: color-mix(in srgb, var(--_ink) 72%, transparent);
+  background: color-mix(in srgb, var(--_bg) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--_ink) 20%, transparent);
   border-radius: 6px;
   padding: 3px 9px;
   cursor: pointer;
 }
-.lh-steps__copy:hover { color: #e8925e; border-color: #e8925e; }
+.lh-steps__copy:hover { color: var(--_accent); border-color: var(--_accent); }
 .lh-steps__code {
   margin: 0;
   padding: 14px 16px 16px;
@@ -159,7 +172,7 @@ registerCardComponent("ui_cluster_health", ClusterHealthCard);`,
   font-family: var(--va-font-mono, ui-monospace, monospace);
   font-size: 12px;
   line-height: 1.75;
-  color: var(--ink-inverse, #f0eee9);
+  color: var(--ink-inverse, #e8e6e3);
   overflow-x: auto;
   min-height: 240px;
   white-space: pre;
@@ -170,30 +183,30 @@ registerCardComponent("ui_cluster_health", ClusterHealthCard);`,
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  background: #1c1a17;
-  border: 1px solid rgba(232, 146, 94, 0.28);
+  background: var(--_panel);
+  border: 1px solid color-mix(in srgb, var(--_accent) 28%, transparent);
   border-radius: 12px;
   padding: 14px 18px;
 }
 .lh-steps__cta-cmd {
   font-family: var(--va-font-mono, ui-monospace, monospace);
   font-size: 14px;
-  color: #f0eee9;
+  color: var(--_ink);
   overflow-x: auto;
   white-space: nowrap;
 }
-.lh-steps__cta-cmd .dollar { color: #e8925e; margin-right: 8px; }
+.lh-steps__cta-cmd .dollar { color: var(--_accent); margin-right: 8px; }
 .lh-steps__cta-copy {
   font-size: 12px;
   font-weight: 600;
-  color: #f0eee9;
+  color: var(--_ink);
   background: none;
-  border: 1px solid rgba(240, 238, 233, 0.22);
+  border: 1px solid color-mix(in srgb, var(--_ink) 22%, transparent);
   border-radius: 6px;
   padding: 5px 12px;
   cursor: pointer;
 }
-.lh-steps__cta-copy:hover { color: #e8925e; border-color: #e8925e; }
+.lh-steps__cta-copy:hover { color: var(--_accent); border-color: var(--_accent); }
 .lh-steps__cta-btn {
   margin-left: auto;
   font-size: 13px;
@@ -201,10 +214,10 @@ registerCardComponent("ui_cluster_health", ClusterHealthCard);`,
   padding: 9px 20px;
   border-radius: 8px;
   background: var(--va-accent, #c2410c);
-  color: #ffffff;
+  color: var(--va-accent-contrast, #ffffff);
   text-decoration: none;
 }
-.lh-steps__cta-btn:hover { background: #d9531e; }
+.lh-steps__cta-btn:hover { background: var(--va-accent-hover, #d9531e); }
 @media (max-width: 1100px) {
   .lh-steps__row { grid-template-columns: 1fr; }
   .lh-steps__code { min-height: 0; }

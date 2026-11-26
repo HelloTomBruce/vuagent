@@ -15,6 +15,7 @@ import {
   VaFileTree,
   VaCheckpointList,
   VaChangeSummary,
+  VaForm,
 } from "@vuagent/ui";
 
 // 审批卡片状态
@@ -222,6 +223,48 @@ function handleOpenSummaryFile(file) {
 
 function handleSummaryToggleAll() {
   // 展开/收起长列表，折叠态由组件内部维护
+}
+
+// ---------- 15. VaForm（ui_form 表单卡） ----------
+// 六型字段演示：text / textarea / number / boolean / select / date + secret / unit / required
+const formFields = [
+  {
+    key: "environment",
+    label: "目标环境",
+    type: "select",
+    required: true,
+    description: "表单值为数据而非指令：模型只读取摘要，不解析字段语义之外的任何内容",
+    options: [
+      { value: "staging", label: "预发环境" },
+      { value: "production", label: "生产环境" },
+    ],
+  },
+  { key: "replicas", label: "副本数", type: "number", required: true, unit: "个", default: 2 },
+  { key: "ticket", label: "变更单号", type: "text", required: true, placeholder: "如 CHG-2024-0891" },
+  { key: "reason", label: "变更原因", type: "textarea", placeholder: "为什么需要这次扩容" },
+  { key: "autoRestart", label: "完成后自动重启", type: "boolean", default: false },
+  { key: "window", label: "执行窗口", type: "date" },
+  { key: "apiToken", label: "部署令牌", type: "text", secret: true, placeholder: "值不进模型上下文" },
+];
+const formEventLog = ref("等待操作：提交或取消后此处回显信封形态");
+const formFieldErrors = ref({});
+const formLoading = ref(false);
+
+function handleFormSubmit(values, editedFields) {
+  // 模拟 server 边界校验：变更单号必须 CHG- 前缀 → 422 + fieldErrors 重填闭环
+  if (typeof values.ticket === "string" && !values.ticket.startsWith("CHG-")) {
+    formFieldErrors.value = { ticket: "变更单号必须以 CHG- 开头（server 422 回填）" };
+    formEventLog.value = "⏳ server 422 ACTION_VALIDATION_FAILED：错误就地回显，修正后重提（值不丢失）";
+    return;
+  }
+  formFieldErrors.value = {};
+  formEventLog.value =
+    `✅ 信封送达：{ kind: "submit", values: ${Object.keys(values).length} 键, meta.editedFields: [${editedFields.join(", ") || "无"}] }` +
+    (values.apiToken ? ` · apiToken 只见 ${"«ref»"} 占位` : "");
+}
+
+function handleFormCancel() {
+  formEventLog.value = '🚫 信封送达：{ kind: "cancel" } —— 取消是一等公民而非错误，模型会感知"用户放弃"而非报错重试';
 }
 </script>
 
@@ -560,3 +603,130 @@ Agent 一轮工作的变更摘要卡：文件数与增删行数统计、耗时�
     @toggle-all="handleSummaryToggleAll"
   />
 </div>
+
+---
+
+## 15. VaForm — Agent 表单卡（ui_form）
+
+L2 值采集表单卡：Agent 需要用户补充结构化信息（参数、配置、凭证）时，服务端调用 `ui_form` 工具渲染表单并**挂起等待填写**（无审批流程，`L2 挂起 ≠ 审批`）。提交/取消以 **UIActionEnvelope 信封**回传服务端，模型收到的是语义摘要而非裸 JSON。
+
+### 交互效果预览
+
+<div class="demo-preview vp-raw">
+  <div class="demo-title">七字段表单：故意填一个非 CHG- 开头的单号提交，体验 server 422 fieldErrors 重填闭环；secret 字段值不进模型上下文</div>
+  <VaForm
+    title="生产环境扩容确认单"
+    description="请补充本次扩容的目标环境与变更单号，敏感令牌走 secret 通道。"
+    :fields="formFields"
+    :field-errors="formFieldErrors"
+    :loading="formLoading"
+    submit-label="确认提交"
+    @submit="handleFormSubmit"
+    @cancel="handleFormCancel"
+  />
+  <p style="margin-top:12px;font-size:13px;color:var(--vp-c-text-2)">{{ formEventLog }}</p>
+</div>
+
+### 代码示例
+
+```vue
+<script setup lang="ts">
+import { ref } from "vue";
+import { VaForm } from "@vuagent/ui";
+import type { FormFieldItem } from "@vuagent/ui";
+
+// 字段定义与服务端 ui_form 工具入参同源（FormToolSchema）
+const fields: FormFieldItem[] = [
+  { key: "environment", label: "目标环境", type: "select", required: true,
+    options: [{ value: "staging", label: "预发环境" }, { value: "production", label: "生产环境" }] },
+  { key: "replicas", label: "副本数", type: "number", required: true, unit: "个", default: 2 },
+  { key: "ticket", label: "变更单号", type: "text", required: true },
+  { key: "apiToken", label: "部署令牌", type: "text", secret: true },
+];
+
+// 宿主把事件桥接为信封提交（useAgentChat 场景由 propAdapter 自动完成，见自定义交互组件指南）
+const toolCallId = "call_abc123";
+const serverFieldErrors = ref<Record<string, string>>({});
+
+async function onSubmit(values: Record<string, unknown>, editedFields: string[]) {
+  const res = await fetch(`/api/action/${toolCallId}`, {
+    method: "POST",
+    body: JSON.stringify({ kind: "submit", values, meta: { editedFields } }),
+  });
+  // 422：值非法不唤醒模型——回填 fieldErrors 让用户就地重填
+  if (res.status === 422) {
+    const { fieldErrors } = await res.json();
+    serverFieldErrors.value = fieldErrors;
+  }
+}
+
+function onCancel() {
+  void fetch(`/api/action/${toolCallId}`, {
+    method: "POST",
+    body: JSON.stringify({ kind: "cancel" }),
+  });
+}
+</script>
+
+<template>
+  <VaForm
+    title="生产环境扩容确认单"
+    description="请补充目标环境与变更单号。"
+    :fields="fields"
+    :field-errors="serverFieldErrors"
+    @submit="onSubmit"
+    @cancel="onCancel"
+  />
+</template>
+```
+
+### Props
+
+| Prop | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `title` | `string` | `-` | 表单标题（缺省不渲染头部） |
+| `description` | `string` | `-` | 为什么需要这些信息（模型给用户的说明） |
+| `fields` | `FormFieldItem[]` | `-` | 字段定义列表（六型，见下表；与 `ui_form` 工具入参 `FormToolSchema` 同源） |
+| `submitLabel` | `string` | `"提交"` | 提交按钮文案 |
+| `cancelLabel` | `string` | `"取消"` | 取消按钮文案 |
+| `disabled` | `boolean` | `false` | 非 `executing` 态禁用整表（渲染层守卫的双保险视觉位） |
+| `loading` | `boolean` | `false` | 提交进行中（禁用提交按钮） |
+| `fieldErrors` | `Record<string, string>` | `-` | server 422 / 本地预校验回填的逐字段错误（`form-errors` 响应式通道） |
+
+### 事件
+
+| 事件 | 载荷 | 对应信封 |
+|---|---|---|
+| `submit` | `(values: Record<string, unknown>, editedFields: string[])` | `{ kind: "submit", values, meta: { editedFields } }` |
+| `cancel` | - | `{ kind: "cancel" }` |
+
+`editedFields` 是用户**亲自修改过**的字段 key（预填默认值透传不计入）——进入信封 `meta.editedFields`，模型据此区分「用户确认过」与「默认值照抄」。
+
+### 六型字段（FormFieldItem）
+
+| `type` | 控件 | 回传类型 | 字段特有属性 |
+|---|---|---|---|
+| `text` | 单行输入 | `string` | `placeholder` |
+| `textarea` | 多行输入 | `string` | `placeholder` |
+| `number` | 数字输入 | `number` | `unit`（单位后缀） |
+| `boolean` | 开关 | `boolean` | - |
+| `select` | 下拉选择 | `string`（枚举机器值） | `options: [{ value, label }]` |
+| `date` | 日期选择 | `string`（ISO） | - |
+
+全部字段通用属性：`key`（回传 values 的键）、`label`、`description`（同时进入摘要词汇表）、`required`（必填星标 + 顶层 required 约束）、`default`（预填默认值）、`secret`（敏感字段）、`placeholder`。
+
+`resultSchema` **由 `fields` 派生**（`deriveFormResultSchema`），模型不允许自行声明——字段是输入、校验规则是推导结果，防止模型通过自定义 Schema 放宽服务端校验。
+
+### fieldErrors 重填闭环（§4.2）
+
+服务端边界校验（TypeBox `Value.Check`）失败时返回 **422 + 结构化 `fieldErrors`**（不唤醒模型、不落账）；错误经 `form-errors` 响应式通道回填到 `fieldErrors` prop，对应字段就地显示错误，**已填值保留**。用户修正后重提：用户改过的字段其旧错误自动失效隐藏（`editedSinceSubmit`），直至校验通过才唤醒挂起的协程。本地预校验（required/类型收敛）失败不发请求，直接走同一错误通道。
+
+### secret 通道（§5 敏感值通道）
+
+`secret: true` 字段以密码态输入并带「敏感」徽章与显隐切换；提交后在**服务端路由边界剥离入库 secret store**，模型上下文 / 工具轨迹台账 / 会话落库只见 `{ ref, masked }` 占位——模型只知道「用户已提供凭证（引用 ref）」，永远拿不到明文。摘要与 JSON 附录中同样内置打码。
+
+### 协议要点
+
+- `ui_form` 服务端声明 `interaction: { level: "L2", timeoutMeaning: "cancel" }`：无审批挂起（`requiresApproval=false`），任何权限模式直接等待填写；**超时 = 用户放弃**（cancel 语义，绝不映射为 submit——半成品值不得当作用户意图）。
+- `kind: "patch"`（L3 增量编辑）：仅对「声明 L3 且挂起仍存活」的协作组件生效（如 `ui_agent_plan collaborative`）——增量值写入服务端 PatchStash 并返回 `200 {accepted:true}`（不唤醒协程）；挂起已终结返回 422 `PATCH_UNSUPPORTED`，诚实告知「增量值未生效」。
+- 自定义你自己的交互组件（L1/L2/L3 声明、`onSubmitAction` 信封通道）见指南[「自定义交互组件」](/guide/custom-interactive-components)。

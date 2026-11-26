@@ -4,7 +4,7 @@
 [![docs](https://img.shields.io/badge/docs-hellotombruce.github.io%2Fvuagent-c2410c)](https://hellotombruce.github.io/vuagent/)
 [![license](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
-> Vue 生态第一个 Agent Ops 工具箱：共享契约层 + 自研 Agent Harness 服务端 + 82 个运行时操作组件（计划 / 审批 / 工具调用 / 上下文 / 收件箱）。
+> Vue 生态第一个 Agent Ops 工具箱：共享契约层 + 自研 Agent Harness 服务端 + 83 个运行时操作组件（计划 / 审批 / 表单 / 工具调用 / 上下文 / 收件箱）。
 
 ## 定位
 
@@ -29,20 +29,21 @@ AI agent 产品缺的不是又一个聊天壳，而是完整的**运行时操作
                    ▼                                               │
    @vuagent/server ──────────── SSE 事件流 ───────────────▶ @vuagent/ui
    Agent Harness 服务端                                     Agent Ops 组件库（Vue 3）
-   ReAct 循环 · HITL 审批挂起 · 工具沙箱                      82 个强类型组件
+   ReAct 循环 · HITL 审批挂起 · 工具沙箱                      83 个强类型组件
    会话检查点 · 断线重连 · 双轨可观测                         useAgentChat 流式状态机
                    ▲                                       注册表 + 动态渲染分发器
                    └────────── POST /api/action/:id ◀─────────┘
-                        HITL 审批决策回传（唤醒挂起协程）
+                 HITL 交互回传（统一信封 submit · cancel · patch：
+                 审批决策 / 表单值采集 / 协作计划增量，唤醒挂起协程）
 ```
 
 | 包 | 层 | 一句话 |
 |---|---|---|
-| [@vuagent/protocol](./packages/protocol/README.md) | 契约层 | TypeBox Schema 单一事实来源：18 事件流、10 个 ui_* 工具 + 8 个系统工具 Schema（含 finish_task 显式终态声明）、组件四态生命周期；schema 单向推导类型，杜绝双事实来源漂移 |
+| [@vuagent/protocol](./packages/protocol/README.md) | 契约层 | TypeBox Schema 单一事实来源：18 事件流、11 个 ui_* 工具 Schema（含 ui_form 表单）、交互契约（回传信封 submit/cancel/patch + 组件交互分级声明 L0–L3）、组件四态生命周期；schema 单向推导类型，杜绝双事实来源漂移 |
 | [@vuagent/server](./packages/server/README.md) | 执行层 | 自研 Agent Harness：执行与 HTTP 连接解耦（断线重连/多端订阅）、权限交集 + deny-wins 审批、token 口径上下文压缩、诚实崩溃恢复、供应商 1:N 模型分层 |
-| [@vuagent/ui](./packages/ui/README.md) | 界面层 | 82 个组件 + Agent Runtime 子系统（流式状态机 / 渲染分发器 / 动作回传），npm 整包与 shadcn-vue 单文件拷贝双通道分发 |
+| [@vuagent/ui](./packages/ui/README.md) | 界面层 | 83 个组件 + Agent Runtime 子系统（流式状态机 / 渲染分发器 / 交互信封回传），npm 整包与 shadcn-vue 单文件拷贝双通道分发 |
 
-**一次对话的数据流**：宿主应用经 ui 的流式状态机发起请求 → server 的 ReAct 循环驱动模型与工具，执行过程以 `HarnessStreamEvent`（18 事件）经 SSE 推送 → ui 的渲染分发器把事件收敛为「文本块 + 组件块」混排流渐进渲染；高风险工具挂起等待审批，用户决策经 `/api/action` 回传唤醒执行链路。链路上的每一个字段都出自 protocol——三端永远对着同一份 Schema 说话。
+**一次对话的数据流**：宿主应用经 ui 的流式状态机发起请求 → server 的 ReAct 循环驱动模型与工具，执行过程以 `HarnessStreamEvent`（18 事件）经 SSE 推送 → ui 的渲染分发器把事件收敛为「文本块 + 组件块」混排流渐进渲染；高风险工具挂起等待审批，表单（ui_form）与协作计划（ui_agent_plan `collaborative`）挂起等待人工输入，用户的决策与值以统一交互信封（`submit` / `cancel` / `patch`）经 `/api/action` 回传唤醒执行链路。链路上的每一个字段都出自 protocol——三端永远对着同一份 Schema 说话。
 
 [`apps/playground`](./apps/playground) 是三包集成的参考宿主：以 ui 组件 + protocol 契约构建，运行时经 HTTP/SSE 与 server 进程通信（本地 `pnpm console` 同时拉起两进程）——「界面与执行解耦」架构的活示例。内置的模型设置面板演示**供应商 1:N 模型分层**：端点与凭证在供应商层配置一次，其下挂载任意多模型；`/models/discover` 从供应商端点拉取模型列表并自动探测能力元数据（上下文窗口 / 输入模态 / 推理档位）。能力声明同时驱动运行时行为（保守策略，未声明不发）：推理档位选择器 → `reasoning_effort` / thinking budget、图片附件 → 多模态 content parts、输出上限 → `max_tokens`，推理与缓存 token 分档计价。
 
@@ -50,7 +51,7 @@ AI agent 产品缺的不是又一个聊天壳，而是完整的**运行时操作
 
 | 分类 | 一句话 | 代表组件 |
 |---|---|---|
-| [Agent-Ops](https://hellotombruce.github.io/vuagent/components/trajectory) | 轨迹 / 计划 / 审批 / 上下文 / 收件箱 / 代码变更 | VaTrajectory · VaAgentPlan · VaApprovalCard · VaContextWindow · VaCodeDiff · VaTerminalLog |
+| [Agent-Ops](https://hellotombruce.github.io/vuagent/components/trajectory) | 轨迹 / 计划 / 审批 / 表单 / 上下文 / 收件箱 / 代码变更 | VaTrajectory · VaAgentPlan · VaApprovalCard · VaForm · VaContextWindow · VaCodeDiff · VaTerminalLog |
 | [Chat](https://hellotombruce.github.io/vuagent/components/agent-chat) | 对话页骨架 / 输入 / 会话管理 / 流式回答 | VaAgentChat · VaComposer · VaSessionTree · VaStreamAnswer |
 | [基础](https://hellotombruce.github.io/vuagent/components/button) | 按钮 / 分段控件 / 全局通知 / 骨架 / 命令面板 | VaButton · VaSegmentedControl · VaToaster · VaCommandMenu |
 | [动效](https://hellotombruce.github.io/vuagent/components/text-reveal) | 入场 / 背景 / 3D 倾斜 / 模糊过渡 | VaTextReveal · VaGridBackground · VaTiltCard |

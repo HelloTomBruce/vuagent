@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { VaApprovalCard } from "@vuagent/ui";
+import { VaApprovalCard, VaForm } from "@vuagent/ui";
 import { withBase } from "vitepress";
 
 const detail = `{
@@ -12,20 +12,29 @@ const detail = `{
 
 const steps = [
   {
-    num: "1",
-    title: "挂起",
-    desc: "工具声明 requiresApproval: true——模型发起调用后，执行协程在工具边界挂起，SSE 推送 action_suspended 事件。",
+    num: "L1",
+    title: "审批决策",
+    desc: "高风险操作先过人这一关：VaApprovalCard 呈现风险与参数预览，批准放行、驳回以非错误摘要唤醒——模型明确「这是用户的决定」，不重试轰炸。",
   },
   {
-    num: "2",
-    title: "人工决策",
-    desc: "宿主界面弹出 VaApprovalCard：风险徽章 + 参数预览 + 决策回传。批准或驳回，都在用户手里。",
+    num: "L2",
+    title: "表单采集",
+    desc: "ui_form 六型字段挂起等填写：必填缺失就地回显修正，secret 字段打码为占位引用——模型精确理解每个值，却永远看不到令牌明文。",
   },
   {
-    num: "3",
-    title: "唤醒执行",
-    desc: "POST /api/action/:id 回传决策，挂起协程恢复执行；驳回则按拒绝语义干净终止，不留悬挂操作。",
+    num: "L3",
+    title: "协作计划",
+    desc: "agent_plan 进入协作态：编辑步骤以 patch 增量暂存（不唤醒模型），点「确认」合并为最终计划——Agent 按用户改完的计划继续跑。",
   },
+];
+
+const formFields = [
+  { key: "env", label: "部署环境", type: "select", required: true, options: [
+    { value: "production", label: "生产（8C16G）" },
+    { value: "staging", label: "预发（4C8G）" },
+  ] },
+  { key: "replicas", label: "副本数", type: "number", unit: "个", default: 2 },
+  { key: "apiKey", label: "访问令牌", type: "text", secret: true, required: true },
 ];
 </script>
 
@@ -33,11 +42,11 @@ const steps = [
   <section class="lh-hitl">
     <div class="lh-hitl__inner">
       <div class="lh-hitl__copy">
-        <h2 class="lh-sec-title">危险操作，先过人这一关</h2>
+        <h2 class="lh-sec-title">可交互组件：Agent 不只输出，还会提问</h2>
         <p class="lh-sec-sub">
-          Agent Ops 的核心不是让 agent 更快，而是让高风险动作可控。HITL（Human-in-the-Loop）
-          在 vuagent 是从协议到像素的一条链：挂起是 wire protocol 的一等事件，决策端点、
-          审批卡组件、断线重连后的卡片重建全部内建——多数框架只给挂起原语，界面留给宿主自己写。
+          HITL 在 vuagent 是从协议到像素的一条链：挂起是 wire protocol 的一等事件，回传统一走
+          交互信封（submit / cancel / patch），决策端点、表单卡、协作计划、断线重连后的卡片重建
+          全部内建——多数框架只给挂起原语，界面留给宿主自己写。三级能力，注册时声明即得。
         </p>
         <div class="lh-hitl__steps">
           <div v-for="s in steps" :key="s.num" class="lh-hitl__step">
@@ -48,7 +57,7 @@ const steps = [
             </div>
           </div>
         </div>
-        <p class="lh-hitl__note">右侧就是真实的 VaApprovalCard 组件——不是截图，你现在就可以和它交互。</p>
+        <p class="lh-hitl__note">右侧是真实的 VaApprovalCard 与 VaForm——不是截图，你现在就可以和它们交互。</p>
       </div>
       <div class="lh-hitl__card">
         <VaApprovalCard
@@ -56,9 +65,14 @@ const steps = [
           :detail="detail"
           risk="high"
         />
-        <p class="lh-hitl__card-note">order-service 副本扩容 · 等待工程师拍板</p>
+        <VaForm
+          title="创建生产部署 — 参数采集"
+          description="示例：agent 向你收集部署参数（演示数据，不会真实提交）"
+          :fields="formFields"
+          submit-label="提交部署参数"
+        />
         <div class="lh-hitl__ctas">
-          <a class="lh-hitl__cta lh-hitl__cta--primary" :href="withBase('/guide/getting-started')">阅读接入指南</a>
+          <a class="lh-hitl__cta lh-hitl__cta--primary" :href="withBase('/guide/interactive-components')">了解可交互组件</a>
           <a
             class="lh-hitl__cta"
             href="https://github.com/HelloTomBruce/vuagent/tree/main/examples/agent-gallery"
@@ -73,8 +87,21 @@ const steps = [
 
 <style scoped>
 .lh-hitl {
-  background: #141311;
-  border-top: 1px solid rgba(240, 238, 233, 0.08);
+  /* 亮暗双主题：本地变量承载版块配色，.dark 祖先类翻转（与 tokens.css 的 .dark 块同机制） */
+  --_bg: #f7f5f1;
+  --_panel: #ffffff;
+  --_ink: #1a1917;
+  --_accent: #c2410c;
+}
+.dark .lh-hitl {
+  --_bg: #141311;
+  --_panel: #1c1a17;
+  --_ink: #f0eee9;
+  --_accent: #e8925e;
+}
+.lh-hitl {
+  background: var(--_bg);
+  border-top: 1px solid color-mix(in srgb, var(--_ink) 8%, transparent);
 }
 .lh-hitl__inner {
   max-width: 1280px;
@@ -89,12 +116,12 @@ const steps = [
   margin: 0;
   font-size: 34px;
   font-weight: 800;
-  color: #f0eee9;
+  color: var(--_ink);
 }
 .lh-sec-sub {
   margin: 14px 0 0;
   font-size: 15px;
-  color: rgba(240, 238, 233, 0.74);
+  color: color-mix(in srgb, var(--_ink) 74%, transparent);
   line-height: 1.85;
 }
 .lh-hitl__steps {
@@ -106,16 +133,16 @@ const steps = [
 .lh-hitl__step { display: flex; gap: 14px; align-items: flex-start; }
 .lh-hitl__num {
   width: 30px; height: 30px; border-radius: 50%;
-  background: var(--va-accent, #c2410c); color: #ffffff;
+  background: var(--va-accent, #c2410c); color: var(--va-accent-contrast, #ffffff);
   display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 700; flex-shrink: 0;
+  font-size: 13px; font-weight: 700; flex-shrink: 0;
 }
-.lh-hitl__step-title { font-size: 16px; font-weight: 700; color: #f0eee9; }
-.lh-hitl__step-desc { font-size: 13px; color: rgba(240, 238, 233, 0.74); line-height: 1.75; margin: 5px 0 0; }
+.lh-hitl__step-title { font-size: 16px; font-weight: 700; color: var(--_ink); }
+.lh-hitl__step-desc { font-size: 13px; color: color-mix(in srgb, var(--_ink) 74%, transparent); line-height: 1.75; margin: 5px 0 0; }
 .lh-hitl__note {
   margin: 26px 0 0;
   font-size: 12px;
-  color: #e8925e;
+  color: var(--_accent);
   letter-spacing: 0.03em;
 }
 .lh-hitl__card {
@@ -126,12 +153,6 @@ const steps = [
   justify-self: center;
   width: 100%;
 }
-.lh-hitl__card-note {
-  font-size: 12px;
-  color: rgba(240, 238, 233, 0.72);
-  text-align: center;
-  font-family: var(--va-font-mono, ui-monospace, monospace);
-}
 .lh-hitl__ctas { display: flex; gap: 12px; flex-wrap: wrap; }
 .lh-hitl__cta {
   display: inline-flex;
@@ -141,18 +162,18 @@ const steps = [
   font-weight: 600;
   padding: 9px 18px;
   border-radius: 8px;
-  border: 1px solid rgba(240, 238, 233, 0.22);
-  color: #f0eee9;
+  border: 1px solid color-mix(in srgb, var(--_ink) 22%, transparent);
+  color: var(--_ink);
   text-decoration: none;
   transition: all 0.15s;
 }
-.lh-hitl__cta:hover { border-color: #e8925e; color: #e8925e; }
+.lh-hitl__cta:hover { border-color: var(--_accent); color: var(--_accent); }
 .lh-hitl__cta--primary {
   background: var(--va-accent, #c2410c);
   border-color: var(--va-accent, #c2410c);
-  color: #ffffff;
+  color: var(--va-accent-contrast, #ffffff);
 }
-.lh-hitl__cta--primary:hover { background: #d9531e; color: #ffffff; }
+.lh-hitl__cta--primary:hover { background: var(--va-accent-hover, #d9531e); color: var(--va-accent-contrast, #ffffff); }
 @media (max-width: 960px) {
   .lh-hitl__inner { grid-template-columns: 1fr; gap: 36px; padding: 56px 20px; }
 }

@@ -75,7 +75,20 @@ const specs = [
 
 <style scoped>
 .lh-trust {
-  background: #141311;
+  /* 亮暗双主题：本地变量承载版块配色，.dark 祖先类翻转（与 tokens.css 的 .dark 块同机制） */
+  --_bg: #f7f5f1;
+  --_panel: #ffffff;
+  --_ink: #1a1917;
+  --_accent: #c2410c;
+}
+.dark .lh-trust {
+  --_bg: #141311;
+  --_panel: #1c1a17;
+  --_ink: #f0eee9;
+  --_accent: #e8925e;
+}
+.lh-trust {
+  background: var(--_bg);
 }
 .lh-trust__inner { max-width: 1280px; margin: 0 auto; padding: 64px 32px 40px; }
 
@@ -84,8 +97,8 @@ const specs = [
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  background: #1c1a17;
-  border: 1px solid rgba(232, 146, 94, 0.28);
+  background: var(--_panel);
+  border: 1px solid color-mix(in srgb, var(--_accent) 28%, transparent);
   border-radius: 12px;
   padding: 14px 18px;
   margin-bottom: 56px;
@@ -93,22 +106,22 @@ const specs = [
 .lh-trust__cmd {
   font-family: var(--va-font-mono, ui-monospace, monospace);
   font-size: 14px;
-  color: #f0eee9;
+  color: var(--_ink);
   overflow-x: auto;
   white-space: nowrap;
 }
-.lh-trust__cmd .dollar { color: #e8925e; margin-right: 8px; }
+.lh-trust__cmd .dollar { color: var(--_accent); margin-right: 8px; }
 .lh-trust__copy {
   font-size: 12px;
   font-weight: 600;
-  color: #f0eee9;
+  color: var(--_ink);
   background: none;
-  border: 1px solid rgba(240, 238, 233, 0.22);
+  border: 1px solid color-mix(in srgb, var(--_ink) 22%, transparent);
   border-radius: 6px;
   padding: 5px 12px;
   cursor: pointer;
 }
-.lh-trust__copy:hover { color: #e8925e; border-color: #e8925e; }
+.lh-trust__copy:hover { color: var(--_accent); border-color: var(--_accent); }
 .lh-trust__cta-btn {
   margin-left: auto;
   font-size: 13px;
@@ -116,19 +129,19 @@ const specs = [
   padding: 9px 20px;
   border-radius: 8px;
   background: var(--va-accent, #c2410c);
-  color: #ffffff;
+  color: var(--va-accent-contrast, #ffffff);
   text-decoration: none;
 }
-.lh-trust__cta-btn:hover { background: #d9531e; }
+.lh-trust__cta-btn:hover { background: var(--va-accent-hover, #d9531e); }
 
-.lh-sec-title { margin: 0 0 22px; font-size: 30px; font-weight: 800; color: #f0eee9; }
+.lh-sec-title { margin: 0 0 22px; font-size: 30px; font-weight: 800; color: var(--_ink); }
 .lh-trust__evidence {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 12px;
 }
 .lh-trust__ev {
-  border: 1px solid rgba(240, 238, 233, 0.14);
+  border: 1px solid color-mix(in srgb, var(--_ink) 14%, transparent);
   border-radius: 12px;
   padding: 14px 16px;
   text-decoration: none;
@@ -137,9 +150,9 @@ const specs = [
   gap: 5px;
   transition: border-color 0.15s;
 }
-.lh-trust__ev:hover { border-color: #e8925e; }
-.lh-trust__ev-label { font-size: 14px; font-weight: 700; color: #f0eee9; }
-.lh-trust__ev-note { font-size: 12px; color: rgba(240, 238, 233, 0.72); line-height: 1.6; }
+.lh-trust__ev:hover { border-color: var(--_accent); }
+.lh-trust__ev-label { font-size: 14px; font-weight: 700; color: var(--_ink); }
+.lh-trust__ev-note { font-size: 12px; color: color-mix(in srgb, var(--_ink) 72%, transparent); line-height: 1.6; }
 
 .lh-trust__specs {
   display: grid;
@@ -148,28 +161,28 @@ const specs = [
   margin-top: 40px;
 }
 .lh-trust__spec {
-  border: 1px solid rgba(240, 238, 233, 0.1);
+  border: 1px solid color-mix(in srgb, var(--_ink) 10%, transparent);
   border-radius: 12px;
   padding: 14px 16px;
 }
-.lh-trust__spec-title { font-size: 13px; font-weight: 700; color: rgba(240, 238, 233, 0.9); }
-.lh-trust__spec-desc { font-size: 12px; color: rgba(240, 238, 233, 0.72); line-height: 1.7; margin: 6px 0 0; }
+.lh-trust__spec-title { font-size: 13px; font-weight: 700; color: color-mix(in srgb, var(--_ink) 90%, transparent); }
+.lh-trust__spec-desc { font-size: 12px; color: color-mix(in srgb, var(--_ink) 72%, transparent); line-height: 1.7; margin: 6px 0 0; }
 
 .lh-trust__footer {
   margin-top: 48px;
   padding-top: 22px;
-  border-top: 1px solid rgba(240, 238, 233, 0.12);
+  border-top: 1px solid color-mix(in srgb, var(--_ink) 12%, transparent);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
 }
-.lh-trust__brand { font-size: 22px; font-weight: 800; color: #f0eee9; }
+.lh-trust__brand { font-size: 22px; font-weight: 800; color: var(--_ink); }
 .lh-trust__brand .dot { color: var(--va-accent, #c2410c); }
 .lh-trust__meta {
   font-size: 12px;
-  color: rgba(240, 238, 233, 0.72);
+  color: color-mix(in srgb, var(--_ink) 72%, transparent);
   font-family: var(--va-font-mono, ui-monospace, monospace);
 }
 </style>

@@ -15,7 +15,7 @@ const packages = [
   {
     pkg: "@vuagent/ui",
     title: "界面层",
-    desc: "79 个强类型运行时组件 + 渲染分发器：SSE 事件流收敛为「文本 + 组件」混排流，npm 整包与 shadcn-vue 单文件拷贝双通道分发。",
+    desc: "83 个强类型运行时组件 + 渲染分发器：SSE 事件流收敛为「文本 + 组件」混排流，npm 整包与 shadcn-vue 单文件拷贝双通道分发。",
     tag: "Vue 3.5",
   },
 ];
@@ -43,8 +43,21 @@ const packages = [
 
 <style scoped>
 .lh-arch {
-  background: #141311;
-  border-top: 1px solid rgba(240, 238, 233, 0.08);
+  /* 亮暗双主题：本地变量承载版块配色，.dark 祖先类翻转（与 tokens.css 的 .dark 块同机制） */
+  --_bg: #f7f5f1;
+  --_panel: #ffffff;
+  --_ink: #1a1917;
+  --_accent: #c2410c;
+}
+.dark .lh-arch {
+  --_bg: #141311;
+  --_panel: #1c1a17;
+  --_ink: #f0eee9;
+  --_accent: #e8925e;
+}
+.lh-arch {
+  background: var(--_bg);
+  border-top: 1px solid color-mix(in srgb, var(--_ink) 8%, transparent);
 }
 .lh-arch__inner {
   max-width: 1280px;
@@ -55,12 +68,12 @@ const packages = [
   margin: 0;
   font-size: 34px;
   font-weight: 800;
-  color: #f0eee9;
+  color: var(--_ink);
 }
 .lh-sec-sub {
   margin: 12px 0 0;
   font-size: 16px;
-  color: rgba(240, 238, 233, 0.72);
+  color: color-mix(in srgb, var(--_ink) 72%, transparent);
   max-width: 760px;
   line-height: 1.8;
 }
@@ -71,33 +84,33 @@ const packages = [
 }
 .lh-arch__card {
   flex: 1;
-  background: #1c1a17;
-  border: 1px solid rgba(240, 238, 233, 0.14);
+  background: var(--_panel);
+  border: 1px solid color-mix(in srgb, var(--_ink) 14%, transparent);
   border-radius: 16px;
   padding: 26px 28px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.lh-arch__card:hover { border-color: rgba(232, 146, 94, 0.4); }
+.lh-arch__card:hover { border-color: color-mix(in srgb, var(--_accent) 40%, transparent); }
 .lh-arch__pkg {
   width: fit-content;
   font-family: var(--va-font-mono, ui-monospace, monospace);
   font-size: 13px;
   font-weight: 700;
-  color: #e8925e;
-  background: rgba(232, 146, 94, 0.1);
+  color: var(--_accent);
+  background: color-mix(in srgb, var(--_accent) 10%, transparent);
   border-radius: 999px;
   padding: 4px 13px;
 }
-.lh-arch__title { font-size: 26px; font-weight: 700; color: #f0eee9; }
-.lh-arch__desc { font-size: 14px; color: rgba(240, 238, 233, 0.72); line-height: 1.8; flex: 1; }
+.lh-arch__title { font-size: 26px; font-weight: 700; color: var(--_ink); }
+.lh-arch__desc { font-size: 14px; color: color-mix(in srgb, var(--_ink) 72%, transparent); line-height: 1.8; flex: 1; }
 .lh-arch__tag {
   width: fit-content;
   font-size: 11px;
   font-weight: 600;
-  color: rgba(240, 238, 233, 0.72);
-  border: 1px solid rgba(240, 238, 233, 0.2);
+  color: color-mix(in srgb, var(--_ink) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--_ink) 20%, transparent);
   border-radius: 6px;
   padding: 2px 9px;
 }
@@ -106,7 +119,7 @@ const packages = [
   align-items: center;
   justify-content: center;
   width: 56px;
-  color: #e8925e;
+  color: var(--_accent);
   font-size: 28px;
   font-weight: 700;
 }

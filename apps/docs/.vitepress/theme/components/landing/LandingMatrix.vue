@@ -76,8 +76,8 @@ const total = components.length;
 <style scoped>
 /* 全页唯一「追光池」：暗色舞台上的亮色段落 */
 .lh-matrix {
-  background: var(--va-ground-light, #f7f6f2);
-  border-top: 1px solid rgba(240, 238, 233, 0.1);
+  background: var(--va-bg, #f7f6f2);
+  border-top: 1px solid var(--va-edge, rgba(26, 25, 23, 0.1));
 }
 .lh-matrix__inner { max-width: 1180px; margin: 0 auto; padding: 72px 32px; }
 .lh-sec-title { margin: 0; font-size: 34px; font-weight: 800; color: var(--va-ink, #1a1917); }

@@ -150,7 +150,20 @@ function onArrowKey(event: KeyboardEvent) {
 </template>
 
 <style scoped>
-.lh-demo { background: #141311; }
+.lh-demo {
+  /* 亮暗双主题：本地变量承载版块配色，.dark 祖先类翻转（与 tokens.css 的 .dark 块同机制） */
+  --_bg: #f7f5f1;
+  --_panel: #ffffff;
+  --_ink: #1a1917;
+  --_accent: #c2410c;
+}
+.dark .lh-demo {
+  --_bg: #141311;
+  --_panel: #1c1a17;
+  --_ink: #f0eee9;
+  --_accent: #e8925e;
+}
+.lh-demo { background: var(--_bg); }
 .lh-demo__inner {
   max-width: 1180px;
   margin: 0 auto;
@@ -160,12 +173,12 @@ function onArrowKey(event: KeyboardEvent) {
   margin: 0;
   font-size: 34px;
   font-weight: 800;
-  color: #f0eee9;
+  color: var(--_ink);
 }
 .lh-sec-sub {
   margin: 12px 0 0;
   font-size: 16px;
-  color: rgba(240, 238, 233, 0.72);
+  color: color-mix(in srgb, var(--_ink) 72%, transparent);
   max-width: 780px;
   line-height: 1.8;
 }
@@ -177,20 +190,20 @@ function onArrowKey(event: KeyboardEvent) {
   font-weight: 600;
   padding: 8px 16px;
   border-radius: 999px;
-  border: 1px solid rgba(240, 238, 233, 0.18);
-  background: #1c1a17;
-  color: rgba(240, 238, 233, 0.72);
+  border: 1px solid color-mix(in srgb, var(--_ink) 18%, transparent);
+  background: var(--_panel);
+  color: color-mix(in srgb, var(--_ink) 72%, transparent);
   cursor: pointer;
   transition: all 0.15s;
 }
-.lh-demo__tab:hover { border-color: #e8925e; color: #e8925e; }
+.lh-demo__tab:hover { border-color: var(--_accent); color: var(--_accent); }
 .lh-demo__tab--active {
   background: var(--va-accent, #c2410c);
   border-color: var(--va-accent, #c2410c);
-  color: #ffffff;
+  color: var(--va-accent-contrast, #ffffff);
 }
 .lh-demo__tab:focus-visible {
-  outline: 2px solid #e8925e;
+  outline: 2px solid var(--_accent);
   outline-offset: 2px;
 }
 
@@ -200,9 +213,9 @@ function onArrowKey(event: KeyboardEvent) {
   aspect-ratio: 16 / 9;
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid rgba(232, 146, 94, 0.28);
+  border: 1px solid color-mix(in srgb, var(--_accent) 28%, transparent);
   box-shadow: 0 0 0 1px rgba(194, 65, 12, 0.1), 0 30px 90px rgba(0, 0, 0, 0.5);
-  background: #1c1a17;
+  background: var(--_panel);
   display: block;
 }
 .lh-demo__frame--placeholder { position: relative; }
@@ -222,13 +235,13 @@ function onArrowKey(event: KeyboardEvent) {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  background: linear-gradient(180deg, rgba(20, 19, 17, 0) 0%, rgba(20, 19, 17, 0.82) 55%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--_bg) 0%, transparent) 0%, color-mix(in srgb, var(--_bg) 82%, transparent) 55%);
 }
-.lh-demo__bar-title { color: #f0eee9; font-size: 16px; font-weight: 600; }
-.lh-demo__bar-note { color: rgba(240, 238, 233, 0.6); font-size: 12px; }
+.lh-demo__bar-title { color: var(--_ink); font-size: 16px; font-weight: 600; }
+.lh-demo__bar-note { color: color-mix(in srgb, var(--_ink) 60%, transparent); font-size: 12px; }
 .lh-demo__bar-links { margin-left: auto; display: flex; gap: 16px; }
 .lh-demo__bar-links a {
-  color: #e8925e;
+  color: var(--_accent);
   font-size: 13px;
   font-weight: 600;
   text-decoration: none;
@@ -237,7 +250,7 @@ function onArrowKey(event: KeyboardEvent) {
 .lh-demo__desc {
   margin: 16px 2px 0;
   font-size: 14px;
-  color: rgba(240, 238, 233, 0.72);
+  color: color-mix(in srgb, var(--_ink) 72%, transparent);
   line-height: 1.8;
 }
 </style>

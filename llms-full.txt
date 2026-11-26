@@ -42,7 +42,7 @@ agent 的一次工具调用：实时秒表、失败自动展开并给出重试�
 
 ### Agent Plan
 
-执行计划：编辑态可重命名/排序/增删，运行态逐项计时打勾、失败可重试。
+执行计划：编辑态可重命名/排序/增删，运行态逐项计时打勾、失败可重试；collaborative 协作态（L3）支持步骤编辑发 patch 增量、「确认计划/放弃」终态收口与 server 422 fieldErrors 就地回显。
 
 组件：VaAgentPlan
 
@@ -50,8 +50,11 @@ agent 的一次工具调用：实时秒表、失败自动展开并给出重试�
 |---|---|---|---|
 | `steps` | `PlanStep[]` | - | 步骤（id/title/detail/status/startedAt/duration） |
 | `editable` | `boolean` | false | 审阅编辑模式 |
-| `@update:steps` | `-` | - | 编辑后的完整步骤数组 |
-| `@retry` | `-` | - | 点击失败步骤的重试 |
+| `collaborative` | `boolean` | false | L3 协作态：编辑发 patch 增量（不唤醒模型）、底部渲染确认/放弃终态出口 |
+| `fieldErrors` | `Record<string, string>` | - | server 422 回填的逐字段错误（重填闭环） |
+| `@update:steps` | `-` | - | 编辑后的完整步骤数组（协作态发射 patch 信封） |
+| `@retry` | `-` | - | 点击失败步骤的重试（协作态发射 submit{retryStepId}） |
+| `@confirm / @cancel` | `-` | - | 协作终态：确认（submit 空值，server 合并 patch）/ 放弃（cancel 信封） |
 
 ### Approval Card
 
@@ -200,6 +203,21 @@ agent 一轮工作摘要卡：N 文件 +adds −dels、耗时与工具调用次�
 | `duration / toolCalls` | `number` | - | 耗时 ms / 工具调用次数 |
 | `maxFiles` | `number` | - | 超出折叠（展开按钮） |
 | `@openFile` | `-` | - | 点击文件行（联动 CodeDiff） |
+
+### Form
+
+L2 值采集表单卡（ui_form）：六型字段（text/textarea/number/boolean/select/date）、必填星标、敏感字段密码态与显隐切换、单位后缀、server 422 fieldErrors 就地回显（用户修正后重提，§4.2 重填闭环）。resultSchema 由 fields 派生（deriveFormResultSchema，模型不允许自行声明）。
+
+组件：VaForm
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `title / description` | `string / string` | - | 表单标题 / 为什么需要这些信息 |
+| `fields` | `FormFieldItem[]` | - | 字段定义（key/label/type/required/default/options/unit/secret/placeholder） |
+| `fieldErrors` | `Record<string, string>` | - | server 422 回填的逐字段错误 |
+| `disabled / loading` | `boolean / boolean` | false / false | 非 executing 态禁用整表 / 提交中 |
+| `@submit` | `(values, editedFields) => void` | - | 提交：类型收敛后的值集合 + 用户亲自修改的字段 key |
+| `@cancel` | `()` | - | 取消（cancel 信封：一等公民而非错误） |
 
 
 ## Chat
