@@ -1,8 +1,19 @@
+import type { UIActionEnvelope } from "@vuagent/protocol";
+
 export interface ActionResponse {
   approved: boolean;
   reason?: "manual" | "timeout" | "aborted";
   note?: string;
+  /**
+   * @deprecated TASK-089：已由通用交互信封 envelope 取代（预留后始终无消费方，
+   * 属安全退役——墓碑字段保留一个兼容周期，新代码请读写 envelope）。
+   */
   formData?: Record<string, unknown>;
+  /**
+   * TASK-089（契约 TASK-B）：路由边界 parseUIActionPayload 产出的规范化交互信封——
+   * 执行器据此生成「语义摘要 + JSON 附录」双层工具结果；旧客户端回传经兼容映射后同样挂载。
+   */
+  envelope?: UIActionEnvelope;
   [key: string]: unknown;
 }
 
@@ -64,6 +75,24 @@ export class ActionHub {
 
   constructor(private persist?: ActionPersistStore) {}
 
+  /**
+   * 挂起终结钩子（L3 patch 暂存清理挂载点，Phase 3）：任一终结路径
+   * （送达 resolveAction / abortAction / 超时裁决 / reject）按 actionId 回调。
+   * 超时裁决发生在 timer 回调内、无 HTTP 请求上下文——路由层无法在该路径
+   * 显式清理 PatchStash，必须经此钩子；未挂载时（单机缺省/测试）由
+   * PatchStash 容量逐出惰性兜底（见 core/patch-stash.ts 头注释）。
+   */
+  onPendingSettled?: (actionId: string) => void;
+
+  /** 挂起终结统一出口：钩子回调（fail-open，回调异常不影响终结本身） */
+  private settle(actionId: string): void {
+    try {
+      this.onPendingSettled?.(actionId);
+    } catch {
+      // 清理钩子失败不阻断挂起终结
+    }
+  }
+
   /** 挂起持久化写入（fire-and-forget fail-open；写入失败不影响挂起本身） */
   private persistPending(info: {
     actionId: string;
@@ -111,6 +140,7 @@ export class ActionHub {
       const timer = setTimeout(() => {
         this.pendingMap.delete(actionId);
         this.persistDelete(actionId);
+        this.settle(actionId);
         resolve({
           approved: false,
           reason: "timeout",
@@ -131,12 +161,14 @@ export class ActionHub {
           clearTimeout(timer);
           this.pendingMap.delete(actionId);
           this.persistDelete(actionId);
+          this.settle(actionId);
           resolve(val);
         },
         reject: (err) => {
           clearTimeout(timer);
           this.pendingMap.delete(actionId);
           this.persistDelete(actionId);
+          this.settle(actionId);
           reject(err);
         },
       });

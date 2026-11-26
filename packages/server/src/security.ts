@@ -252,6 +252,10 @@ export function sanitizeForLog(value: unknown, maxChars: number = LOG_LINE_MAX_C
   try {
     json =
       JSON.stringify(value, (k, v) => {
+        // 裸词 "key" 豁免：ui_form 字段定义的结构属性名就叫 key（{key, label, type}），
+        // 不是凭证——复合词（api_key/access_key 等）仍由下方正则照常遮蔽；
+        // 真实凭证值的键名（deployToken/password 等）不含裸词 "key"，不受影响
+        if (k === "key") return v;
         if (typeof v === "string" && v && LOG_SECRET_KEY_RE.test(k)) return "[REDACTED]";
         if (typeof v === "string" && v.length > LOG_VALUE_MAX_CHARS) {
           return `${v.slice(0, LOG_VALUE_MAX_CHARS)}…[+${v.length - LOG_VALUE_MAX_CHARS} 字符]`;

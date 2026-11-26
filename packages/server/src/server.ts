@@ -28,6 +28,7 @@ import { defaultBaseUrlFor, isAnthropicNativeEndpoint } from "./core/provider-de
 import { setCurrentTraceContext } from "./core/trace-context.js";
 import { createSSEResponse } from "./core/sse-response.js";
 import { createRedisActionPersist, createRedisEventLog } from "./core/redis-externalize.js";
+import { createSqliteActionPersist } from "./storage/sqlite-action-persist.js";
 import {
   validateCreateWorkspaceBody,
   validateCreateSessionBody,
@@ -169,7 +170,22 @@ import {
 import { ModelPricingTable, computeCostUsd, type ModelPricing } from "./core/pricing-table.js";
 import { CostRecordRepository } from "./storage/repositories/cost-record.repository.js";
 import type { UIComponentDefinition } from "@vuagent/protocol";
+import type { UIActionEnvelope } from "@vuagent/protocol";
 import { UIComponentRegistry } from "./core/ui-registry.js";
+import {
+  parseActionEnvelope,
+  UIActionParseError,
+  validateEnvelopeValues,
+  hashEnvelope,
+  decisionPayloadHash,
+  resolveInteractionResultSchema,
+} from "./core/action-envelope.js";
+import {
+  InMemorySecretStore,
+  stripSecretFieldValues,
+  type SecretStore,
+} from "./core/secret-store.js";
+import { PatchStash } from "./core/patch-stash.js";
 
 /**
  * 4 把核心原子系统工具（对齐 Pi coding agent 极简内核）
@@ -204,6 +220,12 @@ export interface ServerOptions {
   uiRegistry?: UIComponentRegistry;
   /** 自定义业务动作工具（非 UI 契约的函数/动作工具） */
   customTools?: HarnessTool[];
+  /**
+   * 敏感值存储（TASK-092，设计文档 §5 宿主注入点）：表单 secret 字段的真实值归属。
+   * 缺省进程内存形态（与 ActionHub 内存挂起的单机语义对齐，重启即失效）；
+   * Redis 形态（多副本共享/重启可还原）留作后续任务尾巴——实现同一契约即可替换。
+   */
+  secretStore?: SecretStore;
 }
 
 export const defaultSceneComponents: UIComponentDefinition[] = [
@@ -496,12 +518,28 @@ export function createHarnessServer(options: ServerOptions = {}) {
     }
   }
 
-  // TASK-100：Redis 形态外置——挂起持久化（审批跨重启可落账/回写）与事件缓冲 ring
-  //（SQLite 单机形态两者皆 undefined，零改动路径）
+  // TASK-100：Redis 形态外置——挂起持久化（审批跨重启可落账/回写）与事件缓冲 ring；
+  // SQLite 单机形态（送达后幂等尾巴）注入决策落账外置（storage/sqlite-action-persist.ts，
+  // 挂起维持内存态）——送达后的重复 POST 由 prior 命中幂等返回，不再回落兜底扫描 404。
   const actionPersist = options.redisClient
     ? createRedisActionPersist(options.redisClient)
-    : undefined;
+    : driver instanceof SQLiteStorageDriver
+      ? createSqliteActionPersist(driver.database)
+      : undefined;
   const actionHub = new ActionHub(actionPersist);
+  // Phase 3（L3 patch 运行时）：协作组件增量编辑的内存暂存——patch 不唤醒协程、
+  // 不落账、不进模型上下文（设计文档 §3/§8），只在终态（submit/cancel/超时/
+  // 孤儿落账）以合并值进入摘要与落账信封。超时裁决路径经 ActionHub 终态钩子
+  // 清理（该路径无 HTTP 请求上下文）；其余遗留靠容量逐出惰性兜底。
+  const patchStash = new PatchStash();
+  actionHub.onPendingSettled = (actionId) => patchStash.delete(actionId);
+  // 注意（评审 N-1 的谨慎结论）：secret 明文 purge **不**挂 settle——决策到达时
+  // 工具尚未执行，ref 还原消费点在执行时；此处清理会让执行点拿到 undefined。
+  // InMemorySecretStore 已提供 purgeByAction(actionId)，宿主可在「轮次终结」
+  // 时机（turn 收尾/会话关闭）自行调用；默认实现不自动清理并在文件头声明取舍。
+  // TASK-092：敏感值通道（设计文档 §5）——secret 字段真实值的唯一归属，
+  // 模型上下文/台账/落库只见 { ref, masked } 占位（路由边界 stripSecretFieldValues 剥离）
+  const secretStore: SecretStore = options.secretStore ?? new InMemorySecretStore();
   // TASK-008：压缩器单例，AgentLoop（自动滑动窗口）与会话压缩接口（手动摘要化）共用裁剪口径
   const compactor = new ContextCompactor();
   // 模型驱动透传（宿主/测试注入用）；缺省由 AgentLoop 按所选模型档案逐轮构造，
@@ -1110,23 +1148,270 @@ export function createHarnessServer(options: ServerOptions = {}) {
     const payload = await c.req.json().catch(() => ({}));
     console.log(`[Vuagent Server] Resolving action [${actionId}], payload: ${sanitizeForLog(payload)}`);
 
+    // TASK-089（契约 TASK-B）：信封解析——合法信封直通；无 kind 的旧审批形态
+    // （{approved, reason, note}）兼容映射为 L1 submit 信封；无法识别 → 400（设计文档 §3/§8）
+    let envelope: UIActionEnvelope;
+    try {
+      envelope = parseActionEnvelope(payload);
+    } catch (err) {
+      if (err instanceof UIActionParseError) {
+        return c.json({ error: err.message, code: "ACTION_PAYLOAD_INVALID" }, 400);
+      }
+      throw err;
+    }
+
+    // patch（L3 增量编辑）不在信封解析后立即裁决——需先定位挂起组件的
+    // interaction 声明（L3 → PatchStash 暂存 200 accepted；其余 422
+    // PATCH_UNSUPPORTED），处理点见下方 toolName/interaction 解析之后。
+
+    // 归一 ActionResponse：旧字段直通 + envelope 挂载 + approved 归一
+    // （cancel → 不批准；submit 显式携带 approved 时以其为准；其余 submit 视为「继续」）
+    //
+    // TASK-091 键名归一（E2E 回归核对发现的不一致修复）：新旧客户端的文案键位置不同——
+    // 新客户端信封 deny 的 note 只在 values 内（{kind:"submit", values:{approved:false, note}}），
+    // 旧客户端 {approved, reason, note} 在顶层。统一回填 response 顶层（note 优先、reason 兜底），
+    // 供摘要生成器（digestApprovalDecision）与审批卡回写路径一致消费。
+    // 注意：reason 不从 note 反推——客户端倒计时触发的 deny 以 note="timeout" 作展示性标记，
+    // 若回填 reason 会被摘要误分类为服务端超时裁决（超时的权威裁决在 ActionHub）。
+    const payloadRecord = payload as Record<string, unknown>;
+    const submitValues = envelope.kind === "submit" ? envelope.values : undefined;
+    const derivedReason =
+      typeof payloadRecord.reason === "string"
+        ? payloadRecord.reason
+        : typeof submitValues?.reason === "string"
+        ? submitValues.reason
+        : undefined;
+    const derivedNote =
+      typeof payloadRecord.note === "string"
+        ? payloadRecord.note
+        : typeof submitValues?.note === "string"
+        ? submitValues.note
+        : derivedReason;
+    // TASK-092：信封形态载荷（带 kind）的 kind/values/meta 不再铺到 response 顶层——
+    // 信封是唯一载体（response.envelope），原样铺开会在 secret 剥离后残留明文副本
+    // （values 顶层层与 envelope.values 双份，前者未剥离即泄漏）。旧审批形态
+    // （无 kind 的 {approved, reason, note}）保持顶层直通兼容。
+    const { kind: _kind, values: _values, meta: _meta, ...envelopeFreePayload } = payloadRecord;
+    const isEnvelopePayload = typeof payloadRecord.kind === "string";
+    const response: Record<string, unknown> & { approved: boolean; envelope: UIActionEnvelope } = {
+      ...(isEnvelopePayload ? envelopeFreePayload : payloadRecord),
+      envelope,
+      ...(derivedReason !== undefined ? { reason: derivedReason } : {}),
+      ...(derivedNote !== undefined ? { note: derivedNote } : {}),
+      approved:
+        typeof payloadRecord.approved === "boolean"
+          ? (payloadRecord.approved as boolean)
+          : envelope.kind === "cancel"
+          ? false
+          : typeof envelope.values.approved === "boolean"
+          ? envelope.values.approved
+          : true,
+    };
+
+    // TASK-089：组件级边界校验——L2/L3 声明组件的 submit values 按 resultSchema
+    // TypeBox Value.Check 校验（与 tool-registry 入参闸门同口径）；失败 422 + fieldErrors，
+    // 不唤醒协程、不落账（§4.2：校验失败是前端重填的新输入，不是终态）。
+    // toolName/args 来源：内存挂起优先，孤儿场景回落外置挂起记录（只读查询）。
+    // TASK-092：resultSchema 可由 deriveResultSchema 按挂起 args 派生（ui_form：
+    // fields → resultSchema，模型不允许自行声明，设计文档 §7）——路由与执行器
+    // 共享 resolveInteractionResultSchema 解析口径。
+    const suspendedInfo = actionHub.getSuspended(actionId);
+    let toolName = suspendedInfo?.toolName;
+    let suspendedArgs = suspendedInfo?.args;
+    // L3 patch 的「仍挂起」判定源（Phase 3）：内存挂起命中即存活；无内存挂起时
+    // 查外置挂起记录（Redis 形态），命中即存活——此标记必须在下方 prior 恢复
+    // 之前取得：prior（已落账决策）恢复的 toolName 不代表挂起仍存活，
+    // patch 不得据此接受增量（终态后的 patch 一律 PATCH_UNSUPPORTED）。
+    const pendingLive = suspendedInfo !== undefined;
+    let externalPendingFound = false;
+    let externalPending: { instanceId?: string } | undefined;
+    if (!toolName && actionPersist) {
+      const pendingList = await actionPersist.listPending().catch(() => []);
+      const pending = pendingList.find((a) => a.actionId === actionId);
+      if (pending) {
+        externalPendingFound = true;
+        externalPending = pending;
+        toolName = pending.toolName;
+        suspendedArgs = pending.args;
+      }
+    }
     // 幂等消费（审查 Optional 修复：getDecision 此前只写不读）——孤儿决策落账后
-    // 的重复 POST 直接返回已记录决策，不再走 fallbackScan 404 谎报「无此挂起」
-    if (actionPersist) {
-      const prior = await actionPersist.getDecision(actionId).catch(() => undefined);
-      if (prior) {
+    // 的重复 POST 直接返回已记录决策，不再走 fallbackScan 404 谎报「无此挂起」。
+    // 前置查询原因（TASK-092）：送达/孤儿落账后挂起记录已清理，回放时 toolName 无从
+    // 获知——决策落账随附 toolName/args（见下方 saveDecision），此处据此恢复组件上下文，
+    // 保证 secret 剥离与幂等哈希对「落账后的同体重放」对称（否则剥离前后哈希必然漂移）。
+    const prior = actionPersist
+      ? await actionPersist.getDecision(actionId).catch(() => undefined)
+      : undefined;
+    if (!toolName && prior) {
+      toolName = (prior as { toolName?: string }).toolName;
+      suspendedArgs = (prior as { args?: Record<string, unknown> }).args;
+    }
+    // TASK-092（孤儿重放修复）：决策落账必须随附组件上下文（toolName/args）——
+    // 落账后的同体重放依赖 prior 恢复交互组件身份：重派生 resultSchema → 校验 →
+    // 重放确定性 secret 剥离（ref=actionId+field，同明文剥离结果逐字节一致）。
+    // 若落账缺 toolName，重放会跳过剥离，明文哈希与已剥离落账哈希必然漂移，
+    // 幂等契约（同体 200）被误判为异体 422（ACTION_PAYLOAD_MISMATCH）。
+    if (toolName) {
+      response.toolName = toolName;
+      if (suspendedArgs !== undefined) response.args = suspendedArgs;
+    }
+    const interaction = toolName ? toolRegistry.get(toolName)?.interaction : undefined;
+    const isFormInteraction = interaction?.level === "L2" || interaction?.level === "L3";
+    const effectiveResultSchema =
+      interaction && isFormInteraction
+        ? resolveInteractionResultSchema(interaction, suspendedArgs)
+        : undefined;
+
+    // ==========================================
+    // Phase 3（L3 patch 运行时，设计文档 §3 patch 语义 / §8 patch 风暴防护）
+    // ==========================================
+    // patch 只对「声明 L3 且挂起仍存活」的组件生效：增量值合并进 PatchStash
+    // 后立即 200 accepted——**不唤醒协程、不落账决策、不触发幂等哈希**
+    // （patch 不是决策，模型只在终态被唤醒一次，防增量编辑刷屏上下文）。
+    // 其余情况（L2 表单 / L1 审批 / L0 / 非交互组件 / 挂起已终结）维持
+    // 422 PATCH_UNSUPPORTED，避免客户端误以为增量值已生效。
+    if (envelope.kind === "patch") {
+      const pendingAlive = pendingLive || externalPendingFound;
+      if (interaction?.level !== "L3" || !pendingAlive) {
+        return c.json(
+          {
+            success: false,
+            error: "patch（L3 增量编辑）仅对协作组件（collaborative）且挂起未终结时可用，请使用 submit/cancel 完成交互",
+            code: "PATCH_UNSUPPORTED",
+          },
+          422
+        );
+      }
+      // 多副本归属闸门（评审 R2，与孤儿 submit 路径同口径）：patch 被负载均衡到
+      // 非持有副本时若照常 200 accepted，增量只进本副本 stash——持有副本唤醒
+      // 合并时看不到，用户编辑静默丢失。诚实拒绝（409）让客户端重试路由。
+      if (!pendingLive && externalPendingFound) {
+        const ownerInstanceId = (externalPending as { instanceId?: string } | undefined)?.instanceId;
+        if (ownerInstanceId && ownerInstanceId !== instanceId) {
+          return c.json(
+            {
+              success: false,
+              delivered: false,
+              code: "PENDING_OWNED_BY_OTHER_INSTANCE",
+              note: `该挂起轮次由其他副本（instanceId=${ownerInstanceId}）持有，本副本不能接收增量；请重试路由到持有副本`,
+            },
+            409
+          );
+        }
+      }
+      // 增量值边界校验（与 submit 同口径）：按 resultSchema 校验 patch.values，
+      // 失败 422 + fieldErrors——不暂存、不唤醒（§4.2：校验失败是前端重填的新输入）
+      const patchValidation = validateEnvelopeValues(envelope, {
+        ...interaction,
+        resultSchema: effectiveResultSchema,
+      });
+      if (!patchValidation.ok) {
+        return c.json(
+          {
+            success: false,
+            error: "patch 的内容未通过表单校验，请修正后重新提交",
+            code: "ENVELOPE_VALUES_INVALID",
+            fieldErrors: patchValidation.fieldErrors,
+          },
+          422
+        );
+      }
+      const patchKeys = patchStash.merge(actionId, envelope.values);
+      return c.json({ success: true, accepted: true, patchKeys }, 200);
+    }
+
+    // L3 submit 合并（设计文档 §3 patch 语义的终态收口）：最终 values =
+    // { ...stash.values, ...submit.values }（submit 覆盖同名键）——合并值
+    // 过 resultSchema 校验、进摘要生成与落账信封；meta.editedFields 保持
+    // 提交侧原值（只描述用户显式改动，不因合并扩大）。无暂存时合并值
+    // 逐字节等于 submit 原值（纯展示语义路径不受影响）。终态后 stash 由
+    // ActionHub 终态钩子 / 孤儿落账路径清理。
+    if (envelope.kind === "submit" && interaction?.level === "L3") {
+      // 合并源三级回退（评审 C-1 修复）：终态钩子会清空 stash——相同体重放时
+      // 必须用落账时随决策持久化的 patchBase 重算合并，否则重算结果 = 裸 submit 值，
+      // 与落账的合并信封哈希必然漂移，合法重放被误判 422 ACTION_PAYLOAD_MISMATCH
+      const stashed =
+        patchStash.get(actionId)?.values ??
+        (prior as { patchBase?: Record<string, unknown> } | undefined)?.patchBase ??
+        {};
+      envelope = { ...envelope, values: { ...stashed, ...envelope.values } };
+      response.envelope = envelope;
+      // 合并基准随决策落账：同体重放的幂等重算依赖（仅 stash 非空时需要；
+      // 空 stash 的合并值逐字节等于 submit 原值，天然对称）
+      if (Object.keys(stashed).length > 0) response.patchBase = stashed;
+    }
+
+    if (envelope.kind === "submit" && isFormInteraction) {
+      const validation = validateEnvelopeValues(envelope, {
+        ...interaction,
+        resultSchema: effectiveResultSchema,
+      });
+      if (!validation.ok) {
+        return c.json(
+          {
+            success: false,
+            error: "提交的内容未通过表单校验，请修正后重新提交",
+            code: "ENVELOPE_VALUES_INVALID",
+            fieldErrors: validation.fieldErrors,
+          },
+          422
+        );
+      }
+
+      // TASK-092（设计文档 §5 敏感值通道）：校验通过后、唤醒/落账之前，
+      // secret 字段值从 envelope.values 剥离——真实值入 secret store（宿主注入点），
+      // 原位替换为 { ref, masked } 占位。此后摘要/附录、幂等哈希、决策落账、
+      // 轨迹台账与会话卡片四处只见占位不见明文。
+      // ref 按 actionId+field 确定性推导：同键重放剥离结果逐字节一致，
+      // 幂等契约（同体 200 / 异体 422）不受剥离影响。
+      const stripped = await stripSecretFieldValues(
+        envelope.kind === "submit" ? envelope.values : {},
+        effectiveResultSchema,
+        secretStore,
+        { actionId, sessionId: suspendedInfo?.sessionId }
+      );
+      if (stripped.stripped.length > 0 && envelope.kind === "submit") {
+        envelope = { ...envelope, values: stripped.values };
+        response.envelope = envelope;
+      }
+    }
+
+    // TASK-089 升格为契约（设计文档 §3「幂等键 = actionId」）：同键异体 422——
+    // 比较规范化信封哈希，与已落账决策不一致时拒绝处理（防误重试覆盖）。
+    if (prior) {
+        const priorHash = decisionPayloadHash(prior);
+        // 无法判定（更早期无信封数据）时回落旧幂等行为，不误伤合法重试
+        if (priorHash !== undefined && priorHash !== hashEnvelope(envelope)) {
+          return c.json(
+            {
+              success: false,
+              delivered: false,
+              error: "同一 actionId 已落账不同内容的决策，本次提交被拒绝（疑似误重试覆盖）",
+              code: "ACTION_PAYLOAD_MISMATCH",
+            },
+            422
+          );
+        }
         return c.json({
           success: true,
           delivered: false,
           prior,
           note: "该决策已落账（先前孤儿路径记录），本次为重复提交，未重复处理",
         });
-      }
     }
 
     // TASK-005：命中挂起索引时按 sessionId 直达目标会话，免除全库 O(N) 扫描
     const indexedSessionId = actionHub.getSessionIdForAction(actionId);
-    const ok = actionHub.resolveAction(actionId, payload);
+    const ok = actionHub.resolveAction(actionId, response);
+
+    // TASK-091：送达路径同步落账决策（Redis 形态，24h TTL）——幂等契约化
+    // （设计文档 §3「幂等键 = actionId」）覆盖送达场景：重复同体 POST 返回已落账决策
+    // （200 delivered:false，不重复处理），异体重放 422 ACTION_PAYLOAD_MISMATCH；
+    // 此前仅孤儿路径落账，送达后的重复提交会回落兜底扫描并 404 谎报「无此挂起」。
+    if (ok && actionPersist) {
+      await actionPersist.saveDecision(actionId, response).catch(() => {});
+    }
 
     // TASK-100：孤儿挂起（Redis 形态下进程重启后到达的决策）——等待协程已随进程
     // 消失，唤醒不可能；诚实语义 = 决策落账（防重复处理）+ 审批卡回写，delivered:false。
@@ -1157,8 +1442,11 @@ export function createHarnessServer(options: ServerOptions = {}) {
         }
         orphanFound = true;
         orphanSessionId = orphan.sessionId;
-        await actionPersist.saveDecision(actionId, payload).catch(() => {});
+        await actionPersist.saveDecision(actionId, response).catch(() => {});
         await actionPersist.deletePending(actionId).catch(() => {});
+        // Phase 3：孤儿落账即终态——清理 L3 patch 暂存（此路径无活挂起，
+        // ActionHub 终态钩子不会触发，须显式清理）
+        patchStash.delete(actionId);
       }
     }
 
@@ -1171,8 +1459,20 @@ export function createHarnessServer(options: ServerOptions = {}) {
         if (!turn.cards) continue;
         for (const card of turn.cards) {
           if (card.type === "approval" && card.data?.actionId === actionId) {
-            card.data.status = payload.approved ? "approved" : "denied";
-            card.data.reason = payload.reason || payload.note;
+            card.data.status = response.approved ? "approved" : "denied";
+            // TASK-091：与执行器审批卡回写同口径（note 优先、reason 兜底）——
+            // 此前为 reason 优先，与 tool-step-executor 的 note || reason 不一致
+            card.data.reason = (response.note as string | undefined) || (response.reason as string | undefined);
+            modified = true;
+          }
+          // TASK-092（评审 R-2 表单卡持久化回写）：ui_form 卡（ui 通道）唤醒后
+          // 收口为 done——历史恢复时表单卡呈已提交态而非永远 pending
+          if (
+            card.type === "ui" &&
+            card.data?.component === "ui_form" &&
+            card.data?.actionId === actionId
+          ) {
+            card.data.status = "done";
             modified = true;
           }
         }
@@ -1206,6 +1506,21 @@ export function createHarnessServer(options: ServerOptions = {}) {
         delivered: false,
         note: "决策已记录并回写审批卡；所属轮次已随进程重启中断（恢复机制诚实标记），不会唤醒执行",
       });
+    }
+
+    // 并发窗口闭合（评审 N-9）：送达 saveDecision 与 resolveAction 之间被 await
+    // 让出时，并发同体重复 POST 可能走到此处（!ok 且非孤儿）——重读一次 prior，
+    // 命中则幂等返回而非 404 谎报「无此挂起」
+    if (!ok && actionPersist) {
+      const priorRetry = await actionPersist.getDecision(actionId).catch(() => undefined);
+      if (priorRetry) {
+        return c.json({
+          success: true,
+          delivered: false,
+          prior: priorRetry,
+          note: "并发重复提交：该决策已由并发请求送达并落账，本次幂等返回",
+        });
+      }
     }
     return c.json({ success: ok }, ok ? 200 : 404);
   };
@@ -1955,12 +2270,31 @@ export function createHarnessServer(options: ServerOptions = {}) {
         process.env.OPENAI_BASE_URL ||
         "https://api.openai.com/v1"
     );
-    const apiKey =
-      body.apiKey ||
-      storedProfile?.apiKey ||
-      storedProvider?.apiKey ||
-      process.env.OPENAI_API_KEY;
-    const model = String(body.model || storedProfile?.model || "gpt-4o-mini");
+    const apiKeyCandidates = [
+      body.apiKey,
+      storedProfile?.apiKey,
+      storedProvider?.apiKey,
+      process.env.OPENAI_API_KEY,
+    ];
+    // 掩码守卫（评审 N-7）：回传 `****xxxx` 掩码当真探测会产出误导性 401——视为缺省
+    const apiKey = apiKeyCandidates.find(
+      (v) => typeof v === "string" && v && !/^\*{4}/.test(v)
+    );
+    // 模型标识缺失时拒绝探测而非回退默认值——回退 "gpt-4o-mini" 会在
+    // 非 OpenAI 端点上产出与用户配置无关的 1211「模型不存在」误报
+    const model = String(body.model || storedProfile?.model || "").trim();
+    if (!model) {
+      return c.json(
+        {
+          ok: false,
+          latencyMs: 0,
+          endpoint,
+          model: "",
+          error: "缺少模型标识：请先填写或从供应商拉取选择模型，再测试连接",
+        },
+        400
+      );
+    }
 
     const startedAt = Date.now();
     const controller = new AbortController();
@@ -2037,6 +2371,8 @@ export function createHarnessServer(options: ServerOptions = {}) {
     toolRegistry,
     uiRegistry,
     actionHub,
+    /** 敏感值存储（TASK-092，§5 宿主注入点）：secret 字段真实值的归属，ref → 明文还原入口 */
+    secretStore,
     agentLoop,
     /** 执行中心（优雅停机抽干等待 / 指标观测的入口） */
     executionHub,

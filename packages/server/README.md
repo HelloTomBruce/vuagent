@@ -67,9 +67,17 @@ pnpm --filter @vuagent/server verify:redis redis://127.0.0.1:6379  # Redis 形�
 - 系统提示词中声明的模式与工具仲裁强制执行的模式**来自同一个纯函数**：模型被告知的规则与引擎执行的规则同源，口径漂移在结构上不可能；
 - 审批覆盖是 **deny-wins**：配置可以为低风险工具追加审批，但不会放宽既有的高风险推导——安全项只能升不能降。
 
-### HITL 审批：挂起协程而非轮询
+### HITL 交互：挂起协程而非轮询
 
 高风险工具调用时，工具执行协程整体挂起（Promise 语义），审批决策经 HTTP 回调直达唤醒；超时自动拒绝（`reason: "timeout"`），用户中止同理。挂起记录按会话索引，跨会话审批收件箱凭此跳转。审批是**恢复点也是检查点**：决策连同上下文快照落库，崩溃后恢复不丢审批现场。
+
+交互回传统一走 **UIActionEnvelope 信封**（protocol `interaction.ts`）：`submit`（审批决策 / 表单值）/ `cancel`（用户放弃——非 Error 语义唤醒，模型明确「放弃≠失败」不重试轰炸）/ `patch`（L3 协作增量，服务端暂存不唤醒）。三条挂起链路：
+
+- **L1 审批**（高风险工具 / ui_approval_card）：批准放行执行，驳回/超时以非错误信封摘要进模型上下文（`isError=false`，不诱导重试）；
+- **L2 表单**（ui_form）：无审批挂起，值经 resultSchema 边界校验（失败 422 + fieldErrors 由前端就地回显重填，不唤醒）；secret 字段剥离入 secret store，模型只见 `{ref, masked}` 占位；校验通过以「语义摘要 + JSON 附录」双层消息进上下文（enum 回映 label、secret 打码、默认值与用户修改分别标注）；
+- **L3 协作计划**（ui_agent_plan `collaborative: true`，缺省纯展示不变）：patch 增量编辑服务端暂存（不唤醒、不落账），显式确认/取消/超时才唤醒，落账为合并值信封。
+
+决策落账与重放幂等：同 actionId 同体重放返回 `200 delivered:false`（不重复处理），异体重放 422 `ACTION_PAYLOAD_MISMATCH`。决策持久化随存储形态：Redis 外置（24h TTL）、SQLite `decisions` 表（行永驻，`created_at` 备清理策略）；单机内存形态不注入，送达后重放维持诚实 404。
 
 ### 上下文管理：按 token 而非按轮次
 
@@ -191,7 +199,7 @@ pnpm --filter @vuagent/server verify:redis redis://127.0.0.1:6379  # Redis 形�
 | 存储驱动 | SQLite（`DB_PATH`）/ 内存（测试） | `RedisStorageDriver` |
 | 共享范围 | 进程内 | 全部持久化实体（工作区 / 会话与轮次历史 / 模型档案 / 工具配置 / 服务端配置 / 成本台账） |
 | 轮次互斥 | 进程内（running → 409 / preempt 顶替） | 进程内裁决 + 跨副本租约（`vuagent:lease:<sessionId>`，SET NX PX） |
-| 事件 / HITL 审批 | 进程内 | **仍为进程内**（见「已知边界」） |
+| 事件重放 / HITL 挂起 | 进程内；**决策落 `decisions` 表**（送达后重放幂等） | 事件重放**仍为进程内**；挂起进程内 + **决策外置**（24h TTL）——挂起协程跨副本唤醒仍见「已知边界」 |
 | 启用方式 | 不设 `REDIS_URL` | 设置 `REDIS_URL`（ioredis 为 optional peer，自动安装；未装时启动给出可读指引） |
 
 **`REDIS_URL` 在哪里配置**：直跑入口（`start` / `dev`）从**启动时的 shell 环境**读取——
@@ -270,12 +278,13 @@ docker compose down                                                  # 停机（
 | `providers` | 供应商 | 端点 / apiKey / 协议类型 / 供应商级默认参数（一切对外响应只回显掩码） |
 | `model_profiles` | 模型档案 | 模型标识 / 能力元数据 / 模型级参数；凭证经 `providerId` 继承供应商（遗留内联配置由迁移归并） |
 | `tool_configs` | 工具策略 | 启停 / 超时覆盖 / 审批覆盖（deny-wins） |
+| `decisions` | HITL 决策落账 | actionId 主键 / 信封与组件上下文全量 JSON；送达后重放幂等（同体 200 delivered:false / 异体 422）的数据源 |
 | `harness_config` | 服务端配置 | 配置中心各命名空间的存储覆盖集（env 锁定项不受存储影响） |
 | `cost_records` | 成本台账 | 每轮 token 与 USD 记账，滚动窗口配额的数据源 |
 
 两类**派生数据**值得单独说明：① 逐步 checkpoint（`messagesSnapshot`）——每步工具执行后保存完整消息快照，是历史重建（按快照回放而非重跑模型）、上下文压缩折叠与崩溃恢复的基石；② 轨迹台账——lane×role 事件明细随轮次落库，前端执行轨迹回放直接消费。
 
-**进程内状态**（刻意不持久化）：Hub 的活跃执行与事件重放缓冲、ActionHub 的挂起审批、准入计数器。Redis 形态下它们仍留在各副本内——这是「已知边界」中跨副本审批唤醒与事件重放两项的根源。
+**进程内状态**（刻意不持久化）：Hub 的活跃执行与事件重放缓冲、ActionHub 的挂起协程、准入计数器。**HITL 决策已外置**（Redis 24h TTL / SQLite `decisions` 表），送达后的重放幂等不依赖进程存活；挂起协程仍留在进程内——这是「已知边界」中跨副本审批唤醒与事件重放两项的根源。
 
 ### 一次轮次的数据写入时序
 

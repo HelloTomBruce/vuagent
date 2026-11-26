@@ -51,6 +51,7 @@
     "build": "tsc -p tsconfig.build.json",
     "prepublishOnly": "pnpm build",
     "test": "vitest run",
+    "test:e2e:approval": "tsx scripts/e2e-approval-envelope.mts",
     "typecheck": "tsc --noEmit",
     "verify:redis": "tsx scripts/verify-redis.ts"
   },

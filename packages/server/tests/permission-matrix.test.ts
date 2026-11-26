@@ -346,7 +346,7 @@ describe("权限矩阵（auto/review/read-only × fs_read/fs_write/bash_run/ui_m
     expect((result.data as any).stdout).toContain("approved-run");
   });
 
-  it("review × bash_run: HITL 挂起 → 驳回后走 errorMessage 通道", async () => {
+  it("review × bash_run: HITL 挂起 → 驳回走信封摘要（非错误通道，TASK-089 行为变更）", async () => {
     const { ws, session, loop, mockDriver, actionHub } = await setup({ workspacePermission: "read-write" });
 
     const events = await runToolTurn(
@@ -363,9 +363,76 @@ describe("权限矩阵（auto/review/read-only × fs_read/fs_write/bash_run/ui_m
 
     expect(events.some((e) => e.type === "suspended")).toBe(true);
     const result = getResultEvent(events);
-    expect(result.status).toBe("error");
-    expect(result.error).toContain("操作被用户驳回");
+    // TASK-089（契约 TASK-B）：驳回从 `Error: 操作被用户驳回...` 迁移为信封摘要——
+    // cancel/deny 是用户合法意图（isError=false），不再是错误通道
+    expect(result.status).toBe("done");
+    expect(result.error).toBeUndefined();
     expect((result.data as any).approved).toBe(false);
+    expect((result.data as any).note).toBe("不允许执行该命令");
+  });
+
+  it("review × bash_run: 驳回摘要进入模型上下文（tool 消息 content 不再是 Error 前缀）", async () => {
+    /** 记录最后一次模型请求的 driver（第二步请求携带 tool 结果消息） */
+    class RecordingDriver extends MockDriver {
+      lastRequest?: import("../src/adapters/model-driver.js").ModelDriverRequest;
+      override async *generateStream(req: import("../src/adapters/model-driver.js").ModelDriverRequest) {
+        this.lastRequest = req;
+        yield* super.generateStream(req);
+      }
+    }
+
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "vuagent-perm-"));
+    tmpDirs.push(dir);
+    const driver = new MemoryStorageDriver();
+    const workspaceRepo = new WorkspaceRepository(driver);
+    const sessionRepo = new SessionRepository(driver);
+    const settingsRepo = new SettingsRepository(driver);
+    const toolRegistry = new ToolRegistry();
+    const actionHub = new ActionHub();
+    const mockDriver = new RecordingDriver();
+
+    const ws = await workspaceRepo.create({ name: "Perm Workspace", rootPath: dir, permission: "read-write" });
+    const session = await sessionRepo.create({ workspaceId: ws.id, title: "Perm Session" });
+    await settingsRepo.createProfile({
+      id: "test-model",
+      name: "Test Model",
+      provider: "openai",
+      model: "test-mock-model",
+      isDefault: true,
+    });
+    for (const t of [FsReadTool, FsWriteTool, BashRunTool, UIMetricChartTool]) toolRegistry.register(t);
+
+    const loop = new AgentLoop({
+      workspaceRepo,
+      sessionRepo,
+      settingsRepo,
+      toolConfigRepo: new ToolConfigRepository(driver),
+      toolRegistry,
+      actionHub,
+      modelDriver: mockDriver,
+    });
+
+    await runToolTurn(
+      loop,
+      mockDriver,
+      ws,
+      session,
+      { id: "call-b-digest", name: "bash_run", arguments: { command: "echo denied-run" } },
+      "review",
+      (actionId) => {
+        actionHub.resolveAction(actionId, { approved: false, note: "不允许执行该命令" });
+      }
+    );
+
+    // 第二步模型请求的消息列表中，tool 结果消息应为信封摘要（非 Error 前缀、非旧文案）
+    const messages = (mockDriver.lastRequest?.messages ?? []) as unknown as Array<Record<string, unknown>>;
+    const toolMsg = messages.find((m) => m.role === "tool" && m.tool_call_id === "call-b-digest");
+    expect(toolMsg).toBeDefined();
+    const content = String(toolMsg?.content ?? "");
+    expect(content).toContain("用户驳回了「bash_run」的执行请求（原因：不允许执行该命令）。");
+    expect(content).toContain("而非系统错误");
+    expect(content).not.toContain("Error:");
+    expect(content).not.toContain("操作被用户驳回");
   });
 
   it("review × ui_metric_chart: 低风险契约工具直接放行", async () => {

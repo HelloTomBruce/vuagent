@@ -4,11 +4,16 @@ import {
   CodeDiffToolSchema,
   MetricChartToolSchema,
   AgentPlanToolSchema,
+  PlanCollabResultSchema,
   FileTreeToolSchema,
   TaskBoardToolSchema,
   ChangeSummaryToolSchema,
   CommentThreadToolSchema,
   AiAnswerToolSchema,
+  FormToolSchema,
+  coerceFormFields,
+  deriveFormResultSchema,
+  liftFormResultSchema,
 } from "@vuagent/protocol";
 import type { HarnessTool } from "../../core/types.js";
 
@@ -23,10 +28,52 @@ export const UIApprovalCardTool: HarnessTool = {
   riskLevel: "high",
   requiresApproval: true,
   writesWorkspace: false, // 纯渲染契约工具，无工作区副作用
+  // TASK-089：L1 决策型交互声明（设计文档 §2）——回传按信封契约解析，
+  // 批准路径的工具结果走「语义摘要 + JSON 附录」双层 content。
+  interaction: { level: "L1", timeoutMeaning: "deny" },
   execute: async (ctx) => {
     return {
       rendered: true,
       component: "ui_approval_card",
+      props: ctx.args,
+    };
+  },
+};
+
+/**
+ * TASK-092（实施方案 TASK-E）：ui_form——L2 值采集首个落地组件（设计文档 §7）。
+ *
+ * 关键语义：
+ * - **无审批挂起**：requiresApproval=false、riskLevel=low——挂起由 interaction.level="L2"
+ *   驱动（执行器识别 L2 直接 actionHub.waitForAction），与 HITL 审批守卫完全解耦
+ *   （「L2 挂起≠审批」：tool-guards 的 approvalDecision 不命中本工具，任何权限模式下
+ *   都直接进入挂起等待填写，不产生审批卡）；
+ * - **resultSchema 不允许模型声明**：由 deriveResultSchema 按模型入参 fields 推导
+ *   （设计文档 §7：fields 是输入、resultSchema 是推导结果，防止模型自定义 resultSchema
+ *   放宽校验）；liftFormResultSchema 把普通 JSON 提升为 TypeBox 供边界校验同口径消费；
+ * - **secret 通道**：字段 secret:true 的回传值在路由边界剥离入 secret store，
+ *   模型上下文/台账/落库只见 { ref, masked } 占位（设计文档 §5）。
+ * 注：execute 在正常链路不会到达——L2 挂起路径以 earlyResult 短路沙箱执行
+ * （工具结果 = 用户提交的摘要，而非渲染回执）；保留 execute 仅为契约形状完整。
+ */
+export const UIFormTool: HarnessTool = {
+  name: "ui_form",
+  description:
+    "需要用户补充结构化信息（参数、配置、凭证）时调用：渲染表单并挂起等待填写提交",
+  parameters: FormToolSchema,
+  riskLevel: "low",
+  requiresApproval: false,
+  writesWorkspace: false, // 纯渲染契约工具，无工作区副作用
+  interaction: {
+    level: "L2",
+    timeoutMeaning: "cancel",
+    deriveResultSchema: (args) =>
+      liftFormResultSchema(deriveFormResultSchema(coerceFormFields(args?.fields))),
+  },
+  execute: async (ctx) => {
+    return {
+      rendered: true,
+      component: "ui_form",
       props: ctx.args,
     };
   },
@@ -71,6 +118,19 @@ export const UIAgentPlanTool: HarnessTool = {
   riskLevel: "low",
   requiresApproval: false,
   writesWorkspace: false,
+  /**
+   * Phase 3（L3 patch 运行时，设计文档 §2/§8）：collaborative 协作声明——
+   * interaction 恒为 L3，但挂起由模型入参 collaborative 驱动（执行器识别
+   * `parsedArgs.collaborative === true` 才 waitForAction；缺省 false 保持
+   * 纯展示逐字节不变）。patch 增量不唤醒协程、不进模型上下文（服务端
+   * PatchStash 暂存，§8 patch 风暴防线），终态由显式 submit/cancel/超时触发。
+   * 回传值按 PlanCollabResultSchema 边界校验（patch/submit 同口径）。
+   */
+  interaction: {
+    level: "L3",
+    timeoutMeaning: "cancel",
+    resultSchema: PlanCollabResultSchema,
+  },
   execute: async (ctx) => {
     return {
       rendered: true,
@@ -178,6 +238,7 @@ export const UIAiAnswerTool: HarnessTool = {
 
 export const AllBuiltinTools: HarnessTool[] = [
   UIApprovalCardTool,
+  UIFormTool,
   UICodeDiffTool,
   UIMetricChartTool,
   UIAgentPlanTool,

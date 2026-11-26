@@ -166,6 +166,15 @@ export class SQLiteStorageDriver implements IStorageDriver {
     return rows;
   }
 
+  /**
+   * 底层连接句柄（可选能力）：SQLite 单机形态的 action 决策外置
+   * （storage/sqlite-action-persist.ts）复用同一连接与建表模式建独立表，
+   * 避免同文件双连接的写锁协调。只暴露句柄，不改驱动既有语义。
+   */
+  get database(): DatabaseSync {
+    return this.db;
+  }
+
   close() {
     this.db.close();
   }

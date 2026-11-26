@@ -16,6 +16,17 @@ import {
   runToolGuards,
   type ToolGuardContext,
 } from "./tool-guards.js";
+import {
+  buildDualLayerContent,
+  buildInteractionResultContent,
+  buildResultAppendix,
+  digestApprovalDecision,
+  digestApprovalGranted,
+  digestCancel,
+  digestTimeout,
+} from "./result-digest.js";
+import { resolveInteractionResultSchema } from "./action-envelope.js";
+import type { UIComponentInteraction } from "@vuagent/protocol";
 
 /**
  * 工具调用执行段（TASK-057 自 agent-loop.ts 拆出，行为逐字节等价）：
@@ -101,8 +112,14 @@ interface CallDecision {
   parsedArgs: Record<string, unknown>;
   isError: boolean;
   errorMessage?: string;
-  /** 早败路径的执行结果（如驳回的 { approved:false }）；执行路径由 registry 产出 */
+  /** 早败路径的执行结果（如守卫拦截）；执行路径由 registry 产出 */
   earlyResult?: unknown;
+  /**
+   * TASK-089（契约 TASK-B）：声明了 interaction 的工具（或审批驳回路径）的
+   * 结果消息 content——「语义摘要 + ```json 附录」双层格式（result-digest.ts 生成）。
+   * 未设置时结果消息按旧规则（正文/JSON 裸 dump）构造，逐字节不变。
+   */
+  interactionContent?: string;
   /** 守卫链超时策略裁决值（timeoutPolicy 守卫写入；undefined 时 registry 走默认 60s） */
   executorTimeoutMs?: number;
   effectiveParsedArgs: Record<string, unknown>;
@@ -320,14 +337,178 @@ export async function* executeToolCallStep(
       };
 
       if (!userAction.approved) {
-        decision.isError = true;
-        decision.errorMessage = `操作被用户驳回: ${userAction.note || userAction.reason || "未批准"}`;
-        executionResult = { approved: false, reason: decision.errorMessage };
+        // TASK-089（契约 TASK-B，预期行为变更）：审批驳回从 `Error: 操作被用户驳回...`
+        // 迁移为信封摘要——cancel/deny 语义是用户的合法意图而非系统错误
+        // （设计文档 §3「cancel 是一等公民」），isError=false、不进入沙箱执行。
+        decision.interactionContent = digestApprovalDecision({
+          toolName: call.name,
+          envelope: userAction.envelope,
+          reason: userAction.reason,
+          note: userAction.note,
+          timeoutMs: approvalTimeoutMs,
+        });
+        executionResult = {
+          approved: false,
+          reason: userAction.reason,
+          note: userAction.note,
+          ...(userAction.envelope ? { envelope: userAction.envelope } : {}),
+        };
+        decision.earlyResult = executionResult;
+      } else if (toolDef?.interaction && userAction.envelope) {
+        // TASK-089：声明 interaction 的工具（L1 审批卡等）——批准路径的结果消息
+        // 走「语义摘要 + JSON 附录」双层 content（信封是用户决策的事实来源）：
+        // L1 用审批决策摘要；L2/L3 用 §4.1 表单摘要（词汇表 = resultSchema）。
+        if (toolDef.interaction.level === "L2" || toolDef.interaction.level === "L3") {
+          decision.interactionContent = buildInteractionResultContent({
+            title: call.name,
+            envelope: userAction.envelope,
+            interaction: toolDef.interaction,
+          });
+        } else {
+          const granted = digestApprovalGranted({
+            toolName: call.name,
+            envelope: userAction.envelope,
+            note: userAction.note,
+          });
+          decision.interactionContent =
+            userAction.envelope.kind === "submit"
+              ? buildDualLayerContent(
+                  granted,
+                  buildResultAppendix(userAction.envelope.values, toolDef.interaction.resultSchema)
+                )
+              : granted;
+        }
       }
     }
 
+    // TASK-092（契约 TASK-E）：L2/L3 值采集挂起——「无审批挂起」新路径。
+    // 挂起由 interaction.level 驱动，与 HITL 审批守卫（requiresApproval）解耦：
+    // 「L2 挂起≠审批」——tool-guards 的 approvalDecision 不命中本类工具
+    // （ui_form：requiresApproval=false、riskLevel=low），任何权限模式下都直接
+    // 挂起等待填写，不产生审批卡、不评估高风险策略；超时的语义归属按
+    // interaction.timeoutMeaning（L2 缺省 cancel，设计文档 §6 状态机）。
+    // 与审批路径的组合：若某组件同时声明 requiresApproval（当前无此类成员），
+    // 审批挂起先于本段串行执行（先过人、再收值），不并行嵌套。
+    //
+    // Phase 3（L3 patch 运行时）：L3 协作组件的挂起由模型入参 collaborative
+    // 驱动（interaction 恒声明 L3，但仅在 parsedArgs.collaborative === true 时
+    // 挂起等待用户协作修改——patch 增量由路由 PatchStash 暂存，不唤醒本协程；
+    // 缺省 false 走纯展示沙箱执行路径，行为逐字节不变）。
+    if (
+      !decision.isError &&
+      decision.earlyResult === undefined &&
+      toolDef?.interaction !== undefined &&
+      (toolDef.interaction.level === "L2" ||
+        (toolDef.interaction.level === "L3" && parsedArgs.collaborative === true))
+    ) {
+      const formInteraction = toolDef.interaction;
+      const actionPromise = deps.actionHub.waitForAction(call.id, {
+        toolName: call.name,
+        args: parsedArgs,
+        timeoutMs: approvalTimeoutMs,
+        sessionId,
+      });
+
+      console.log(
+        `[Vuagent Tool] Suspended for form interaction: [${call.name}], actionId=${call.id}`
+      );
+      yield {
+        type: "suspended",
+        actionId: call.id,
+        toolName: call.name,
+        args: parsedArgs,
+        timeoutMs: approvalTimeoutMs,
+      };
+
+      // 评审 R-2 修复（表单卡历史恢复）：与审批路径对称，把表单卡推入持久化
+      // 卡片集合——否则表单卡只能靠活流 suspended 事件重建，刷新/事件缓冲裁剪
+      // 后从会话里消失（跨会话收件箱还挂着「待填写」但消息流内无卡可填）。
+      // 复用 ui 卡通道（type:"ui" + component:"ui_form"），Console 历史映射归一
+      // 为 form 卡渲染；status 由 updateSessionCards 在唤醒时回写。
+      accumulatedCards.push({
+        id: `ui-${call.id}`,
+        type: "ui",
+        data: {
+          component: "ui_form",
+          props: parsedArgs,
+          actionId: call.id,
+          status: "pending",
+          contentOffset: getContentLength(),
+        },
+      });
+
+      // 挂起窗口前强制落盘（与审批路径同口径：挂起可达 180s，期间崩溃须留痕）
+      await input.beforeSuspend?.();
+
+      const userAction = await actionPromise;
+
+      yield {
+        type: "resumed",
+        actionId: call.id,
+        payload: userAction,
+      };
+
+      // resultSchema 由 fields 派生（设计文档 §7：不允许模型声明）——
+      // 与路由边界校验同源（resolveInteractionResultSchema 共享解析口径）；
+      // 摘要/附录据此驱动词汇表、enum label 回映与 secret 打码。
+      // 此时 envelope.values 的 secret 字段已在路由边界剥离为 { ref, masked } 占位
+      // （core/secret-store.ts），摘要/附录/台账/落库只见占位。
+      const formResultSchema = resolveInteractionResultSchema(formInteraction, parsedArgs);
+      const formTitle =
+        typeof parsedArgs.title === "string" && parsedArgs.title.trim()
+          ? parsedArgs.title
+          : call.name;
+      const formInteractionWithSchema: UIComponentInteraction = {
+        ...formInteraction,
+        resultSchema: formResultSchema,
+      };
+
+      if (userAction.envelope?.kind === "submit") {
+        decision.interactionContent = buildInteractionResultContent({
+          title: formTitle,
+          envelope: userAction.envelope,
+          interaction: formInteractionWithSchema,
+        });
+        executionResult = {
+          rendered: true,
+          component: call.name,
+          props: {
+            ...parsedArgs,
+            values: userAction.envelope.values,
+            status: "submitted",
+          },
+        };
+      } else if (userAction.envelope?.kind === "cancel" || userAction.reason === "aborted") {
+        // cancel 是一等公民而非错误（设计文档 §3）：正常结果，isError=false
+        decision.interactionContent = digestCancel({
+          title: formTitle,
+          reason:
+            (userAction.envelope?.kind === "cancel" ? userAction.envelope.reason : undefined) ??
+            userAction.note,
+        });
+        executionResult = {
+          rendered: true,
+          component: call.name,
+          props: { ...parsedArgs, status: "cancelled" },
+        };
+      } else {
+        // 超时（服务端裁决，无信封——不允许客户端伪造超时）
+        decision.interactionContent = digestTimeout({
+          title: formTitle,
+          meaning: formInteraction.timeoutMeaning ?? "cancel",
+          timeoutMs: approvalTimeoutMs,
+        });
+        executionResult = {
+          rendered: true,
+          component: call.name,
+          props: { ...parsedArgs, status: "timeout" },
+        };
+      }
+      decision.earlyResult = executionResult;
+    }
+
     if (decision.isError) {
-      // 早败路径（守卫拦截 / 审批驳回）：结果事件即时实时发出（串行口径与旧行为一致）；
+      // 早败路径（守卫拦截）：结果事件即时实时发出（串行口径与旧行为一致）；
       // 结果消息延迟到 Phase C 按 call 序归位
       decision.earlyResult = executionResult;
       decision.resultMessage = {
@@ -337,6 +518,12 @@ export async function* executeToolCallStep(
         content: `Error: ${decision.errorMessage}`,
       };
       finalizeAndEmit(deps, input, decision, true, executionResult, decision.errorMessage, 0);
+      for (const event of decision.events) yield event;
+      decision.events.length = 0;
+    } else if (decision.earlyResult !== undefined) {
+      // 审批驳回早收（TASK-089 非错误通道）：摘要消息由 finalizeAndEmit 装配
+      // （interactionContent 优先），事件即时流出；不进入沙箱执行段
+      finalizeAndEmit(deps, input, decision, false, executionResult, undefined, 0);
       for (const event of decision.events) yield event;
       decision.events.length = 0;
     } else {
@@ -547,7 +734,7 @@ function finalizeAndEmit(
     renderResult.component !== "ui_approval_card" &&
     renderResult.component !== "ui_agent_plan"
   ) {
-    accumulatedCards.push({
+    const payloadCard = {
       id: `ui-${call.id}`,
       type: "ui",
       data: {
@@ -555,18 +742,39 @@ function finalizeAndEmit(
         props: renderResult.props || {},
         contentOffset: getContentLength(),
       },
-    });
+    };
+    // ui_form（评审 R-2）：挂起阶段已落 pending 卡（表单卡历史恢复）——完成后
+    // **原位更新**为已提交形态（values/status/actionId 供回写与归一），不追加重复卡
+    const pendingIdx = accumulatedCards.findIndex(
+      (c) => c.id === payloadCard.id && c.data?.component === "ui_form",
+    );
+    if (pendingIdx >= 0) {
+      accumulatedCards[pendingIdx] = {
+        ...payloadCard,
+        data: {
+          ...payloadCard.data,
+          props: renderResult.props || {},
+          status: "submitted",
+          actionId: call.id,
+        },
+      };
+    } else {
+      accumulatedCards.push(payloadCard);
+    }
   }
 
   // 结果消息（Phase C 按 call 序归位）
+  // TASK-089：声明 interaction 的工具/审批驳回路径优先使用双层 content
+  // （语义摘要 + JSON 附录）；其余工具按旧规则构造，逐字节不变
   decision.resultMessage = {
     role: "tool",
     tool_call_id: call.id,
     name: call.name,
     content: isError
       ? `Error: ${errorMessage}`
-      : typeof executionResult === "string"
-      ? executionResult
-      : JSON.stringify(executionResult),
+      : decision.interactionContent ??
+        (typeof executionResult === "string"
+          ? executionResult
+          : JSON.stringify(executionResult)),
   };
 }

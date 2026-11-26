@@ -1,0 +1,36 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`cancel / timeout 摘要形态 > cancel：取消是一等公民而非错误 1`] = `"用户在「创建部署」中取消了本次交互（原因：先不部署了）。这是用户的主动决定（非系统错误）——请不要自动重试或重复发起同一交互；可询问用户意图，或改用其他方式继续。"`;
+
+exports[`digestSubmit：§4.1 规则表逐行 > 完整摘要模板快照（§4.1 示例形态） 1`] = `
+"用户在「创建部署」中提交了以下信息：
+- 部署环境: production
+- 副本数: 3 个
+- 开启 TLS: 是
+- 规格: 大（8C16G）
+- 备注: （用户未填写）
+- 访问令牌: （用户未填写）
+
+其中「副本数」为用户亲自修改，其余沿用了你提供的默认值。"
+`;
+
+exports[`双层 content 组装（摘要供理解、附录供引用，两者同源） > buildInteractionResultContent：submit → 摘要 + 附录双层快照 1`] = `
+"用户在「创建部署」中提交了以下信息：
+- 部署环境: production
+- 副本数: 3 个
+- 开启 TLS: 是
+- 规格: 大（8C16G）
+- 备注: （用户未填写）
+- 访问令牌: （用户未填写）
+
+其中「副本数」为用户亲自修改，其余沿用了你提供的默认值。
+
+\`\`\`json
+{
+  "env": "production",
+  "replicas": 3,
+  "enableTls": true,
+  "size": "l"
+}
+\`\`\`"
+`;

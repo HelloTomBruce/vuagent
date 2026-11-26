@@ -66,4 +66,26 @@ describe("ActionHub (HITL Interruption & Resume)", () => {
     expect(result.reason).toBe("aborted");
     expect(result.note).toBe("User cancelled conversation");
   });
+
+  it("TASK-089：envelope 字段随 resolveAction 流转（formData 已标注退役）", async () => {
+    const hub = new ActionHub();
+    const actionId = "call-envelope";
+
+    const promise = hub.waitForAction(actionId, {
+      toolName: "deploy_form",
+      args: {},
+      timeoutMs: 5000,
+    });
+
+    const envelope = {
+      kind: "submit" as const,
+      values: { env: "prod", replicas: 3 },
+      meta: { editedFields: ["replicas"] },
+    };
+    hub.resolveAction(actionId, { approved: true, envelope });
+
+    const result = await promise;
+    expect(result.envelope).toEqual(envelope);
+    expect(result.formData).toBeUndefined();
+  });
 });

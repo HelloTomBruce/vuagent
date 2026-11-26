@@ -1,6 +1,7 @@
 import type { TSchema } from "@sinclair/typebox";
 import type { WorkspaceEntity, ModelProfileEntity } from "../storage/interfaces.js";
 import type { ActionHub } from "./action-hub.js";
+import type { UIComponentInteraction } from "@vuagent/protocol";
 
 /**
  * Harness 标准事件流 (HarnessStreamEvent)
@@ -42,6 +43,12 @@ export interface HarnessTool<T = Record<string, unknown>> {
    * 取代按工具名字符串黑名单的脆弱实现 —— 带写副作用的工具必须显式声明 true。
    */
   writesWorkspace?: boolean;
+  /**
+   * 交互能力声明（TASK-088 协议 / TASK-089 server 透传，可选）：
+   * 声明后该工具的挂起回传按信封契约（parseUIActionPayload）解析，
+   * 工具结果走「语义摘要 + JSON 附录」双层 content；未声明工具的结果消息逐字节不变。
+   */
+  interaction?: UIComponentInteraction;
   execute: (ctx: ToolExecutionContext<T>) => Promise<unknown>;
 }
 

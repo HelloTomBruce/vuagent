@@ -1,4 +1,5 @@
 import type { UIComponentDefinition } from "@vuagent/protocol";
+import { assertValidInteraction } from "@vuagent/protocol";
 import type { HarnessTool } from "./types.js";
 
 /**
@@ -11,8 +12,13 @@ export class UIComponentRegistry {
 
   /**
    * 注册自定义 UI 组件契约
+   * TASK-089：声明了 interaction 的组件在注册期做定义期校验（如 L2 缺 resultSchema
+   * 直接抛错），把契约错误拦截在定义期而非首次交互时。
    */
   register(def: UIComponentDefinition): this {
+    if (def.interaction) {
+      assertValidInteraction(def.name, def.interaction);
+    }
     this.components.set(def.name, def);
     return this;
   }
@@ -43,6 +49,9 @@ export class UIComponentRegistry {
       riskLevel: "low",
       requiresApproval: false,
       writesWorkspace: false,
+      // TASK-089：interaction 透传进 HarnessTool 扩展字段——执行器据此识别
+      // 声明组件并走信封摘要双层结果；未声明组件（无此键）行为逐字节不变。
+      ...(def.interaction ? { interaction: def.interaction } : {}),
       execute: async (ctx) => {
         return {
           rendered: true,

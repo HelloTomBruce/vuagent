@@ -81,4 +81,42 @@ describe("UIComponentRegistry (开放组件注册中心)", () => {
     expect(defaultDeployTool).toBeDefined();
     expect(defaultDeployTool.source).toBe("ui_component");
   });
+
+  it("TASK-089：interaction 透传进 HarnessTool 扩展字段；未声明组件不带该键", () => {
+    const registry = new UIComponentRegistry();
+    registry.register(stockComponentDef);
+    registry.register({
+      name: "deploy_form",
+      title: "创建部署",
+      description: "收集部署参数",
+      schema: Type.Object({ title: Type.String() }),
+      interaction: {
+        level: "L2",
+        resultSchema: Type.Object({ env: Type.String({ description: "部署环境" }) }),
+      },
+    });
+
+    const tools = registry.toHarnessTools();
+    const plain = tools.find((t) => t.name === "stock_quote_card")!;
+    const interactive = tools.find((t) => t.name === "deploy_form")!;
+
+    // 未声明组件：无 interaction 键（默认路径行为逐字节不变的判别依据）
+    expect("interaction" in plain).toBe(false);
+    // 声明组件：interaction 原样透传
+    expect(interactive.interaction?.level).toBe("L2");
+    expect(interactive.interaction?.resultSchema).toBeDefined();
+  });
+
+  it("TASK-089：注册期定义校验——L2 缺 resultSchema 直接抛错（错误前置到定义期）", () => {
+    const registry = new UIComponentRegistry();
+    expect(() =>
+      registry.register({
+        name: "bad_form",
+        title: "坏表单",
+        description: "缺少 resultSchema 的 L2",
+        schema: Type.Object({}),
+        interaction: { level: "L2" },
+      })
+    ).toThrow(/resultSchema/);
+  });
 });
