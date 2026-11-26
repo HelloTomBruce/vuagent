@@ -10,3 +10,5 @@ export * from "./stream-schema.js";
 export * from "./lifecycle.js";
 export * from "./tools.js";
 export * from "./system-tools.js";
+export * from "./interaction.js";
+export * from "./form.js";

@@ -6,6 +6,7 @@ import {
   CodeDiffToolSchema,
   MetricChartToolSchema,
   AgentPlanToolSchema,
+  PlanCollabResultSchema,
   FileTreeToolSchema,
   ApprovalActionPayloadSchema,
   isTextDeltaEvent,
@@ -92,6 +93,38 @@ describe("@vuagent/protocol - TypeBox Schemas", () => {
       editable: false,
     };
     expect(Value.Check(AgentPlanToolSchema, validPlan)).toBe(true);
+  });
+
+  it("AgentPlanToolSchema collaborative 可选字段（L3 协作语义，Phase 3）", () => {
+    // 缺省（纯展示语义不变）与显式 false 均合法
+    expect(Value.Check(AgentPlanToolSchema, { steps: [{ id: "s1", title: "a" }] })).toBe(true);
+    expect(
+      Value.Check(AgentPlanToolSchema, { steps: [{ id: "s1", title: "a" }], collaborative: false })
+    ).toBe(true);
+    // collaborative:true 合法（挂起等待用户协作修改）
+    expect(
+      Value.Check(AgentPlanToolSchema, { steps: [{ id: "s1", title: "a" }], collaborative: true })
+    ).toBe(true);
+    // 非布尔值拒绝
+    expect(
+      Value.Check(AgentPlanToolSchema, { steps: [{ id: "s1", title: "a" }], collaborative: "yes" })
+    ).toBe(false);
+  });
+
+  it("validates PlanCollabResultSchema correctly（L3 resultSchema，字段全可选）", () => {
+    // 空 patch（纯确认）合法——字段全可选
+    expect(Value.Check(PlanCollabResultSchema, {})).toBe(true);
+    // steps 增量合法
+    expect(
+      Value.Check(PlanCollabResultSchema, {
+        steps: [{ id: "s2", title: "改过的步骤", status: "pending" }],
+      })
+    ).toBe(true);
+    // retryStepId 合法
+    expect(Value.Check(PlanCollabResultSchema, { retryStepId: "s3" })).toBe(true);
+    // 形状非法：steps 非数组 / retryStepId 非字符串
+    expect(Value.Check(PlanCollabResultSchema, { steps: "not-array" })).toBe(false);
+    expect(Value.Check(PlanCollabResultSchema, { retryStepId: 3 })).toBe(false);
   });
 
   it("validates FileTreeToolSchema correctly", () => {

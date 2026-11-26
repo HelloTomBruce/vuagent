@@ -23,8 +23,16 @@ Agent 产品的前后端一致性问题是系统性风险：模型流式输出�
 ├── stream         事件流域：HarnessStreamEvent（18 事件判别联合）
 │                  谁在用：server（SSE 推送）+ console 前端（流式消费）
 │
-├── tools          UI 工具域：10 个 ui_* 工具 Schema + AllToolSchemas 聚合
+├── tools          UI 工具域：11 个 ui_* 工具 Schema + AllToolSchemas 聚合
 │                  谁在用：server（模型 parameters + 卡片名联合类型）
+│
+├── form           ui_form 表单契约域：六型字段 FormToolSchema + deriveFormResultSchema 派生器
+│                  谁在用：server（边界校验 / 摘要词汇表）+ @vuagent/ui（vendored 副本做本地预校验，
+│                  两侧函数文本由 check-protocol-sync 函数级卡口机械锁死）
+│
+├── interaction    交互契约域：回传信封（submit / cancel / patch 判别联合）+ 组件交互分级声明（L0–L3）
+│                  + 规范化解析器（parseUIActionPayload，含旧审批形态兼容映射）
+│                  谁在用：server（路由边界解析不可信回传体）+ @vuagent/ui（vendored 类型，信封以字面量构造）
 │
 ├── system-tools   系统工具域：fs / bash / glob / grep / web_fetch + finish_task 显式终态声明，共 8 个入参 Schema
 │                  谁在用：server（ToolRegistry 执行前校验闸门）
@@ -56,6 +64,16 @@ TypeBox Schema（手写，唯一维护点）
 | 工具调用链 | `tool_call_start` / `tool_call_args_delta` / `tool_call_executing` / `tool_call_result` | 参数流式生成 → 容错解析 → 执行中 → 结果收敛，四段渐进 |
 | UI 卡片 | `ui_agent_plan` / `ui_code_diff` / `ui_terminal_log` / `ui_metric_chart` | 模型主动发起的结构化渲染（计划/差异/终端/图表） |
 | 可观测 | `usage` / `traj` | token 消耗分段（系统提示/历史/工具）与执行轨迹时间线 |
+
+### 交互契约：UI 组件 ↔ LLM 的回传规范（interaction / form）
+
+UI 组件不只是渲染终点——L1 决策（审批）、L2 表单（ui_form）、L3 协作计划（ui_agent_plan `collaborative`）会把用户的输入回传给模型。契约由三部分构成：
+
+- **回传信封（`UIActionEnvelope`）**：`submit`（结构化值）/ `cancel`（用户放弃——一等公民而非错误，混为 error 会诱导模型重试轰炸）/ `patch`（L3 增量编辑，不终结挂起）三形态判别联合，附 `meta.editedFields`（用户亲自修改的字段，区别于默认值透传）；
+- **交互分级声明（`UIComponentInteraction`）**：组件注册时声明 `level`（L0 展示 / L1 决策 / L2 表单 / L3 协作）、`resultSchema` 或 `deriveResultSchema`（回传值校验 Schema——一身三任：边界校验规则 / 模型词汇表 / 摘要生成模板）、`timeoutMeaning`（超时语义归属，缺省 deny/cancel，不得映射为提交）；`assertValidInteraction` 在定义期拦截不完整声明；
+- **规范化解析器（`parseUIActionPayload`）**：路由边界的唯一入口——信封原样通过、旧审批形态 `{approved, reason}` 兼容映射、无法识别抛 `UIActionParseError`（超时等语义不允许客户端伪造，只能由服务端裁决生成）。
+
+模型侧消费的 tool 结果不是裸 JSON，而是「语义摘要 + JSON 附录」双层格式（由 server 按 resultSchema 字段 description 生成：enum 回映 label、boolean 是/否、secret 打码为 `ref` 占位——模型知道值已提供、经引用使用，始终见不到明文）。契约细节见 `docs/design/ui-llm-interaction-contract.md`。
 
 ## 核心设计决策
 

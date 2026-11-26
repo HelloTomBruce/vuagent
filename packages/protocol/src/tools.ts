@@ -6,6 +6,8 @@
 
 import { Type, type Static, type TSchema } from "@sinclair/typebox";
 import { VuagentSystemToolSchemas, type VuagentSystemToolName } from "./system-tools.js";
+import { FormToolSchema } from "./form.js";
+import type { UIComponentInteraction } from "./interaction.js";
 
 /**
  * 开放 UI 组件契约定义规范（供应用层/开发者自行丰富消息展现组件）
@@ -16,6 +18,12 @@ export interface UIComponentDefinition {
   title: string;
   description: string;
   schema: TSchema;
+  /**
+   * 交互能力声明（TASK-088，可选）：缺省视为 L0 纯展示。
+   * L1 决策 / L2 表单 / L3 协作的回传契约见 interaction.ts 与设计文档
+   * docs/design/ui-llm-interaction-contract.md §2。
+   */
+  interaction?: UIComponentInteraction;
 }
 
 // ==========================================
@@ -46,7 +54,12 @@ export const ApprovalCardToolSchema = Type.Object(
 
 export type ApprovalCardToolArgs = Static<typeof ApprovalCardToolSchema>;
 
-// HITL 用户审批回传载荷
+/**
+ * HITL 用户审批回传载荷
+ * @deprecated 自 TASK-088 起由通用交互信封（interaction.ts 的 UIActionEnvelope）取代；
+ * 兼容期内保留——server 路由通过 parseUIActionPayload 把本形态映射为 submit 信封，
+ * 新组件请声明 interaction 并使用信封回传。
+ */
 export const ApprovalActionPayloadSchema = Type.Object({
   approved: Type.Boolean({ description: "用户是否批准执行" }),
   reason: Type.Optional(
@@ -177,6 +190,12 @@ export const AgentPlanToolSchema = Type.Object(
     title: Type.Optional(Type.String({ description: "执行计划标题" })),
     steps: Type.Array(PlanStepSchema, { description: "计划任务步骤列表" }),
     editable: Type.Optional(Type.Boolean({ description: "是否允许用户在界面编辑修改步骤" })),
+    collaborative: Type.Optional(
+      Type.Boolean({
+        description:
+          "计划需要用户协作修改时置 true：渲染后挂起等待用户增量编辑（patch）并显式确认/取消；缺省 false 保持纯展示语义不变",
+      })
+    ),
   },
   {
     $id: "ui_agent_plan",
@@ -186,6 +205,25 @@ export const AgentPlanToolSchema = Type.Object(
 
 export type AgentPlanToolArgs = Static<typeof AgentPlanToolSchema>;
 export type PlanStepItem = Static<typeof PlanStepSchema>;
+
+/**
+ * L3 协作计划回传值 Schema（Phase 3，设计文档 §2/§3）：
+ * 供 UIAgentPlanTool 的 interaction.resultSchema 使用——patch/submit 的 values
+ * 按此 Schema 做服务端边界校验（与 ui_form 的 deriveResultSchema 同一卡口语义，
+ * 字段全可选：patch 是增量，submit 可只确认既有编辑）。
+ */
+export const PlanCollabResultSchema = Type.Object({
+  steps: Type.Optional(
+    Type.Array(PlanStepSchema, {
+      description: "用户协作修改后的计划步骤集合（全量步骤列表，服务端按 patch 增量合并）",
+    })
+  ),
+  retryStepId: Type.Optional(
+    Type.String({ description: "用户要求重试的步骤 ID（如提供）" })
+  ),
+});
+
+export type PlanCollabResult = Static<typeof PlanCollabResultSchema>;
 
 // ==========================================
 // 6. 文件树结构卡片工具 (FileTree)
@@ -368,6 +406,7 @@ export type AiAnswerToolArgs = Static<typeof AiAnswerToolSchema>;
 // ==========================================
 export const VuagentToolSchemas = {
   ui_approval_card: ApprovalCardToolSchema,
+  ui_form: FormToolSchema,
   ui_trajectory: TrajectoryToolSchema,
   ui_code_diff: CodeDiffToolSchema,
   ui_metric_chart: MetricChartToolSchema,
