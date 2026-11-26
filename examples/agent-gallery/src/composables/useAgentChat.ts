@@ -14,6 +14,12 @@ export interface PendingApproval {
   risk: "low" | "medium" | "high";
 }
 
+/** L2 表单挂起（ui_form）：actionId + 模型给出的表单参数（title/fields 等） */
+export interface PendingForm {
+  id: string;
+  args: Record<string, any>;
+}
+
 export interface ChatTurn {
   id: string;
   role: "user" | "assistant";
@@ -23,6 +29,11 @@ export interface ChatTurn {
   cards: MessageCard[];
   approval?: PendingApproval;
   approvalDecided?: "approved" | "denied";
+  form?: PendingForm;
+  /** pending 待填 / done 已提交 / cancelled 用户放弃 */
+  formStatus?: "pending" | "done" | "cancelled";
+  /** server 422 回填的逐字段错误（重填闭环：表单保持可编辑） */
+  formErrors?: Record<string, string>;
 }
 
 export interface AgentChatOptions {
@@ -79,6 +90,10 @@ export function useAgentChat(options: AgentChatOptions = {}) {
       cards: [],
     };
     turns.value.push(assistantTurn);
+    // 关键（TASK-001 教训在画廊的复现）：push 之后必须从 reactive 数组回取**代理对象**，
+    // 后续 SSE 事件全部变更代理——直接改 raw 引用绕过依赖追踪，suspended 挂起后
+    // 没有任何后续渲染触发点，表单/审批卡会永远不出现（界面停在「正在分析中」）。
+    const trackedTurn = turns.value[turns.value.length - 1] as ChatTurn;
     isStreaming.value = true;
     await nextTick();
     scrollToBottom({ force: true });
@@ -116,7 +131,7 @@ export function useAgentChat(options: AgentChatOptions = {}) {
             const jsonStr = line.replace(/^data:\s*/, "").trim();
             if (!jsonStr || jsonStr === "[DONE]") continue;
             try {
-              handleEvent(JSON.parse(jsonStr), assistantTurn);
+              handleEvent(JSON.parse(jsonStr), trackedTurn);
             } catch {
               /* 忽略不完整 SSE 片段 */
             }
@@ -124,7 +139,7 @@ export function useAgentChat(options: AgentChatOptions = {}) {
         }
       }
     } catch (err: any) {
-      assistantTurn.text += `\n\n⚠️ 执行异常: ${err.message || String(err)}`;
+      trackedTurn.text += `\n\n⚠️ 执行异常: ${err.message || String(err)}`;
     } finally {
       isStreaming.value = false;
       await nextTick();
@@ -161,6 +176,12 @@ export function useAgentChat(options: AgentChatOptions = {}) {
 
       case "suspended":
       case "action_suspended":
+        // ui_form（L2 值采集）挂起：渲染表单卡而非审批卡——回传统一走信封
+        if (event.toolName === "ui_form") {
+          turn.form = { id: event.actionId, args: event.args || {} };
+          turn.formStatus = "pending";
+          break;
+        }
         turn.approval = {
           id: event.actionId,
           title: `高危操作安全审批：${event.toolName || "操作"} 申请执行`,
@@ -171,6 +192,7 @@ export function useAgentChat(options: AgentChatOptions = {}) {
 
       case "resumed":
       case "action_resumed":
+        if (turn.form && turn.formStatus === "pending") turn.formStatus = "done";
         turn.approvalDecided = "approved";
         break;
 
@@ -206,6 +228,52 @@ export function useAgentChat(options: AgentChatOptions = {}) {
     }
   }
 
+  /**
+   * 提交表单（L2 信封通道）：submit 携带 values + editedFields；
+   * server 422 + fieldErrors（校验失败）时回填到表单就地修正——不唤醒即不算终态，
+   * 表单保持可编辑，用户修正后重提交。
+   */
+  async function submitForm(turn: ChatTurn, values: Record<string, unknown>, editedFields: string[]) {
+    if (!turn.form) return;
+    turn.formErrors = undefined;
+    try {
+      const res = await fetch(`/api/action/${turn.form.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "submit", values, meta: { editedFields } }),
+      });
+      if (res.ok) {
+        turn.formStatus = "done";
+        return;
+      }
+      if (res.status === 422) {
+        const body = (await res.json().catch(() => null)) as { fieldErrors?: Record<string, string> } | null;
+        if (body?.fieldErrors && Object.keys(body.fieldErrors).length > 0) {
+          turn.formErrors = body.fieldErrors;
+          return;
+        }
+      }
+      pushAssistant(`⚠️ 表单提交失败（HTTP ${res.status}），请重试。`);
+    } catch (err) {
+      console.error("提交表单异常:", err);
+    }
+  }
+
+  /** 放弃表单：cancel 是一等公民（放弃 ≠ 失败），模型按用户意图继续而非重试 */
+  async function cancelForm(turn: ChatTurn) {
+    if (!turn.form) return;
+    try {
+      const res = await fetch(`/api/action/${turn.form.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "cancel" }),
+      });
+      if (res.ok) turn.formStatus = "cancelled";
+    } catch (err) {
+      console.error("取消表单异常:", err);
+    }
+  }
+
   reset(options.greeting);
 
   return {
@@ -217,6 +285,8 @@ export function useAgentChat(options: AgentChatOptions = {}) {
     chatScrollRef,
     send,
     decide,
+    submitForm,
+    cancelForm,
     switchScene,
   };
 }

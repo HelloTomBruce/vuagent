@@ -182,4 +182,66 @@ export const OpsScaleReplicasTool: HarnessTool = {
   },
 };
 
-export const opsTools = [OpsInspectClusterTool, OpsListIncidentsTool, OpsScaleReplicasTool];
+/**
+ * 场景① 扩展：生产部署（演示 L2 表单采集 + L1 审批的完整链路）
+ * 链路：模型先用 ui_form 收集部署参数（环境/副本数/部署令牌 secret），
+ * 参数齐全后调用本工具——高危写操作触发审批门，批准后返回金丝雀部署结果卡。
+ */
+export const OpsDeployServiceTool: HarnessTool = {
+  name: "ops_deploy_service",
+  description:
+    "将微服务部署到目标环境（高危写操作，触发人工安全审批）。" +
+    "调用本工具前必须先调用 ui_form 工具，按下方参数要求渲染表单向用户收集部署参数：" +
+    "environment 适合 select（选项 staging=预发 / production=生产）、replicas 适合 number（建议默认 3、单位个）、" +
+    "deployToken 是敏感凭证（务必标记 secret 字段，用户输入不会进入对话）。" +
+    "三个参数收集齐全前禁止调用本工具；deployToken 若为 secret:// 引用原样透传即可。",
+  parameters: Type.Object({
+    serviceName: Type.Optional(
+      Type.String({ description: "要部署的微服务名称，缺省 order-service" })
+    ),
+    environment: Type.Union([Type.Literal("staging"), Type.Literal("production")], {
+      description: "目标部署环境（应来自 ui_form 表单收集结果）",
+    }),
+    replicas: Type.Integer({ description: "部署副本数（来自表单收集）", minimum: 1, maximum: 20 }),
+    deployToken: Type.String({ description: "部署令牌或 secret 引用（来自表单收集）" }),
+    reason: Type.Optional(Type.String({ description: "部署说明" })),
+  }),
+  riskLevel: "high",
+  requiresApproval: true,
+  writesWorkspace: false,
+  execute: async (ctx) => {
+    const serviceName = String(ctx.args.serviceName || "order-service");
+    const environment = String(ctx.args.environment || "production");
+    const replicas = Number(ctx.args.replicas) || 3;
+    const token = String(ctx.args.deployToken || "");
+    // secret 引用只展示占位形态，永不回显明文（真实部署由执行点在 secret store 还原）
+    const tokenMasked = token.startsWith("secret://") ? "（引用已接收，执行点还原）" : "（已接收）";
+    const reason = ctx.args.reason ? String(ctx.args.reason) : "版本例行发布";
+
+    return {
+      rendered: true,
+      component: "ui_canary_deploy",
+      props: {
+        serviceName,
+        currentReplicas: environment === "production" ? 2 : 1,
+        targetReplicas: replicas,
+        status: "completed",
+        strategy: "RollingUpdate",
+        reason: `${reason} · 环境 ${environment} · 部署令牌${tokenMasked}`,
+        metrics: { cpuBefore: "45%", cpuAfter: "46%", memBefore: "61%", memAfter: "62%" },
+        probes: {
+          liveness: `Passed (${replicas}/${replicas})`,
+          readiness: `Passed (${replicas}/${replicas})`,
+        },
+        timeline: [
+          { time: "T+0s", event: "人工审批通过，部署参数经表单采集齐备，向集群发起 Deployment 声明" },
+          { time: "T+2s", event: `调度器在 ${environment} 环境拉起 ${replicas} 个实例` },
+          { time: "T+4s", event: "存活与就绪探针检查全部通过" },
+          { time: "T+5s", event: "Ingress 接入新实例流量，部署完成" },
+        ],
+      },
+    };
+  },
+};
+
+export const opsTools = [OpsInspectClusterTool, OpsListIncidentsTool, OpsScaleReplicasTool, OpsDeployServiceTool];

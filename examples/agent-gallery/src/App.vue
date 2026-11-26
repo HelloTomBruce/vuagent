@@ -4,6 +4,7 @@ import { Bot, ChevronDown, Sparkles, X } from "lucide-vue-next";
 import {
   VaComposer,
   VaApprovalCard,
+  VaForm,
   VaUserBubble,
   VaAssistantTurn,
   getCardComponent,
@@ -119,6 +120,22 @@ const isDrawerOpen = ref(true);
                 v-bind="card.props"
                 @quick="(prompt: string) => chat.send(prompt)"
               />
+            </div>
+
+            <div v-if="turn.form" class="drawer__approval">
+              <!-- L2 表单卡（ui_form）：提交/取消走交互信封；422 fieldErrors 就地回填重填 -->
+              <VaForm
+                :title="turn.form.args.title"
+                :description="turn.form.args.description"
+                :fields="Array.isArray(turn.form.args.fields) ? turn.form.args.fields : []"
+                :submit-label="turn.form.args.submitLabel || '提交'"
+                :disabled="turn.formStatus !== 'pending'"
+                :field-errors="turn.formErrors"
+                @submit="(values: Record<string, unknown>, edited: string[]) => chat.submitForm(turn, values, edited)"
+                @cancel="() => chat.cancelForm(turn)"
+              />
+              <p v-if="turn.formStatus === 'done'" class="drawer__form-note">✅ 表单已提交，agent 正在继续执行</p>
+              <p v-else-if="turn.formStatus === 'cancelled'" class="drawer__form-note">已放弃本次填写</p>
             </div>
 
             <div v-if="turn.approval" class="drawer__approval">

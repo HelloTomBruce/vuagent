@@ -18,6 +18,7 @@ export const SCENES: SceneDef[] = [
     chips: [
       { label: "🔍 全面体检（巡检+事件）", prompt: "请依次调用 ops_inspect_cluster 和 ops_list_incidents 工具，对 order-service 做一次全面体检并展示关联事件时间线" },
       { label: "⚡ 扩容至 5 副本（审批）", prompt: "请调用 ops_scale_replicas 工具紧急将 order-service 副本数扩容至 5 个以分流洪峰流量", tone: "action" },
+      { label: "🚀 生产部署（表单→审批）", prompt: "开始部署 order-service", tone: "action" },
     ],
     host: CloudOpsHost,
   },
