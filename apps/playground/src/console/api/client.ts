@@ -469,6 +469,31 @@ export async function submitAction(
   return res.ok;
 }
 
+/**
+ * TASK-092（设计文档 §3/§4.2）：通用交互信封提交（L2 表单 submit/cancel）。
+ * server 422 + fieldErrors（ENVELOPE_VALUES_INVALID）返回给调用方就地回显——
+ * 校验失败不是终态而是重填的新输入，表单卡片保持可编辑。
+ */
+export async function submitActionEnvelope(
+  actionId: string,
+  envelope: unknown
+): Promise<{ ok: boolean; status: number; fieldErrors?: Record<string, string> }> {
+  const res = await fetch(`/api/action/${actionId}`, {
+    method: "POST",
+    headers: { ...authHeaders(), ...JSON_HEADERS },
+    body: JSON.stringify(envelope),
+  });
+  if (res.status === 422) {
+    const body = (await res.json().catch(() => null)) as {
+      fieldErrors?: Record<string, string>;
+    } | null;
+    if (body?.fieldErrors && Object.keys(body.fieldErrors).length > 0) {
+      return { ok: false, status: 422, fieldErrors: body.fieldErrors };
+    }
+  }
+  return { ok: res.ok, status: res.status };
+}
+
 export async function abortSession(sessionId: string): Promise<void> {
   try {
     await fetch(`/api/sessions/${sessionId}/abort`, {

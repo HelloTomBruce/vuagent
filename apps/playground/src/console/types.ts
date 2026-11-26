@@ -81,7 +81,9 @@ export interface ActionCard {
     /** 工具调用链卡片（tool_call_start → args_delta → executing → result 全生命周期） */
     | "toolcall"
     /** ui_* 契约工具持久化卡：{component, props} 原始载荷，CardRenderer 按组件名动态分发 */
-    | "ui";
+    | "ui"
+    /** TASK-092：ui_form（L2 值采集）专用表单卡，值以信封回传（suspended/resumed HITL 流） */
+    | "form";
   data: any;
 }
 

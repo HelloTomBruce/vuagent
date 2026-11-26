@@ -4,11 +4,12 @@
  * - 结构化卡片按 ActionCard.type 分发
  * - "ui" 持久化卡按 data.component（ui_* 契约名）动态分发到对应 Va* 组件
  */
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import {
   VaApprovalCard,
   VaCodeDiff,
   VaFileTree,
+  VaForm,
   VaMetricChart,
   VaTerminalLog,
   VaToolCallCard,
@@ -17,11 +18,14 @@ import {
   VaChangeSummary,
   VaCommentThread,
   VaAiAnswer,
+  vaToaster,
   getCardComponent,
 } from "@vuagent/ui";
 import type { ActionCard } from "../types";
+import type { FormFieldItem } from "@vuagent/ui";
 import { toolCardDefaultOpen } from "../utils/auto-collapse";
 import { useInteractionSettings } from "../composables/useInteractionSettings";
+import { submitActionEnvelope } from "../api/client";
 
 const props = defineProps<{
   card: ActionCard;
@@ -94,6 +98,72 @@ const uiComponent = computed(() => String(props.card.data?.component || ""));
 const uiRenderable = computed(() => UI_RENDERABLE.has(uiComponent.value));
 // 开发者注册的场景自定义卡片组件
 const customComponent = computed(() => getCardComponent(uiComponent.value));
+
+/* ---- TASK-092：ui_form 表单卡（L2 值采集，信封回传） ---- */
+// server 422 fieldErrors 就地回显（§4.2 重填闭环）：提交前清空、失败回填
+const formFieldErrors = ref<Record<string, string>>({});
+const formFields = computed<FormFieldItem[]>(() => {
+  const raw = props.card.data?.formArgs?.fields;
+  return Array.isArray(raw) ? (raw as FormFieldItem[]) : [];
+});
+// 提交在途：loading 传给 VaForm（禁用提交按钮防双击/防重复信封）
+const formSubmitting = ref(false);
+const onFormSubmit = async (values: Record<string, unknown>, editedFields: string[]) => {
+  if (formSubmitting.value) return;
+  formFieldErrors.value = {};
+  formSubmitting.value = true;
+  try {
+    const res = await submitActionEnvelope(props.card.data.actionId, {
+      kind: "submit",
+      values,
+      meta: { editedFields },
+    });
+    if (res.ok) {
+      props.card.data.status = "done";
+    } else if (res.fieldErrors) {
+      // 校验失败不是终态：保持 pending，就地回显错误供重填
+      formFieldErrors.value = res.fieldErrors;
+    } else {
+      // 非 422 失败（400/404/409/5xx）：必须给用户可见反馈，不能静默死端
+      vaToaster.add({
+        title: `表单提交失败（HTTP ${res.status}）`,
+        description: "请稍后重试；若持续失败请查看服务端日志",
+        kind: "warning",
+      });
+    }
+  } catch (err) {
+    vaToaster.add({
+      title: "表单提交网络异常",
+      description: err instanceof Error ? err.message : String(err),
+      kind: "warning",
+    });
+  } finally {
+    formSubmitting.value = false;
+  }
+};
+const onFormCancel = async () => {
+  if (formSubmitting.value) return;
+  formFieldErrors.value = {};
+  formSubmitting.value = true;
+  try {
+    const res = await submitActionEnvelope(props.card.data.actionId, { kind: "cancel" });
+    if (res.ok) props.card.data.status = "done";
+    else
+      vaToaster.add({
+        title: `取消失败（HTTP ${res.status}）`,
+        description: "请稍后重试",
+        kind: "warning",
+      });
+  } catch (err) {
+    vaToaster.add({
+      title: "取消请求网络异常",
+      description: err instanceof Error ? err.message : String(err),
+      kind: "warning",
+    });
+  } finally {
+    formSubmitting.value = false;
+  }
+};
 </script>
 
 <template>
@@ -193,6 +263,27 @@ const customComponent = computed(() => getCardComponent(uiComponent.value));
       @approve="$emit('approve')"
       @deny="(reason) => $emit('deny', reason)"
     />
+
+    <!-- TASK-092：ui_form 表单卡片（L2 值采集，submit/cancel 信封回传） -->
+    <VaForm
+      v-else-if="card.type === 'form'"
+      :title="card.data.formArgs?.title"
+      :description="card.data.formArgs?.description"
+      :fields="formFields"
+      :submit-label="card.data.formArgs?.submitLabel"
+      :disabled="card.data.status !== 'pending'"
+      :loading="formSubmitting"
+      :field-errors="formFieldErrors"
+      @submit="onFormSubmit"
+      @cancel="onFormCancel"
+    >
+      <template v-if="card.data.status === 'timeout'" #after-actions>
+        <p class="va-console__form-note">⏱ 表单已超时关闭（按用户放弃处理，可在对话中重新发起）</p>
+      </template>
+      <template v-else-if="card.data.status === 'done'" #after-actions>
+        <p class="va-console__form-note">✅ 表单已提交，agent 正在继续执行</p>
+      </template>
+    </VaForm>
 
     <!-- 代码变更 Diff 卡片 (VaCodeDiff) -->
     <VaCodeDiff

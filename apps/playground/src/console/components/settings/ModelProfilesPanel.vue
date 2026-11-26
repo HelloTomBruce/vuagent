@@ -11,7 +11,7 @@
  * 凭证只在供应商层填写一次，其下所有模型共用——这是本次重构的核心
  * （旧版配第二个模型要复制整条含密钥的配置）。
  */
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import {
   AlertCircle,
   Check,
@@ -49,6 +49,8 @@ const props = defineProps<{
   isCreatingModel: boolean;
   showApiKey: boolean;
   isTestingConnection: boolean;
+  /** 列表行快捷探测进行中的档案 id（该行按钮转圈） */
+  testingProfileId: string;
   isDiscovering: boolean;
   testStatus: { ok: boolean; message: string } | null;
   discoveredModels: string[];
@@ -57,8 +59,7 @@ const props = defineProps<{
   capabilityVerdicts: Array<{ capability: string; ok: boolean | null; detail: string }>;
 }>();
 
-const emit = defineEmits<{
-  (e: "close"): void;
+const emit = defineEmits<{  (e: "close"): void;
   (e: "select-provider", id: string): void;
   (e: "create-provider"): void;
   (e: "delete-provider", id: string): void;
@@ -70,7 +71,10 @@ const emit = defineEmits<{
   (e: "save-model"): void;
   (e: "test"): void;
   (e: "discover"): void;
-  (e: "apply-detected", item: DetectedModelInfo): void;
+  /** VaSelect 选择模型标识：回填标识 + 显示名称（始终覆盖）+ 能力 */
+  (e: "select-model", id: string): void;
+  /** 列表行快捷探测：不进编辑表单直接测试已保存模型 */
+  (e: "test-model", m: ModelProfileItem): void;
   (e: "provider-kind-change", kind: string): void;
   (e: "update:showApiKey", value: boolean): void;
   (e: "toggle-modality", modality: string): void;
@@ -78,6 +82,32 @@ const emit = defineEmits<{
   (e: "toggle-tool-use"): void;
   (e: "verify-capabilities"): void;
 }>();
+
+/* ---- 模型标识选择（方案：自动拉取 + VaSelect 列表 + 手动输入兜底） ---- */
+/** 拉取失败或候选为空时自动切手动输入（端点不支持 /models 列表的兜底），也可手动切换 */
+const manualModelInput = ref(false);
+/** 用户显式选择的手动/列表偏好：显式选择后自动翻转不再覆盖（评审 R-4 修复） */
+const manualInputPreferred = ref<boolean | null>(null);
+function onToggleManual() {
+  manualModelInput.value = !manualModelInput.value;
+  manualInputPreferred.value = manualModelInput.value;
+}
+const modelOptions = computed(() =>
+  props.discoveredItems.map((d) => ({
+    value: d.id,
+    label: d.displayName ? `${d.displayName} · ${d.id}` : d.id,
+  }))
+);
+watch(
+  () => [props.discoveredModels.length, props.isDiscovering] as const,
+  ([len, loading]) => {
+    if (loading) return;
+    // 候选为空（拉取失败或端点不支持）→ 自动兜底手动；有候选 → 回列表，
+    // 但用户显式选择过手动模式则尊重，不再被任何刷新强制翻转
+    if (len === 0) manualModelInput.value = true;
+    else if (manualInputPreferred.value !== true) manualModelInput.value = false;
+  },
+);
 
 /** 模型层输入模态候选（文本恒选中且不可取消） */
 const MODALITY_OPTIONS = [
@@ -256,6 +286,16 @@ const editingModelId = computed(() => props.modelDraft?.id || "");
                 <div class="va-model-row__badges">
                   <span v-for="b in badges(m)" :key="b" class="va-prov-badge">{{ b }}</span>
                 </div>
+                <button
+                  class="va-model-row__edit"
+                  type="button"
+                  :title="testingProfileId === m.id ? '探测中…' : testingProfileId ? '另有模型探测进行中' : '不进编辑直接测试该模型连通性'"
+                  :disabled="!!testingProfileId"
+                  @click.stop="emit('test-model', m)"
+                >
+                  <Loader2 v-if="testingProfileId === m.id" :size="13" class="va-console__spin" />
+                  <Zap v-else :size="13" />
+                </button>
                 <button class="va-model-row__edit" type="button">
                   <ChevronUp v-if="m.id === editingModelId" :size="13" />
                   <ChevronDown v-else :size="13" />
@@ -295,7 +335,21 @@ const editingModelId = computed(() => props.modelDraft?.id || "");
               <div class="va-console__form-group flex-1">
                 <label class="va-console__label">模型标识 (Model ID)</label>
                 <div class="va-console__input-with-action">
+                  <!-- 打开供应商后自动拉取可用模型 → 列表选择（可搜索）；拉取失败/为空自动切手动输入兜底 -->
+                  <VaSelect
+                    v-if="!manualModelInput"
+                    class="va-console__model-select"
+                    :model-value="modelDraft.model || ''"
+                    :options="modelOptions"
+                    searchable
+                    :disabled="isDiscovering"
+                    :placeholder="isDiscovering ? '正在拉取模型列表…' : modelOptions.length ? '选择模型标识（可搜索）' : '暂无候选：刷新或手动输入'"
+                    :label="'模型标识'"
+                    :invalid="!modelDraft.model?.trim()"
+                    @update:model-value="(v: unknown) => v && emit('select-model', String(v))"
+                  />
                   <input
+                    v-else
                     v-model="modelDraft.model"
                     class="va-console__input font-mono"
                     type="text"
@@ -313,39 +367,18 @@ const editingModelId = computed(() => props.modelDraft?.id || "");
                     <RefreshCw v-else :size="14" />
                   </button>
                 </div>
+                <button
+                  type="button"
+                  class="va-console__model-manual-toggle"
+                  @click="onToggleManual"
+                >
+                  {{ manualModelInput ? "改为列表选择" : "列表里没有？手动输入标识" }}
+                </button>
                 <datalist id="va-discovered-models">
                   <option v-for="d in discoveredModels" :key="d" :value="d" />
                 </datalist>
               </div>
             </div>
-            <!-- 拉取结果：点选即自动填充标识与能力 -->
-            <div v-if="discoveredItems.length" class="va-discovered">
-              <div class="va-discovered__head">
-                <span>已拉取 {{ discoveredItems.length }} 个可用模型</span>
-                <span class="va-discovered__hint">
-                  {{ discoveredItems.filter((i) => i.capabilities).length }} 个带能力信息，点选自动填充
-                </span>
-              </div>
-              <div class="va-discovered__list">
-                <button
-                  v-for="d in discoveredItems"
-                  :key="d.id"
-                  class="va-discovered__item"
-                  :class="{ 'va-discovered__item--active': d.id === modelDraft.model }"
-                  type="button"
-                  @click="emit('apply-detected', d)"
-                >
-                  <span class="va-discovered__id">{{ d.id }}</span>
-                  <span v-if="d.displayName" class="va-discovered__name">{{ d.displayName }}</span>
-                  <span class="va-discovered__badges">
-                    <span v-for="b in capabilityBadges({ capabilities: d.capabilities })" :key="b" class="va-prov-badge">{{ b }}</span>
-                  </span>
-                </button>
-              </div>
-            </div>
-            <p v-else-if="discoveredModels.length" class="va-console__modal-sub">
-              已拉取 {{ discoveredModels.length }} 个可用模型，输入框可直接联想选择。
-            </p>
 
             <!-- 能力元数据 -->
             <div class="va-cap-block">
@@ -512,7 +545,13 @@ const editingModelId = computed(() => props.modelDraft?.id || "");
       </div>
 
       <div class="va-console__foot-right">
-        <button class="va-console__btn-ghost" :disabled="isTestingConnection" type="button" @click="emit('test')">
+        <button
+          class="va-console__btn-ghost"
+          :disabled="isTestingConnection || !modelDraft?.model?.trim()"
+          :title="modelDraft?.model?.trim() ? '向该模型发起最小探测（产生 1 token 费用）' : '先选择或填写模型标识再测试'"
+          type="button"
+          @click="emit('test')"
+        >
           <Loader2 v-if="isTestingConnection" :size="13" class="va-console__spin" />
           <Zap v-else :size="13" />
           <span>测试连通性</span>

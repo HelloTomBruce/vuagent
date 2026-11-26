@@ -192,6 +192,20 @@ export function useSessions(options: SessionsOptions) {
               // TASK-006 兜底：轮次已结束但 toolcall 卡仍停留 running 态（执行中被中止），
               // 收敛为 error 防止 VaToolCallCard 计时器永远空转
               const restoredCards = (t.cards || []).map((c: any) => {
+                // TASK-092（评审 R-2 表单卡持久化）：server 落库的 ui_form 卡（ui 通道）
+                // 归一为 form ActionCard，复用 CardRenderer 表单分支渲染与提交接线
+                if (c.type === "ui" && c.data?.component === "ui_form") {
+                  return {
+                    id: c.data.actionId || c.id,
+                    type: "form",
+                    data: {
+                      actionId: c.data.actionId,
+                      toolName: "ui_form",
+                      formArgs: c.data.props || {},
+                      status: c.data.status || "done",
+                    },
+                  };
+                }
                 if (
                   c.type === "toolcall" &&
                   (c.data?.status === "streaming" || c.data?.status === "executing")

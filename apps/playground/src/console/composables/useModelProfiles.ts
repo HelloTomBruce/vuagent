@@ -78,6 +78,8 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
   const isDiscovering = ref(false);
   /** 拉取到的可选模型 id 列表（供输入联想，避免手打模型标识） */
   const discoveredModels = ref<string[]>([]);
+  /** 已成功拉取的 providerId：同 provider 不重复自动拉取（手动刷新始终放行） */
+  const discoveredForProvider = ref("");
   /** 拉取到的模型详细信息（含能力探测结果，选中即自动填充） */
   const discoveredItems = ref<DetectedModelInfo[]>([]);
 
@@ -418,6 +420,8 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
       capabilities: { source: "declared" },
       isDefault: false,
     };
+    // 打开模型表单即自动拉取该供应商可用模型（静默；已有缓存则跳过）
+    void discoverModels({ silent: true });
   }
 
   /** 开始编辑已有模型 */
@@ -441,6 +445,8 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
       temperature: m.temperature ?? 0.2,
       isDefault: !!m.isDefault,
     };
+    // 编辑已有模型同样预拉取候选列表（静默，同 provider 已拉取过则跳过）
+    void discoverModels({ silent: true });
   }
 
   function cancelModelEdit() {
@@ -517,10 +523,15 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
 
   /* ==================== 模型列表发现 ==================== */
 
-  async function discoverModels() {
+  async function discoverModels(options?: { silent?: boolean }) {
+    const silent = options?.silent === true;
     const providerId = currentProvider.value?.id;
     if (!providerId) {
-      vaToaster.add({ title: "请先保存供应商，再拉取模型列表", kind: "warning" });
+      if (!silent) vaToaster.add({ title: "请先保存供应商，再拉取模型列表", kind: "warning" });
+      return;
+    }
+    // 自动拉取防抖：同一 provider 已成功拉取过则跳过（手动刷新不受限）
+    if (silent && discoveredForProvider.value === providerId && discoveredModels.value.length > 0) {
       return;
     }
     isDiscovering.value = true;
@@ -529,17 +540,20 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
       if (res?.ok && res.models) {
         discoveredModels.value = res.models;
         discoveredItems.value = res.items ?? [];
+        discoveredForProvider.value = providerId;
         const withCap = discoveredItems.value.filter((i) => i.capabilities).length;
-        vaToaster.add({
-          title: `已拉取 ${res.models.length} 个可用模型`,
-          description: withCap > 0 ? `其中 ${withCap} 个可自动填充能力信息` : "该供应商未提供能力信息，需手动填写",
-          kind: "success",
-        });
-      } else {
+        if (!silent) {
+          vaToaster.add({
+            title: `已拉取 ${res.models.length} 个可用模型`,
+            description: withCap > 0 ? `其中 ${withCap} 个可自动填充能力信息` : "该供应商未提供能力信息，需手动填写",
+            kind: "success",
+          });
+        }
+      } else if (!silent) {
         vaToaster.add({ title: `拉取失败：${res?.error || "端点无响应"}`, kind: "warning" });
       }
     } catch (e: any) {
-      vaToaster.add({ title: `拉取失败: ${e.message || String(e)}`, kind: "warning" });
+      if (!silent) vaToaster.add({ title: `拉取失败: ${e.message || String(e)}`, kind: "warning" });
     } finally {
       isDiscovering.value = false;
     }
@@ -561,9 +575,31 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
     modelDraft.value = {
       ...draft,
       model: item.id,
-      name: draft.name?.trim() ? draft.name : item.displayName || item.id,
+      // 选择模型即以所选模型为准回填显示名称（用户可随后自行改名）——
+      // 旧口径「名称非空不覆盖」会让切换模型后残留上一个模型的名称，被误读为回填失效
+      name: item.displayName || item.id,
       contextWindow: detectedCap?.contextWindow || draft.contextWindow,
       capabilities: merged,
+    };
+  }
+
+  /**
+   * VaSelect 选择模型标识：按 id 回查发现项并复用 applyDetected 的自动回填
+   * （显示名称始终覆盖为 displayName/id、能力 detected 优先）；找不到发现项
+   * （如手动刷新后列表变化）时仅回填标识与名称，不覆盖能力。
+   */
+  function selectDiscoveredModel(id: string) {
+    const item = discoveredItems.value.find((d) => d.id === id);
+    if (item) {
+      applyDetected(item);
+      return;
+    }
+    const draft = modelDraft.value;
+    if (!draft) return;
+    modelDraft.value = {
+      ...draft,
+      model: id,
+      name: id,
     };
   }
 
@@ -620,7 +656,46 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
    *   · 未编辑任何模型 → 传当前选中的供应商
    * 三者都缺失时会退回服务端环境变量，那测的就不是用户的配置了。
    */
+  /**
+   * 列表行快捷探测（不进编辑表单）：按已保存档案直接测（profileId → 服务端
+   * hydrate 出端点与凭证），结果走全局 toaster——模型清单里一键验证连通性。
+   */
+  const testingProfileId = ref<string>("");
+  async function testProfileConnection(m: ModelProfileItem) {
+    if (testingProfileId.value) return;
+    testingProfileId.value = m.id;
+    try {
+      const result = await testModelConnectionApi({ profileId: m.id, model: m.model });
+      if (result.ok) {
+        vaToaster.add({
+          title: `「${m.name || m.model}」连通正常`,
+          description: `首响应 ${result.latencyMs}ms · ${result.model}`,
+          kind: "success",
+        });
+      } else {
+        vaToaster.add({
+          title: `「${m.name || m.model}」探测失败`,
+          description: result.error || "端点无响应",
+          kind: "warning",
+        });
+      }
+    } catch (e: any) {
+      vaToaster.add({ title: "探测请求失败", description: e.message || String(e), kind: "warning" });
+    } finally {
+      testingProfileId.value = "";
+    }
+  }
+
   async function testModelConnection() {
+    // 防呆：模型标识为空时不发请求——服务端已拒绝空标识探测（回退默认值会在
+    // 非 OpenAI 端点产出与配置无关的 1211 误报），这里直接给出可操作的提示
+    if (!modelDraft.value?.model?.trim()) {
+      testStatus.value = {
+        ok: false,
+        message: "请先选择或填写模型标识（点输入框右侧按钮可从供应商拉取列表）",
+      };
+      return;
+    }
     isTestingConnection.value = true;
     testStatus.value = null;
     try {
@@ -628,7 +703,7 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
       const result = await testModelConnectionApi({
         profileId: draft?.id || undefined,
         providerId: draft ? draft.providerId || currentProvider.value?.id : currentProvider.value?.id,
-        model: draft?.model?.trim() || discoveredModels.value[0] || "gpt-4o-mini",
+        model: draft?.model?.trim(),
       });
       testStatus.value = result.ok
         ? {
@@ -734,6 +809,10 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
     verifyCapabilities,
     discoverModels,
     applyDetected,
+    selectDiscoveredModel,
+    discoveredForProvider,
+    testProfileConnection,
+    testingProfileId,
     testModelConnection,
     toggleModality,
     toggleReasoning,

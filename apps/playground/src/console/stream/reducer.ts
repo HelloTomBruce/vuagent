@@ -250,6 +250,29 @@ export function applyStreamEvent(
     case "suspended": {
       const cards = ensureCards(turn);
       if (!cards.some((c) => c.data?.actionId === event.actionId)) {
+        // TASK-092（设计文档 §3）：ui_form（L2 值采集）走专用表单卡——
+        // 值以 submit/cancel 信封回传（非审批 approve/deny 语义），复用同一挂起流
+        // TASK-092（设计文档 §3）：ui_form（L2 值采集）走专用表单卡——
+        // 值以 submit/cancel 信封回传（非审批 approve/deny 语义），复用同一挂起流。
+        // 透传超时窗（对齐审批卡 expiresAt 机制）：超时由服务端裁决（cancel 语义），
+        // resumed 携带 timeout reason 时收口为「已超时关闭」而非无差别 done
+        if (event.toolName === "ui_form") {
+          const formCard: ActionCard = {
+            id: event.actionId,
+            type: "form",
+            data: {
+              actionId: event.actionId,
+              toolName: event.toolName,
+              formArgs: event.args || {},
+              status: "pending",
+              timeoutMs: event.timeoutMs,
+              expiresAt: Date.now() + (event.timeoutMs || 0),
+            },
+          };
+          cards.push(formCard);
+          placeCardBlock(turn, formCard.id);
+          break;
+        }
         const card: ActionCard = {
           id: event.actionId,
           type: "approval",
@@ -282,6 +305,13 @@ export function applyStreamEvent(
             c.id === `approval-${event.actionId}`
         );
         if (card) {
+          // TASK-092：表单卡被唤醒——按收口原因区分展示（超时=用户放弃需说明；
+          // 提交/取消均为正常终态）。patch 增量不产生 resumed。
+          if (card.type === "form") {
+            const reason = ((event.payload || {}) as { reason?: string }).reason;
+            card.data.status = reason === "timeout" ? "timeout" : "done";
+            break;
+          }
           const payload = (event.payload || {}) as {
             approved?: boolean;
             reason?: string;

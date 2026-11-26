@@ -142,14 +142,30 @@ function decisionDetail(args: Record<string, unknown>): string {
 async function refreshPendingActions() {
   try {
     const list = await listSuspendedActions();
-    pendingDecisions.value = (list || []).map((a, idx) => ({
-      id: a.actionId,
-      title: `${a.toolName} 请求执行`,
-      detail: decisionDetail(a.args),
-      primary: "批准执行",
-      secondary: "驳回",
-      collapsed: idx !== 0,
-    }));
+    pendingDecisions.value = (list || []).map((a, idx) => {
+      // 尾巴 1（TASK-092 系列收尾）：ui_form 是 L2 表单挂起而非审批——
+      // 回传通道在会话内的表单卡（submit/cancel 信封），收件箱只做指引，
+      // 不提供批准/驳回按钮（经此入口发 approved 语义 payload 是语义错误）
+      if (a.toolName === "ui_form") {
+        const formTitle = typeof (a.args as Record<string, unknown>)?.title === "string"
+          ? (a.args as Record<string, unknown>).title as string
+          : "";
+        return {
+          id: a.actionId,
+          title: formTitle ? `表单待填写：${formTitle}` : "表单待填写",
+          detail: "请在对应会话中填写并提交表单（取消/超时按用户放弃处理）",
+          collapsed: idx !== 0,
+        };
+      }
+      return {
+        id: a.actionId,
+        title: `${a.toolName} 请求执行`,
+        detail: decisionDetail(a.args),
+        primary: "批准执行",
+        secondary: "驳回",
+        collapsed: idx !== 0,
+      };
+    });
   } catch (e) {
     console.error("拉取待审批列表失败:", e);
   }
@@ -222,8 +238,10 @@ const {
   saveModel,
   deleteModel,
   discoverModels,
-  applyDetected,
+  selectDiscoveredModel,
   testModelConnection,
+  testProfileConnection,
+  testingProfileId,
   toggleModality,
   toggleReasoning,
   toggleToolUse,
@@ -1358,6 +1376,8 @@ function quickFillPrompt(text: string) {
           :is-creating-model="isCreatingModel"
           :show-api-key="showApiKey"
           :is-testing-connection="isTestingConnection"
+          :testing-profile-id="testingProfileId"
+          @test-model="testProfileConnection"
           :is-discovering="isDiscovering"
           :test-status="testStatus"
           :discovered-models="discoveredModels"
@@ -1376,7 +1396,7 @@ function quickFillPrompt(text: string) {
           @save-model="saveModel"
           @test="testModelConnection"
           @discover="discoverModels"
-          @apply-detected="applyDetected"
+          @select-model="selectDiscoveredModel"
           @provider-kind-change="onProviderKindChange"
           @update:show-api-key="showApiKey = $event"
           @toggle-modality="toggleModality"

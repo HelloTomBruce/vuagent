@@ -48,6 +48,7 @@ const BASE_PROPS = {
   isTestingConnection: false,
   isDiscovering: false,
   testStatus: null,
+  testingProfileId: "",
   discoveredModels: [] as string[],
   discoveredItems: [],
   isVerifyingCapabilities: false,
