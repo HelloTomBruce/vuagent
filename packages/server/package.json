@@ -1,6 +1,6 @@
 {
   "name": "@vuagent/server",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Standard Agent Harness Server with ReAct loop, HITL interrupt, tool sandbox, state checkpoints, progressive streaming and telemetry",
   "type": "module",
   "license": "MIT",

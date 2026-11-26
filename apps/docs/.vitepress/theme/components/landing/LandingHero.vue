@@ -36,7 +36,7 @@ const planSteps = [
           >GitHub</a>
         </div>
         <div class="lh-hero__meta">
-          <span>83 个运行时组件</span><i /><span>18 种 SSE 契约事件</span><i /><span>v0.3.0 · MIT</span>
+          <span>83 个运行时组件</span><i /><span>18 种 SSE 契约事件</span><i /><span>v0.6.0 · MIT</span>
         </div>
       </div>
 
