@@ -43,7 +43,13 @@ async function httpSend<T>(
     headers: { ...authHeaders(), ...(body === undefined ? {} : JSON_HEADERS) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    const errorBody = (await res.json().catch(() => ({}))) as { error?: string };
+    if (errorBody?.error) {
+      throw new Error(errorBody.error);
+    }
+    return null;
+  }
   return (await res.json()) as T;
 }
 
@@ -78,6 +84,16 @@ export interface ChatRequestBody {
 export interface PickDirectoryResult extends Partial<WorkspaceItem> {
   cancelled?: boolean;
 }
+
+/** 原生选择器调用的三态结果（0.7.2：取消不再伪装成失败） */
+export type PickDirectoryOutcome =
+  | { kind: "picked"; workspace: PickDirectoryResult }
+  | { kind: "cancelled" }
+  | { kind: "busy"; error: string }
+  | { kind: "unavailable"; error: string; hint?: string };
+
+/** 原生框可能等用户很久（服务端上限 10 分钟），客户端留一点余量后主动放弃 */
+const PICK_DIRECTORY_TIMEOUT_MS = 11 * 60_000;
 
 export interface ModelProfilePayload {
   name: string;
@@ -134,8 +150,43 @@ export function deleteWorkspaceById(id: string): Promise<{ success: boolean } | 
   return httpSend<{ success: boolean }>(`/api/workspaces/${id}`, "DELETE");
 }
 
-export function pickDirectory(): Promise<PickDirectoryResult | null> {
-  return httpSend<PickDirectoryResult>("/api/workspaces/pick-directory", "POST");
+/**
+ * 调起原生文件夹选择器并创建工作区。
+ * 与 httpSend 的区别：需要区分 200 取消 / 409 忙碌 / 503 不可用，所以自己读响应体
+ * （httpSend 对非 2xx 一律返回 null，会把「用户取消」和「选择器不可用」混成一种降级）。
+ */
+export async function pickDirectory(): Promise<PickDirectoryOutcome> {
+  let res: Response;
+  try {
+    res = await fetch("/api/workspaces/pick-directory", {
+      method: "POST",
+      headers: authHeaders(),
+      signal: AbortSignal.timeout(PICK_DIRECTORY_TIMEOUT_MS),
+    });
+  } catch (err) {
+    return {
+      kind: "unavailable",
+      error: err instanceof Error && err.name === "TimeoutError" ? "选择框等待超时" : String(err),
+      hint: "重试一次，或直接手动输入绝对路径。",
+    };
+  }
+
+  const body = (await res.json().catch(() => null)) as
+    | (PickDirectoryResult & { error?: string; code?: string; hint?: string })
+    | null;
+
+  if (res.ok) {
+    if (body?.cancelled) return { kind: "cancelled" };
+    return { kind: "picked", workspace: body ?? {} };
+  }
+  if (res.status === 409) {
+    return { kind: "busy", error: body?.error ?? "已有一个文件夹选择框在等待操作" };
+  }
+  return {
+    kind: "unavailable",
+    error: body?.error ?? `选择器调用失败（HTTP ${res.status}）`,
+    hint: body?.hint,
+  };
 }
 
 /* ==========================================================================

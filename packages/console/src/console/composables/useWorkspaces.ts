@@ -55,45 +55,59 @@ export function useWorkspaces(options: WorkspacesOptions = {}) {
     options.onWorkspaceActivated?.();
   }
 
-  /** 调起系统原生文件夹选择器；失败降级为手动输入路径（原实现逐行平移） */
+  /**
+   * 调起系统原生文件夹选择器。
+   * - 取消：静默返回（0.7.1 之前会把取消当失败，进而弹出「手动输入路径」）；
+   * - 忙碌：提示先完成已打开的选择框；
+   * - 不可用：给出原因 + 可执行提示，手动输入作为**显式兜底**（并在描述里带上原因）。
+   */
   async function pickAndCreateWorkspace() {
     options.closeMenus?.();
-    try {
-      const data = await pickDirectory();
-      if (!data) {
-        throw new Error("系统选择框调用失败");
-      }
-      if (data.cancelled) return;
+    const outcome = await pickDirectory();
+
+    if (outcome.kind === "cancelled") return;
+    if (outcome.kind === "busy") {
+      vaToaster.add({ title: "选择框已打开", description: outcome.error, kind: "warning" });
+      return;
+    }
+    if (outcome.kind === "picked") {
       await fetchWorkspaces();
-      if (data.id) activateWorkspace(data.id);
-    } catch (err) {
-      console.warn("系统文件夹选择降级:", err);
-      // 原生 prompt 替换：askText 模态输入（Esc/取消 → null，跳过创建）
-      const manualPath = await askText({
-        title: "手动输入工作区路径",
-        description: "系统文件夹选择框不可用，请输入本地项目文件夹的绝对路径。",
-        placeholder: "/Users/username/project",
-        confirmText: "创建",
+      if (outcome.workspace.id) activateWorkspace(outcome.workspace.id);
+      return;
+    }
+
+    console.warn("系统文件夹选择框不可用:", outcome.error);
+    vaToaster.add({
+      title: "无法打开系统文件夹选择框",
+      description: outcome.hint ? `${outcome.error}——${outcome.hint}` : outcome.error,
+      kind: "warning",
+    });
+    // 手动输入兜底：把「为什么退到这里」写清楚，不让它看起来像默认交互
+    const manualPath = await askText({
+      title: "手动输入工作区路径",
+      description: `${outcome.error}${outcome.hint ? `（${outcome.hint}）` : ""}\n也可以直接输入本地项目文件夹的绝对路径。`,
+      placeholder: "/Users/username/project",
+      confirmText: "创建",
+    });
+    if (!manualPath?.trim()) return;
+
+    try {
+      const newWs = await createWorkspace({
+        // 跨平台取目录名：POSIX 的 / 与 Windows 的 \ 都要能切
+        name: manualPath.trim().split(/[\\/]/).filter(Boolean).pop() || "workspace",
+        rootPath: manualPath.trim(),
+        permission: "read-write",
       });
-      if (manualPath && manualPath.trim()) {
-        try {
-          const newWs = await createWorkspace({
-            name: manualPath.split("/").filter(Boolean).pop() || "workspace",
-            rootPath: manualPath.trim(),
-            permission: "read-write",
-          });
-          if (newWs) {
-            await fetchWorkspaces();
-            activateWorkspace(newWs.id);
-          }
-        } catch (e) {
-          vaToaster.add({
-            title: "创建工作区失败",
-            description: String(e),
-            kind: "danger",
-          });
-        }
+      if (newWs) {
+        await fetchWorkspaces();
+        activateWorkspace(newWs.id);
       }
+    } catch (e) {
+      vaToaster.add({
+        title: "创建工作区失败",
+        description: String(e),
+        kind: "danger",
+      });
     }
   }
 

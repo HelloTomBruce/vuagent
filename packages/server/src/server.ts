@@ -7,12 +7,11 @@ import { Type } from "@sinclair/typebox";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
 import type { IStorageDriver } from "./storage/drivers/base.driver.js";
 import type { RedisLike } from "./storage/drivers/redis.driver.js";
 import { TurnLeaseManager } from "./core/turn-lease.js";
 import type { LeaseOptions } from "./core/session-execution-hub.js";
+import { pickNativeDirectory } from "./core/native-picker.js";
 import { applySecurityBaseline, bearerMatches, BYO_FORBIDDEN_MESSAGE, isProfileSelectionOnly, resolveSecurityConfig, sanitizeForLog, sanitizeModelProfile, sanitizeProvider, secureEqual } from "./security.js";
 import type { Context } from "hono";
 import { MetricsRegistry, createOpsMetricsSink } from "./core/metrics-registry.js";
@@ -39,8 +38,6 @@ import {
   isHttpUrl,
 } from "./core/http-body-guards.js";
 import type { TurnImageInput, HarnessTool, HarnessStreamEvent } from "./core/types.js";
-
-const execAsync = promisify(exec);
 
 /** 整数 env 读取：非法/缺省回落默认值；≤0 合法（=关闭对应作用域） */
 function readIntEnv(key: string, fallback: number): number {
@@ -202,6 +199,11 @@ export const CoreSystemTools = [
 
 export interface ServerOptions {
   storageDriver?: IStorageDriver;
+  /**
+   * 原生文件夹选择器的实现覆盖（测试注入用）。
+   * 默认 `pickNativeDirectory()`：按平台调 osascript / PowerShell / zenity。
+   */
+  pickDirectory?: () => Promise<import("./core/native-picker.js").PickerOutcome>;
   modelDriver?: IModelDriver;
   dbPath?: string;
   /** 本副本实例标识（Redis 租约形态的归属与清扫目标）；缺省 VUAGENT_INSTANCE_ID > os.hostname() */
@@ -457,6 +459,9 @@ export function createHarnessServer(options: ServerOptions = {}) {
     (options.dbPath === ":memory:"
       ? new MemoryStorageDriver()
       : new SQLiteStorageDriver(options.dbPath || ":memory:"));
+
+  /** 原生选择框单飞标志：两个浏览器标签同时点「新建工作区」不应叠两个系统对话框 */
+  let pickerInFlight = false;
 
   const workspaceRepo = new WorkspaceRepository(driver);
   const sessionRepo = new SessionRepository(driver);
@@ -1630,43 +1635,49 @@ export function createHarnessServer(options: ServerOptions = {}) {
     }
   });
 
-  // 调起操作系统原生文件夹选择器，直接获取绝对路径并创建工作区
+  /**
+   * 调起操作系统原生文件夹选择器 → 直接创建工作区。
+   *
+   * 0.7.1 及更早：所有非零退出都回 500（用户点「取消」也是 500），前端于是降级成
+   * 「手动输入路径」——用户看到的现象是「点新建工作区却要我手打路径」。现在三态分开：
+   *   200 {cancelled:true}  用户取消（静默返回，不弹任何输入框）
+   *   201 workspace         选中并创建
+   *   409 PICKER_BUSY       已有一个选择框在等用户（避免叠框）
+   *   503 PICKER_UNAVAILABLE 选择器不可用（附可执行 hint：装 zenity / 从图形终端启动）
+   */
   app.post("/api/workspaces/pick-directory", async (c) => {
+    if (pickerInFlight) {
+      return c.json(
+        { error: "已有一个文件夹选择框在等待操作，请先完成或取消它", code: "PICKER_BUSY" },
+        409,
+      );
+    }
+    pickerInFlight = true;
     try {
-      const isMac = process.platform === "darwin";
-      const isWin = process.platform === "win32";
-
-      let selectedPath = "";
-      if (isMac) {
-        const { stdout } = await execAsync(
-          `osascript -e 'POSIX path of (choose folder with prompt "请选择一个本地项目文件夹作为工作区")'`
-        );
-        selectedPath = stdout.trim();
-      } else if (isWin) {
-        const { stdout } = await execAsync(
-          `powershell -Command "Add-Type -AssemblyName System.windows.forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; if ($f.ShowDialog() -eq 'OK') { $f.SelectedPath }"`
-        );
-        selectedPath = stdout.trim();
-      } else {
-        const { stdout } = await execAsync("zenity --file-selection --directory");
-        selectedPath = stdout.trim();
-      }
-
-      if (!selectedPath) {
+      const outcome = await (options.pickDirectory ?? pickNativeDirectory)();
+      if (outcome.status === "cancelled") {
         return c.json({ cancelled: true }, 200);
       }
+      if (outcome.status === "unavailable") {
+        console.warn(`[Vuagent Server] 原生文件夹选择器不可用：${sanitizeForLog(outcome.reason)}`);
+        return c.json(
+          { error: outcome.reason, code: "PICKER_UNAVAILABLE", hint: outcome.hint },
+          503,
+        );
+      }
 
-      const name = path.basename(selectedPath) || "workspace";
+      const name = path.basename(outcome.path) || "workspace";
       const ws = await workspaceRepo.create({
         name,
-        rootPath: selectedPath,
+        rootPath: outcome.path,
         permission: "read-write",
       });
-
       return c.json(ws, 201);
     } catch (err: unknown) {
-      // TASK-089：osascript/powershell 失败详情进服务端日志，响应侧通用信封
+      // TASK-089：创建失败详情进服务端日志，响应侧通用信封
       return serverError(c, "PICK_DIRECTORY_FAILED", err);
+    } finally {
+      pickerInFlight = false;
     }
   });
 

@@ -27,6 +27,8 @@ export const DEFAULT_LOCAL_ORIGINS = [
   "http://127.0.0.1:6991",
   "http://localhost:6995",
   "http://127.0.0.1:6995",
+  "http://localhost:6996",
+  "http://127.0.0.1:6996",
 ];
 
 export interface SecurityConfig {
@@ -57,6 +59,34 @@ export function isAllowedOrigin(origin: string, config: SecurityConfig): boolean
   if (!origin) return true;
   if (DEFAULT_LOCAL_ORIGINS.includes(origin)) return true;
   return config.extraOrigins.includes(origin);
+}
+
+/** 回环主机判断（含 IPv6 字面量） */
+function isLoopbackHostname(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]" || hostname === "::1";
+}
+
+/**
+ * 同源回环放行：CLI 自托管的 console 跑在 `127.0.0.1:<任意端口>`（默认 6880），
+ * 浏览器对 POST/PATCH/DELETE 会带 `Origin: http://127.0.0.1:<port>`——旧实现只认
+ * dev 端口白名单，导致**自托管 console 的写请求全部 403**（新建工作区/会话/发消息）。
+ * 这里放行「Origin 的 host 与请求 Host 相同、且是回环地址」的同源请求。
+ *
+ * 为什么不会削弱 DNS rebinding 防护：rebinding 页面以攻击者域名打开时，
+ * Host 与 Origin 都是该域名（如 evil.com），hostname 非回环 → 依然拒绝。
+ */
+export function isSameOriginLoopback(origin: string, hostHeader?: string): boolean {
+  if (!origin || !hostHeader) return false;
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (!isLoopbackHostname(url.hostname)) return false;
+  // Host 形如 `127.0.0.1:6880` / `[::1]:6880`：去掉端口即可比较主机名
+  if (!isLoopbackHostname(hostHeader.replace(/:\d+$/, ""))) return false;
+  return url.host === hostHeader;
 }
 
 /** 恒时字符串比较（避免令牌校验引入时序侧信道） */
@@ -96,15 +126,17 @@ export function applySecurityBaseline(app: Hono<any>, config: SecurityConfig): v
   //    校验）可读运维指标——Origin 主动拒绝同样覆盖。
   const rejectForeignOrigin = async (c: { req: { header: (n: string) => string | undefined; path: string }; json: (b: unknown, s: 403) => Response }, next: () => Promise<void>) => {
     const origin = c.req.header("Origin") || "";
+    const host = c.req.header("Host") || c.req.header("host") || "";
     if (
       origin &&
       !config.authToken &&
       !isAllowedOrigin(origin, config) &&
+      !isSameOriginLoopback(origin, host) &&
       c.req.path !== "/api/health"
     ) {
       return c.json(
         {
-          error: `Forbidden: Origin "${origin}" 不在白名单内。本地开发请使用 ${DEFAULT_LOCAL_ORIGINS.join(" / ")}；远程访问请配置 VUAGENT_TOKEN 启用 Bearer 鉴权。`,
+          error: `Forbidden: Origin "${origin}" 不在白名单内（同源回环请求会自动放行）。本地开发请使用 ${DEFAULT_LOCAL_ORIGINS.join(" / ")}；远程访问请配置 VUAGENT_TOKEN 启用 Bearer 鉴权。`,
         },
         403
       );
