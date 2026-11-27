@@ -169,8 +169,12 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           npm_config_provenance: "true"
 
+      # 只推 changesets 生成的包级 tag（@vuagent/<name>@<version>；changesets 建前已用
+      # remoteTagExists 确保不与远端冲突）。不推 v<version>：它是操作者打的触发 tag
+      # （发布链③），而 checkout@v4 会把 tag ref 重写为直接指向 commit（区别于远端的
+      # annotated tag 对象），--tags 全推必然与远端同名 tag 不同值被拒（0.8.0 发布即栽在此）。
       - name: Push git tags
-        run: git push origin --tags
+        run: git tag -l '@vuagent/*' | xargs -r git push origin
 
   smoke:
     needs: [plan, publish]
