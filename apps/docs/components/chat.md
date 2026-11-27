@@ -17,11 +17,13 @@ import {
   VaThoughtBox,
   VaAssistantTurn,
   VaTurnList,
+  VaTurnRail,
   VaMarkdown,
   VaToolCallCard,
 } from "@vuagent/ui";
 import type {
   TurnItem,
+  TurnRailItem,
   UserAttachment,
   TurnBlockItem,
   ActionCardItem,
@@ -464,6 +466,22 @@ const mdRichContent = [
   "详细协议见 https://vuagent.example.com/docs/export-stream",
 ].join("\n");
 const mdStreamingContent = "正在生成评审结论：核心改造点已确认，正在计算改造前后的指标对比……";
+/* ---------- 18. VaTurnRail ---------- */
+const railScrollRef = ref<HTMLElement | null>(null);
+const railActive = ref("");
+const railTurns = [
+  { id: "rail-1", role: "user", content: "把 console 的 SSE 消费循环抽成共享件，为什么合帧要按 turn 分键？先把两套实现的差异和风险点列清楚，再给迁移顺序。" },
+  { id: "rail-2", role: "assistant", content: "已抽出 runtime/sse 与 runtime/useDeltaBuffer：SSE 解析覆盖跨 chunk 半包、CRLF 与多行 data 合并；合帧按 turn 分键，多会话并行时不串字。迁移顺序：解析层 → 合帧层 → console 接线。" },
+  { id: "rail-3", role: "user", content: "长会话里怎么快速回到某一轮提问？现在只能靠滚动找，几十轮之后根本定位不到。" },
+  { id: "rail-4", role: "assistant", content: "新增 VaTurnRail：右侧一列轮次标记，点击或 ↑/↓/Home/End 直接定位到对应轮次；滚动时自动高亮当前轮，悬停出「#N + 文案」预览卡。" },
+  { id: "rail-5", role: "user", content: "轮次很多时轨道会不会撑爆？另外窄屏和「回到底部」按钮会不会互相压住？" },
+  { id: "rail-6", role: "assistant", content: "轨道最大高度 52vh，超出则内部滚动（滚动条隐藏）；轮次 ≤ minItems 时整条轨自动隐藏，单轮对话不会出现噪音。窄屏由宿主决定是否隐藏，本例在 ≤720px 直接隐藏。" },
+  { id: "rail-7", role: "user", content: "那跳转和「贴底跟随」冲突吗？流式输出时点历史轮次会不会被拽回底部？" },
+  { id: "rail-8", role: "assistant", content: "不冲突：跳转只写 scrollTop，父级 useStickToBottom 监听到离底即解除钉底，流式内容继续追加但不抢占视口；点「回到底部」才恢复跟随。" },
+];
+const railItems: TurnRailItem[] = railTurns
+  .filter((turn) => turn.role === "user")
+  .map((turn) => ({ id: turn.id, label: turn.content, role: "user" as const }));
 </script>
 
 # Chat 对话交互组件
@@ -914,3 +932,69 @@ Agent 运行期间继续接收新任务的排队消息停靠栏：支持插队�
     <VaMarkdown :content="mdStreamingContent" streaming />
   </div>
 </div>
+
+---
+
+## 18. VaTurnRail — 多轮快速跳转轨
+
+长会话里「回到第 3 轮那个提问」的成本很高。`VaTurnRail` 在消息流右侧渲染一列轮次标记（turn rail）：点击或按 ↑/↓/Home/End 直接平滑定位到该轮锚点；阅读位置变化时按锚点几何自动高亮「当前轮」并填充进度轨；悬停/聚焦给出预览卡；轮次数 ≤ `minItems`（默认 1）时整条轨自动隐藏。
+
+约定：跳转靠**锚点属性**而非组件内部结构——在轮次行上挂 `data-turn-id="<turn.id>"`（可用 `anchorAttr` 改名），`items[].id` 与之一一对应，找不到锚点的轮次只渲染标记、点击静默跳过。轨道本身不做滚动容器：`container` 传你的消息流元素，跳转几何（`offset` 留白）、滚动监听、scroll-spy 都由组件处理；与贴底跟随（`useStickToBottom`）天然协作——跳转写入 `scrollTop`，父级监听到离底即解除钉底。
+
+### 交互效果预览
+
+<div class="demo-preview vp-raw">
+  <div class="demo-title">右侧轮次轨：点击/键盘定位、滚动跟随高亮、悬停预览（滚一滚消息流看高亮跟手）</div>
+  <div style="position: relative; border: 1px solid var(--va-color-border, #e5e7eb); border-radius: 10px; overflow: hidden;">
+    <div ref="railScrollRef" style="height: 210px; overflow-y: auto; padding: 16px 44px 16px 18px; display: flex; flex-direction: column; gap: 14px;">
+      <div v-for="turn in railTurns" :key="turn.id" :data-turn-id="turn.id" style="display: flex; gap: 10px; flex: 0 0 auto;">
+        <span style="flex: none; width: 34px; padding-top: 2px; font-size: 11px; color: var(--va-color-text-muted, #6b7280);">{{ turn.role === "user" ? "用户" : "助手" }}</span>
+        <p style="margin: 0; font-size: 13px; line-height: 1.7;">{{ turn.content }}</p>
+      </div>
+    </div>
+    <VaTurnRail
+      :items="railItems"
+      :container="railScrollRef"
+      :offset="14"
+      @update:active-id="railActive = $event"
+    />
+  </div>
+  <p style="margin: 10px 2px 0; font-size: 12px;">当前轮次：{{ railActive || "（滚动或点击右侧标记）" }}</p>
+</div>
+
+### 代码示例
+
+```vue
+<script setup lang="ts">
+import { computed, useTemplateRef } from "vue";
+import { VaTurnRail } from "@vuagent/ui";
+import type { TurnRailItem } from "@vuagent/ui";
+
+const streamRef = useTemplateRef<HTMLElement>("streamRef");
+const turns = ref([{ id: "t1", role: "user", content: "第一条提问" }, { id: "t2", role: "assistant", content: "回复" }, { id: "t3", role: "user", content: "第二条提问" }]);
+
+// 每轮提问一枚标记（回复不单列，标记密度减半）
+const railItems = computed<TurnRailItem[]>(() =>
+  turns.value.filter((t) => t.role === "user").map((t) => ({ id: t.id, label: t.content, role: "user" })),
+);
+</script>
+
+<template>
+  <div style="position: relative">
+    <!-- 锚点：轮次行上挂 data-turn-id，与 items[].id 对应 -->
+    <div ref="streamRef" style="height: 60vh; overflow-y: auto">
+      <div v-for="turn in turns" :key="turn.id" :data-turn-id="turn.id">…</div>
+    </div>
+
+    <VaTurnRail :items="railItems" :container="streamRef" :offset="16" />
+  </div>
+</template>
+```
+
+要点：
+
+- **受控当前轮**：传 `v-model:active-id` 可把高亮交给外部状态（例如与轨迹视图联动）；不传则由滚动位置自算。
+- **键盘可达**：轨内 ↑/↓/Home/End 移动即跳转，`:focus-visible` 有焦点环，`aria-current` 标当前轮。
+- **状态表达**：`items[].status` 支持 `streaming`（脉冲）/ `error`（危险色）；`role: "assistant"` 渲染空心点，提问/回复节奏一眼可辨。
+- **适配**：`floating`（默认开）用 `position: absolute` 靠右居中，父级需 `position: relative`；关掉则按普通流内元素参与布局（自建侧栏、窄屏抽屉等）。
+- **降级**：`container` 未传（SSR / 尚未挂载）时只渲染静态标记，点击不滚动、不报错。

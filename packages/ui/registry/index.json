@@ -148,6 +148,12 @@
       "type": "registry:ui"
     },
     {
+      "name": "turn-rail",
+      "title": "Turn Rail",
+      "description": "多轮对话右侧快速跳转轨（turn rail + scroll-spy）：一列轮次标记，点击/键盘直跳某一轮，滚动跟随高亮当前轮并填充进度轨，悬停出「#N + 文案」预览卡；轮次过少自动隐藏。",
+      "type": "registry:ui"
+    },
+    {
       "name": "message-actions",
       "title": "Message Actions / Text",
       "description": "AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输入）、版本切换；MessageText 提供版本交叉淡入。",

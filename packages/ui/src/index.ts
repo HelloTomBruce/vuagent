@@ -473,5 +473,8 @@ export type {
 export { VaTurnList } from "./components/turn-list";
 export type { TurnListProps, TurnListEvents, TurnItem } from "./components/turn-list";
 
+export { VaTurnRail } from "./components/turn-rail";
+export type { TurnRailProps, TurnRailEvents, TurnRailItem } from "./components/turn-rail";
+
 
 

@@ -418,6 +418,23 @@ L2 值采集表单卡（ui_form）：六型字段（text/textarea/number/boolean
 | `turns` | `TurnItem[]` | [] | 对话轮次列表 |
 | `emptyText` | `string` | - | 列表为空时的占位文案 |
 
+### Turn Rail
+
+多轮对话右侧快速跳转轨（turn rail + scroll-spy）：一列轮次标记，点击/键盘直跳某一轮，滚动跟随高亮当前轮并填充进度轨，悬停出「#N + 文案」预览卡；轮次过少自动隐藏。
+
+组件：VaTurnRail
+
+| Prop / 事件 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `items` | `TurnRailItem[]` | [] | 轮次标记（id / label / role / status） |
+| `container` | `HTMLElement | null` | null | 滚动容器元素；传入才启用点击跳转与滚动跟随 |
+| `anchorAttr` | `string` | "data-turn-id" | 容器内锚点属性名，取值须等于 item.id |
+| `offset` | `number` | 16 | 跳转后锚点距容器顶部留白（px） |
+| `minItems` | `number` | 1 | 轮次数 ≤ 该值自动隐藏（0 = 始终显示） |
+| `preview / floating` | `boolean` | true | 悬停预览卡 / 悬浮定位（父级 position: relative） |
+| `v-model:active-id` | `string` | - | 受控当前轮次 id；不传则由滚动位置自算 |
+| `@select / @update:activeId` | `-` | - | 选中轮次(id, index) / 当前轮次变化(id) |
+
 ### Message Actions / Text
 
 AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输入）、版本切换；MessageText 提供版本交叉淡入。

@@ -191,6 +191,19 @@
   color: var(--va-accent, #c2410c);
 }
 
+/* 多轮快速跳转轨（右侧）：贴在消息流滚动视口右缘，纵向居中；
+   层级低于「回到底部」浮起按钮，窄屏（消息流变窄）直接让位给内容 */
+.va-console__turn-rail {
+  z-index: 4;
+  right: 2px;
+}
+
+@media (max-width: 720px) {
+  .va-console__turn-rail {
+    display: none;
+  }
+}
+
 .va-console__turn-row {
   display: flex;
   flex-direction: column;

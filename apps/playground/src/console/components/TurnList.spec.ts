@@ -82,3 +82,22 @@ describe("TurnList 附件回显", () => {
     wrapper.unmount();
   });
 });
+
+/**
+ * 右侧快速跳转轨（VaTurnRail）的锚点契约：每一轮行节点必须带 data-turn-id=轮次 id，
+ * 组件按该属性的几何位置做 scroll-spy 与定位；改了行结构必须同步这里。
+ */
+describe("TurnList 轮次锚点（VaTurnRail 契约）", () => {
+  it("用户轮与助手轮的行节点都挂 data-turn-id", () => {
+    const wrapper = mountTurns([
+      { id: "turn-user", role: "user", content: "提问", timestamp: 1 },
+      { id: "turn-assistant", role: "assistant", content: "回复", timestamp: 2 },
+    ]);
+
+    expect(wrapper.find('[data-turn-id="turn-user"]').exists()).toBe(true);
+    expect(wrapper.find('[data-turn-id="turn-assistant"]').exists()).toBe(true);
+    // 锚点挂在轮次行上（轨的跳转目标），不是深层子节点
+    expect(wrapper.find('[data-turn-id="turn-user"]').classes()).toContain("va-console__turn-row");
+    wrapper.unmount();
+  });
+});

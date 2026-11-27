@@ -46,6 +46,7 @@
 - [User Bubble](https://hellotombruce.github.io/vuagent/components/user-bubble): 用户提问气泡：支持头像、文本排版，以及多模态图片和文档附件的即时预览。（VaUserBubble）
 - [Assistant Turn](https://hellotombruce.github.io/vuagent/components/assistant-turn): 助手消息轮次复合组件：整合思考链（ThoughtBox）、Markdown 正文排版、工具卡片时序穿插插槽、操作栏及流式中止状态。（VaAssistantTurn）
 - [Turn List](https://hellotombruce.github.io/vuagent/components/turn-list): 消息时序瀑布流：按角色自动将对话轮次路由给 UserBubble 与 AssistantTurn，提供穿透卡片插槽与空状态。（VaTurnList）
+- [Turn Rail](https://hellotombruce.github.io/vuagent/components/turn-rail): 多轮对话右侧快速跳转轨（turn rail + scroll-spy）：一列轮次标记，点击/键盘直跳某一轮，滚动跟随高亮当前轮并填充进度轨，悬停出「#N + 文案」预览卡；轮次过少自动隐藏。（VaTurnRail）
 - [Message Actions / Text](https://hellotombruce.github.io/vuagent/components/message-actions): AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输入）、版本切换；MessageText 提供版本交叉淡入。（VaMessageActions / VaMessageText）
 - [Comment Thread](https://hellotombruce.github.io/vuagent/components/comment-thread): 评论线程：agent 起草待审条目（采纳/重写/丢弃操作条）、人发评论、首字母头像、⌘/Ctrl+Enter 发布。（VaCommentThread）
 

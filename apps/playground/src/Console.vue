@@ -10,10 +10,10 @@
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from "vue";
 import { ArrowDown, ChevronDown, History, PanelRight, Route } from "lucide-vue-next";
-import { formatTokens, useStickToBottom, VaCommandMenu, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaPopover, VaQueueDock, VaSegmentedControl, VaSkeleton, VaToaster, VaTooltip, VaTrajectory, vaToaster } from "@vuagent/ui";
+import { formatTokens, useStickToBottom, VaCommandMenu, VaComposer, VaConfirmHost, VaContextWindow, VaEmptyHero, VaPopover, VaQueueDock, VaSegmentedControl, VaSkeleton, VaToaster, VaTooltip, VaTrajectory, VaTurnRail, vaToaster } from "@vuagent/ui";
 import type { CommandItem, NotificationItem, QueueItem, ComposerAttachment } from "@vuagent/ui";
 import type { ContextPart } from "@vuagent/ui";
-import type { Decision } from "@vuagent/ui";
+import type { Decision, TurnRailItem } from "@vuagent/ui";
 import ConsoleSidebar from "./console/components/ConsoleSidebar.vue";
 import ComposerMenu from "./console/components/ComposerMenu.vue";
 import ConsoleRightSidebar from "./console/components/ConsoleRightSidebar.vue";
@@ -771,6 +771,34 @@ function onHeroCreateSession(wsId: string) {
 // 会话级聚合轨迹（跨 turn；服务端事件自带轮次编号，台账按「第 N 轮」分组）
 const sessionTrajEvents = computed(() => chatTurns.value.flatMap((t) => t.trajEvents || []));
 
+/**
+ * 右侧快速跳转轨（多轮跳转）：每轮用户提问一枚标记（助手回复不单列，避免标记密度翻倍），
+ * 预览文案取提问首行；该轮之后的助手轮仍在流式时给对应标记挂脉冲态。
+ */
+const chatRailItems = computed<TurnRailItem[]>(() =>
+  chatTurns.value.flatMap((turn, index) => {
+    if (turn.role !== "user") return [];
+    const reply = chatTurns.value[index + 1];
+    const text = (turn.content || "").replace(/\s+/g, " ").trim();
+    const attachmentCount = turn.attachments?.length ?? 0;
+    const label = text
+      ? text.length > 48
+        ? `${text.slice(0, 48)}…`
+        : text
+      : attachmentCount
+        ? `[附件 ×${attachmentCount}]`
+        : "（空消息）";
+    return [
+      {
+        id: turn.id,
+        label,
+        role: "user" as const,
+        status: reply?.role === "assistant" && reply.isStreaming ? ("streaming" as const) : undefined,
+      },
+    ];
+  })
+);
+
 // Context 仪表上限跟随当前选中模型档声明的窗口大小
 // （与服务端 usage 事件携带的 contextWindow 同源；usage 事件到达时同样会覆盖）
 watch(
@@ -1218,6 +1246,13 @@ function quickFillPrompt(text: string) {
             <!-- 流式间隙指示由 AssistantTurn 轮内承担（思考折叠框占位 + 「正在分析中」光标），
                  此处不再叠加 VaThinkingLoader——三重指示并存且胶囊被 flex 拉伸成通栏长条 -->
           </div>
+
+          <!-- 多轮快速跳转轨（右侧）：滚动跟随高亮 + 点击定位；轮次 ≤1 自动隐藏 -->
+          <VaTurnRail
+            :items="chatRailItems"
+            :container="chatScrollRef"
+            class="va-console__turn-rail"
+          />
 
           <!-- 上翻解除钉底后出现；点击强制回底并恢复流式跟随 -->
           <button

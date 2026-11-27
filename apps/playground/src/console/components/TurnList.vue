@@ -20,7 +20,7 @@ defineEmits<{
 <template>
   <template v-for="turn in turns" :key="turn.id">
     <!-- 用户消息气泡 -->
-    <div v-if="turn.role === 'user'" class="va-console__turn-row">
+    <div v-if="turn.role === 'user'" class="va-console__turn-row" :data-turn-id="turn.id">
       <div class="va-console__user-bubble-container">
         <div class="va-console__user-bubble">
           <!-- 附件回显（TASK-050）：当日真图 / 历史占位 / 文本附件 chip -->
@@ -52,7 +52,7 @@ defineEmits<{
     </div>
 
     <!-- 助手消息与 Agent 操作流水 -->
-    <div v-else class="va-console__turn-row">
+    <div v-else class="va-console__turn-row" :data-turn-id="turn.id">
       <AssistantTurn
         :turn="turn"
         @approve="(actionId) => $emit('approve', actionId)"

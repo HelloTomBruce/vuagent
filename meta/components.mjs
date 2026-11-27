@@ -257,6 +257,20 @@ export const components = [
     ],
   },
   {
+    dir: "turn-rail", slug: "turn-rail", title: "Turn Rail", category: "Chat", components: ["VaTurnRail"],
+    desc: "多轮对话右侧快速跳转轨（turn rail + scroll-spy）：一列轮次标记，点击/键盘直跳某一轮，滚动跟随高亮当前轮并填充进度轨，悬停出「#N + 文案」预览卡；轮次过少自动隐藏。",
+    props: [
+      { name: "items", type: "TurnRailItem[]", default: "[]", desc: "轮次标记（id / label / role / status）" },
+      { name: "container", type: "HTMLElement | null", default: "null", desc: "滚动容器元素；传入才启用点击跳转与滚动跟随" },
+      { name: "anchorAttr", type: "string", default: `"data-turn-id"`, desc: "容器内锚点属性名，取值须等于 item.id" },
+      { name: "offset", type: "number", default: "16", desc: "跳转后锚点距容器顶部留白（px）" },
+      { name: "minItems", type: "number", default: "1", desc: "轮次数 ≤ 该值自动隐藏（0 = 始终显示）" },
+      { name: "preview / floating", type: "boolean", default: "true", desc: "悬停预览卡 / 悬浮定位（父级 position: relative）" },
+      { name: "v-model:active-id", type: "string", default: "-", desc: "受控当前轮次 id；不传则由滚动位置自算" },
+      { name: "@select / @update:activeId", type: "-", default: "-", desc: "选中轮次(id, index) / 当前轮次变化(id)" },
+    ],
+  },
+  {
     dir: "message-actions", slug: "message-actions", title: "Message Actions / Text", category: "Chat", components: ["VaMessageActions", "VaMessageText"],
     desc: "AI 消息的操作条：复制、再生成、点赞点踩（拒绝附原因输入）、版本切换；MessageText 提供版本交叉淡入。",
     props: [

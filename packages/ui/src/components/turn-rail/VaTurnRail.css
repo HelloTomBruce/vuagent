@@ -1,0 +1,226 @@
+/**
+ * VaTurnRail —— 右侧轮次快速跳转轨
+ * 结构：nav（定位根 + 预览层）> 进度轨 + ol 标记列表
+ * 令牌纪律：--va-* 一律带与 tokens.css 同值的 fallback（单文件拷贝托管时生效）；
+ * 时长/缓动走 --va-dur-* / --va-ease，禁止裸字面量（tokens:check 门禁）。
+ */
+.va-turn-rail {
+  --va-turn-rail-pip: 7px;
+  --va-turn-rail-pip-active: 3px;
+  --va-turn-rail-hit: 16px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--va-s3, 8px) var(--va-s2, 4px);
+  max-height: 100%;
+}
+
+/* 悬浮形态：靠右垂直居中（父级需 position: relative），不占据流内空间 */
+.va-turn-rail--floating {
+  position: absolute;
+  top: 50%;
+  right: var(--va-s3, 8px);
+  transform: translateY(-50%);
+  z-index: var(--va-z-raised, 10);
+}
+
+/* 进度轨：细线贯穿标记列，填充高度 = 当前轮在序列中的位置 */
+.va-turn-rail__track {
+  position: absolute;
+  top: var(--va-s4, 12px);
+  bottom: var(--va-s4, 12px);
+  left: 50%;
+  /* 1px + 12% 边线色在实际渲染里几乎不可见（轨道概念就丢了）；升到 2px + 22% 后
+     作为装饰轴线足够清晰，又不抢标记的注意力 */
+  width: 2px;
+  margin-left: -1px;
+  border-radius: var(--va-radius-pill, 999px);
+  background: var(--va-edge-strong, rgba(26, 25, 23, 0.22));
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.va-turn-rail__track-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: top center;
+  background: var(--va-accent, #c2410c);
+  opacity: 0.55;
+  transition: transform var(--va-dur-2, 200ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.va-turn-rail__list {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--va-s3h, 6px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 52vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+.va-turn-rail__list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.va-turn-rail__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.va-turn-rail__dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--va-turn-rail-hit);
+  height: var(--va-turn-rail-hit);
+  padding: 0;
+  border: 0;
+  border-radius: var(--va-radius-pill, 999px);
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.va-turn-rail__dot:focus-visible {
+  outline: 2px solid var(--va-accent, #c2410c);
+  outline-offset: 2px;
+}
+
+.va-turn-rail__pip {
+  width: var(--va-turn-rail-pip);
+  height: var(--va-turn-rail-pip);
+  border-radius: var(--va-radius-pill, 999px);
+  /* 用 muted 而非 edge-strong：22% 的边线色在白卡上对比度约 1.7:1，低到像装饰；
+     导航标记属可交互非文本元素，取 muted（≈4.9:1）保证可辨识 */
+  background: var(--va-muted, #6f6d66);
+  transition:
+    width var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    height var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    background-color var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+/* 助手轮次：空心点（与用户提问区分，便于一眼看出提问/回复节奏） */
+.va-turn-rail__dot--assistant .va-turn-rail__pip {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--va-muted, #6f6d66);
+}
+
+.va-turn-rail__dot:hover .va-turn-rail__pip {
+  background: var(--va-ink-2, #43413c);
+}
+
+.va-turn-rail__dot--assistant:hover .va-turn-rail__pip {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--va-ink-2, #43413c);
+}
+
+/* 当前轮：竖条高亮（比圆点更醒目且不吃垂直空间） */
+.va-turn-rail__dot--active .va-turn-rail__pip {
+  width: var(--va-turn-rail-pip-active);
+  height: calc(var(--va-turn-rail-hit) - 2px);
+  background: var(--va-accent, #c2410c);
+  box-shadow: none;
+}
+
+.va-turn-rail__dot--active .va-turn-rail__pip,
+.va-turn-rail__dot--active:hover .va-turn-rail__pip {
+  background: var(--va-accent, #c2410c);
+  box-shadow: none;
+}
+
+/* 流式中的那一轮：呼吸脉冲提示「还在写」 */
+.va-turn-rail__dot--streaming .va-turn-rail__pip {
+  animation: va-turn-rail-pulse calc(var(--va-dur-loop, 1.8s) * 0.8) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)) infinite;
+}
+
+.va-turn-rail__dot--error .va-turn-rail__pip {
+  background: var(--va-danger, #d5453c);
+  box-shadow: none;
+}
+
+/* 预览卡：挂在轨根节点（不在滚动列表内），向右溢出不被裁切 */
+.va-turn-rail__preview {
+  position: absolute;
+  right: 100%;
+  margin-right: var(--va-s3h, 6px);
+  transform: translateY(-50%);
+  z-index: var(--va-z-dropdown, 70);
+  display: flex;
+  align-items: baseline;
+  gap: var(--va-s3h, 6px);
+  max-width: 260px;
+  padding: var(--va-s3h, 6px) var(--va-s4, 12px);
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-s, 8px);
+  box-shadow: var(--va-shadow-2, 0 4px 12px rgba(26, 25, 23, 0.08));
+  pointer-events: none;
+  animation: va-turn-rail-preview-in var(--va-dur-1, 120ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.va-turn-rail__preview-index {
+  flex: none;
+  font-size: var(--va-fs-xs, 11px);
+  line-height: var(--va-lh-normal, 1.5);
+  color: var(--va-muted, #6f6d66);
+  font-variant-numeric: tabular-nums;
+}
+
+.va-turn-rail__preview-text {
+  min-width: 0;
+  font-size: var(--va-fs-sm, 12px);
+  line-height: var(--va-lh-normal, 1.5);
+  color: var(--va-ink-2, #43413c);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes va-turn-rail-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.78);
+  }
+}
+
+@keyframes va-turn-rail-preview-in {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+/* 动效敏感用户：脉冲/过渡/入场一律关掉（位置信息仍由静态样式表达） */
+@media (prefers-reduced-motion: reduce) {
+  .va-turn-rail__dot--streaming .va-turn-rail__pip {
+    animation: none;
+  }
+
+  .va-turn-rail__track-fill,
+  .va-turn-rail__pip {
+    transition: none;
+  }
+
+  .va-turn-rail__preview {
+    animation: none;
+  }
+}
