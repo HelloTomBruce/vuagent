@@ -125,6 +125,9 @@ importers:
       '@hono/node-server':
         specifier: ^1.13.8
         version: 1.19.19(hono@4.13.18)
+      '@vuagent/console':
+        specifier: workspace:*
+        version: link:../../apps/playground
       '@vuagent/server':
         specifier: workspace:*
         version: link:../server

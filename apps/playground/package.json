@@ -1,7 +1,6 @@
 {
-  "name": "@vuagent/playground",
-  "private": true,
-  "version": "0.1.0",
+  "name": "@vuagent/console",
+  "version": "0.6.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -26,5 +25,9 @@
     "vite": "^7.1.0",
     "vitest": "^3.2.4",
     "vue-tsc": "^3.0.0"
-  }
+  },
+  "description": "Vuagent Console — the web console for a Vuagent harness server (static bundle)",
+  "files": [
+    "dist"
+  ]
 }

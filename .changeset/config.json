@@ -7,7 +7,8 @@
       "@vuagent/protocol",
       "@vuagent/server",
       "@vuagent/ui",
-      "@vuagent/cli"
+      "@vuagent/cli",
+      "@vuagent/console"
     ]
   ],
   "linked": [],
@@ -15,7 +16,6 @@
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "ignore": [
-    "@vuagent/playground",
     "@vuagent/docs"
   ]
 }
