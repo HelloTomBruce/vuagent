@@ -155,9 +155,16 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       # changeset publish：只发 registry 上不存在的版本；pnpm-lock 存在时自动走 pnpm publish 子进程
-      # provenance：npm/pnpm 均读 npm_config_ 前缀（小写，见 release.yml 注释），需 id-token: write
+      # pre 模式（.changeset/pre.json 存在）禁止显式 --tag——dist-tag 由预发布标识自动推断
+      # （0.7.0-next.0 → next）；非 pre 模式才显式传 channel（正式版 latest）。
+      # provenance：npm/pnpm 均读 npm_config_ 前缀（小写），需 id-token: write
       - name: Publish to npm
-        run: pnpm exec changeset publish --tag "${{ needs.plan.outputs.channel }}"
+        run: |
+          if [ -f .changeset/pre.json ]; then
+            pnpm exec changeset publish
+          else
+            pnpm exec changeset publish --tag "${{ needs.plan.outputs.channel }}"
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           npm_config_provenance: "true"
