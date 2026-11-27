@@ -4,6 +4,7 @@
  */
 
 export * from "./models.js";
+export * from "./providers.js";
 export * from "./events.js";
 export * from "./stream.js";
 export * from "./stream-schema.js";

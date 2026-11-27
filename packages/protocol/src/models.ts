@@ -5,19 +5,21 @@
  * 之前两侧各写一份 ModelCapabilities，容易出现字段漂移——收敛到 protocol 包后
  * 由 `pnpm protocol:sync-check` 统一守护。
  */
+import { PROVIDER_PRESETS_IDS, type ProviderId } from "./providers.js";
 
-/** 供应商类型（决定默认 baseUrl 与协议路由） */
-export type ProviderKind = "openai" | "anthropic" | "deepseek" | "qwen" | "ollama" | "custom";
+/**
+ * 供应商类型（决定默认 baseUrl 与协议路由）。
+ *
+ * 唯一事实源是 `providers.ts` 的预设表：加一个供应商 = 加一条 preset，下拉、默认端点、
+ * 域名规则同时跟上（此前三处各写一份，必然漂移）。
+ *
+ * 类型是**字面量联合**（由 `providers.ts` 的 id 元组派生），穷尽性检查因此保持有效；
+ * 旧库里的历史 id 由 `providerPreset()` 的 custom 兜底承接，不会被类型或运行时拒绝。
+ */
+export type ProviderKind = ProviderId;
 
 /** 运行时枚举：用于入参校验，避免把任意字符串当 provider 落库 */
-export const PROVIDER_KINDS: readonly ProviderKind[] = [
-  "openai",
-  "anthropic",
-  "deepseek",
-  "qwen",
-  "ollama",
-  "custom",
-];
+export const PROVIDER_KINDS: readonly ProviderKind[] = PROVIDER_PRESETS_IDS;
 
 export function isProviderKind(value: unknown): value is ProviderKind {
   return typeof value === "string" && (PROVIDER_KINDS as readonly string[]).includes(value);

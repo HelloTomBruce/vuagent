@@ -13,6 +13,7 @@
  *   providerId，从而把「N 条重复配置」收敛成「1 个 provider + N 个模型」。
  *   迁移是幂等的：已回填的记录不会被重复处理。
  */
+import { providerPreset } from "@vuagent/protocol";
 import type { IStorageDriver } from "../drivers/base.driver.js";
 import type { ModelProfileEntity, ProviderEntity, ProviderKind } from "../interfaces.js";
 import { maskApiKey } from "../../security.js";
@@ -20,15 +21,14 @@ import { maskApiKey } from "../../security.js";
 const PROVIDER_COLLECTION = "providers";
 const PROFILE_COLLECTION = "model_profiles";
 
-/** 供应商类型 → 默认显示名（迁移时用于生成可读的 provider 名） */
-const PROVIDER_DEFAULT_NAME: Record<ProviderKind, string> = {
-  deepseek: "DeepSeek 官方",
-  qwen: "阿里云通义千问",
-  anthropic: "Anthropic (Claude)",
-  openai: "OpenAI",
-  ollama: "Ollama 本地",
-  custom: "自定义 (OpenAI 兼容)",
-};
+/**
+ * 供应商默认显示名：直接取预设表的 label。
+ * 此前这里有一份 6 家的手写映射（`Record<ProviderKind, string>`），供应商扩到 24 家后
+ * 新增 id 拿不到名字（undefined）——删表改由预设提供（评审 R1）。
+ */
+function providerDefaultName(kind: ProviderKind): string {
+  return providerPreset(kind).label;
+}
 
 export class ProviderRepository {
   /**
@@ -210,7 +210,7 @@ export class ProviderRepository {
   }
 
   private providerNameFor(profile: ModelProfileEntity): string {
-    const base = PROVIDER_DEFAULT_NAME[profile.provider] || profile.provider;
+    const base = providerDefaultName(profile.provider) || profile.provider;
     // 同一类型存在多个端点时，用 baseUrl 尾部加以区分，避免出现多个同名分组
     if (profile.baseUrl) {
       try {

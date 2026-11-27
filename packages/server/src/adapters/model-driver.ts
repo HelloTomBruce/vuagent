@@ -38,6 +38,12 @@ export interface ModelDriverRequest {
   }>;
   parameters?: Record<string, unknown>;
   abortSignal?: AbortSignal;
+  /**
+   * 会话/轮次标识：用于按域名规则注入「动态算」的请求头
+   * （如 OpenCode Zen 的 x-opencode-session）。未提供时不注入该类头。
+   */
+  sessionId?: string;
+  turnId?: string;
 }
 
 /**

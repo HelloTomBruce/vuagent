@@ -1,4 +1,5 @@
 import type { IModelDriver, ModelDriverRequest, ModelStreamChunk } from "./model-driver.js";
+import { attributionHeadersForRequest, resolveEndpointHeaders } from "../core/endpoint-headers.js";
 import type { ChatMessage } from "../core/context-compactor.js";
 import { childTraceparent } from "../core/trace-context.js";
 import {
@@ -262,9 +263,21 @@ export class AnthropicDriver implements IModelDriver {
       "Content-Type": "application/json",
       "anthropic-version": "2023-06-01",
     };
-    if (this.apiKey) {
+    // 域名规则：Anthropic 兼容网关（如 MiniMax）要 x-api-key，Azure 要 api-key
+    const endpoint = resolveEndpointHeaders({
+      baseUrl: this.baseUrl,
+      protocol: "anthropic",
+      apiKey: this.apiKey,
+      sessionId: req.sessionId,
+      turnId: req.turnId,
+      model: req.model,
+    });
+    if (this.apiKey && !endpoint.ownsAuth) {
       headers["x-api-key"] = this.apiKey;
     }
+    Object.assign(headers, endpoint.headers);
+    // 归属头：标明请求来自 vuagent（可用 VUAGENT_USER_AGENT(_SUFFIX) 覆盖）
+    Object.assign(headers, attributionHeadersForRequest());
     // TASK-098 出站 trace 传播：入站 traceparent 在 AsyncLocalStorage 中时
     // 注入子 span traceparent（同 traceId + 新 span id）；无上下文不加头，
     // 请求形态与注入前逐字节一致（零开销短路）

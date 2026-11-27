@@ -1,4 +1,5 @@
 import type { IModelDriver, ModelDriverRequest, ModelStreamChunk } from "./model-driver.js";
+import { attributionHeadersForRequest, resolveEndpointHeaders } from "../core/endpoint-headers.js";
 import { childTraceparent } from "../core/trace-context.js";
 import {
   ClassifiedModelError,
@@ -55,9 +56,21 @@ export class OpenAICompatibleDriver implements IModelDriver {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
-    if (this.apiKey) {
+    // 域名规则：某些网关要额外头、或改用别的鉴权头（Azure 用 api-key）
+    const endpoint = resolveEndpointHeaders({
+      baseUrl: this.baseUrl,
+      protocol: "openai",
+      apiKey: this.apiKey,
+      sessionId: req.sessionId,
+      turnId: req.turnId,
+      model: req.model,
+    });
+    if (this.apiKey && !endpoint.ownsAuth) {
       headers["Authorization"] = `Bearer ${this.apiKey}`;
     }
+    Object.assign(headers, endpoint.headers);
+    // 归属头：标明请求来自 vuagent（可用 VUAGENT_USER_AGENT(_SUFFIX) 覆盖）
+    Object.assign(headers, attributionHeadersForRequest());
     // TASK-098 出站 trace 传播：入站 traceparent 在 AsyncLocalStorage 中时
     // 注入子 span traceparent（同 traceId + 新 span id）；无上下文不加头，
     // 请求形态与注入前逐字节一致（零开销短路）

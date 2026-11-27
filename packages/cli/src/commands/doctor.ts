@@ -12,6 +12,7 @@ import net from "node:net";
 import type { DataPaths } from "@vuagent/server";
 import { forceClearLock, readLock, pidAlive } from "../lib/lock.js";
 import { loadSqlite, openDb, turnSizeLeaderboard } from "../lib/db.js";
+import { resolveEndpointHeaders } from "@vuagent/server";
 import { resolveConsoleDir } from "../lib/console-resolve.js";
 
 export type CheckStatus = "ok" | "warn" | "error";
@@ -96,6 +97,42 @@ export async function runDoctor(paths: DataPaths, options: { json?: boolean; fix
           add("turn-row", "warn", `最大单 turn 行 ${formatBytes(maxTurn)}（>3MB 多为拆行前的 legacy 数据）`, "迁移：vuagent migrate --checkpoints --dry-run");
         }
       }
+      // 供应商端点 → 解析后的域名规则（用户能看懂「为什么这个端点多带了头」）
+      const providerRows = db
+        .prepare("SELECT data FROM kv_store WHERE collection = 'providers'")
+        .all() as Array<{ data: string }>;
+      // 只列有规则命中的供应商 + 一行汇总：20 家供应商全列会把体检报告淹掉
+      const ruleRows: string[] = [];
+      for (const row of providerRows) {
+        let prov: { name?: string; provider?: string; baseUrl?: string };
+        try {
+          prov = JSON.parse(row.data) as typeof prov;
+        } catch {
+          continue;
+        }
+        if (!prov.baseUrl) continue;
+        const resolved = resolveEndpointHeaders({
+          baseUrl: prov.baseUrl,
+          protocol: prov.provider === "anthropic" ? "anthropic" : "openai",
+        });
+        const applied = resolved.ruleIds.length > 0 ? `注入 ${resolved.ruleIds.join(", ")}` : "";
+        const skipped =
+          resolved.skippedRuleIds.length > 0 ? `待上下文 ${resolved.skippedRuleIds.join(", ")}` : "";
+        const detail = [applied, skipped].filter(Boolean).join("；");
+        if (!detail) continue;
+        ruleRows.push(`${prov.name ?? "(未命名)"} → ${detail}`);
+        if (resolved.notes[0]) add("provider-rule", "ok", `${prov.name ?? "(未命名)"}：${resolved.notes[0]}`);
+      }
+      if (ruleRows.length > 0) {
+        add(
+          "provider-rules",
+          "ok",
+          `${ruleRows.length} 个供应商命中域名规则：${ruleRows.slice(0, 3).join("；")}${
+            ruleRows.length > 3 ? ` 等 ${ruleRows.length} 个` : ""
+          }`,
+        );
+      }
+
       db.close();
     } catch (err) {
       add("db", "error", `无法打开：${(err as Error).message}`);

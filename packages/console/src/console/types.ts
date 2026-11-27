@@ -2,7 +2,7 @@
  * Console 领域模型与静态配置
  * 流事件契约统一来自 @vuagent/protocol（TASK-002），此处 re-export 供 console 模块便捷引用。
  */
-import type { HarnessStreamEvent, InputModality, ModelCapabilities } from "@vuagent/protocol";
+import { PROVIDER_PRESETS as PROVIDER_PRESETS_FROM_PROTOCOL, type HarnessStreamEvent, type InputModality, type ModelCapabilities } from "@vuagent/protocol";
 import type { PlanStep, TrajEvent } from "@vuagent/ui";
 
 // 模型能力契约的唯一事实源在 @vuagent/protocol（与服务端共用，避免字段漂移）
@@ -159,59 +159,34 @@ export interface ProviderPreset {
   contextWindow: number;
 }
 
-/** 新建模型配置时按 provider 预填（与原 onProviderChange switch 分支一致） */
-export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
-  deepseek: {
-    name: "DeepSeek V3",
-    model: "deepseek-chat",
-    baseUrl: "https://api.deepseek.com/v1",
-    contextWindow: 128000,
-  },
-  anthropic: {
-    name: "Claude 3.7 Sonnet",
-    model: "claude-3-7-sonnet-20250219",
-    baseUrl: "https://api.anthropic.com/v1",
-    contextWindow: 200000,
-  },
-  openai: {
-    name: "OpenAI GPT-4o",
-    model: "gpt-4o",
-    baseUrl: "https://api.openai.com/v1",
-    contextWindow: 128000,
-  },
-  ollama: {
-    name: "Ollama 本地模型",
-    model: "qwen2.5-coder:7b",
-    baseUrl: "http://localhost:11434/v1",
-    contextWindow: 32000,
-  },
-  custom: {
-    name: "兼容模型 (Custom)",
-    model: "custom-model",
-    baseUrl: "http://localhost:8000/v1",
-    contextWindow: 32000,
-  },
-  qwen: {
-    name: "Qwen 通义千问",
-    model: "qwen-max",
-    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    contextWindow: 128000,
-  },
-};
+/**
+ * 供应商下拉与「新建模型预填」全部由 `@vuagent/protocol` 的预设表派生（0.7.2）。
+ *
+ * 此前这里是**第三份**供应商知识（服务端 provider-defaults 一份、此处两份），
+ * 三处漂移的后果是「下拉里没有某家供应商」或「选了它预填到错的端点」。
+ * 现在新增供应商只改 protocol/providers.ts 一处，这里自动跟上。
+ */
+/** 新建模型配置时按 provider 预填（featured 优先，其余按预设表顺序） */
+export const PROVIDER_PRESETS: Record<string, ProviderPreset> = Object.fromEntries(
+  PROVIDER_PRESETS_FROM_PROTOCOL.map((p) => [
+    p.id,
+    {
+      name: p.label,
+      model: p.suggestedModel ?? "custom-model",
+      baseUrl: p.baseUrl,
+      contextWindow: p.contextWindow ?? 32000,
+    },
+  ]),
+);
 
 /**
- * 供应商下拉选项（PROVIDER_OPTIONS 的 value 必须都是 PROVIDER_PRESETS 的键——
- * 新建模型选 provider 时会按 preset 预填，缺键会 TypeError）。
- * label 为 UI 显示名，与 preset.name（模型预填名）是两个概念，刻意分开维护。
+ * 供应商下拉选项（value 必须都是 PROVIDER_PRESETS 的键）。featured 排前面，
+ * 其余按预设表顺序追加——同一张表，不会再出现「清单里有、预填里没有」。
  */
 export const PROVIDER_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: "deepseek", label: "DeepSeek (官方 API)" },
-  { value: "qwen", label: "Qwen / 阿里云通义千问" },
-  { value: "anthropic", label: "Anthropic (Claude)" },
-  { value: "openai", label: "OpenAI (GPT-4o/o3)" },
-  { value: "ollama", label: "Ollama (本地运行)" },
-  { value: "custom", label: "Custom (OpenAI 兼容接口)" },
-];
+  ...PROVIDER_PRESETS_FROM_PROTOCOL.filter((p) => p.featured),
+  ...PROVIDER_PRESETS_FROM_PROTOCOL.filter((p) => !p.featured),
+].map((p) => ({ value: p.id, label: p.label }));
 
 export const DEFAULT_MODEL_FORM: ModelProfileItem = {
   id: "",

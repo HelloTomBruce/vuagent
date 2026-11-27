@@ -1,36 +1,48 @@
 /**
- * Provider 类型 → 默认 baseUrl 的服务端唯一事实源。
+ * 供应商 → 默认端点 / 协议 / 鉴权形态的解析。
  *
- * 此前 agent-loop 与供应商 discover 路由各写了一份
- * `ollama ? localhost : api.openai.com` 三元，两处漂移后 anthropic/deepseek/qwen
- * 未显式配置端点时全部兜到 OpenAI，anthropic 的原生协议头（x-api-key）
- * 永远打在错误端点上（review 发现）。收敛成完整映射，新增供应商类型只改这里。
- *
- * custom / 未知类型沿用 OpenAI 端点（保持既有行为：配 custom 通常意味着
- * 显式填 baseUrl，兜底值几乎不会被用到）。
+ * 事实源是 `@vuagent/protocol` 的 `PROVIDER_PRESETS`（全仓一张表）。此文件只做
+ * 「id → 预设」的解析与端点相关判断，不再自己维护映射表：此前 agent-loop、供应商
+ * discover 路由、console 下拉各写一份，漂移的后果是「选了 A 却打到 B 端点」或
+ * 「anthropic 的 x-api-key 打在 OpenAI 端点上」。
  */
-import type { ProviderKind } from "@vuagent/protocol";
+import {
+  PROVIDER_PRESETS,
+  providerPreset,
+  type ProviderPreset,
+  type ProviderProtocol,
+} from "@vuagent/protocol";
 
-export const PROVIDER_DEFAULT_BASE_URL: Record<ProviderKind, string> = {
-  openai: "https://api.openai.com/v1",
-  anthropic: "https://api.anthropic.com/v1",
-  deepseek: "https://api.deepseek.com/v1",
-  qwen: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-  ollama: "http://localhost:11434/v1",
-  custom: "https://api.openai.com/v1",
-};
+/** 「anthropic 协议」预设的域名集合（MiniMax 这类兼容网关也走 x-api-key） */
+const ANTHROPIC_HOSTS: ReadonlySet<string> = new Set(
+  PROVIDER_PRESETS.filter((p) => p.protocol === "anthropic" && p.domain).map((p) => p.domain as string),
+);
 
-/** 取默认端点；未知类型回落 custom 档，绝不抛错 */
+/** 取默认端点；未知 id 回落 custom 档，绝不抛错 */
 export function defaultBaseUrlFor(kind: string): string {
-  return PROVIDER_DEFAULT_BASE_URL[kind as ProviderKind] ?? PROVIDER_DEFAULT_BASE_URL.custom;
+  return providerPreset(kind).baseUrl;
 }
 
-/** 是否 Anthropic 官方原生端点（决定鉴权头用 x-api-key 还是 Bearer） */
+/** 取协议族（决定走哪个 driver） */
+export function protocolFor(kind: string): ProviderProtocol {
+  return providerPreset(kind).protocol;
+}
+
+/** 取完整预设（调用方需要 note / keyEnv / suggestedModel 时用） */
+export function presetFor(kind: string): ProviderPreset {
+  return providerPreset(kind);
+}
+
+/**
+ * 是否 Anthropic 原生端点（决定鉴权头用 x-api-key 还是 Bearer）。
+ * 判定依据是「host 是否属于 anthropic 协议的预设域名」，而非硬编码单个域名。
+ */
 export function isAnthropicNativeEndpoint(baseUrl: string): boolean {
+  let host: string;
   try {
-    const u = new URL(baseUrl);
-    return u.host === "api.anthropic.com";
+    host = new URL(baseUrl).host;
   } catch {
     return false;
   }
+  return host === "api.anthropic.com" || ANTHROPIC_HOSTS.has(host);
 }

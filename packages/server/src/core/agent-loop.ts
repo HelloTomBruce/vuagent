@@ -8,8 +8,6 @@ import type { ConfigResolver } from "./config-resolver.js";
 import type { ToolRegistry } from "./tool-registry.js";
 import type { ActionHub } from "./action-hub.js";
 import type { IModelDriver, ModelStreamChunk } from "../adapters/model-driver.js";
-import { OpenAICompatibleDriver } from "../adapters/openai-driver.js";
-import { AnthropicDriver } from "../adapters/anthropic-driver.js";
 import {
   ContextCompactor,
   sanitizeMessagesForCheckpoint,
@@ -20,7 +18,7 @@ import { TelemetryLedger, clipTrajectoryEvent } from "./telemetry.js";
 import { runSandboxDemoTurn } from "./sandbox-demo.js";
 import { buildSystemPrompt } from "./system-prompt.js";
 import { resolveEffectivePermissionMode } from "./permissions.js";
-import { defaultBaseUrlFor } from "./provider-defaults.js";
+import { buildDriverForProfile, fallbackApiKeyEnv, profileNeedsApiKey } from "./driver-factory.js";
 import { defaultNamespaceValues, getNamespaceSchema } from "./config-schema.js";
 import { resolveContextWindow } from "./model-catalog.js";
 import {
@@ -370,11 +368,10 @@ export class AgentLoop {
     // 模型驱动解析：显式注入的驱动（ServerOptions.modelDriver，宿主/测试替身用）直接信任；
     // 缺省时按所选模型档案逐轮构造 OpenAI 兼容驱动
     const injectedDriver = this.services.modelDriver;
+    // 凭据判定按**预设**而非 id 白名单：本地无鉴权供应商（ollama / lmstudio / 未来的）
+    // 一律免密钥，否则会被误踢进沙箱演示分支（评审 R2）
     const hasApiKey = Boolean(
-      modelProfile.apiKey ||
-        process.env.OPENAI_API_KEY ||
-        (modelProfile.provider === "anthropic" && process.env.ANTHROPIC_API_KEY) ||
-        modelProfile.provider === "ollama"
+      modelProfile.apiKey || fallbackApiKeyEnv(modelProfile) || !profileNeedsApiKey(modelProfile)
     );
 
     if (!injectedDriver && !this.services.driverFactory && !hasApiKey) {
@@ -480,28 +477,20 @@ export class AgentLoop {
       Boolean(
         this.services.driverFactory ||
           profile.apiKey ||
-          process.env.OPENAI_API_KEY ||
-          profile.provider === "ollama"
+          fallbackApiKeyEnv(profile) ||
+          !profileNeedsApiKey(profile)
       );
-    const buildProfileDriver = (profile: ModelProfileEntity) => {
-      const injected = this.services.driverFactory?.(profile);
-      if (injected) return injected;
-      // 协议路由：anthropic 原生档案（provider=anthropic 且未设 baseUrl，即直连官方端点）
-      // 走原生 Messages 协议驱动；设了 baseUrl 视为 OpenAI 兼容网关，保持兼容路径
-      if (profile.provider === "anthropic" && !profile.baseUrl) {
+    const buildProfileDriver = (profile: ModelProfileEntity) =>
+      // 协议路由收敛到 driver-factory：按预设表的 protocol 决定驱动（评审 C1——
+      // 此前只看 provider==="anthropic"，MiniMax 这类 Anthropic 兼容网关会被错发 OpenAI 载荷）
+      buildDriverForProfile(profile, {
+        ...(this.services.driverFactory ? { injected: this.services.driverFactory(profile) } : {}),
         // TASK-099：prompt caching 档位（配置中心 execution.promptCaching，缺省 auto；
         // 函数形态逐请求求值——运行中改档下一请求生效）
-        return new AnthropicDriver(profile.apiKey || process.env.ANTHROPIC_API_KEY, undefined, {
-          promptCaching: () => (execCfg.promptCaching === "off" ? "off" : "auto"),
-        });
-      }
-      // 默认端点取共享映射（provider-defaults）：anthropic 原生档案已在上方
-      // 路由到 AnthropicDriver，走到这里的 anthropic 一定是显式网关或兜底
-      return new OpenAICompatibleDriver(profile.apiKey || process.env.OPENAI_API_KEY, profile.baseUrl || defaultBaseUrlFor(profile.provider), {
+        promptCaching: () => (execCfg.promptCaching === "off" ? "off" : "auto"),
         // TASK-051：TASK-048 韧性层的重试遥测接缝 → model_retry 运维事件
         onRetry: (info) => ops.modelRetry(info),
       });
-    };
 
     let effectiveDriver: IModelDriver;
     if (injectedDriver) {
@@ -598,6 +587,8 @@ export class AgentLoop {
                 : {}),
             },
             abortSignal: runSignal,
+            sessionId: session.id,
+            turnId,
           });
 
         let activeStream = createModelStream(compactedMessages);
