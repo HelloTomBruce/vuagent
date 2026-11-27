@@ -47,7 +47,8 @@
 
 ## 📋 仓库速查
 
-- monorepo（pnpm workspace）：`packages/{protocol,server,ui,cli}` + `apps/{playground(=@vuagent/console),docs}` + `examples/*`
-- 门禁：`pnpm typecheck` → `pnpm test` → `pnpm build` → `pnpm registry`/`llms` 后 `git diff` 工件新鲜度 → `pnpm registry:check` → `node scripts/check-pack.mjs`
+- monorepo（pnpm workspace）：`packages/{protocol,server,ui,console(console-app 源码库),cli}` + `apps/{console(=@vuagent/console 生产薄壳),playground(私有 dev 壳),docs}` + `examples/*`
+- 本地调试（改完立刻看见，不发布）：`pnpm console`（console HMR）｜`pnpm cli:dev`（CLI 源码直跑）｜`pnpm cli:smoke`（发布前的用户视角冒烟，含样式自足性）——详见 [docs/contributing/local-debugging.md](./docs/contributing/local-debugging.md)
+- 门禁：`pnpm typecheck` → `pnpm test` → `pnpm build` → `pnpm registry`/`llms` 后 `git diff` 工件新鲜度 → `pnpm registry:check` → `node scripts/check-pack.mjs` → `pnpm cli:smoke`（发布前）
 - 发布链：`Release`（version PR，人工合并）→ 打 tag `v<version>` → `Publish`（门禁→发布→冒烟）。详见 `.github/workflows/publish.yml` 头注释与 `docs/design/v0.7-plan.md`
 - 本地任务日志：`tasks/todo.md`（gitignore，不进 commit）
