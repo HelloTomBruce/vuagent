@@ -1,5 +1,13 @@
 # @vuagent/cli
 
+## 0.7.1
+
+### Patch Changes
+
+- Updated dependencies [938186f]
+  - @vuagent/console@0.7.1
+  - @vuagent/server@0.7.1
+
 ## 0.7.0
 
 ### Minor Changes

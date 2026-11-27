@@ -1,6 +1,6 @@
 {
   "name": "@vuagent/console",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Vuagent Console — the web console for a Vuagent harness server (static bundle consumed by @vuagent/cli)",
   "type": "module",
   "license": "MIT",

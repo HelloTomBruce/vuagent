@@ -1,5 +1,11 @@
 # @vuagent/server
 
+## 0.7.1
+
+### Patch Changes
+
+- @vuagent/protocol@0.7.1
+
 ## 0.7.0
 
 ### Patch Changes
