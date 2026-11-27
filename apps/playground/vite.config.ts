@@ -7,25 +7,43 @@ const rootVersion: string = JSON.parse(
   readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
 ).version as string;
 
-export default defineConfig({
-  plugins: [vue()],
-  define: {
-    __APP_VERSION__: JSON.stringify(rootVersion),
-  },
-  optimizeDeps: {
-    exclude: ["@vuagent/ui"],
-  },
-  server: {
-    port: 6995,
-    proxy: {
-      "/api": {
-        target: "http://localhost:6880",
-        changeOrigin: true,
+export default defineConfig(({ mode }) => {
+  /**
+   * --mode console（0.7.0 CLI 发布产物）：只注册 /console 路由 + / 重定向，
+   * demo 页面（/m1 /gallery 等）不进产物；App 壳去掉 playground 头栏。
+   * 默认模式仍是完整 demo playground（dev / 内部演示）。
+   */
+  const consoleOnly = mode === "console";
+
+  return {
+    plugins: [
+      vue(),
+      {
+        name: "vuagent-console-html",
+        transformIndexHtml(html: string) {
+          return consoleOnly ? html.replace("Vuagent Playground", "Vuagent Console") : html;
+        },
+      },
+    ],
+    define: {
+      __APP_VERSION__: JSON.stringify(rootVersion),
+      __CONSOLE_ONLY__: JSON.stringify(consoleOnly),
+    },
+    optimizeDeps: {
+      exclude: ["@vuagent/ui"],
+    },
+    server: {
+      port: 6995,
+      proxy: {
+        "/api": {
+          target: "http://localhost:6880",
+          changeOrigin: true,
+        },
+      },
+      watch: {
+        // 跟随 pnpm workspace symlink，让 packages/ui 的源码改动也能热更新
+        followSymlinks: true,
       },
     },
-    watch: {
-      // 跟随 pnpm workspace symlink，让 packages/ui 的源码改动也能热更新
-      followSymlinks: true,
-    },
-  },
+  };
 });

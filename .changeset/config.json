@@ -2,10 +2,20 @@
   "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "fixed": [["@vuagent/protocol", "@vuagent/server", "@vuagent/ui"]],
+  "fixed": [
+    [
+      "@vuagent/protocol",
+      "@vuagent/server",
+      "@vuagent/ui",
+      "@vuagent/cli"
+    ]
+  ],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@vuagent/playground", "@vuagent/docs"]
+  "ignore": [
+    "@vuagent/playground",
+    "@vuagent/docs"
+  ]
 }

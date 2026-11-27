@@ -22,6 +22,7 @@ export * from "./adapters/openai-driver.js";
 export * from "./adapters/anthropic-driver.js";
 export * from "./adapters/resilience.js";
 export * from "./storage/interfaces.js";
+export * from "./storage/paths.js";
 export * from "./storage/drivers/base.driver.js";
 export * from "./storage/drivers/memory.driver.js";
 export * from "./storage/drivers/sqlite.driver.js";

@@ -1,8 +1,10 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { secureHeaders } from "hono/secure-headers";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { randomUUID } from "node:crypto";
 import { Type } from "@sinclair/typebox";
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { exec } from "node:child_process";
@@ -218,6 +220,20 @@ export interface ServerOptions {
   customUIComponents?: UIComponentDefinition[];
   /** 自定义 UI 注册中心（可选显式注入） */
   uiRegistry?: UIComponentRegistry;
+  /**
+   * console 静态托管（0.7.0 CLI 形态）：传入即挂载「/assets/* 长缓存静态 +
+   * SPA fallback 回 index.html」；缺省不托管（仅 /api/*，库形态行为不变）。
+   * 安全边界：外层绑定闸门（resolveBindPlan）已保证对外绑定必须配 VUAGENT_TOKEN，
+   * 本选项不做二次校验——CLI 在 unsafeExempted 时会显著提示 console 已对内网开放。
+   */
+  console?: {
+    /** console 静态资源目录（vite build 产物，须含 index.html） */
+    dir: string;
+    /** SPA 入口文件，默认 index.html */
+    entry?: string;
+    /** /assets/* 是否加 immutable 长缓存（vite 产物带内容哈希；默认 true） */
+    immutableAssets?: boolean;
+  };
   /** 自定义业务动作工具（非 UI 契约的函数/动作工具） */
   customTools?: HarnessTool[];
   /**
@@ -2362,6 +2378,55 @@ export function createHarnessServer(options: ServerOptions = {}) {
     const ok = await settingsRepo.deleteProfile(id);
     return c.json({ success: ok }, ok ? 200 : 404);
   });
+
+  // ─── console 静态托管（0.7.0 CLI 形态，可选）────────────────────────────
+  // 挂载顺序（必须在所有 /api 路由之后）：
+  //   1. /assets/* 静态（vite 产物带内容哈希 → immutable 长缓存）；
+  //   2. /* 静态（favicon 等；目录命中 index 时按 SPA 入口处理 → no-cache）；
+  //   3. SPA fallback：/api 前缀保持 404 JSON（不吞 API 错误），其余 GET 回 index.html。
+  if (options.console?.dir) {
+    const consoleDir = options.console.dir;
+    const consoleEntry = options.console.entry ?? "index.html";
+    const indexFile = path.join(consoleDir, consoleEntry);
+    if (!fs.existsSync(indexFile)) {
+      throw new Error(`console.dir 缺少 SPA 入口：${indexFile}（先构建 console 产物或检查 --console-dir）`);
+    }
+    const indexHtml = fs.readFileSync(indexFile, "utf8");
+    const immutableAssets = options.console.immutableAssets !== false;
+
+    // /assets/*：命中后补 immutable 长缓存。serveStatic 的 onFound 里 c.header 不会进
+    // 最终响应（实测），可靠姿势是前置中间件在 next() 之后补头：静态未命中（404 走
+    // fallback）与 fallback 自标 no-cache 的响应都不受影响（cache-control 已存在则不覆盖）。
+    app.use("/assets/*", async (c, next) => {
+      await next();
+      if (immutableAssets && c.res.status === 200 && !c.res.headers.has("Cache-Control")) {
+        c.res.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+      }
+    });
+    app.use("/assets/*", serveStatic({ root: consoleDir }));
+    // 其余静态文件（favicon 等）。「/」改写为不存在的路径强制走 SPA fallback：
+    // serveStatic 的目录索引会绕过 fallback 的 no-cache 口径，统一让入口只从 fallback 出。
+    app.use(
+      "/*",
+      serveStatic({
+        root: consoleDir,
+        rewriteRequestPath: (p) => (p === "/" ? "/__vuagent_spa_fallback__" : p),
+      })
+    );
+    app.get("*", (c) => {
+      // /api 与 /assets 前缀的未命中保持 404 JSON：不吞 API 错误，静态资源缺失也不回 SPA
+      // （顺带把 ..%2f 之类穿越尝试挡在 404，而不是回 200 首页）
+      if (
+        c.req.path === "/api" ||
+        c.req.path.startsWith("/api/") ||
+        c.req.path.startsWith("/assets/")
+      ) {
+        return c.json({ error: `Not Found: ${c.req.method} ${c.req.path}`, code: "NOT_FOUND" }, 404);
+      }
+      c.header("Cache-Control", "no-cache");
+      return c.html(indexHtml);
+    });
+  }
 
   return {
     app,

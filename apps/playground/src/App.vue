@@ -24,10 +24,20 @@ router.afterEach((to) => {
     document.title = `Vuagent · ${String(to.meta.title)}`;
   }
 });
+
+/** --mode console（CLI 发布产物）：去掉 playground 头栏（品牌/nav 菜单），console 全屏 */
+const consoleOnly = typeof __CONSOLE_ONLY__ === "boolean" && __CONSOLE_ONLY__;
 </script>
 
 <template>
-  <div class="pg">
+  <!-- console-only（CLI 发布产物）：无 playground 头栏，console 直接全屏 -->
+  <div v-if="consoleOnly" class="pg pg--console-only">
+    <main class="pg__main pg__main--console-only">
+      <RouterView />
+    </main>
+  </div>
+
+  <div v-else class="pg">
     <header class="pg__bar">
       <span class="pg__brand"
         ><svg class="pg__mark" viewBox="0 0 32 32" fill="none" stroke-linecap="round" aria-hidden="true">
@@ -76,6 +86,23 @@ router.afterEach((to) => {
   max-width: 1080px;
   margin: 0 auto;
   padding: 20px 24px 72px;
+}
+
+/* console-only：去掉头栏后的全屏容器（原 fullscreen 规则依赖头栏高度，这里独立一套） */
+.pg--console-only {
+  max-width: 100vw;
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pg__main--console-only {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .pg:has(.pg__main--fullscreen) {

@@ -1,26 +1,56 @@
 {
   "name": "@vuagent/cli",
   "version": "0.6.0",
-  "private": true,
   "description": "Vuagent CLI — one command to start the harness server + console, with a single predictable data directory",
   "type": "module",
   "license": "MIT",
+  "bin": {
+    "vuagent": "./dist/main.js"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/HelloTomBruce/vuagent.git",
     "directory": "packages/cli"
   },
   "homepage": "https://hellotombruce.github.io/vuagent",
+  "bugs": {
+    "url": "https://github.com/HelloTomBruce/vuagent/issues"
+  },
+  "keywords": [
+    "vuagent",
+    "agent",
+    "harness",
+    "cli",
+    "ai"
+  ],
+  "files": [
+    "dist"
+  ],
+  "main": "./src/main.ts",
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/main.js",
+    "types": "./dist/main.d.ts",
+    "bin": {
+      "vuagent": "./dist/main.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/node-server": "^1.13.8",
     "@vuagent/server": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.13.9",
+    "tsx": "^4.19.3",
     "typescript": "~5.9.2",
     "vitest": "^3.2.4"
   }
