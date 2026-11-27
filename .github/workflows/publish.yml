@@ -185,11 +185,22 @@ jobs:
       - name: 安装刚发布的 CLI（registry 传播可能滞后，重试）
         run: |
           set -euo pipefail
-          for i in $(seq 1 10); do
-            if npm i -g --prefix "$RUNNER_TEMP/cli" "@vuagent/cli@${{ needs.plan.outputs.version }}"; then
+          VERSION="${{ needs.plan.outputs.version }}"
+          # 先轮询 registry 元数据（cache-bust 防 CDN 缓存 404），全新包名首发传播可达数分钟；
+          # 元数据可见后再 npm i（避免烧 npm 客户端重试）
+          for i in $(seq 1 40); do
+            if curl -fsS "https://registry.npmjs.org/@vuagent%2fcli?cb=$(date +%s%N)" \
+              | grep -q "\"$VERSION\""; then
+              echo "registry 已可见（第 $i 次探测）"
+              break
+            fi
+            echo "registry 尚未就绪（第 $i 次），15s 后重试"; sleep 15
+          done
+          for i in $(seq 1 5); do
+            if npm i -g --prefix "$RUNNER_TEMP/cli" "@vuagent/cli@$VERSION"; then
               exit 0
             fi
-            echo "registry 尚未就绪（第 $i 次），10s 后重试"; sleep 10
+            echo "安装失败（第 $i 次），10s 后重试"; sleep 10
           done
           echo "✗ 安装发布产物失败"; exit 1
 
