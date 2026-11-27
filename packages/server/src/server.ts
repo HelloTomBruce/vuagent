@@ -2398,6 +2398,10 @@ export function createHarnessServer(options: ServerOptions = {}) {
         messages: [{ role: "user", content: "ping" }],
         parameters: { max_tokens: 1 },
         abortSignal: controller.signal,
+        // 占位会话：按域名规则注入 x-opencode-session 的网关（如 OpenCode Go）对
+        // 缺该头的请求直接 400 MissingSessionID——探测是孤立请求没有真实会话，
+        // 用固定占位值让会话路由类网关放行（仅 opencode.ai 域名会消费此头）。
+        sessionId: "connectivity-probe",
       });
       let firstResponseAt = 0;
       for await (const chunk of stream) {

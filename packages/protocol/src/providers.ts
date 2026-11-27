@@ -40,6 +40,7 @@ export const PROVIDER_PRESET_IDS = [
   "doubao",
   "openrouter",
   "opencode",
+  "opencode-go",
   "siliconflow",
   "ollama",
   "lmstudio",
@@ -209,6 +210,21 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     suggestedModel: "claude-sonnet-4",
     contextWindow: 200000,
     note: "该网关按会话做路由：会自动附带 x-opencode-session 请求头（按域名规则注入）。",
+  },
+  {
+    // Go 订阅（$10/月起，oc_sk_ key）有专属网关 /inference/go/*——走 Zen 的按量计费
+    // 网关会报 402/「模型不在订阅内」。不写 domain：域名唯一性约束（每域名至多一条
+    // 预设，tests/providers.test.ts），x-opencode-session 规则按 opencode.ai 命中，
+    // 与 domain 字段无关（规则表独立于预设表）。
+    id: "opencode-go",
+    label: "OpenCode Go（订阅）",
+    protocol: "openai",
+    baseUrl: "https://opencode.ai/inference/go/openai/v1",
+    authStyle: "bearer",
+    keyEnv: "OPENCODE_API_KEY",
+    suggestedModel: "deepseek-v4.1-flash",
+    contextWindow: 1000000,
+    note: "Go 订阅专属网关（订阅内模型清单见 opencode.ai/console/go）；按量计费请用 OpenCode Zen 预设。",
   },
   {
     id: "siliconflow",

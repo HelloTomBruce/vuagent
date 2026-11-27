@@ -73,4 +73,15 @@ describe("PROVIDER_PRESETS", () => {
   it("至少覆盖 20 家（内置清单不能只有 5-6 家）", () => {
     expect(PROVIDER_PRESETS.length).toBeGreaterThanOrEqual(20);
   });
+
+  it("OpenCode Go 订阅网关与 Zen 按量网关分开（同一 key 走错网关会 402/模型不在订阅）", () => {
+    const go = PROVIDER_PRESET_BY_ID["opencode-go"];
+    const zen = PROVIDER_PRESET_BY_ID.opencode;
+    expect(go?.baseUrl).toBe("https://opencode.ai/inference/go/openai/v1");
+    expect(zen?.baseUrl).toBe("https://opencode.ai/inference/openai/v1");
+    // Go 与 Zen 同域：x-opencode-session 规则靠规则表的 domains 命中，
+    // 预设 domain 字段受「每域名至多一条」约束，Go 条目不带 domain
+    expect(go?.domain).toBeUndefined();
+    expect(zen?.domain).toBe("opencode.ai");
+  });
 });
