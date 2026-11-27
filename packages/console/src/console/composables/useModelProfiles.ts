@@ -333,11 +333,11 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
     }
   }
 
-  async function saveProvider() {
+  async function saveProvider(): Promise<ProviderItem | null> {
     const form = providerForm.value;
     if (!form.name.trim()) {
       vaToaster.add({ title: "请填写供应商名称", kind: "warning" });
-      return;
+      return null;
     }
 
     const payload: ProviderPayload = {
@@ -355,6 +355,10 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
           await loadProviders();
           selectProvider(created.id);
           testStatus.value = { ok: true, message: "供应商已创建，可在下方添加模型" };
+          return created;
+        } else {
+          testStatus.value = { ok: false, message: "保存失败：服务器未返回创建结果" };
+          return null;
         }
       } else if (form.id) {
         const updated = await updateProviderApi(form.id, payload);
@@ -362,10 +366,16 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
           await loadProviders();
           selectProvider(form.id);
           testStatus.value = { ok: true, message: "供应商已更新，其下所有模型立即生效" };
+          return updated;
+        } else {
+          testStatus.value = { ok: false, message: "保存失败：服务器未返回更新结果" };
+          return null;
         }
       }
+      return null;
     } catch (e: any) {
       testStatus.value = { ok: false, message: `保存失败: ${e.message || String(e)}` };
+      return null;
     }
   }
 
@@ -397,9 +407,13 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
 
   /* ==================== 模型（右侧内联编辑） ==================== */
 
-  /** 开始新建模型：草稿挂到当前供应商下 */
-  function startCreateModel() {
-    const provider = currentProvider.value;
+  /** 开始新建模型：草稿挂到当前供应商下（若在新建供应商态则自动先行保存供应商） */
+  async function startCreateModel() {
+    let provider = currentProvider.value;
+    if (!provider && isCreatingProvider.value) {
+      provider = (await saveProvider()) ?? undefined;
+      if (!provider) return;
+    }
     if (!provider) {
       vaToaster.add({ title: "请先保存供应商", kind: "warning" });
       return;

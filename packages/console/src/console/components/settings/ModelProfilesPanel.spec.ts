@@ -146,4 +146,20 @@ describe("ModelProfilesPanel 交互结构", () => {
 
     wrapper.unmount();
   });
+
+  it("新建供应商态下，「添加模型」按钮可点击并发出 create-model 事件", async () => {
+    const wrapper = mountPanel({
+      isCreatingProvider: true,
+      currentProvider: undefined,
+      currentProviderModels: [],
+    });
+    const addModelBtn = wrapper.find(".va-model-section__head .va-console__btn-add-profile");
+    expect(addModelBtn.exists()).toBe(true);
+    expect(addModelBtn.attributes("disabled")).toBeUndefined();
+
+    await addModelBtn.trigger("click");
+    expect(wrapper.emitted("create-model")).toHaveLength(1);
+
+    wrapper.unmount();
+  });
 });

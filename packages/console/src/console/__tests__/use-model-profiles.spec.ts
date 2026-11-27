@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { nextTick, ref } from "vue";
 import { useModelProfiles } from "../composables/useModelProfiles";
-import { deleteModelProfileById, listProviders } from "../api/client";
+import { deleteModelProfileById, listProviders, createProviderApi } from "../api/client";
 import { vaToaster } from "@vuagent/ui";
 
 vi.mock("@vuagent/ui", () => ({
@@ -304,5 +304,59 @@ describe("useModelProfiles：草稿槽迁移（TASK-081）", () => {
     m.setReasoningEffort("high");
     m.migrateSessionEffort("sess-new", "sess-new"); // 自迁移：值保留
     expect(m.reasoningEffort.value).toBe("high");
+  });
+});
+
+describe("useModelProfiles：新建供应商态下添加模型", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("新建供应商态下，调用 startCreateModel 会自动先保存供应商再展开模型草稿", async () => {
+    const createdProvider = {
+      id: "p-new",
+      name: "新供应商",
+      provider: "deepseek",
+      baseUrl: "https://api.deepseek.com/v1",
+      models: [],
+    };
+    vi.mocked(listProviders)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([createdProvider]);
+    vi.mocked(createProviderApi).mockResolvedValue(createdProvider);
+
+    const m = useModelProfiles();
+    await m.loadProviders();
+    m.startCreateProvider();
+
+    expect(m.isCreatingProvider.value).toBe(true);
+    expect(m.currentProvider.value).toBeUndefined();
+
+    await m.startCreateModel();
+
+    expect(createProviderApi).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "新供应商", provider: "deepseek" })
+    );
+    expect(m.selectedProviderId.value).toBe("p-new");
+    expect(m.isCreatingModel.value).toBe(true);
+    expect(m.modelDraft.value).not.toBeNull();
+    expect(m.modelDraft.value?.providerId).toBe("p-new");
+  });
+
+  it("新建供应商时若名称为空，调用 startCreateModel 会提示并中止，不创建供应商也不展开草稿", async () => {
+    vi.mocked(listProviders).mockResolvedValue([]);
+    const m = useModelProfiles();
+    await m.loadProviders();
+    m.startCreateProvider();
+    m.providerForm.value.name = "   "; // 清空名称
+
+    await m.startCreateModel();
+
+    expect(vaToaster.add).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "请填写供应商名称", kind: "warning" })
+    );
+    expect(createProviderApi).not.toHaveBeenCalled();
+    expect(m.modelDraft.value).toBeNull();
+    expect(m.isCreatingModel.value).toBe(false);
   });
 });

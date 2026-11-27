@@ -715,9 +715,13 @@
   color: var(--va-ink, #1a1917);
   cursor: pointer;
 }
-.va-console__btn-add-profile:hover {
+.va-console__btn-add-profile:hover:not(:disabled) {
   border-color: var(--va-accent, #c2410c);
   color: var(--va-accent, #c2410c);
+}
+.va-console__btn-add-profile:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .va-console__modal-profile-list {
@@ -2444,9 +2448,56 @@
 .va-cap-verdict__name { flex: none; }
 .va-cap-verdict__detail { margin-left: auto; font-size: 11.5px; opacity: 0.85; }
 
-/* 模型标识 VaSelect：与同行输入控件弹性对齐
-   （VaSelect 根经 VaPopover 的 va-pop__trigger 包裹，组件 class 不落在 .va-sel 根上——用结构化选择器；
-    .va-sel 自带 min-width:200px，弹性行内必须重置为 0 否则超出表单列宽） */
+/* 模型标识行：输入/下拉与刷新按钮独立排列，避免与 VaSelect 内置下拉箭头重叠 */
+.va-console__model-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.va-console__model-input-row .va-pop__trigger {
+  flex: 1 1 0;
+  min-width: 0;
+  display: block;
+}
+.va-console__model-input-row .va-sel {
+  min-width: 0;
+  width: 100%;
+}
+.va-console__model-input-row .va-sel__trigger {
+  min-height: 34px;
+  width: 100%;
+}
+.va-console__model-input-row .va-console__input {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 34px;
+}
+.va-console__model-refresh-btn {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--va-card, #ffffff);
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: var(--va-radius-s, 8px);
+  color: var(--va-muted, #6f6d66);
+  cursor: pointer;
+  padding: 0;
+  transition: border-color var(--va-dur-1, 120ms) ease, color var(--va-dur-1, 120ms) ease;
+}
+.va-console__model-refresh-btn:hover:not(:disabled) {
+  border-color: var(--va-accent, #c2410c);
+  color: var(--va-accent, #c2410c);
+}
+.va-console__model-refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 模型标识 VaSelect：与同行输入控件弹性对齐（兜底 input-with-action） */
 .va-console__input-with-action .va-pop__trigger {
   flex: 1 1 0;
   min-width: 0;

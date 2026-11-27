@@ -260,7 +260,6 @@ const editingModelId = computed(() => props.modelDraft?.id || "");
             <button
               class="va-console__btn-add-profile"
               type="button"
-              :disabled="!currentProvider"
               @click="emit('create-model')"
             >
               <Plus :size="12" /> 添加模型
@@ -313,7 +312,7 @@ const editingModelId = computed(() => props.modelDraft?.id || "");
           </div>
 
           <p v-else-if="!modelDraft" class="va-console__empty-tip">
-            该供应商下还没有模型。点「添加模型」即可复用上面的端点与密钥。
+            {{ isCreatingProvider ? "填写上方供应商信息后，点「添加模型」即可添加模型（将先保存供应商）。" : "该供应商下还没有模型。点「添加模型」即可复用上面的端点与密钥。" }}
           </p>
 
           <!-- ---------- 内联编辑表单 ---------- -->
@@ -334,7 +333,7 @@ const editingModelId = computed(() => props.modelDraft?.id || "");
               </div>
               <div class="va-console__form-group flex-1">
                 <label class="va-console__label">模型标识 (Model ID)</label>
-                <div class="va-console__input-with-action">
+                <div class="va-console__model-input-row">
                   <!-- 打开供应商后自动拉取可用模型 → 列表选择（可搜索）；拉取失败/为空自动切手动输入兜底 -->
                   <VaSelect
                     v-if="!manualModelInput"
@@ -357,7 +356,7 @@ const editingModelId = computed(() => props.modelDraft?.id || "");
                     list="va-discovered-models"
                   />
                   <button
-                    class="va-console__input-addon-btn"
+                    class="va-console__model-refresh-btn"
                     type="button"
                     :disabled="isDiscovering"
                     title="从供应商拉取可用模型列表"
