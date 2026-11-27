@@ -111,9 +111,32 @@ for (const { dir, rel, pkg } of packages) {
     if (!head.startsWith("#!")) problems.push(`${pkg.name}: bin "${name}" 缺 shebang（安装后不可执行）`);
   }
 
-  // console 包形态
-  if (pkg.name === "@vuagent/console" && !set.has("dist/index.html")) {
-    problems.push("@vuagent/console: 缺 dist/index.html（静态托管入口）");
+  // console 包形态：入口 + **样式自足**（0.7.0 事故：生产壳忘了引 tokens.css/shell.css，
+  // 发布出去的 console 没有 --va-* 令牌 → 全站样式崩坏；这道门禁从打包产物层面兜住）
+  if (pkg.name === "@vuagent/console") {
+    if (!set.has("dist/index.html")) {
+      problems.push("@vuagent/console: 缺 dist/index.html（静态托管入口）");
+    }
+    const cssFiles = packed.files.filter((f) => f.startsWith("dist/") && f.endsWith(".css"));
+    if (cssFiles.length === 0) {
+      problems.push("@vuagent/console: 产物里没有任何 CSS（样式未被参与构建）");
+    } else {
+      const cssText = cssFiles.map((f) => fs.readFileSync(path.join(dir, f), "utf8")).join("\n");
+      const missing = [];
+      // 设计令牌（tokens.css 的 :root 定义）
+      if (!cssText.includes("--va-bg:")) missing.push("设计令牌 --va-bg（tokens.css 未引入）");
+      if (!cssText.includes("--va-ink:")) missing.push("设计令牌 --va-ink");
+      // console 自身的组件样式（console.css 随 SFC 打包）
+      if (!cssText.includes(".va-console")) missing.push("console 组件样式 .va-console");
+      // 页面基础样式（shell.css）：必须是为 html/body/#app 建立的满高链，
+      // 而不是任意一条 height:100%（后者极易被别的规则误满足）
+      if (!/html\s*,\s*body\s*,\s*#app\s*\{[^}]*height:\s*100%/.test(cssText)) {
+        missing.push("页面基础样式（shell.css 的 html/body/#app 满高链未引入）");
+      }
+      if (missing.length > 0) {
+        problems.push(`@vuagent/console: 产物样式不自足 → 缺 ${missing.join("、")}`);
+      }
+    }
   }
   if (packed.size > 8 * 1024 * 1024) {
     warnings.push(`${pkg.name}: 包体 ${(packed.size / 1048576).toFixed(1)} MB，确认是否预期`);
