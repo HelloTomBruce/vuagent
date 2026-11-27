@@ -186,16 +186,20 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${{ needs.plan.outputs.version }}"
-          # 先轮询 registry 元数据（cache-bust 防 CDN 缓存 404），全新包名首发传播可达数分钟；
-          # 元数据可见后再 npm i（避免烧 npm 客户端重试）
+          # 先等 registry 的**精确版本端点**返回 200（权威且不受 packument CDN 缓存影响）。
+          # 不要用 `grep "$VERSION"` 匹配 packument：版本号同样出现在 `time` 字段里，
+          # 会误判为「已可见」然后在 versions 尚未同步时去安装（v0.7.0 首发即栽在此）。
+          READY=""
           for i in $(seq 1 40); do
-            if curl -fsS "https://registry.npmjs.org/@vuagent%2fcli?cb=$(date +%s%N)" \
-              | grep -q "\"$VERSION\""; then
-              echo "registry 已可见（第 $i 次探测）"
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/@vuagent%2fcli/$VERSION")
+            if [ "$CODE" = "200" ]; then
+              echo "registry 已可见 @vuagent/cli@$VERSION（第 $i 次探测）"
+              READY="yes"
               break
             fi
-            echo "registry 尚未就绪（第 $i 次），15s 后重试"; sleep 15
+            echo "registry 尚未就绪（HTTP $CODE，第 $i 次），15s 后重试"; sleep 15
           done
+          if [ -z "$READY" ]; then echo "✗ 等待 registry 超时（@vuagent/cli@$VERSION）"; exit 1; fi
           for i in $(seq 1 5); do
             if npm i -g --prefix "$RUNNER_TEMP/cli" "@vuagent/cli@$VERSION"; then
               exit 0
