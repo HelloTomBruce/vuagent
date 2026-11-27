@@ -1,13 +1,12 @@
 {
-  "name": "@vuagent/console",
-  "version": "0.7.0-next.0",
+  "name": "@vuagent/playground",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "typecheck": "vue-tsc --noEmit",
-    "test": "vitest run",
-    "build:console": "vite build --mode console"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@vuagent/protocol": "workspace:*",
@@ -15,7 +14,8 @@
     "lucide-vue-next": "^0.477.0",
     "markdown-it": "^15.0.3",
     "vue": "^3.5.21",
-    "vue-router": "^4.6.4"
+    "vue-router": "^4.6.4",
+    "@vuagent/console-app": "workspace:*"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
@@ -26,8 +26,5 @@
     "vitest": "^3.2.4",
     "vue-tsc": "^3.0.0"
   },
-  "description": "Vuagent Console — the web console for a Vuagent harness server (static bundle)",
-  "files": [
-    "dist"
-  ]
+  "private": true
 }

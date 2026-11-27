@@ -145,15 +145,30 @@ describe("useTheme", () => {
   });
 
   it("FOUC 内联脚本与 useTheme 解析规则一致（防漂移守卫）", () => {
-    // index.html 内联脚本与 useTheme.ts 是同一规则的两份实现，
-    // 任一侧单改（key/白名单/回退）都会造成首帧主题与运行态分叉——在此锁死。
-    const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
-    expect(html).toContain(`localStorage.getItem("${THEME_STORAGE_KEY}")`);
-    for (const pref of ["light", "dark", "system"]) {
-      expect(html).toContain(`"${pref}"`);
+    // 两个宿主壳（生产 apps/console / 开发 apps/playground）各有一份 index.html 内联脚本，
+    // 与 useTheme.ts 是同一规则的多份实现——任一侧单改（key/白名单/回退）都会造成
+    // 首帧主题与运行态分叉。此处逐个锁死解析规则，并额外断言两份脚本逐字一致。
+    const shells = [
+      resolve(process.cwd(), "../../apps/console/index.html"),
+      resolve(process.cwd(), "../../apps/playground/index.html"),
+    ];
+    const scripts: string[] = [];
+    for (const file of shells) {
+      const html = readFileSync(file, "utf8");
+      const m = /<script>([\s\S]*?)<\/script>/.exec(html);
+      expect(m, `${file} 缺内联主题脚本`).toBeTruthy();
+      const script = m![1];
+      scripts.push(script.replace(/\s+/g, " ").trim());
+
+      expect(script).toContain(`localStorage.getItem("${THEME_STORAGE_KEY}")`);
+      for (const pref of ["light", "dark", "system"]) {
+        expect(script).toContain(`"${pref}"`);
+      }
+      expect(script).toContain("prefers-color-scheme: dark");
+      expect(script).toContain("dataset.theme");
+      expect(script).toContain("colorScheme");
     }
-    expect(html).toContain("prefers-color-scheme: dark");
-    expect(html).toContain("dataset.theme");
-    expect(html).toContain("colorScheme");
+    // 防漂移：两个宿主壳的主题引导脚本必须完全相同
+    expect(scripts[0]).toBe(scripts[1]);
   });
 });

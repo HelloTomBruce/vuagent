@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#c2410c" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Vuagent Console</title>
+    <script>
+      // FOUC 防护：首帧前同步主题（与 useTheme.ts 同一 storage key 与解析规则）
+      (function () {
+        try {
+          var pref = localStorage.getItem("vuagent:theme");
+          if (pref !== "light" && pref !== "dark" && pref !== "system") pref = "system";
+          var dark =
+            pref === "dark" ||
+            (pref === "system" &&
+              window.matchMedia &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var theme = dark ? "dark" : "light";
+          var root = document.documentElement;
+          root.dataset.theme = theme;
+          root.style.colorScheme = theme;
+        } catch (e) {
+          /* storage 不可用等场景：维持亮色默认 */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

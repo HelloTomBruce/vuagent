@@ -3,10 +3,10 @@
   "private": true,
   "version": "0.2.0",
   "scripts": {
-    "build": "pnpm --filter @vuagent/protocol build && pnpm --filter @vuagent/server build && pnpm --filter @vuagent/ui build && pnpm --filter @vuagent/console build && pnpm --filter @vuagent/console build:console && pnpm --filter @vuagent/cli build",
+    "build": "pnpm --filter @vuagent/protocol build && pnpm --filter @vuagent/server build && pnpm --filter @vuagent/ui build && pnpm --filter @vuagent/console build && pnpm --filter @vuagent/playground build && pnpm --filter @vuagent/cli build",
     "prepublish:check": "pnpm typecheck && pnpm test && pnpm build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm --filter @vuagent/protocol test && pnpm --filter @vuagent/ui test && pnpm --filter @vuagent/server test && pnpm --filter @vuagent/console test && pnpm --filter @vuagent/cli test",
+    "test": "pnpm --filter @vuagent/protocol test && pnpm --filter @vuagent/ui test && pnpm --filter @vuagent/server test && pnpm --filter @vuagent/console-app test && pnpm --filter @vuagent/cli test",
     "protocol:sync-check": "node scripts/check-protocol-sync.mjs",
     "server:dev": "pnpm --filter @vuagent/server dev",
     "registry": "node scripts/build-registry.mjs",
@@ -15,10 +15,11 @@
     "llms": "node scripts/build-llms.mjs",
     "docs:dev": "pnpm --filter @vuagent/docs dev",
     "docs:build": "pnpm --filter @vuagent/docs build",
-    "dev": "pnpm --filter @vuagent/console dev",
+    "dev": "pnpm --filter @vuagent/playground dev",
     "console": "concurrently -k -n server,web -c yellow,cyan \"pnpm --filter @vuagent/server dev\" \"pnpm --filter @vuagent/console dev\"",
     "example:server": "pnpm --filter @examples/server dev",
-    "example:gallery": "concurrently -k -n server,client -c yellow,green \"pnpm --filter @examples/server dev\" \"pnpm --filter @examples/agent-gallery dev\""
+    "example:gallery": "concurrently -k -n server,client -c yellow,green \"pnpm --filter @examples/server dev\" \"pnpm --filter @examples/agent-gallery dev\"",
+    "console:web": "pnpm --filter @vuagent/console dev"
   },
   "repository": {
     "type": "git",

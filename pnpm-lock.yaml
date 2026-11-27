@@ -15,6 +15,27 @@ importers:
         specifier: ^9.1.2
         version: 9.2.5
 
+  apps/console:
+    devDependencies:
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.1
+        version: 6.0.10(vite@7.3.7(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(vue@3.5.45(typescript@5.9.3))
+      '@vuagent/console-app':
+        specifier: workspace:*
+        version: link:../../packages/console
+      typescript:
+        specifier: ~5.9.2
+        version: 5.9.3
+      vite:
+        specifier: ^7.1.0
+        version: 7.3.7(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1)
+      vue:
+        specifier: ^3.5.21
+        version: 3.5.45(typescript@5.9.3)
+      vue-tsc:
+        specifier: ^3.0.0
+        version: 3.3.14(typescript@5.9.3)
+
   apps/docs:
     devDependencies:
       '@vuagent/ui':
@@ -29,6 +50,9 @@ importers:
 
   apps/playground:
     dependencies:
+      '@vuagent/console-app':
+        specifier: workspace:*
+        version: link:../../packages/console
       '@vuagent/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -127,7 +151,7 @@ importers:
         version: 1.19.19(hono@4.13.18)
       '@vuagent/console':
         specifier: workspace:*
-        version: link:../../apps/playground
+        version: link:../../apps/console
       '@vuagent/server':
         specifier: workspace:*
         version: link:../server
@@ -144,6 +168,46 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@22.20.5)(happy-dom@21.0.4)(supports-color@8.1.1)(tsx@4.23.15)(yaml@2.9.1)
+
+  packages/console:
+    dependencies:
+      '@vuagent/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@vuagent/ui':
+        specifier: workspace:*
+        version: link:../ui
+      lucide-vue-next:
+        specifier: ^0.477.0
+        version: 0.477.0(vue@3.5.45(typescript@5.9.3))
+      markdown-it:
+        specifier: ^15.0.3
+        version: 15.0.3
+      vue:
+        specifier: ^3.5.21
+        version: 3.5.45(typescript@5.9.3)
+    devDependencies:
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.1
+        version: 6.0.10(vite@7.3.7(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))(vue@3.5.45(typescript@5.9.3))
+      '@vue/test-utils':
+        specifier: ^2.6.0
+        version: 2.6.0(@vue/compiler-dom@3.5.45)(@vue/server-renderer@3.5.45)(vue@3.5.45(typescript@5.9.3))
+      happy-dom:
+        specifier: ^21.0.4
+        version: 21.0.4
+      typescript:
+        specifier: ~5.9.2
+        version: 5.9.3
+      vite:
+        specifier: ^7.1.0
+        version: 7.3.7(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1)
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.5)(happy-dom@21.0.4)(supports-color@8.1.1)(tsx@4.23.15)(yaml@2.9.1)
+      vue-tsc:
+        specifier: ^3.0.0
+        version: 3.3.14(typescript@5.9.3)
 
   packages/protocol:
     dependencies:

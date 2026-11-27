@@ -1,0 +1,30 @@
+/* console 宿主的页面级基础样式（两个宿主共用：生产壳与 playground 壳） */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(
+    --va-font,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Microsoft YaHei",
+    "Helvetica Neue",
+    sans-serif
+  );
+  background: var(--va-bg, #f7f6f2);
+  color: var(--va-ink, #1a1917);
+  transition:
+    background var(--va-dur-3, 300ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    color var(--va-dur-3, 300ms) var(--va-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}

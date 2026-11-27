@@ -10,7 +10,7 @@
  */
 import { onMounted, onUnmounted, ref } from "vue";
 import { VaApprovalCard, VaButton, VaSegmentedControl } from "@vuagent/ui";
-import { useTheme, type ThemePreference } from "./console/composables/useTheme";
+import { useTheme, type ThemePreference } from "@vuagent/console-app";
 
 const { preference, resolved, setPreference } = useTheme();
 

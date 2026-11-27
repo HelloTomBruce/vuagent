@@ -1,0 +1,47 @@
+{
+  "name": "@vuagent/console",
+  "version": "0.7.0-next.0",
+  "description": "Vuagent Console — the web console for a Vuagent harness server (static bundle consumed by @vuagent/cli)",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    "./dist/index.html": "./dist/index.html",
+    "./package.json": "./package.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HelloTomBruce/vuagent.git",
+    "directory": "apps/console"
+  },
+  "homepage": "https://hellotombruce.github.io/vuagent",
+  "bugs": {
+    "url": "https://github.com/HelloTomBruce/vuagent/issues"
+  },
+  "keywords": [
+    "vuagent",
+    "agent",
+    "harness",
+    "console",
+    "web"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "vue-tsc --noEmit",
+    "prepublishOnly": "pnpm build"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "@vuagent/console-app": "workspace:*",
+    "typescript": "~5.9.2",
+    "vite": "^7.1.0",
+    "vue": "^3.5.21",
+    "vue-tsc": "^3.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

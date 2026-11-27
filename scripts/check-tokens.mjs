@@ -23,7 +23,7 @@
  * 5. fail-closed 守卫：tokens.css 解析为空、或实际校验数为 0 时按失败退出，
  *    守卫自身失效不得绿灯。
  *
- * 扫描范围：packages/ui/src 与 apps/playground/src 的 .css 与 .vue <style> 块
+ * 扫描范围：packages/ui/src、packages/console/src、apps/playground/src、apps/console/src 的 .css 与 .vue <style> 块
  * （JS 字符串中的 var() 引用不在扫描范围，见 TASK-006 评审记录）。
  * 用法：pnpm tokens:check（registry:check 亦会执行本检查）
  */
@@ -45,7 +45,10 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const TOKENS_PATH = path.join(ROOT, "packages/ui/src/styles/tokens.css");
 const SCAN_DIRS = [
   path.join(ROOT, "packages/ui/src"),
+  // T16 结构抽取：console 应用源码独立成包，其样式同样是宿主可见面 → 纳入同一门禁
+  path.join(ROOT, "packages/console/src"),
   path.join(ROOT, "apps/playground/src"),
+  path.join(ROOT, "apps/console/src"),
 ];
 /** 递归收集指定扩展名文件 */
 function listFiles(dir, exts) {
