@@ -48,6 +48,7 @@ export default defineConfig({
             { text: "自定义交互组件（interaction 契约）", link: "/guide/custom-interactive-components" },
             { text: "流式消费 Hooks（自建数据域）", link: "/guide/streaming-hooks" },
             { text: "主题化与样式定制", link: "/guide/theming" },
+            { text: "CLI 一条命令跑起来", link: "/guide/cli" },
           ],
         },
       ],

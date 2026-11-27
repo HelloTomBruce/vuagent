@@ -30,29 +30,44 @@ pnpm --filter @vuagent/server start
 在服务根目录下创建 `.env` 或在容器中注入环境变量：
 
 ```ini
-# 服务端口与主机
+# ── 服务端口与绑定（0.7.0 真值表：以下变量名与代码一一对应）──
 PORT=6880
-HOST=0.0.0.0
+# 绑定闸门：默认 127.0.0.1（回环）；对外绑定必须同时配置 VUAGENT_TOKEN，
+# 否则拒绝启动（显式豁免见 VUAGENT_ALLOW_UNSAFE_NETWORK=1，仅限隔离网络）
+VUAGENT_HOST=0.0.0.0
+VUAGENT_TOKEN=my_production_secure_token
 
-# 安全基线配置
-# 允许的前端跨域 Origin，多个用逗号分隔
-CORS_ORIGIN=http://localhost:5173,https://my-admin.company.com
-# 服务接口鉴权 Token（若配置，前端请求需携带 Authorization: Bearer <TOKEN>）
-AUTH_BEARER_TOKEN=my_production_secure_token
-
-# 存储模式: "sqlite" (默认单机) 或 "redis" (高可用分布式)
-STORAGE_DRIVER=sqlite
-SQLITE_DB_PATH=./data/vuagent.db
-
-# 若使用 Redis 模式
+# ── 存储（SQLite 单机 / Redis 分布式）──
+# 数据库文件；CLI 形态下由数据目录派生（~/.vuagent/harness.db），
+# 直接跑 server 时用它指定。":memory:" = 纯内存试跑
+DB_PATH=./data/vuagent.db
+# 配置后启用 Redis 形态（多副本共享实体 + 跨副本轮次租约），无需 STORAGE_DRIVER 开关
 REDIS_URL=redis://:password@10.0.0.8:6379/0
+# 多副本实例标识（缺省 hostname），用于租约归属与启动清扫
+VUAGENT_INSTANCE_ID=replica-1
 
-# 全局模型默认配置（可选，亦可在 UI 设置中心在线配置）
-DEFAULT_PROVIDER=openai
-DEFAULT_MODEL=deepseek-chat
-DEFAULT_API_KEY=sk-xxxxxx
-DEFAULT_BASE_URL=https://api.deepseek.com/v1
+# ── 模型默认配置（可选；亦可在 console「设置 → 供应商」在线配置并存库）──
+OPENAI_API_KEY=sk-xxxxxx
+OPENAI_BASE_URL=https://api.deepseek.com/v1
+ANTHROPIC_API_KEY=sk-ant-xxxxxx
+
+# ── 运维与安全开关（按需）──
+LOG_LEVEL=info                          # error | warn | info | debug
+VUAGENT_ALLOW_PRIVATE_FETCH=1           # 允许 web 工具访问内网地址（默认禁止）
+VUAGENT_BASH_ENV_POLICY=allowlist       # bash 子进程环境策略
 ```
+
+| 旧名（不生效） | 真名（生效） |
+|---|---|
+| `HOST` | `VUAGENT_HOST` |
+| `SQLITE_DB_PATH` | `DB_PATH` |
+| `STORAGE_DRIVER=redis` | `REDIS_URL`（配置即启用 Redis 形态） |
+| `AUTH_BEARER_TOKEN` | `VUAGENT_TOKEN` |
+| `DEFAULT_PROVIDER` / `DEFAULT_MODEL` / `DEFAULT_API_KEY` / `DEFAULT_BASE_URL` | `OPENAI_API_KEY` / `OPENAI_BASE_URL`，或在 console「设置 → 供应商」配置 |
+
+::: warning 0.6.x 及更早文档中的废弃变量
+`SQLITE_DB_PATH`、`STORAGE_DRIVER`、`AUTH_BEARER_TOKEN`、`DEFAULT_PROVIDER`、`DEFAULT_MODEL`、`DEFAULT_API_KEY`、`DEFAULT_BASE_URL`、`HOST` **代码从不读取**（旧文档漂移）。请按上表改用 `DB_PATH` / `REDIS_URL` / `VUAGENT_TOKEN` / `OPENAI_*` / `ANTHROPIC_API_KEY` / `VUAGENT_HOST`。
+:::
 
 ---
 
@@ -100,9 +115,10 @@ services:
       - "6880:6880"
     environment:
       - PORT=6880
-      - CORS_ORIGIN=http://localhost:5173
-      - STORAGE_DRIVER=sqlite
-      - SQLITE_DB_PATH=/data/vuagent.db
+      - VUAGENT_HOST=0.0.0.0
+      - VUAGENT_TOKEN=${VUAGENT_TOKEN:?对外绑定必须配置}   # 未配置时服务拒绝启动
+      - DB_PATH=/data/harness.db
+      - LOG_LEVEL=info
     volumes:
       - vuagent_data:/data
     restart: always

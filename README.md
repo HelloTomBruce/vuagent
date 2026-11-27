@@ -4,7 +4,18 @@
 [![docs](https://img.shields.io/badge/docs-hellotombruce.github.io%2Fvuagent-c2410c)](https://hellotombruce.github.io/vuagent/)
 [![license](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
-> Vue 生态第一个 Agent Ops 工具箱：共享契约层 + 自研 Agent Harness 服务端 + 83 个运行时操作组件（计划 / 审批 / 表单 / 工具调用 / 上下文 / 收件箱）。
+> Vue 生态第一个 Agent Ops 工具箱：共享契约层 + 自研 Agent Harness 服务端 + 84 个运行时操作组件（计划 / 审批 / 表单 / 工具调用 / 上下文 / 收件箱）。
+
+## 一条命令跑起来（0.7.0）
+
+```bash
+npm i -g @vuagent/cli
+vuagent                      # harness 服务 + web console，同端口 6880
+```
+
+状态全部落在 `~/.vuagent`（`vuagent paths` 打印每条路径及来源），第二次启动会明确拒绝（单实例锁，退出码 3）。运维命令：`vuagent doctor`（体检：库完整性/WAL 体积/最大 turn 行/锁/端口/凭据）、`vuagent backup`（VACUUM INTO 安全快照）、`vuagent migrate --checkpoints`（0.6 数据拆行迁移）、`vuagent prune --older-than 30d`（显式清理）。
+
+细节见文档：[CLI 一条命令跑起来](https://hellotombruce.github.io/vuagent/guide/cli) ｜ [部署与生产运维](https://hellotombruce.github.io/vuagent/server/deployment)。
 
 ## 定位
 
