@@ -1,6 +1,6 @@
 {
   "name": "@vuagent/cli",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Vuagent CLI — one command to start the harness server + console, with a single predictable data directory",
   "type": "module",
   "license": "MIT",
