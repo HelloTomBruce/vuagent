@@ -1,0 +1,27 @@
+{
+  "name": "@vuagent/cli",
+  "version": "0.6.0",
+  "private": true,
+  "description": "Vuagent CLI — one command to start the harness server + console, with a single predictable data directory",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HelloTomBruce/vuagent.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://hellotombruce.github.io/vuagent",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vuagent/server": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "typescript": "~5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

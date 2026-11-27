@@ -120,6 +120,22 @@ importers:
         specifier: ~5.9.2
         version: 5.9.3
 
+  packages/cli:
+    dependencies:
+      '@vuagent/server':
+        specifier: workspace:*
+        version: link:../server
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.9
+        version: 22.20.5
+      typescript:
+        specifier: ~5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.5)(happy-dom@21.0.4)(supports-color@8.1.1)(tsx@4.23.15)(yaml@2.9.1)
+
   packages/protocol:
     dependencies:
       '@sinclair/typebox':
