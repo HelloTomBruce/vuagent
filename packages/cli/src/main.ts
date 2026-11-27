@@ -20,6 +20,11 @@ import {
 import { acquireLock, type LockInfo } from "./lib/lock.js";
 import { resolveConsoleDir } from "./lib/console-resolve.js";
 import { openBrowser, shouldAutoOpen } from "./lib/open.js";
+import { runDoctor, printDoctorReport } from "./commands/doctor.js";
+import { runBackup } from "./commands/backup.js";
+import { runExport, runImport } from "./commands/export-import.js";
+import { runMigrate } from "./commands/migrate.js";
+import { runPrune } from "./commands/prune.js";
 
 const CLI_VERSION: string = (() => {
   try {
@@ -35,7 +40,7 @@ const EXIT_LOCK_HELD = 3;
 /* ------------------------------------------------------------------ 参数 */
 
 interface CliArgs {
-  command: "start" | "paths" | "version" | "help";
+  command: "start" | "paths" | "version" | "help" | "doctor" | "backup" | "export" | "import" | "migrate" | "prune";
   port: number;
   host: string;
   dataDir?: string;
@@ -44,6 +49,21 @@ interface CliArgs {
   workspace?: string;
   open: boolean;
   json: boolean;
+  /** 通用：输出文件 / 输入文件 */
+  out?: string;
+  in?: string;
+  dryRun: boolean;
+  fixLock: boolean;
+  keep: string[];
+  olderThan?: string;
+  vacuum: boolean;
+  from?: string;
+  /** migrate --checkpoints 只迁指定会话（可选） */
+  session?: string;
+  checkpoints: boolean;
+  overwrite: boolean;
+  noBackup: boolean;
+  strategy?: "skip" | "overwrite";
 }
 
 const HELP = `vuagent ${CLI_VERSION} —— 一条命令起 harness 服务 + console
@@ -51,6 +71,23 @@ const HELP = `vuagent ${CLI_VERSION} —— 一条命令起 harness 服务 + con
 用法：
   vuagent [start] [选项]     启动服务（默认命令）
   vuagent paths              打印数据路径解析结果（含来源）
+  vuagent doctor [--fix-lock] [--json]
+                             数据目录体检：库完整性/体积、WAL 阈值、最大 turn 行与
+                             top sessions（W2 指标）、锁、端口、凭据、console 资源
+  vuagent backup [--out <path>] [--json]
+                             VACUUM INTO 安全快照（写中可执行）→ exports/，产物自证 integrity
+  vuagent export [--out <path>] [--json]
+                             逻辑导出（schemaVersion JSON，可人工检视/跨机迁移）
+  vuagent import <file> [--strategy skip|overwrite] [--json]
+                             回灌导出文件（skip=冲突跳过默认 / overwrite=覆盖）
+  vuagent migrate --from <db> [--dry-run] [--overwrite]
+                             旧散落库（CWD 时代 .vuagent/harness.db）→ 当前数据目录
+  vuagent migrate --checkpoints [--dry-run] [--no-backup] [--vacuum] [--session <id>]
+                             W2 拆行迁移：legacy turn 内联快照 → session_checkpoints
+                             （强制先备份；content 为空的轮次从最后快照物化 content）
+  vuagent prune --older-than <dur> [--keep <id>…] [--vacuum] [--dry-run] [--json]
+                             显式清理（必须给口径）：级联删会话/turn/checkpoint 行 +
+                             成本台账；--vacuum 顺带紧凑化库文件
   vuagent --version          打印版本
   vuagent --help             本帮助
 
@@ -65,6 +102,7 @@ const HELP = `vuagent ${CLI_VERSION} —— 一条命令起 harness 服务 + con
 
 环境变量：
   VUAGENT_HOME / DB_PATH / VUAGENT_CONSOLE_DIR / VUAGENT_TOKEN / VUAGENT_ALLOW_SHARED
+  VUAGENT_CHECKPOINT_STORE=inline   拆行回退开关（仅一个发布周期保留，0.8.0 移除）
 `;
 
 function parseArgs(argv: string[]): CliArgs {
@@ -74,6 +112,13 @@ function parseArgs(argv: string[]): CliArgs {
     host: (process.env.VUAGENT_HOST || "127.0.0.1").trim(),
     open: true,
     json: false,
+    dryRun: false,
+    fixLock: false,
+    keep: [],
+    vacuum: false,
+    checkpoints: false,
+    overwrite: false,
+    noBackup: false,
   };
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -95,6 +140,24 @@ function parseArgs(argv: string[]): CliArgs {
       case "--open": args.open = true; break;
       case "--no-open": args.open = false; break;
       case "--json": args.json = true; break;
+      case "--out": args.out = takeValue(); break;
+      case "--dry-run": args.dryRun = true; break;
+      case "--fix-lock": args.fixLock = true; break;
+      case "--keep": args.keep.push(takeValue()); break;
+      case "--older-than": args.olderThan = takeValue(); break;
+      case "--vacuum": args.vacuum = true; break;
+      case "--from": args.from = takeValue(); break;
+      case "--session": args.session = takeValue(); break;
+      case "--checkpoints": args.checkpoints = true; break;
+      case "--overwrite": args.overwrite = true; break;
+      case "--no-backup": args.noBackup = true; break;
+      case "--strategy": {
+        const v = takeValue();
+        if (v !== "skip" && v !== "overwrite") throw new Error(`--strategy 只支持 skip | overwrite（收到 ${v}）`);
+        args.strategy = v;
+        args.overwrite = v === "overwrite";
+        break;
+      }
       case "--version": case "-v": args.command = "version"; break;
       case "--help": case "-h": args.command = "help"; break;
       default:
@@ -106,6 +169,16 @@ function parseArgs(argv: string[]): CliArgs {
     const cmd = positional[0];
     if (cmd === "start") args.command = "start";
     else if (cmd === "paths") args.command = "paths";
+    else if (cmd === "doctor") args.command = "doctor";
+    else if (cmd === "backup") args.command = "backup";
+    else if (cmd === "export") args.command = "export";
+    else if (cmd === "import") {
+      args.command = "import";
+      const file = positional[1];
+      if (file) args.in = file;
+      else throw new Error("import 需要输入文件：vuagent import <file>");
+    } else if (cmd === "migrate") args.command = "migrate";
+    else if (cmd === "prune") args.command = "prune";
     else if (cmd === "--version" || cmd === "version") args.command = "version";
     else throw new Error(`未知命令 ${cmd}`);
   }
@@ -290,6 +363,60 @@ async function main(): Promise<void> {
     case "paths": {
       const paths = resolveDataPaths({ dataDir: args.dataDir, dbPath: args.dbPath });
       printPaths(paths, args.json);
+      return;
+    }
+    case "doctor": {
+      const paths = resolveDataPaths({ dataDir: args.dataDir, dbPath: args.dbPath });
+      const checks = await runDoctor(paths, { json: args.json, fixLock: args.fixLock, port: args.port });
+      const ok = printDoctorReport(checks, args.json);
+      process.exit(ok ? 0 : 1);
+      return;
+    }
+    case "backup": {
+      const paths = resolveDataPaths({ dataDir: args.dataDir, dbPath: args.dbPath });
+      process.exit(await runBackup({ dbPath: paths.dbPath.path, exportsDir: paths.exportsDir }, { out: args.out, json: args.json }));
+      return;
+    }
+    case "export": {
+      const paths = resolveDataPaths({ dataDir: args.dataDir, dbPath: args.dbPath });
+      process.exit(await runExport({ dbPath: paths.dbPath.path, exportsDir: paths.exportsDir }, { out: args.out, json: args.json }));
+      return;
+    }
+    case "import": {
+      const paths = resolveDataPaths({ dataDir: args.dataDir, dbPath: args.dbPath });
+      process.exit(await runImport({ dbPath: paths.dbPath.path }, path.resolve(args.in ?? ""), { strategy: args.strategy, json: args.json }));
+      return;
+    }
+    case "migrate": {
+      const paths = resolveDataPaths({ dataDir: args.dataDir, dbPath: args.dbPath });
+      process.exit(
+        await runMigrate(
+          { dbPath: paths.dbPath.path, lockFile: paths.lockFile, exportsDir: paths.exportsDir },
+          {
+            from: args.from,
+            checkpoints: args.checkpoints,
+            dryRun: args.dryRun,
+            overwrite: args.overwrite,
+            noBackup: args.noBackup,
+            vacuum: args.vacuum,
+            session: args.session,
+            json: args.json,
+          },
+        ),
+      );
+      return;
+    }
+    case "prune": {
+      const paths = resolveDataPaths({ dataDir: args.dataDir, dbPath: args.dbPath });
+      process.exit(
+        await runPrune({ dbPath: paths.dbPath.path }, {
+          olderThan: args.olderThan,
+          keep: args.keep,
+          vacuum: args.vacuum,
+          dryRun: args.dryRun,
+          json: args.json,
+        }),
+      );
       return;
     }
     case "start":
