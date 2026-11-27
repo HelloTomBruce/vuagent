@@ -1,0 +1,216 @@
+name: Publish
+
+# npm 发布的**唯一**入口（本地/CI 同一把尺）。版本变更仍走 Release workflow 的两段式：
+#   ① Actions → Release（action=version）→ changesets 生成/更新 Version Packages PR
+#   ② 人工审阅合并（版本号定型，同时触发 ci.yml）
+#   ③ 到这里发版：merge 后打 tag `v<version>`（推荐，push tag 自动进本工作流），
+#      或 Actions → Publish → Run workflow（channel=auto 按版本串推断 dist-tag）
+#
+# dist-tag 规则：
+#   - 0.7.0-alpha.1 / 0.7.0-rc.1 → `next`（预发布通道，latest 不动）
+#   - 0.7.0                      → `latest`
+#   - 手动指定 channel 可覆盖；但**预发布版本禁止发 latest**（release-plan.mjs 拒绝）
+#
+# 门禁（全部绿才发）：版本一致性（fixed 组）→ typecheck/test/build → registry/llms 工件新鲜度
+#   → registry 自包含 → 包内容审查（scripts/check-pack.mjs）→ 发布 → 冒烟（安装发布产物跑通）
+#
+# 权限：默认最小（contents: read）；publish 阶段才放大到 contents: write（changeset 打 tag）
+#     + id-token: write（npm provenance）。NPM_TOKEN 走仓库 secret，environment=npm 可配人工批准。
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "npm dist-tag：auto = 按版本串推断（含 - 前缀 → next，否则 latest）"
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - next
+          - latest
+      dry_run:
+        description: "只跑门禁与打包审查，不发布、不推 tag"
+        required: true
+        type: boolean
+        default: false
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+# 同一时间只允许一个发布动作（防双发/半途 tag 冲突）
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      channel: ${{ steps.plan.outputs.channel }}
+      prerelease: ${{ steps.plan.outputs.prerelease }}
+      has_cli: ${{ steps.plan.outputs.has_cli }}
+      packages: ${{ steps.plan.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # 只允许从 main 手动发（tag 触发的 ref 是 tag 本身，不在此列）
+      - name: Ref guard
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        run: |
+          echo "✗ 手动发布会要求 main 分支，当前 ${{ github.ref }}"
+          exit 1
+
+      - id: plan
+        name: 解析版本与 dist-tag
+        env:
+          CHANNEL: ${{ inputs.channel || 'auto' }}
+          RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || '' }}
+        run: |
+          node scripts/release-plan.mjs \
+            --channel "${CHANNEL:-auto}" \
+            ${RELEASE_TAG:+--tag "$RELEASE_TAG"} \
+            --github-output >> "$GITHUB_OUTPUT"
+
+  verify:
+    needs: plan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Registry & llms freshness
+        run: |
+          pnpm registry
+          pnpm llms
+          git diff --exit-code -- packages/ui/registry llms.txt llms-full.txt
+
+      - name: Registry self-containment
+        run: pnpm registry:check
+
+      - name: Pack audit（发布内容审查）
+        run: node scripts/check-pack.mjs
+
+      - name: 发布摘要
+        run: |
+          echo "### 待发布" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 版本：${{ needs.plan.outputs.version }} → dist-tag \`${{ needs.plan.outputs.channel }}\`（prerelease=${{ needs.plan.outputs.prerelease }}）" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 包：${{ needs.plan.outputs.packages }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- dry_run：${{ inputs.dry_run || false }}" >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: [plan, verify]
+    if: ${{ inputs.dry_run != true }}
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: write # changeset publish 打 git tag + 推送
+      id-token: write # npm provenance（OIDC）
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build（发布产物来自 dist）
+        run: pnpm build
+
+      - name: Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # changeset publish：只发 registry 上不存在的版本；pnpm-lock 存在时自动走 pnpm publish 子进程
+      # provenance：npm/pnpm 均读 npm_config_ 前缀（小写，见 release.yml 注释），需 id-token: write
+      - name: Publish to npm
+        run: pnpm exec changeset publish --tag "${{ needs.plan.outputs.channel }}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          npm_config_provenance: "true"
+
+      - name: Push git tags
+        run: git push origin --tags
+
+  smoke:
+    needs: [plan, publish]
+    # 只有发布的包里含 CLI 才有意义（CLI 落地前该 job 自动跳过）
+    if: ${{ always() && needs.publish.result == 'success' && needs.plan.outputs.has_cli == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 安装刚发布的 CLI（registry 传播可能滞后，重试）
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 10); do
+            if npm i -g --prefix "$RUNNER_TEMP/cli" "@vuagent/cli@${{ needs.plan.outputs.version }}"; then
+              exit 0
+            fi
+            echo "registry 尚未就绪（第 $i 次），10s 后重试"; sleep 10
+          done
+          echo "✗ 安装发布产物失败"; exit 1
+
+      - name: 冒烟：version / paths / 起服务 / console / 单实例锁
+        run: |
+          set -euo pipefail
+          export PATH="$RUNNER_TEMP/cli/bin:$PATH"
+          export VUAGENT_HOME="$RUNNER_TEMP/vuagent-home"
+
+          vuagent --version
+          vuagent paths
+
+          # 起服务（固定端口便于探活），退出时清理
+          vuagent --port 6891 --no-open &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:6891/api/health >/dev/null; then break; fi
+            sleep 0.5
+          done
+          curl -fsS http://127.0.0.1:6891/api/health
+          curl -fsS http://127.0.0.1:6891/ | grep -qi '<div id="app"' && echo "✓ console 静态页可用"
+
+          # 单实例锁：同数据目录第二个实例必须拒绝（退出码 3）
+          set +e
+          vuagent --port 6892 --no-open >/tmp/second.log 2>&1
+          CODE=$?
+          set -e
+          cat /tmp/second.log
+          [ "$CODE" -eq 3 ] && echo "✓ 第二实例按预期拒绝" || { echo "✗ 第二实例退出码 $CODE（期望 3）"; exit 1; }

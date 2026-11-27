@@ -1,36 +1,37 @@
 name: Release
 
-# 手动两段式发布（TASK-096，与 ci.yml 同工具链：Node 22 + pnpm 12）：
+# 版本编排（只做「改版本」，不做发布——发布唯一入口是 .github/workflows/publish.yml）：
 #
 #   ① Actions → Release → Run workflow，action=version
 #      → changesets 消费 .changeset/ 下 pending 变更，生成/更新「Version Packages」PR；
 #   ② 人工审阅并合并该 PR（版本号、CHANGELOG 汇总在此定型，同时触发 ci.yml 全量门禁）；
-#   ③ 再 Run workflow，action=publish
-#      → build + `changeset publish`（NPM_TOKEN + npm provenance）+ push git tag。
+#   ③ 发版：打 tag `v<version>`（push 后自动进 Publish workflow），
+#      或 Actions → Publish → Run workflow（channel 见该工作流注释）。
 #
-# 为何不自动发包（不用 changesets/action 的 publish 参数接 main push）：
-# 自动发布等于「合并即上线」——主分支任何误合并（半成品 / 提前 bump / CI 尚红）都会
-# 直接变成一次真实的 npm release，而 unpublish/deprecate 的回撤成本远高于不合 PR。
-# 两段式在「改版本」与「发版」之间保留人工审阅口；NPM_TOKEN 也只在显式 publish 的
-# run 中生效（version 阶段仅用 GITHUB_TOKEN，无 npm 凭据）。
+# 预发布（alpha/rc）流程：
+#   `pnpm exec changeset pre enter next` → 提交 → 走上面 ①~② 得到 0.7.0-alpha.1 →
+#   发到 dist-tag `next`（Publish 的 channel=auto 会自动识别）；出正式版前 `changeset pre exit`。
+#
+# 为何不自动发包：自动发布等于「合并即上线」——主分支任何误合并（半成品 / 提前 bump /
+# CI 尚红）都会直接变成一次真实的 npm release，而 unpublish/deprecate 的回撤成本远高于
+# 不合格 PR。改版本与发版之间保留人工审阅口；NPM_TOKEN 也只在显式 Publish 的 run 中生效。
 
 on:
   workflow_dispatch:
     inputs:
       action:
-        description: "version = 生成/更新 Version Packages PR；publish = 发布到 npm（需先合并 Version PR）"
+        description: "version = 生成/更新 Version Packages PR（发布请用 Publish 工作流）"
         required: true
         type: choice
         default: version
         options:
           - version
-          - publish
 
-# 默认最小权限，各 job 按需放大
+# 默认最小权限，按需放大
 permissions:
   contents: read
 
-# 同一时间只允许一个发布动作，防双发
+# 同一时间只允许一个版本编排动作
 concurrency:
   group: release
   cancel-in-progress: false
@@ -66,52 +67,3 @@ jobs:
           commit: "chore(changesets): Version Packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  publish:
-    if: ${{ github.event.inputs.action == 'publish' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write # changeset publish 打 git tag + 推送 tag
-      id-token: write # npm provenance（SLSA 出处证明）需要 OIDC
-      # 如需发布前再加一道人工批准门：在仓库 Settings → Environments 建 `npm`
-      # （可配 required reviewers）后取消下一行注释
-      # environment: npm
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 12
-
-      # registry-url 触发 setup-node 写入用户级 .npmrc
-      # （//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN} 占位）
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          registry-url: https://registry.npmjs.org
-
-      - run: pnpm install --frozen-lockfile
-
-      - run: pnpm build
-
-      # changeset publish：仅发布「版本号在 registry 中不存在」的包（没合并 Version PR
-      # 时本步为空操作，不会误发）；仓库含 pnpm-lock.yaml → changesets 自动走
-      # `pnpm publish` 子进程，workspace:* 依赖在发包时正确替换。
-      - name: Publish to npm
-        run: pnpm exec changeset publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          # provenance：pnpm publish（npm 兼容）读 npm_config_* / .npmrc 的 provenance 配置；
-          # 需配 id-token: write（OIDC）+ 公开仓库 + npmjs 官方源
-          # 只写小写这一份：GitHub Actions 校验 env 键名时大小写不敏感，同时写
-          # NPM_CONFIG_PROVENANCE 会报 "'npm_config_provenance' is already defined"；
-          # 小写是唯一在「大小写不敏感」（npm）与「字面匹配 npm_config_ 前缀」两类
-          # 实现下都生效的拼法，勿改回大写。
-          npm_config_provenance: "true"
-
-      # changeset publish 已为每个发布的版本打 pkg@x.y.z 标签，此处推送
-      - name: Push git tags
-        run: git push origin --tags

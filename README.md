@@ -134,6 +134,13 @@ pnpm build          # 全仓编译构建（protocol / server / ui / playground�
 
 本项目采用 Monorepo 架构开发，面向 npm 发布的包包括 `@vuagent/protocol`、`@vuagent/server` 和 `@vuagent/ui`。
 
+> [!TIP]
+> **推荐走 Actions（门禁最全，也是唯一常规路径）**：`Release`（`action=version`）生成 Version Packages PR → 人工合并 → 打 tag `v<version>`（push 即自动触发）或 Actions → `Publish`（`channel=auto`）。
+> dist-tag 规则：版本串含 `-`（`0.7.0-alpha.1` / `rc`）自动发 `next`，正式版发 `latest`，**预发布禁止发 latest**。
+> 发布链自动执行：版本一致性 → typecheck/test/build → registry+llms 新鲜度 → registry 自包含 → 包内容审查（`scripts/check-pack.mjs`）→ 发布 → 冒烟（安装发布产物验 `/api/health`、console 首屏、单实例锁退出码 3）。
+> 只想校验不想发：Actions → `Publish` → `dry_run=true`。
+> 下面手工流程**仅作应急**，应急时请显式指定 `--tag next|latest`，避免误推 `latest`。
+
 > [!IMPORTANT]
 > 由于包间存在 `workspace:*` 协议依赖，**必须使用 `pnpm publish` 或 `changeset` 发布**，pnpm 会在打包上传前自动将 `workspace:*` 动态置换为真实的发布版本号。切勿使用原生 `npm publish` 直发，否则会导致外部安装时报依赖解析错误。
 
@@ -147,7 +154,7 @@ pnpm prepublish:check
 
 ### 2. 执行发布
 
-#### 方式 A：使用 Changeset 标准化发布（推荐）
+#### 方式 A：使用 Changeset 标准化发布（应急；常规请用 Actions → Publish）
 
 ```bash
 # 登录 npm
