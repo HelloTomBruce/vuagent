@@ -3,6 +3,7 @@ import { MemoryStorageDriver } from "../src/storage/drivers/memory.driver.js";
 import { SQLiteStorageDriver } from "../src/storage/drivers/sqlite.driver.js";
 import { WorkspaceRepository } from "../src/storage/repositories/workspace.repository.js";
 import { SessionRepository } from "../src/storage/repositories/session.repository.js";
+import type { CheckpointEntity } from "../src/storage/interfaces.js";
 import { SettingsRepository } from "../src/storage/repositories/settings.repository.js";
 
 describe("Storage Layer (Workspace, Session, Settings)", () => {
@@ -50,7 +51,7 @@ describe("Storage Layer (Workspace, Session, Settings)", () => {
           stepIndex: 1,
           messagesSnapshot: [{ role: "user", content: "Hello" }],
           snapshotAt: Date.now(),
-        },
+        } as CheckpointEntity,
       ],
       createdAt: Date.now(),
     });

@@ -88,6 +88,38 @@ export interface CheckpointEntity {
   snapshotAt: number;
 }
 
+/**
+ * checkpoint 元数据（0.7.0 W2 拆行存储）：checkpoint 落独立集合
+ * `session_checkpoints`（append-only，含 messagesSnapshot 大对象）后，
+ * turn 行只保留这个轻量子集——详情接口与历史回放不再背快照。
+ * 兼容：CheckpointMeta ⊂ CheckpointEntity，旧客户端读 id/length 语义不变。
+ */
+export interface CheckpointMeta {
+  id: string;
+  /** 所属轮次（跨 turn 按 cpId 反查 / resume 定位点查都依赖它） */
+  turnId: string;
+  stepIndex: number;
+  snapshotAt: number;
+}
+
+/**
+ * 旧数据形态：turn 行内联的完整 checkpoint（含快照）。
+ * 拆行前写入的行、以及 `VUAGENT_CHECKPOINT_STORE=inline` 回退期写入的行都是这个形态；
+ * `TurnEntity.checkpoints` 在声明上是 CheckpointMeta[]（拆行后的权威形态），
+ * 因此读旧数据必须先过 isFullCheckpoint() 收窄——不要用裸 `as` 掩盖这个边界。
+ */
+export type LegacyCheckpoint = CheckpointEntity;
+
+/** 运行时收窄：该元素是否携带快照（= 旧内联形态） */
+export function isFullCheckpoint(cp: CheckpointMeta | CheckpointEntity): cp is CheckpointEntity {
+  return Array.isArray((cp as CheckpointEntity).messagesSnapshot);
+}
+
+/** 抽取元数据（写路径与旧数据读路径统一走这里，避免散落手搓） */
+export function toCheckpointMeta(cp: CheckpointMeta): CheckpointMeta {
+  return { id: cp.id, turnId: cp.turnId, stepIndex: cp.stepIndex, snapshotAt: cp.snapshotAt };
+}
+
 export interface TurnEntity {
   id: string;
   sessionId: string;
@@ -123,7 +155,20 @@ export interface TurnEntity {
   /** 轮次收尾形态：explicit（finish_task 显式宣告）/ natural（自然停机）/ truncated（步数耗尽）；中止时无此标记 */
   finishReason?: "explicit" | "natural" | "truncated";
   stepCount: number;
-  checkpoints: CheckpointEntity[];
+  /**
+   * ⚠️ 0.7.0 W2 语义变更：checkpoint **元数据**数组（CheckpointMeta，无快照）。
+   * 完整快照（含 messagesSnapshot）落独立集合 session_checkpoints（append-only）；
+   * 本字段与 checkpointCount 由 appendCheckpoint 同事务维护。
+   * 遗留形态（旧数据 / VUAGENT_CHECKPOINT_STORE=inline）：仍为完整 CheckpointEntity[]
+   * 且无 checkpointsSplit 标记——读路径按该标记双形态兼容。
+   */
+  checkpoints: CheckpointMeta[];
+  /** checkpoint 总数（含已拆行的）：recovery 等只数条数的路径免读数组 */
+  checkpointCount?: number;
+  /** 该轮是否出现过图片输入（收尾算好）：历史重建的「[图片] 占位」判定不再读快照（TASK-083） */
+  hasImages?: boolean;
+  /** turn 级迁移标记：true = checkpoints 已全部落 session_checkpoints 集合 */
+  checkpointsSplit?: boolean;
   telemetry?: {
     durationMs: number;
     ttftMs?: number;

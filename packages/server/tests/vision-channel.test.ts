@@ -12,6 +12,7 @@ import { createHarnessServer } from "../src/server.js";
 import { mapOpenAIMessagesToAnthropic } from "../src/adapters/anthropic-driver.js";
 import { ContextCompactor, IMAGE_TOKEN_ESTIMATE, type ChatMessage } from "../src/core/context-compactor.js";
 import type { IModelDriver, ModelDriverRequest, ModelStreamChunk } from "../src/adapters/model-driver.js";
+import type { CheckpointEntity } from "../src/storage/interfaces.js";
 
 const LOCAL_ORIGIN = "http://localhost:5173";
 const JSON_HEADERS = { "Content-Type": "application/json", Origin: LOCAL_ORIGIN };
@@ -381,7 +382,7 @@ describe("TASK-083：checkpoint 图片占位降级", () => {
     const persisted = await sessionRepo.get(session.id);
     const cps = persisted!.turns.flatMap((t) => t.checkpoints ?? []);
     expect(cps.length).toBeGreaterThan(0);
-    const snapText = JSON.stringify(cps.map((c) => c.messagesSnapshot));
+    const snapText = JSON.stringify(cps.map((c) => (c as CheckpointEntity).messagesSnapshot));
     expect(snapText).not.toContain("base64");
     expect(snapText).toContain("[图片]");
     expect(snapText).toContain("看图说话");

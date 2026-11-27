@@ -1,6 +1,8 @@
 import type { IStorageDriver } from "../drivers/base.driver.js";
-import { supportsPrefixList } from "../drivers/base.driver.js";
+import { supportsPrefixList, supportsTransaction } from "../drivers/base.driver.js";
 import type { SessionEntity, TurnEntity, CheckpointEntity, SessionStatus } from "../interfaces.js";
+import { CHECKPOINTS_COLLECTION } from "./checkpoint.repository.js";
+import { checkpointKey, turnRowKey, turnRowPrefix } from "../keys.js";
 
 const COLLECTION = "sessions";
 /** TASK-092：轮次独立集合——主文档不再内联 turns（写放大根因） */
@@ -12,9 +14,9 @@ interface TurnRow {
   turn: TurnEntity;
 }
 
-/** 行键 = `${sessionId}:${turnId}`（冒号分隔）；前缀查询/分组共用此前缀 */
-const turnKey = (sessionId: string, turnId: string): string => `${sessionId}:${turnId}`;
-const turnKeyPrefix = (sessionId: string): string => `${sessionId}:`;
+/** 行键/前缀统一由 storage/keys.ts 提供（评审 O1：单一构造点） */
+const turnKey = turnRowKey;
+const turnKeyPrefix = turnRowPrefix;
 
 /**
  * 会话仓储（TASK-092 拆表迁移）：
@@ -41,6 +43,17 @@ const turnKeyPrefix = (sessionId: string): string => `${sessionId}:`;
  */
 export class SessionRepository {
   constructor(private driver: IStorageDriver) {}
+
+  /**
+   * О2：写路径统一进事务。sqlite 驱动以 promise 链队列串行化事务——checkpoint
+   * append（同事务维护 turn meta）与进度写（updateTurn 整行读改写）若并发交错，
+   * 进度写会用「旧 meta 快照」覆盖回落库不久的 checkpoint meta（丢更新）。
+   * 包进同一队列后，同一 turn 行的读-改-写不再交错。
+   */
+  private async writeTx<T>(fn: () => Promise<T>): Promise<T> {
+    if (supportsTransaction(this.driver)) return this.driver.transaction(fn);
+    return fn();
+  }
 
   async create(data: {
     id?: string;
@@ -220,27 +233,29 @@ export class SessionRepository {
   }
 
   async appendTurn(id: string, turn: TurnEntity): Promise<void> {
-    // C2：直读 raw（不 get 水合）——水合实体会伪装 legacy 触发整会话重复搬库
-    const raw = await this.driver.get<SessionEntity>(COLLECTION, id);
-    if (!raw) {
-      throw new Error(`Session [${id}] not found`);
-    }
-    const session = await this.ensureMigrated(raw);
+    return this.writeTx(async () => {
+      // C2：直读 raw（不 get 水合）——水合实体会伪装 legacy 触发整会话重复搬库
+      const raw = await this.driver.get<SessionEntity>(COLLECTION, id);
+      if (!raw) {
+        throw new Error(`Session [${id}] not found`);
+      }
+      const session = await this.ensureMigrated(raw);
 
-    // upsert by turn id：已存在（running 行 → 终态替换 / 进度更新）保持原 index
-    const existingKey = turnKey(id, turn.id);
-    const existingRow = await this.driver.get<TurnRow>(TURNS_COLLECTION, existingKey);
-    const index = existingRow ? existingRow.index : (session.turnCount ?? session.turns.length ?? 0);
+      // upsert by turn id：已存在（running 行 → 终态替换 / 进度更新）保持原 index
+      const existingKey = turnKey(id, turn.id);
+      const existingRow = await this.driver.get<TurnRow>(TURNS_COLLECTION, existingKey);
+      const index = existingRow ? existingRow.index : (session.turnCount ?? session.turns.length ?? 0);
 
-    await this.driver.set(TURNS_COLLECTION, existingKey, { index, turn } satisfies TurnRow);
-    // 主文档只碰元数据（轻量）：turnCount 递增仅在新增时；turnsSplit 随迁移产物透传
-    const { turns: _legacy, ...meta } = session;
-    void _legacy;
-    await this.driver.set(COLLECTION, id, {
-      ...meta,
-      turns: [],
-      turnCount: existingRow ? (session.turnCount ?? index + 1) : index + 1,
-      updatedAt: Date.now(),
+      await this.driver.set(TURNS_COLLECTION, existingKey, { index, turn } satisfies TurnRow);
+      // 主文档只碰元数据（轻量）：turnCount 递增仅在新增时；turnsSplit 随迁移产物透传
+      const { turns: _legacy, ...meta } = session;
+      void _legacy;
+      await this.driver.set(COLLECTION, id, {
+        ...meta,
+        turns: [],
+        turnCount: existingRow ? (session.turnCount ?? index + 1) : index + 1,
+        updatedAt: Date.now(),
+      });
     });
   }
 
@@ -254,39 +269,43 @@ export class SessionRepository {
     turnId: string,
     patch: Partial<Omit<TurnEntity, "id" | "sessionId">>
   ): Promise<void> {
-    const raw = await this.driver.get<SessionEntity>(COLLECTION, id);
-    if (!raw) return;
-    // R1：接住 ensureMigrated 返回值——turnCount/turnsSplit 以迁移后的值为准落库
-    const migrated = SessionRepository.isLegacyInline(raw)
-      ? await this.ensureMigrated(raw)
-      : raw;
-    const key = turnKey(id, turnId);
-    const row = await this.driver.get<TurnRow>(TURNS_COLLECTION, key);
-    if (!row) return;
-    const updated: TurnRow = { index: row.index, turn: { ...row.turn, ...patch } };
-    await this.driver.set(TURNS_COLLECTION, key, updated);
-    // 主文档 updatedAt 触碰（轻量元数据写，保持既有语义）：基于迁移后文档透传
-    await this.driver.set(COLLECTION, id, {
-      ...migrated,
-      updatedAt: Date.now(),
+    return this.writeTx(async () => {
+      const raw = await this.driver.get<SessionEntity>(COLLECTION, id);
+      if (!raw) return;
+      // R1：接住 ensureMigrated 返回值——turnCount/turnsSplit 以迁移后的值为准落库
+      const migrated = SessionRepository.isLegacyInline(raw) ? await this.ensureMigrated(raw) : raw;
+      const key = turnKey(id, turnId);
+      const row = await this.driver.get<TurnRow>(TURNS_COLLECTION, key);
+      if (!row) return;
+      const updated: TurnRow = { index: row.index, turn: { ...row.turn, ...patch } };
+      await this.driver.set(TURNS_COLLECTION, key, updated);
+      // 主文档 updatedAt 触碰（轻量元数据写，保持既有语义）：基于迁移后文档透传
+      await this.driver.set(COLLECTION, id, {
+        ...migrated,
+        updatedAt: Date.now(),
+      });
     });
   }
 
+  /**
+   * 单条 checkpoint 内联落库（0.6.x 形态 / `VUAGENT_CHECKPOINT_STORE=inline` 回退）。
+   * 拆行形态走 CheckpointRepository.appendCheckpoint（快照不落在 turn 行）。
+   */
   async recordCheckpoint(sessionId: string, turnId: string, checkpoint: CheckpointEntity): Promise<void> {
-    const raw = await this.driver.get<SessionEntity>(COLLECTION, sessionId);
-    if (!raw) return;
-    // R1：同 updateTurn——迁移产物以返回值为准
-    const migrated = SessionRepository.isLegacyInline(raw)
-      ? await this.ensureMigrated(raw)
-      : raw;
-    const key = turnKey(sessionId, turnId);
-    const row = await this.driver.get<TurnRow>(TURNS_COLLECTION, key);
-    if (!row) return;
-    row.turn.checkpoints.push(checkpoint);
-    await this.driver.set(TURNS_COLLECTION, key, row);
-    await this.driver.set(COLLECTION, sessionId, {
-      ...migrated,
-      updatedAt: Date.now(),
+    return this.writeTx(async () => {
+      const raw = await this.driver.get<SessionEntity>(COLLECTION, sessionId);
+      if (!raw) return;
+      // R1：同 updateTurn——迁移产物以返回值为准
+      const migrated = SessionRepository.isLegacyInline(raw) ? await this.ensureMigrated(raw) : raw;
+      const key = turnKey(sessionId, turnId);
+      const row = await this.driver.get<TurnRow>(TURNS_COLLECTION, key);
+      if (!row) return;
+      row.turn.checkpoints.push(checkpoint);
+      await this.driver.set(TURNS_COLLECTION, key, row);
+      await this.driver.set(COLLECTION, sessionId, {
+        ...migrated,
+        updatedAt: Date.now(),
+      });
     });
   }
 
@@ -296,40 +315,50 @@ export class SessionRepository {
    * 新行追加序号），主文档元数据触碰一次。旧格式文档先惰性迁移。
    */
   async replaceTurns(id: string, turns: TurnEntity[]): Promise<void> {
-    const raw = await this.driver.get<SessionEntity>(COLLECTION, id);
-    if (!raw) return;
-    const migrated = await this.ensureMigrated(raw);
-    // R2：本会话行集经前缀下推读取（驱动具备该能力时），不再扫全表
-    const rows = await this.listTurnRows(id);
-    const indexByTurnId = new Map<string, number>();
-    let maxIndex = (migrated.turnCount ?? 0) - 1;
-    for (const row of rows) {
-      if (row?.turn?.sessionId === id && typeof row.index === "number") {
-        indexByTurnId.set(row.turn.id, row.index);
-        if (row.index > maxIndex) maxIndex = row.index;
+    return this.writeTx(async () => {
+      const raw = await this.driver.get<SessionEntity>(COLLECTION, id);
+      if (!raw) return;
+      const migrated = await this.ensureMigrated(raw);
+      // R2：本会话行集经前缀下推读取（驱动具备该能力时），不再扫全表
+      const rows = await this.listTurnRows(id);
+      const indexByTurnId = new Map<string, number>();
+      let maxIndex = (migrated.turnCount ?? 0) - 1;
+      for (const row of rows) {
+        if (row?.turn?.sessionId === id && typeof row.index === "number") {
+          indexByTurnId.set(row.turn.id, row.index);
+          if (row.index > maxIndex) maxIndex = row.index;
+        }
       }
-    }
-    for (const turn of turns) {
-      const existing = indexByTurnId.get(turn.id);
-      const index = existing ?? ++maxIndex;
-      await this.driver.set(TURNS_COLLECTION, turnKey(id, turn.id), { index, turn });
-    }
-    await this.driver.set(COLLECTION, id, {
-      ...migrated,
-      turns: [],
-      turnCount: maxIndex + 1,
-      updatedAt: Date.now(),
+      for (const turn of turns) {
+        const existing = indexByTurnId.get(turn.id);
+        const index = existing ?? ++maxIndex;
+        await this.driver.set(TURNS_COLLECTION, turnKey(id, turn.id), { index, turn });
+      }
+      await this.driver.set(COLLECTION, id, {
+        ...migrated,
+        turns: [],
+        turnCount: maxIndex + 1,
+        updatedAt: Date.now(),
+      });
     });
   }
 
+  /** 删会话并级联清理轮次行与 checkpoint 行（同事务：不留孤儿行） */
   async delete(id: string): Promise<boolean> {
-    // 连带清理轮次行（R2：前缀下推；删除低频，回落口径同样可接受）
-    const rows = await this.listTurnRows(id);
-    for (const row of rows) {
-      if (row?.turn?.sessionId === id) {
-        await this.driver.delete(TURNS_COLLECTION, turnKey(id, row.turn.id));
+    return this.writeTx(async () => {
+      // 连带清理轮次行（R2：前缀下推；删除低频，回落口径同样可接受）
+      const rows = await this.listTurnRows(id);
+      for (const row of rows) {
+        if (row?.turn?.sessionId === id) {
+          await this.driver.delete(TURNS_COLLECTION, turnKey(id, row.turn.id));
+          // W2 拆行级联：checkpoint 行键可由 turn 行的 checkpoint ids 完全构造
+          // （meta 与 legacy 实体都含 id），无需额外扫描
+          for (const cp of row.turn.checkpoints ?? []) {
+            await this.driver.delete(CHECKPOINTS_COLLECTION, checkpointKey(id, row.turn.id, cp.id));
+          }
+        }
       }
-    }
-    return this.driver.delete(COLLECTION, id);
+      return this.driver.delete(COLLECTION, id);
+    });
   }
 }

@@ -47,6 +47,7 @@ function makePersistence() {
       stepFinish: (arg: { step: number }) => stepFinishCalls.push(arg.step),
     } as unknown as OpsReporter,
     telemetry: new TelemetryLedger("turn-1"),
+    turnPrompt: "测试提问",
     sessionId: "sess-1",
     turnId: "turn-1",
   });

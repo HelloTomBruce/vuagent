@@ -10,6 +10,7 @@ import { ActionHub } from "../src/core/action-hub.js";
 import { AgentLoop } from "../src/core/agent-loop.js";
 import { recoverInterruptedTurns } from "../src/core/recovery.js";
 import { MockDriver } from "./helpers/mock-driver.js";
+import type { CheckpointEntity } from "../src/storage/interfaces.js";
 import type { ModelDriverRequest, ModelStreamChunk } from "../src/adapters/model-driver.js";
 import type { HarnessTool } from "../src/core/types.js";
 
@@ -160,7 +161,7 @@ describe("即时落库与崩溃恢复（TASK-049）", () => {
       checkpoints: [
         { id: "cp-1", turnId: "turn-crash", stepIndex: 1, messagesSnapshot: [], snapshotAt: 1 },
         { id: "cp-2", turnId: "turn-crash", stepIndex: 2, messagesSnapshot: [], snapshotAt: 2 },
-      ],
+      ] as CheckpointEntity[],
       createdAt: 1,
     });
     await sessionRepo.appendTurn(s2.id, {

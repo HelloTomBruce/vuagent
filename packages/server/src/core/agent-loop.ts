@@ -1,6 +1,7 @@
 import type { HarnessStreamEvent, AgentTurnRequest } from "./types.js";
 import type { WorkspaceRepository } from "../storage/repositories/workspace.repository.js";
 import type { SessionRepository } from "../storage/repositories/session.repository.js";
+import type { CheckpointRepository } from "../storage/repositories/checkpoint.repository.js";
 import type { SettingsRepository } from "../storage/repositories/settings.repository.js";
 import type { ToolConfigRepository } from "../storage/repositories/tool-config.repository.js";
 import type { ConfigResolver } from "./config-resolver.js";
@@ -83,6 +84,8 @@ function resolveReasoningEffort(
 export interface AgentLoopServices {
   workspaceRepo: WorkspaceRepository;
   sessionRepo: SessionRepository;
+  /** checkpoint 独立仓储（0.7.0 W2 拆行）：缺省回落 inline 快照内联行为（单测/回退开关） */
+  checkpointsRepo?: CheckpointRepository;
   settingsRepo: SettingsRepository;
   /** 工具启停配置（全局层，缺记录=启用；逐工具调用实时读，运行中改档立即生效） */
   toolConfigRepo: ToolConfigRepository;
@@ -250,11 +253,13 @@ export class AgentLoop {
     const ops = new OpsReporter(this.ops, { sessionId: session.id, turnId });
     const persistence = new TurnPersistence({
       sessionRepo: this.services.sessionRepo,
+      checkpointsRepo: this.services.checkpointsRepo,
       costRecorder: this.services.costRecorder,
       ops,
       telemetry,
       sessionId: session.id,
       turnId,
+      turnPrompt: req.prompt,
     });
     this.inFlightPersistence.add(persistence);
 
@@ -297,13 +302,17 @@ export class AgentLoop {
     // resumeFromCheckpointId 时，以该 checkpoint 的 messagesSnapshot 为历史起点
     // 续跑（诚实归因 TURN_RESUMED ops 事件；副作用豁免由宿主声明，见设计文档）。
     // 门控关闭或快照缺失 → 一律回落常规 history-builder 口径（行为不变）。
-    const resumeSnapshot = (() => {
+    const resumeSnapshot = await (async () => {
       if (process.env.VUAGENT_EXPERIMENT_RESUME !== "1" || !req.resumeFromCheckpointId) return null;
       for (const turn of session.turns) {
         const cp = turn.checkpoints?.find((c) => c.id === req.resumeFromCheckpointId);
-        if (cp && Array.isArray(cp.messagesSnapshot) && cp.messagesSnapshot.length > 0) {
-          return cp;
-        }
+        if (!cp) continue;
+        // W2 拆行：turn.checkpoints 是元数据（无快照）→ 独立集合点查完整实体；
+        // legacy 内联形态直接用行内快照。
+        const inline = (cp as CheckpointEntity).messagesSnapshot;
+        if (Array.isArray(inline) && inline.length > 0) return cp as CheckpointEntity;
+        const full = await this.services.checkpointsRepo?.getById(session.id, turn.id, req.resumeFromCheckpointId);
+        if (full && Array.isArray(full.messagesSnapshot) && full.messagesSnapshot.length > 0) return full;
       }
       return null;
     })();
@@ -314,8 +323,14 @@ export class AgentLoop {
       );
       ops.turnResumed(resumeSnapshot.id);
     } else {
+      // W2 拆行：会话级最新快照（含此前所有轮次内容）交给 history-builder 做
+      // 单快照重放；无独立仓储（inline 形态）时保持逐轮快照回放，行为不变。
+      const latestSnapshot = this.services.checkpointsRepo
+        ? ((await this.services.checkpointsRepo.latestWithSnapshot(session.id))
+            ?.messagesSnapshot as ChatMessage[] | undefined) ?? null
+        : null;
       messages.push(
-        ...buildHistoryMessages({ session, currentPrompt: req.prompt })
+        ...buildHistoryMessages({ session, currentPrompt: req.prompt, latestSnapshot })
       );
     }
 
@@ -788,13 +803,16 @@ export class AgentLoop {
           // 纯文本完成步同样落检查点（TASK-008 修复）：此前提前 break 跳过了末尾的
           // checkpoint 记录，纯对话轮次没有 messagesSnapshot——历史重建会丢失 assistant
           // 回复（上下文只剩连续 user 消息），手动压缩也取不到完整历史快照
-          checkpoints.push({
+          const cp: CheckpointEntity = {
             id: `cp-${turnId}-${currentStep}`,
             turnId,
             stepIndex: currentStep,
             messagesSnapshot: sanitizeMessagesForCheckpoint(messages),
             snapshotAt: Date.now(),
-          });
+          };
+          checkpoints.push(cp);
+          // W2 拆行：快照即时 append 独立集合（fail-open），进度行不再背快照
+          await persistence.appendCheckpoint(cp);
           await persistProgress();
           break;
         }
@@ -891,13 +909,16 @@ export class AgentLoop {
           });
           yield { type: "traj", event: clipTrajectoryEvent(ev) };
 
-          checkpoints.push({
+          const cpFinish: CheckpointEntity = {
             id: `cp-${turnId}-${currentStep}`,
             turnId,
             stepIndex: currentStep,
             messagesSnapshot: sanitizeMessagesForCheckpoint(messages),
             snapshotAt: Date.now(),
-          });
+          };
+          checkpoints.push(cpFinish);
+          // W2 拆行：同上，即时 append 独立集合
+          await persistence.appendCheckpoint(cpFinish);
           await persistProgress();
 
           if (approved) {
@@ -950,6 +971,8 @@ export class AgentLoop {
           snapshotAt: Date.now(),
         };
         checkpoints.push(cp);
+        // W2 拆行：快照即时 append 独立集合（fail-open），进度行不再背快照
+        await persistence.appendCheckpoint(cp);
         // TASK-049：每 step 即时落库（含本步 checkpoint），崩溃时已完成步骤留痕
         await persistProgress();
       }

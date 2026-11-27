@@ -23,7 +23,7 @@ import { createOtlpTraceSink } from "./core/otlp-trace-sink.js";
 import { createAdmissionPipeline } from "./core/admission.js";
 import { buildFileTree } from "./core/workspace-files.js";
 import type { ModelProfileEntity, SessionEntity } from "./storage/interfaces.js";
-import { isProviderKind } from "./storage/interfaces.js";
+import { isProviderKind, toCheckpointMeta } from "./storage/interfaces.js";
 import type { ModelCapabilities, ProviderEntity, ProviderKind } from "./storage/interfaces.js";
 import { detectModels } from "./core/model-probe.js";
 import { defaultBaseUrlFor, isAnthropicNativeEndpoint } from "./core/provider-defaults.js";
@@ -137,6 +137,7 @@ import { SQLiteStorageDriver } from "./storage/drivers/sqlite.driver.js";
 import { MemoryStorageDriver } from "./storage/drivers/memory.driver.js";
 import { WorkspaceRepository } from "./storage/repositories/workspace.repository.js";
 import { SessionRepository } from "./storage/repositories/session.repository.js";
+import { CheckpointRepository } from "./storage/repositories/checkpoint.repository.js";
 import { SettingsRepository } from "./storage/repositories/settings.repository.js";
 import { ToolConfigRepository } from "./storage/repositories/tool-config.repository.js";
 import { HarnessConfigRepository } from "./storage/repositories/harness-config.repository.js";
@@ -459,6 +460,8 @@ export function createHarnessServer(options: ServerOptions = {}) {
 
   const workspaceRepo = new WorkspaceRepository(driver);
   const sessionRepo = new SessionRepository(driver);
+  // W2 拆行存储：checkpoint 独立集合（append-only 快照），读路径无论写模式都可用
+  const checkpointsRepo = new CheckpointRepository(driver);
   const settingsRepo = new SettingsRepository(driver);
   const toolConfigRepo = new ToolConfigRepository(driver);
   // 配置中心（TASK-024）：分层配置的存储与解析门面（无缓存，PATCH 即生效）
@@ -565,6 +568,7 @@ export function createHarnessServer(options: ServerOptions = {}) {
   const agentLoop = new AgentLoop({
     workspaceRepo,
     sessionRepo,
+    checkpointsRepo,
     settingsRepo,
     toolConfigRepo,
     toolRegistry,
@@ -1724,6 +1728,41 @@ export function createHarnessServer(options: ServerOptions = {}) {
     });
   });
 
+  // W2 拆行存储：checkpoint 元数据列表（大对象不在此端点；详情走 checkpoints/:cpId）
+  app.get("/api/sessions/:id/turns/:turnId/checkpoints", async (c) => {
+    const sessionId = c.req.param("id");
+    const turnId = c.req.param("turnId");
+    const session = await sessionRepo.get(sessionId);
+    if (!session) return c.json({ error: "Session not found" }, 404);
+
+    const limit = Math.min(Math.max(Number(c.req.query("limit")) || 200, 1), 500);
+    const offset = Math.max(Number(c.req.query("offset")) || 0, 0);
+    const all = await checkpointsRepo.listMeta(sessionId, turnId);
+    // 落库顺序倒序 = 最新在前（前端「最近步骤」视图主序）
+    const page = all.slice().reverse().slice(offset, offset + limit);
+    return c.json({ turnId, total: all.length, limit, offset, checkpoints: page });
+  });
+
+  // W2 拆行存储：单条 checkpoint；默认只元数据，?snapshot=1 才带 messagesSnapshot
+  // （大对象显式取，避免列表/误链路背着几百 KB 的上下文投影跑）
+  app.get("/api/sessions/:id/checkpoints/:cpId", async (c) => {
+    const sessionId = c.req.param("id");
+    const cpId = c.req.param("cpId");
+    const session = await sessionRepo.get(sessionId);
+    if (!session) return c.json({ error: "Session not found" }, 404);
+
+    // cpId 全局唯一但键含 turnId：扫会话级元数据定位（meta 含 turnId），再点查完整实体
+    const metas = await checkpointsRepo.listMeta(sessionId);
+    const meta = metas.find((m) => m.id === cpId);
+    if (!meta) return c.json({ error: "Checkpoint not found", code: "NOT_FOUND" }, 404);
+
+    if (c.req.query("snapshot") !== "1") {
+      return c.json({ ...meta });
+    }
+    const full = await checkpointsRepo.getById(sessionId, meta.turnId, cpId);
+    return c.json(full ?? { ...meta });
+  });
+
   app.delete("/api/sessions/:id", async (c) => {
     const id = c.req.param("id");
     const ok = await sessionRepo.delete(id);
@@ -1752,23 +1791,33 @@ export function createHarnessServer(options: ServerOptions = {}) {
         ? Math.floor(body.keepTokens)
         : undefined;
 
-    // 1. 取会话最近 checkpoint 快照作为完整历史（旧数据 checkpoints 可能缺字段，防御式遍历）
+    // 1. 取会话最近 checkpoint 快照作为完整历史。
+    // W2 拆行：优先独立集合 latestWithSnapshot（最新带快照的 checkpoint，
+    // 快照是累积全量历史）；miss（纯 legacy / 无独立快照）回退旧式倒序扫 turn
+    // 内联 checkpoints（防御式遍历，兼容 inline 形态与迁移前数据）。
     let snapshot: ChatMessage[] | null = null;
     let snapshotTurn: TurnEntity | null = null;
     let snapshotCp: CheckpointEntity | null = null;
-    for (let i = session.turns.length - 1; i >= 0; i--) {
-      const turn = session.turns[i];
-      const cps = Array.isArray(turn.checkpoints) ? turn.checkpoints : [];
-      for (let j = cps.length - 1; j >= 0; j--) {
-        const cp = cps[j];
-        if (cp && Array.isArray(cp.messagesSnapshot) && cp.messagesSnapshot.length > 0) {
-          snapshot = cp.messagesSnapshot as ChatMessage[];
-          snapshotTurn = turn;
-          snapshotCp = cp;
-          break;
+    const latestSplit = await checkpointsRepo.latestWithSnapshot(sessionId);
+    if (latestSplit) {
+      snapshot = latestSplit.messagesSnapshot as ChatMessage[];
+      snapshotCp = latestSplit;
+      snapshotTurn = session.turns.find((t) => t.id === latestSplit.turnId) ?? null;
+    } else {
+      for (let i = session.turns.length - 1; i >= 0; i--) {
+        const turn = session.turns[i];
+        const cps = Array.isArray(turn.checkpoints) ? turn.checkpoints : [];
+        for (let j = cps.length - 1; j >= 0; j--) {
+          const cp = cps[j] as CheckpointEntity;
+          if (cp && Array.isArray(cp.messagesSnapshot) && cp.messagesSnapshot.length > 0) {
+            snapshot = cp.messagesSnapshot as ChatMessage[];
+            snapshotTurn = turn;
+            snapshotCp = cp;
+            break;
+          }
         }
+        if (snapshot) break;
       }
-      if (snapshot) break;
     }
 
     if (!snapshot || !snapshotTurn) {
@@ -1804,17 +1853,31 @@ export function createHarnessServer(options: ServerOptions = {}) {
     const parts = compactor.estimateParts(afterMessages);
 
     // 3. 落 compaction checkpoint（挂在最近带快照的轮次上，可追溯可回滚）
-    if (!Array.isArray(snapshotTurn.checkpoints)) {
-      snapshotTurn.checkpoints = [];
-    }
     const checkpointId = `cp-compact-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    snapshotTurn.checkpoints.push({
+    const compactCp: CheckpointEntity = {
       id: checkpointId,
       turnId: snapshotTurn.id,
       stepIndex: (snapshotCp?.stepIndex ?? 0) + 1,
       messagesSnapshot: sanitizeMessagesForCheckpoint(afterMessages),
       snapshotAt: Date.now(),
-    });
+    };
+    if (latestSplit) {
+      // W2 拆行形态：快照 append 独立集合（同事务维护 turn meta），内存 turn 同步 meta
+      await checkpointsRepo.appendCheckpoint(sessionId, snapshotTurn.id, compactCp);
+      if (!Array.isArray(snapshotTurn.checkpoints)) snapshotTurn.checkpoints = [];
+      snapshotTurn.checkpoints = [
+        ...snapshotTurn.checkpoints.filter((m) => m.id !== checkpointId),
+        toCheckpointMeta(compactCp),
+      ];
+      snapshotTurn.checkpointCount = snapshotTurn.checkpoints.length;
+      snapshotTurn.checkpointsSplit = true;
+    } else {
+      // legacy/inline 形态：快照内联 turn 行（原口径）
+      if (!Array.isArray(snapshotTurn.checkpoints)) {
+        snapshotTurn.checkpoints = [];
+      }
+      (snapshotTurn.checkpoints as CheckpointEntity[]).push(compactCp);
+    }
 
     // 4. 前端水合口径：selectSession 按「最后一个带 contextTokens 的 turn」恢复仪表，
     //    同步压缩后的占用，保证刷新页面后显示压缩后的值

@@ -3,6 +3,7 @@ import { createHarnessServer } from "../src/server.js";
 import { MockDriver } from "./helpers/mock-driver.js";
 import type { ModelDriverRequest, ModelStreamChunk } from "../src/adapters/model-driver.js";
 import { COMPACT_SUMMARY_MARKER } from "../src/core/context-compactor.js";
+import type { CheckpointEntity } from "../src/storage/interfaces.js";
 
 /**
  * 捕获型 MockDriver：记录每次 generateStream 收到的完整 messages，
@@ -102,7 +103,7 @@ describe("POST /api/sessions/:id/compact 手动压缩 (TASK-008)", () => {
       turns: Array<{
         id: string;
         telemetry?: { contextTokens?: number };
-        checkpoints: Array<{ id: string; messagesSnapshot: Array<{ role: string; content?: string }> }>;
+        checkpoints: Array<{ id: string; turnId: string; stepIndex: number; snapshotAt: number }>;
       }>;
     };
     expect(detail.compaction).toBeDefined();
@@ -113,12 +114,21 @@ describe("POST /api/sessions/:id/compact 手动压缩 (TASK-008)", () => {
     const lastTurn = detail.turns[detail.turns.length - 1];
     // 刷新页面后占用显示压缩后的值（selectSession 按 telemetry.contextTokens 水合）
     expect(lastTurn.telemetry?.contextTokens).toBe(result.afterTokens);
-    // compaction checkpoint 挂在最近带快照的轮次上,快照 = system + 摘要占位 + 最近轮次
+    // W2 拆行：turn.checkpoints 是元数据（无快照），快照落独立集合——
+    // 经新端点 ?snapshot=1 显式取回，断言折叠结构（system + 摘要占位 + 最近轮次）
     const compactCp = lastTurn.checkpoints.find((cp) => cp.id === result.checkpointId);
     expect(compactCp).toBeDefined();
-    expect(compactCp!.messagesSnapshot[0].role).toBe("system");
-    expect(compactCp!.messagesSnapshot[1].role).toBe("user");
-    expect(compactCp!.messagesSnapshot[1].content?.startsWith(COMPACT_SUMMARY_MARKER)).toBe(true);
+    expect(compactCp!.turnId).toBe(lastTurn.id);
+    const cpDetailRes = await app.request(
+      `/api/sessions/${session.id}/checkpoints/${result.checkpointId}?snapshot=1`
+    );
+    expect(cpDetailRes.status).toBe(200);
+    const cpDetail = (await cpDetailRes.json()) as {
+      messagesSnapshot: Array<{ role: string; content?: string }>;
+    };
+    expect(cpDetail.messagesSnapshot[0].role).toBe("system");
+    expect(cpDetail.messagesSnapshot[1].role).toBe("user");
+    expect(cpDetail.messagesSnapshot[1].content?.startsWith(COMPACT_SUMMARY_MARKER)).toBe(true);
   });
 
   it("压缩后再追问:模型收到摘要占位而非被折叠轮次原文,消息序列合法", async () => {
@@ -278,7 +288,7 @@ describe("POST /api/sessions/:id/compact 手动压缩 (TASK-008)", () => {
       expect(stored?.turns).toHaveLength(1);
       const cp = stored!.turns[0].checkpoints[0];
       expect(cp).toBeDefined();
-      const snapshot = cp.messagesSnapshot as Array<{ role: string; content?: string }>;
+      const snapshot = (cp as CheckpointEntity).messagesSnapshot as Array<{ role: string; content?: string }>;
       const last = snapshot[snapshot.length - 1];
       // 快照末尾是本轮 assistant 演示回复（而非止步于 user 提问）
       expect(last.role).toBe("assistant");

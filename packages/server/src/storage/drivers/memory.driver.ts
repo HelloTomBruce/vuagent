@@ -56,6 +56,22 @@ export class MemoryStorageDriver implements IStorageDriver {
     return items;
   }
 
+  /**
+   * 事务（TransactionSupport，0.7.0 W2）：共享内存存储上事务必须独占——
+   * appendCheckpoint 是读-改-写（turn 元数据合并），并发事务交错会丢失更新。
+   * 与 sqlite 驱动同款 promise 链互斥队列串行化所有事务。
+   */
+  private txQueue: Promise<unknown> = Promise.resolve();
+
+  async transaction<T>(fn: () => T | Promise<T>): Promise<T> {
+    const run = this.txQueue.then(() => Promise.resolve(fn()));
+    this.txQueue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run as Promise<T>;
+  }
+
   async clear(collection?: string): Promise<void> {
     if (collection) {
       this.store.delete(collection);

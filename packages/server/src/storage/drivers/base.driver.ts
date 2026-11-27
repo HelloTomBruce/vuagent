@@ -60,3 +60,21 @@ export interface PrefixListSupport {
 export function supportsPrefixList(driver: IStorageDriver): driver is IStorageDriver & PrefixListSupport {
   return typeof (driver as Partial<PrefixListSupport>).listByPrefix === "function";
 }
+
+/**
+ * 可选能力：事务（0.7.0 W2 checkpoint 拆行）。
+ * appendCheckpoint 需要「checkpoint 行 + turn 元数据行」原子落库，拆事务会出现
+ * count 与行数漂移。事务体允许返回 Promise：驱动的语句实现全部同步执行，
+ * 事务体内的 await 只链接微任务——微任务队列在当前宏任务内排空后才轮到其它
+ * 请求的处理回调，因此 BEGIN 与 COMMIT 之间不会插入其它请求的语句。
+ * memory 驱动直接顺序执行；不实现此能力的驱动由仓储回落顺序写（仅失去原子性）。
+ */
+export interface TransactionSupport {
+  /** 执行事务体；抛错（含异步链）时 ROLLBACK 并向上抛出 */
+  transaction<T>(fn: () => T | Promise<T>): Promise<T>;
+}
+
+/** duck-type 检测驱动是否具备事务能力 */
+export function supportsTransaction(driver: IStorageDriver): driver is IStorageDriver & TransactionSupport {
+  return typeof (driver as Partial<TransactionSupport>).transaction === "function";
+}

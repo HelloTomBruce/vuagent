@@ -35,7 +35,8 @@ export async function recoverInterruptedTurns(
         recovered.push({
           sessionId: session.id,
           turnId: turn.id,
-          checkpointCount: Array.isArray(turn.checkpoints) ? turn.checkpoints.length : 0,
+          // W2 拆行：优先冗余计数（免读数组）；遗留形态回退数组长度
+          checkpointCount: turn.checkpointCount ?? (Array.isArray(turn.checkpoints) ? turn.checkpoints.length : 0),
         });
         modified = true;
       }

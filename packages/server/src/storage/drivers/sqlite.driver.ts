@@ -106,6 +106,64 @@ export class SQLiteStorageDriver implements IStorageDriver {
     return rows.map((r) => JSON.parse(r.data) as T);
   }
 
+  /**
+   * 事务（TransactionSupport，0.7.0 W2）：语句实现体同步执行，事务体内的 await
+   * 只链接微任务。并发写（Promise.all 多会话同时落盘）会在微任务槽里交错进入
+   * transaction()——裸 BEGIN 会撞 "cannot start a transaction within a
+   * transaction"，因此用 promise 链队列串行化所有事务；队列内 BEGIN/COMMIT
+   * 之间不会插入其它事务的语句。
+   * 已知边界：非事务写（如进度 meta 行）若恰好落在他人事务窗口内会并入该事务
+   * （单机 fail-open 口径下可接受——最坏情形是随他人回滚丢失一次 best-effort 进度，
+   * 终态 appendTurn 兜底）。窗口为微任务级，概率极低。
+   */
+  private txQueue: Promise<unknown> = Promise.resolve();
+
+  async transaction<T>(fn: () => T | Promise<T>): Promise<T> {
+    const run = this.txQueue.then(
+      () =>
+        new Promise<T>((resolve, reject) => {
+          this.db.exec("BEGIN");
+          try {
+            Promise.resolve(fn()).then(
+              (value) => {
+                try {
+                  this.db.exec("COMMIT");
+                  resolve(value);
+                } catch (err) {
+                  try {
+                    this.db.exec("ROLLBACK");
+                  } catch {
+                    // 掩盖不了 COMMIT 失败的原始错误
+                  }
+                  reject(err);
+                }
+              },
+              (err) => {
+                try {
+                  this.db.exec("ROLLBACK");
+                } catch {
+                  // 同上
+                }
+                reject(err);
+              },
+            );
+          } catch (err) {
+            try {
+              this.db.exec("ROLLBACK");
+            } catch {
+              // 同上
+            }
+            reject(err);
+          }
+        }),
+    );
+    this.txQueue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
   async clear(collection?: string): Promise<void> {
     if (collection) {
       const stmt = this.db.prepare("DELETE FROM kv_store WHERE collection = ?");

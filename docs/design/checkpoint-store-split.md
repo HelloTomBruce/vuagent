@@ -74,7 +74,7 @@ export interface TurnEntity {
 
 | 消费方 | 现状 | 改后 |
 |---|---|---|
-| [history-builder.ts](../../packages/server/src/core/history-builder.ts#L36-L58) 历史图片占位判定 | 读 `turn.checkpoints[last].messagesSnapshot` 找锚点消息 | 优先 `turn.hasImages`（收尾算好）；仅旧数据（无 `hasImages` 且内联快照存在）回退读快照 |
+| [history-builder.ts](../../packages/server/src/core/history-builder.ts) 历史重建 | **（实现期修订）**逐轮重放 `turn.checkpoints[last].messagesSnapshot`（快照是累积全量上下文，轮次切片只取本 turn 提问之后的消息）——设计初版误记为「仅图片占位判定」 | 新增 `latestSnapshot` 入参走**会话级单快照重放**：最新快照天然含此前所有轮次内容，一次遍历（system 跳过 / user 锚定轮次 prompt+图片注记 / assistant+tool 原样）即完成重建，O(N²)→O(1) 次读取；`hasImages` 标记优先，缺省（inline 形态）逐字走旧算法 |
 | [recovery.ts](../../packages/server/src/core/recovery.ts#L38) | `turn.checkpoints.length` | `turn.checkpointCount ?? turn.checkpoints?.length ?? 0` |
 | [agent-loop.ts](../../packages/server/src/core/agent-loop.ts#L300-L310) resume | `turn.checkpoints.find(id)` 取快照 | `checkpointsRepo.get(sessionId, checkpointId)`（按需读一条） |
 | [server.ts](../../packages/server/src/server.ts#L1745-L1800) `POST /api/sessions/:id/compact` | 倒序扫所有 turn 的 checkpoints 找最新快照 | `checkpointsRepo.latestWithSnapshot(sessionId)`（前缀扫描 + 取最新），新 checkpoint 走 `appendCheckpoint` |
@@ -103,11 +103,16 @@ deleteTurnCheckpoints(sessionId, turnId): Promise<number>   // prune/回滚用
 
 ### 5.2 批量迁移（CLI）
 
-`vuagent migrate --checkpoints [--dry-run] [--prune-legacy]`：
+`vuagent migrate --checkpoints [--dry-run] [--no-backup] [--vacuum] [--session <id>]`：
 
-- 逐 turn 迁移 + 汇报「turn 数 / checkpoint 数 / 释放字节 / 预估新库体积」；
-- `--dry-run` 只统计；执行前自动 `VACUUM INTO exports/…` 备份；
-- **默认保留原内联数据**（`--prune-legacy` 才清），给一个版本的观察窗口。
+- 逐 turn 迁移 + 汇报「turn 数 / checkpoint 数 / 物化 content 轮次」；
+- `--dry-run` 只统计；执行前**强制** `VACUUM INTO exports/…` 备份（`--no-backup` 才跳过）；
+- **迁移即刻 meta 化**（不做「保留内联 + 标记」双存储：双存储会让 `checkpointCount`
+  与详情体积语义混乱）；原始数据的观察窗口由那份强制备份承载，确认无误后自行删除备份；
+- `--vacuum` 迁移后原地紧凑化；`--session <id>` 只迁指定会话（灰度/排障用）。
+
+> 早期草稿里的 `--prune-legacy` 已移除：它假设存在双存储清扫期，而实现选择即刻
+> meta 化（评审 O4）。
 
 ### 5.3 兼容与回退
 
@@ -141,7 +146,7 @@ deleteTurnCheckpoints(sessionId, turnId): Promise<number>   // prune/回滚用
 
 **单测**
 
-- 迁移：惰性触发一次 / 幂等 / 中断回滚 / `--prune-legacy` / 回滚开关；
+- 迁移：惰性触发一次 / 幂等 / 中断回滚 / 强制备份与 `--no-backup` / 回滚开关；
 - 读写兼容：内联遗留 → 拆行新数据双向可读；`checkpointCount` 与集合行数一致；
 - history-builder：`hasImages` 优先级 + 旧数据快照回退；
 - compact：新 checkpoint 落独立集合、`latestWithSnapshot` 在 0 / 1 / N 条时的边界；

@@ -1,8 +1,64 @@
 import type { SessionRepository } from "../storage/repositories/session.repository.js";
-import type { CheckpointEntity, TurnEntity } from "../storage/interfaces.js";
+import type { CheckpointRepository } from "../storage/repositories/checkpoint.repository.js";
+import type { CheckpointEntity, CheckpointMeta, TurnEntity } from "../storage/interfaces.js";
+import { toCheckpointMeta } from "../storage/interfaces.js";
+import { IMAGE_PLACEHOLDER, type ChatContentPart, type ChatMessage } from "./context-compactor.js";
 import type { CostRecorder } from "./pricing-table.js";
 import { TelemetryLedger, clipTrajectoryEvent } from "./telemetry.js";
 import type { OpsReporter } from "./ops-reporter.js";
+
+/**
+ * checkpoint 存储模式（0.7.0 W2 拆行）：
+ * - "split"（默认）：快照 append-only 落 session_checkpoints 集合，turn 行只留
+ *   CheckpointMeta——写放大 O(步数²) → O(1)/步；
+ * - "inline"（回退开关 VUAGENT_CHECKPOINT_STORE=inline）：保持 0.6.x 行为
+ *   （快照内联 turn 行），仅保留一个发布周期供线上回滚，0.8.0 移除。
+ *   无 checkpointsRepo（如部分单测构造）时也自动回落 inline。
+ */
+export type CheckpointStoreMode = "split" | "inline";
+
+export function resolveCheckpointStoreMode(env: NodeJS.ProcessEnv = process.env): CheckpointStoreMode {
+  return (env.VUAGENT_CHECKPOINT_STORE || "").trim().toLowerCase() === "inline" ? "inline" : "split";
+}
+
+/**
+ * 该轮是否出现过图片输入（TASK-083 历史占位判定，收尾算好落 turn.hasImages）：
+ * ① 轮次附件元数据含图 → 直接 true；
+ * ② 否则在**本轮锚点消息**上看图片 parts / `[图片]` 占位块（快照落库前 base64
+ *    已降级，见 sanitizeMessagesForCheckpoint）。
+ *
+ * ⚠️ 必须按本轮 prompt 锚定：checkpoint 快照是**累积**的（含此前所有轮次），
+ * 直接扫「任意 user 带图 parts」会把图片轮之后的所有轮次都误判为有图（评审 R1），
+ * 进而给无图轮次的 prompt 追加 `[图片]` 注记，模型被喂了不存在的图。
+ */
+export function deriveHasImages(
+  attachments: TurnFinalState["attachments"],
+  checkpoints: CheckpointEntity[],
+  turnPrompt: string,
+): boolean {
+  if (attachments?.some((a) => a.kind === "image")) return true;
+  const last = checkpoints[checkpoints.length - 1];
+  if (!last || !Array.isArray(last.messagesSnapshot)) return false;
+  const snapshot = last.messagesSnapshot as ChatMessage[];
+  const anchor = snapshot.find((item) => {
+    if (item.role !== "user") return false;
+    if (item.content === turnPrompt) return true;
+    return (
+      Array.isArray(item.content) &&
+      (item.content as ChatContentPart[])[0]?.type === "text" &&
+      ((item.content as ChatContentPart[])[0] as { text?: string }).text === turnPrompt
+    );
+  });
+  if (!anchor || !Array.isArray(anchor.content)) return false;
+  return (anchor.content as ChatContentPart[]).some(
+    (p) => p.type === "image_url" || (p.type === "text" && p.text === IMAGE_PLACEHOLDER),
+  );
+}
+
+/** checkpoint 数组 → 元数据（拆行形态的 turn 行载荷） */
+function toMetas(checkpoints: CheckpointEntity[]): CheckpointMeta[] {
+  return checkpoints.map(toCheckpointMeta);
+}
 
 /**
  * 轮次持久化助手（TASK-057 自 agent-loop.ts 拆出）：
@@ -13,11 +69,15 @@ import type { OpsReporter } from "./ops-reporter.js";
  */
 export interface TurnPersistenceOptions {
   sessionRepo: SessionRepository;
+  /** checkpoint 独立仓储（拆行形态）：缺省回落 inline 行为（单测/回退开关） */
+  checkpointsRepo?: CheckpointRepository;
   costRecorder?: CostRecorder;
   ops: OpsReporter;
   telemetry: TelemetryLedger;
   sessionId: string;
   turnId: string;
+  /** 本轮用户输入（hasImages 判定的锚点文本，评审 R1） */
+  turnPrompt: string;
 }
 
 /** 每 step 增量落盘所需的累积态快照（由调用方从循环局部变量装配） */
@@ -57,8 +117,47 @@ export class TurnPersistence {
 
   private progressTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingProgress: { state: TurnProgressState; startAt: number } | null = null;
+  /** checkpoint 存储模式（构造时定死；进程内不变） */
+  private readonly storeMode: CheckpointStoreMode;
 
-  constructor(private opts: TurnPersistenceOptions) {}
+  constructor(private opts: TurnPersistenceOptions) {
+    this.storeMode = opts.checkpointsRepo ? resolveCheckpointStoreMode() : "inline";
+  }
+
+  /**
+   * 每步 checkpoint 即时落独立集合（拆行形态；W2 核心写路径）。
+   * 快照大对象一次小行 append + turn 元数据同事务维护——进度落盘从此不再背快照。
+   * fail-open：落库失败静默（快照仍随进度/终态的 inline 兜底？否——拆行形态下
+   * 进度行不再带快照，本步快照丢失只影响崩溃恢复窗口的完整性，不阻断主链路，
+   * 与 appendRunningRow 的口径一致）。
+   * inline 模式：no-op（快照随 updateTurn/appendTurn 内联落库，旧行为）。
+   */
+  async appendCheckpoint(cp: CheckpointEntity): Promise<void> {
+    if (this.storeMode !== "split" || !this.opts.checkpointsRepo) return;
+    try {
+      await this.opts.checkpointsRepo.appendCheckpoint(this.opts.sessionId, this.opts.turnId, cp);
+    } catch {
+      // 静默：快照落库失败不阻断主链路（诚实口径见方法注释）
+    }
+  }
+
+  /** 进度/终态行的 checkpoint 载荷（按模式）：split = meta + count + hasImages + 标记，inline = 全量（旧行为） */
+  private checkpointPayload(
+    state: { checkpoints: CheckpointEntity[] },
+    attachments?: TurnFinalState["attachments"],
+  ): Pick<TurnEntity, "checkpoints"> & { checkpointCount?: number; hasImages?: boolean; checkpointsSplit?: boolean } {
+    if (this.storeMode !== "split" || !this.opts.checkpointsRepo) {
+      return { checkpoints: state.checkpoints };
+    }
+    const metas = toMetas(state.checkpoints);
+    return {
+      checkpoints: metas,
+      checkpointCount: metas.length,
+      hasImages: deriveHasImages(attachments, state.checkpoints, this.opts.turnPrompt),
+      // 终态 appendTurn 是整行 upsert：不带标记会冲掉 appendCheckpoint 写下的拆行标记
+      checkpointsSplit: true,
+    };
+  }
 
   /**
    * TASK-049 即时落库：轮次开始即落 running 行（中途崩溃留痕），
@@ -143,7 +242,8 @@ export class TurnPersistence {
         thought: state.thought,
         cards: state.cards,
         stepCount: state.stepCount,
-        checkpoints: state.checkpoints,
+        // W2 拆行：快照已 append 进独立集合，这里只带元数据（checkpointPayload 按模式）
+        ...this.checkpointPayload(state),
         telemetry: {
           durationMs: Date.now() - startAt,
           ttftMs: this.opts.telemetry.exportSummary().ttftMs,
@@ -186,7 +286,7 @@ export class TurnPersistence {
       ...(state.abortedReason ? { abortedReason: state.abortedReason } : {}),
       ...(state.finishReason ? { finishReason: state.finishReason } : {}),
       stepCount: state.stepCount,
-      checkpoints: state.checkpoints,
+      ...this.checkpointPayload(state, state.attachments),
       telemetry: {
         durationMs: state.durationMs ?? 0,
         ttftMs: this.opts.telemetry.exportSummary().ttftMs,
@@ -224,7 +324,7 @@ export class TurnPersistence {
         // R8：异常中止（catch 路径）同样标记中止成因
         ...(state.abortedReason ? { abortedReason: state.abortedReason } : {}),
         stepCount: state.stepCount,
-        checkpoints: state.checkpoints,
+        ...this.checkpointPayload(state, state.attachments),
         createdAt: state.startAt,
         completedAt: Date.now(),
       };
