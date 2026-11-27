@@ -1,7 +1,6 @@
 import { createApp } from "vue";
-import "@vuagent/ui/tokens.css";
-import "@vuagent/console-app/styles/shell.css";
-import "./app.css";
+// 设计令牌与页面基础样式由 @vuagent/console-app 入口带出（与生产壳同一份，避免漂移）；
+// 命名导入本身就会执行该模块，无需额外的 side-effect import。
 import App from "./App.vue";
 import { router } from "./router";
 import { printConsoleBanner } from "./brand";

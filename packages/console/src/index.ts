@@ -9,6 +9,12 @@
  * - 组件：`<Console />`（由宿主自己的路由/布局承载）；
  * - 独立挂载：`mountConsole(el)`（生产壳用，自带组件注册与清理）。
  */
+// 设计令牌与页面基础样式放在库入口：任何宿主（生产壳/开发壳/第三方）只要 import
+// 本包就自动带上，避免「某个壳忘了引 tokens.css → 全部留白」这类漂移。
+// （0.7.0 首发事故：生产壳只调 mountConsole，未引 tokens/shell → --va-* 全空、
+//  body margin 8px、100% 高度链断裂。）
+import "@vuagent/ui/tokens.css";
+import "./styles/shell.css";
 import { createApp, type App as VueApp } from "vue";
 import { registerCardComponent } from "@vuagent/ui";
 import ConsoleRoot from "./Console.vue";
