@@ -57,6 +57,10 @@ VUAGENT_ALLOW_PRIVATE_FETCH=1           # 允许 web 工具访问内网地址（
 VUAGENT_BASH_ENV_POLICY=allowlist       # bash 子进程环境策略
 ```
 
+| `VUAGENT_USER_AGENT` | 覆盖所有供应商请求的 `User-Agent` 整串（网关按 UA 白名单放行时用） |
+| `VUAGENT_USER_AGENT_SUFFIX` | 在默认 `vuagent/<version> (+repo)` 后追加产品后缀 |
+| `VUAGENT_CHECKPOINT_STORE=inline` | 回退 checkpoint 内联存储（0.8.0 移除） |
+
 | 旧名（不生效） | 真名（生效） |
 |---|---|
 | `HOST` | `VUAGENT_HOST` |
