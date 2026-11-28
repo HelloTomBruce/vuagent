@@ -5,6 +5,7 @@
  * 提交契约：values = 行对象数组（与派生 resultSchema 的 items 同形状）。
  */
 import { computed, ref } from "vue";
+import { VaButton } from "../button";
 
 interface ColumnItem {
   key: string;
@@ -146,16 +147,18 @@ function removeRow(idx: number) {
     </div>
 
     <div class="va-data-table__foot">
-      <button class="va-data-table__add" type="button" :disabled="disabled || rows.length >= maxRows" @click="addRow">
+      <!-- 「加一行」走 va-act ghost 基类（虚线框改由组件 CSS 覆盖保留） -->
+      <button class="va-act va-act--sm va-act--ghost va-data-table__add" type="button" :disabled="disabled || rows.length >= maxRows" @click="addRow">
         + 加一行
       </button>
       <span class="va-data-table__spacer"></span>
-      <button class="va-data-table__btn" type="button" :disabled="!canSubmit" @click="emit('submit', rows.map((r) => ({ ...r })))">
+      <!-- 提交/取消走组件库 VaButton（对齐 VaForm/审批卡的墨色主按钮体系） -->
+      <VaButton variant="primary" :disabled="!canSubmit" @click="emit('submit', rows.map((r) => ({ ...r })))">
         {{ submitLabel }}
-      </button>
-      <button class="va-data-table__btn va-data-table__btn--ghost" type="button" :disabled="disabled" @click="emit('cancel')">
+      </VaButton>
+      <VaButton variant="secondary" :disabled="disabled" @click="emit('cancel')">
         取消
-      </button>
+      </VaButton>
     </div>
   </div>
 </template>
@@ -254,6 +257,9 @@ function removeRow(idx: number) {
   gap: 8px;
 }
 .va-data-table__add {
+  border-style: dashed;
+  border-color: var(--va-edge, rgba(26, 25, 23, 0.12));
+  color: var(--va-accent, #c2410c);
   padding: 5px 10px;
   border: 1px dashed var(--va-edge, rgba(26, 25, 23, 0.12));
   border-radius: 6px;
@@ -268,23 +274,5 @@ function removeRow(idx: number) {
 }
 .va-data-table__spacer {
   flex: 1;
-}
-.va-data-table__btn {
-  padding: 6px 14px;
-  border: 1px solid var(--va-accent, #c2410c);
-  border-radius: 6px;
-  background: var(--va-accent, #c2410c);
-  color: #fff;
-  font-size: 12.5px;
-  cursor: pointer;
-}
-.va-data-table__btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-.va-data-table__btn--ghost {
-  background: transparent;
-  color: var(--va-muted, #6f6d66);
-  border-color: var(--va-edge, rgba(26, 25, 23, 0.12));
 }
 </style>

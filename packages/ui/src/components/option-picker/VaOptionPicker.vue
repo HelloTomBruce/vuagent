@@ -5,6 +5,7 @@
  * 提交契约：selected 恒为 string[]（单选长度 1，与派生 resultSchema 同口径）。
  */
 import { computed, ref } from "vue";
+import { VaButton } from "../button";
 
 interface OptionItem {
   id: string;
@@ -96,12 +97,13 @@ function toggle(id: string) {
     </div>
 
     <div class="va-option-picker__foot">
-      <button class="va-option-picker__btn" type="button" :disabled="!canSubmit" @click="emit('submit', [...selected])">
+      <!-- 按钮走组件库 VaButton（对齐 VaForm/审批卡的墨色主按钮体系），不再手写样式 -->
+      <VaButton variant="primary" :disabled="!canSubmit" @click="emit('submit', [...selected])">
         {{ submitLabel }}
-      </button>
-      <button class="va-option-picker__btn va-option-picker__btn--ghost" type="button" :disabled="disabled" @click="emit('cancel')">
+      </VaButton>
+      <VaButton variant="secondary" :disabled="disabled" @click="emit('cancel')">
         取消
-      </button>
+      </VaButton>
     </div>
   </div>
 </template>
@@ -202,23 +204,5 @@ function toggle(id: string) {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
-}
-.va-option-picker__btn {
-  padding: 6px 14px;
-  border: 1px solid var(--va-accent, #c2410c);
-  border-radius: 6px;
-  background: var(--va-accent, #c2410c);
-  color: #fff;
-  font-size: 12.5px;
-  cursor: pointer;
-}
-.va-option-picker__btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-.va-option-picker__btn--ghost {
-  background: transparent;
-  color: var(--va-muted, #6f6d66);
-  border-color: var(--va-edge, rgba(26, 25, 23, 0.12));
 }
 </style>
