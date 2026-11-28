@@ -10,6 +10,7 @@
 import fs from "node:fs";
 import net from "node:net";
 import type { DataPaths } from "@vuagent/server";
+import { loadMcpConfigFile } from "@vuagent/server";
 import { forceClearLock, readLock, pidAlive } from "../lib/lock.js";
 import { loadSqlite, openDb, turnSizeLeaderboard } from "../lib/db.js";
 import { resolveEndpointHeaders } from "@vuagent/server";
@@ -189,6 +190,24 @@ export async function runDoctor(paths: DataPaths, options: { json?: boolean; fix
     add("console", "ok", `${consoleRes.dir}（${consoleRes.source}）`);
   } else {
     add("console", "warn", "未找到 console 静态资源（API-only）", "安装 @vuagent/console（随 @vuagent/cli 依赖自动带上）；开发期 --console-dir apps/playground/dist");
+  }
+
+  // ⑩ MCP 配置（0.9.0 W1）：静态检查配置文件可解析（连接状态需运行时，见服务日志/API）
+  try {
+    const mcpConfigs = loadMcpConfigFile(paths.mcpConfigPath.path);
+    if (mcpConfigs.length === 0) {
+      add("mcp", "ok", "无 MCP 配置（mcp.json 不存在或为空——MCP 不启用）");
+    } else {
+      const enabled = mcpConfigs.filter((c) => c.enabled !== false);
+      const disabled = mcpConfigs.length - enabled.length;
+      add(
+        "mcp",
+        "ok",
+        `mcp.json：${enabled.length} 个启用${disabled ? ` / ${disabled} 个禁用` : ""}（${enabled.map((c) => c.name).join(", ") || "-"}）；连接状态在服务运行时经日志查看`
+      );
+    }
+  } catch (e) {
+    add("mcp", "error", `mcp.json 解析失败：${e instanceof Error ? e.message : String(e)}`, "修复 JSON 语法或暂时移走该文件（服务会跳过 MCP 初始化）");
   }
 
   return checks;

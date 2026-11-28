@@ -62,6 +62,14 @@ export class ToolRegistry {
   }
 
   /**
+   * 移除工具（0.9.0 W1 MCP：listChanged 增量刷新时 server 侧已删除的工具下架；
+   * 返回是否真的移除了一个工具）
+   */
+  remove(name: string): boolean {
+    return this.tools.delete(name);
+  }
+
+  /**
    * 获取工具定义
    */
   get(name: string): HarnessTool | undefined {

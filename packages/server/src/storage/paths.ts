@@ -29,6 +29,8 @@ export interface DataPaths {
   dbPath: SourcedPath;
   /** 计价表（缺省空表 = 只记量不记钱） */
   pricingPath: SourcedPath;
+  /** MCP server 连接配置（0.9.0 W1；缺省空配置 = 不连任何 MCP server） */
+  mcpConfigPath: SourcedPath;
   logsDir: string;
   logFile: string;
   exportsDir: string;
@@ -94,6 +96,7 @@ export function resolveDataPaths(options: ResolveDataPathsOptions = {}): DataPat
     dataDir,
     dbPath,
     pricingPath: { path: path.join(root, "config", "model-pricing.json"), source: dataDir.source },
+    mcpConfigPath: { path: path.join(root, "config", "mcp.json"), source: dataDir.source },
     logsDir: path.join(root, "logs"),
     logFile: path.join(root, "logs", "harness.log"),
     exportsDir: path.join(root, "exports"),

@@ -158,6 +158,8 @@ import { BashRunTool, createBashRunTool } from "./tools/system/bash-tool.js";
 import { GlobTool, GrepTool } from "./tools/system/search-tools.js";
 import { FinishTaskTool } from "./tools/system/finish-task-tool.js";
 import { createWebFetchTool } from "./tools/web/web-tools.js";
+import { createWebSearchTool, resolveSearchConfig } from "./tools/web/search-tools.js";
+import { McpHostService } from "./core/mcp-host.js";
 import { AllBuiltinTools } from "./tools/ui/protocol-tools.js";
 import { recoverInterruptedTurns } from "./core/recovery.js";
 import {
@@ -219,6 +221,11 @@ export interface ServerOptions {
   /** 计价表来源（TASK-052）：JSON 文件路径或内存表；缺省 `${cwd}/config/model-pricing.json`（缺失=只记量不记钱） */
   pricingPath?: string;
   pricingTable?: Record<string, ModelPricing>;
+  /**
+   * MCP server 连接配置（0.9.0 W1）：mcp.json 路径（CLI 传 dataDir/config/mcp.json）。
+   * 缺省不传 = 不启用 MCP（库形态诚实行为）；文件存在但无 mcpServers = 空配置（懒启动零开销）。
+   */
+  mcpConfigPath?: string;
   /** 开放场景 UI 组件定义（由 UIComponentRegistry 管理并注册为模型工具与前端卡片契约） */
   customUIComponents?: UIComponentDefinition[];
   /** 自定义 UI 注册中心（可选显式注入） */
@@ -515,6 +522,29 @@ export function createHarnessServer(options: ServerOptions = {}) {
       return sec?.allowPrivateFetch === true;
     })
   );
+  // web_search（0.9.0 W2）：有可用搜索 key（env）才注册——工具不存在就不进
+  // 启停页/模型 definitions，比「注册 + hideTools」更诚实；无 key 时 web_fetch
+  // 描述里的「如已配置」语义保持准确
+  const searchConfig = resolveSearchConfig();
+  if (searchConfig) {
+    toolRegistry.register(createWebSearchTool(searchConfig.provider));
+  }
+
+  // MCP server 接入（0.9.0 W1）：文件存在才构造；连接懒启动（fire-and-forget，
+  // 连上即 register 进 registry，definitions 每次 toModelToolDefinitions 现取——
+  // 工具稍后出现但不阻塞服务启动）。库形态不传 mcpConfigPath = 不启用 MCP。
+  let mcpHost: McpHostService | null = null;
+  if (options.mcpConfigPath && fs.existsSync(options.mcpConfigPath)) {
+    mcpHost = new McpHostService({
+      configPath: options.mcpConfigPath,
+      register: (tool) => toolRegistry.register(tool),
+      unregister: (name) => toolRegistry.remove(name),
+      clientVersion: "0.9.0",
+    });
+    void mcpHost.ensureConnected().catch(() => {
+      // 全体连接失败的兜底：各 server 错误已在 status 里，启动不打断
+    });
+  }
   for (const t of AllBuiltinTools) {
     toolRegistry.register(t);
   }
@@ -2519,12 +2549,17 @@ export function createHarnessServer(options: ServerOptions = {}) {
     agentLoop,
     /** 执行中心（优雅停机抽干等待 / 指标观测的入口） */
     executionHub,
+    /** MCP server 连接管理（0.9.0 W1；null = 未启用——无 mcpConfigPath）。doctor/诊断用 */
+    mcpHost,
     /** 关闭底层存储（TASK-095 优雅停机收口；sqlite close，无句柄驱动为空操作）。
      *  关闭前先批量 flush 在途轮次持久化缓冲（审查 O1 修复）：抽干超时被放弃的
      *  轮次其 ≤250ms 防抖窗口内的进度不再直接丢失，缩小恢复状态回退窗口；
-     *  flush fail-open，不阻塞停机。 */
+     *  flush fail-open，不阻塞停机。
+     *  0.9.0 W1：MCP stdio 子进程随停机回收（transport.close kill 进程树），
+     *  关停路径 fail-open——单个 server 关闭失败不阻断其余。 */
     close: async () => {
       await agentLoop.flushInFlightPersistence();
+      if (mcpHost) await mcpHost.shutdown().catch(() => {});
       const closable = driver as unknown as { close?: () => void };
       closable.close?.();
     },

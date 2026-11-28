@@ -102,7 +102,6 @@ const HELP = `vuagent ${CLI_VERSION} —— 一条命令起 harness 服务 + con
 
 环境变量：
   VUAGENT_HOME / DB_PATH / VUAGENT_CONSOLE_DIR / VUAGENT_TOKEN / VUAGENT_ALLOW_SHARED
-  VUAGENT_CHECKPOINT_STORE=inline   拆行回退开关（仅一个发布周期保留，0.8.0 移除）
 `;
 
 function parseArgs(argv: string[]): CliArgs {
@@ -268,9 +267,11 @@ async function start(args: CliArgs): Promise<void> {
   const consoleRes = resolveConsoleDir({ consoleDir: args.consoleDir });
 
   // ③ 建 server（显式 dbPath——库形态缺省是 :memory:，CLI 必须显式给）
+  // mcpConfigPath：0.9.0 W1——文件存在才启用 MCP（createHarnessServer 内部同判），CLI 是 MCP 的入口形态
   const harness = createHarnessServer({
     dbPath: paths.dbPath.path,
     pricingPath: paths.pricingPath.path,
+    mcpConfigPath: paths.mcpConfigPath.path,
     ...(consoleRes.dir ? { console: { dir: consoleRes.dir } } : {}),
   });
 
