@@ -5,13 +5,18 @@
 
 ## 预置供应商
 
-内置 **24 家**，覆盖国内常用与主流网关：
+内置 **25 家**，覆盖国内常用与主流网关：
 
 - **国内**：DeepSeek、通义千问/百炼（国内 + 国际站）、智谱 GLM、Moonshot/Kimi（国内 + 国际站）、
   MiniMax（Anthropic 兼容）、豆包/火山方舟、硅基流动
 - **国际**：OpenAI、Anthropic、Google Gemini、Azure OpenAI、Groq、Mistral、xAI、
   Together、Fireworks、Cerebras、OpenRouter
-- **网关/自建**：OpenCode Zen、Ollama、LM Studio、自定义（OpenAI 兼容）
+- **网关/自建**：OpenCode Zen、OpenCode Go（订阅）、Ollama、LM Studio、自定义（OpenAI 兼容）
+
+> **OpenCode 两个预设别选错**：Go 订阅（`oc_sk_` key）用「OpenCode Go（订阅）」
+> （`/inference/go/openai/v1` 专属网关）；按量计费用「OpenCode Zen」
+> （`/inference/openai/v1`）。走错网关会报 402 余额不足或「模型不在订阅内」
+> （0.9.0 实测）。
 
 > 端点、协议、鉴权形态、建议模型、上下文窗口的**唯一事实源**是
 > `packages/protocol/src/providers.ts` 的预设表——本页刻意不再罗列逐家参数，避免手抄漂移。

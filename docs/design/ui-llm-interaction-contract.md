@@ -216,6 +216,13 @@ export const FormToolSchema = Type.Object(
 
 ## 落地记录
 
+**0.9.0 L2 组件家族（docs/design/v0.9-plan.md §4，W3）**：契约与派生器收口于
+`protocol/src/l2-components.ts`（ui_option_picker / ui_wizard / ui_data_table），
+vendored 副本 `ui/src/runtime/l2-result-schema.ts` 经 check-protocol-sync 函数级锁死；
+server 工具声明语义与 ui_form 完全同构（「L2 挂起≠审批」、resultSchema 一律派生、
+超时=cancel）。ui_wizard 渲染 v0.9 为分步分组的单表单（复用 VaForm，分步交互 UI
+留 0.10）——「一个 L2」语义（单次挂起单次回传）不变。
+
 Phase 1 / Phase 2 已全部落地（工作区任务 TASK-088~092 结单，收尾 TASK-093）：
 
 | 实施任务 | 工作区任务 | 产出摘要 | 关键决策 |

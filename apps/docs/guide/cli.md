@@ -20,7 +20,7 @@ vuagent 0.7.0
   hint     未检测到模型凭据：设置 OPENAI_API_KEY / ANTHROPIC_API_KEY，或在 console → 设置 中添加供应商
 ```
 
-模型凭据两条路：环境变量（`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`），或在 console 的「设置 → 供应商」里配置（存库）。
+模型凭据两条路：环境变量（`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`），或在 console 的「设置 → 模型与 API」里配置（存库）。0.8.0 起内置 24 家供应商预设（按端点域名自动注入厂商要求的请求头），面板支持从供应商拉取模型列表与一键连通性测试——详见[「内置供应商与请求头规则」](/guide/providers)。
 
 ## 数据目录（唯一事实源）
 
