@@ -672,14 +672,29 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
    */
   /**
    * 列表行快捷探测（不进编辑表单）：按已保存档案直接测（profileId → 服务端
-   * hydrate 出端点与凭证），结果走全局 toaster——模型清单里一键验证连通性。
+   * hydrate 出端点与凭证），结果走全局 toaster **并内联落模型行**——toast 几秒
+   * 即逝且常被弹窗遮挡，行内记录才是稳定呈现（0.9 实测：截图抓三次才抓到 toast）。
+   * 结果为进程内存态：面板重开清空（不落库，探测是即时诊断不是配置）。
    */
   const testingProfileId = ref<string>("");
+  interface ProfileProbeResult {
+    ok: boolean;
+    latencyMs?: number;
+    error?: string;
+    at: number;
+  }
+  const probeResults = ref<Map<string, ProfileProbeResult>>(new Map());
   async function testProfileConnection(m: ModelProfileItem) {
     if (testingProfileId.value) return;
     testingProfileId.value = m.id;
     try {
       const result = await testModelConnectionApi({ profileId: m.id, model: m.model });
+      probeResults.value.set(m.id, {
+        ok: result.ok,
+        latencyMs: result.latencyMs,
+        error: result.ok ? undefined : result.error || "端点无响应",
+        at: Date.now(),
+      });
       if (result.ok) {
         vaToaster.add({
           title: `「${m.name || m.model}」连通正常`,
@@ -694,6 +709,7 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
         });
       }
     } catch (e: any) {
+      probeResults.value.set(m.id, { ok: false, error: e.message || String(e), at: Date.now() });
       vaToaster.add({ title: "探测请求失败", description: e.message || String(e), kind: "warning" });
     } finally {
       testingProfileId.value = "";
@@ -827,6 +843,7 @@ export function useModelProfiles(options: ModelProfilesOptions = {}) {
     discoveredForProvider,
     testProfileConnection,
     testingProfileId,
+    probeResults,
     testModelConnection,
     toggleModality,
     toggleReasoning,

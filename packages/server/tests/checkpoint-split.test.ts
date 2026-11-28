@@ -152,22 +152,7 @@ describe("W2 checkpoint 拆行（split 模式端到端）", () => {
     expect(miss.status).toBe(404);
   });
 
-  it("inline 回退开关：VUAGENT_CHECKPOINT_STORE=inline 时快照随 turn 行（旧行为）", async () => {
-    const saved = process.env.VUAGENT_CHECKPOINT_STORE;
-    process.env.VUAGENT_CHECKPOINT_STORE = "inline";
-    try {
-      const { app, session } = await setup(1);
-      const detail = (await (
-        await app.request(`/api/sessions/${session.id}`)
-      ).json()) as {
-        turns: Array<{ checkpoints: Array<{ messagesSnapshot?: unknown }>; checkpointsSplit?: boolean }>;
-      };
-      // 旧行为：快照内联 turn 行，无拆行标记
-      expect(detail.turns[0].checkpoints[0].messagesSnapshot).toBeDefined();
-      expect(detail.turns[0].checkpointsSplit).toBeUndefined();
-    } finally {
-      if (saved === undefined) delete process.env.VUAGENT_CHECKPOINT_STORE;
-      else process.env.VUAGENT_CHECKPOINT_STORE = saved;
-    }
-  });
+  // 0.9.0 兑现 v0.7-plan §13 承诺：VUAGENT_CHECKPOINT_STORE=inline 回退开关已移除
+  // （env 不再被读取，写路径恒为拆行）。inline 形态数据的**读取**兼容由仓储层
+  // 惰性迁移承担（checkpoint-split 其余用例 + session.repository 测试覆盖）。
 });

@@ -144,14 +144,25 @@ export function useWorkspaces(options: WorkspacesOptions = {}) {
     }
   }
 
-  /** handleSend 前置校验：确保有可用工作区，无则引导创建（原 handleSend 首段） */
+  /**
+   * handleSend 前置校验：确保有可用工作区，无则引导创建（原 handleSend 首段）。
+   * 引导结束仍无工作区（用户取消选目录 / 选择框不可用后放弃）→ 显式告知
+   * 「任务未发送」——此前此路径完全静默，composer 内容还在却毫无反馈（0.9 实测缺陷）。
+   */
   async function ensureActiveWorkspace(): Promise<boolean> {
     if (!activeWorkspaceId.value) {
       if (workspaces.value.length > 0) {
         activeWorkspaceId.value = workspaces.value[0].id;
       } else {
         await pickAndCreateWorkspace();
-        if (!activeWorkspaceId.value) return false;
+        if (!activeWorkspaceId.value) {
+          vaToaster.add({
+            title: "任务未发送",
+            description: "尚未选择工作区——已保留输入，选择或新建工作区后再次发送即可。",
+            kind: "info",
+          });
+          return false;
+        }
       }
     }
     return true;

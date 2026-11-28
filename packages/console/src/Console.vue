@@ -242,6 +242,7 @@ const {
   testModelConnection,
   testProfileConnection,
   testingProfileId,
+  probeResults,
   toggleModality,
   toggleReasoning,
   toggleToolUse,
@@ -1119,6 +1120,14 @@ function quickFillPrompt(text: string) {
 
           <!-- 上移至中间偏上的输入框容器 -->
           <div class="va-console__welcome-composer-box">
+            <!-- 无工作区引导条（0.9 实测缺陷：此前发送静默失败，用户不知道要先有工作区）：
+                 不禁用发送（「发送 → 选目录 → 自动继续」是合法流畅路径），只给预期 -->
+            <div v-if="workspaces.length === 0" class="va-console__ws-guide" data-testid="ws-guide">
+              <span>尚无工作区——点「发送」后将引导选择项目文件夹（可取消改为手动输入路径）</span>
+              <button class="va-console__ws-guide-btn" type="button" @click="pickAndCreateWorkspace">
+                新建工作区
+              </button>
+            </div>
             <VaComposer
               ref="composerRef"
               v-model:text="composerText"
@@ -1412,6 +1421,7 @@ function quickFillPrompt(text: string) {
           :show-api-key="showApiKey"
           :is-testing-connection="isTestingConnection"
           :testing-profile-id="testingProfileId"
+          :probe-results="probeResults"
           @test-model="testProfileConnection"
           :is-discovering="isDiscovering"
           :test-status="testStatus"

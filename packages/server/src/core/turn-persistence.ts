@@ -8,18 +8,15 @@ import { TelemetryLedger, clipTrajectoryEvent } from "./telemetry.js";
 import type { OpsReporter } from "./ops-reporter.js";
 
 /**
- * checkpoint 存储模式（0.7.0 W2 拆行）：
- * - "split"（默认）：快照 append-only 落 session_checkpoints 集合，turn 行只留
- *   CheckpointMeta——写放大 O(步数²) → O(1)/步；
- * - "inline"（回退开关 VUAGENT_CHECKPOINT_STORE=inline）：保持 0.6.x 行为
- *   （快照内联 turn 行），仅保留一个发布周期供线上回滚，0.8.0 移除。
- *   无 checkpointsRepo（如部分单测构造）时也自动回落 inline。
+ * checkpoint 存储（0.7.0 W2 拆行）：快照 append-only 落 session_checkpoints 集合，
+ * turn 行只留 CheckpointMeta——写放大 O(步数²) → O(1)/步。
+ *
+ * 0.7.0 曾保留 `VUAGENT_CHECKPOINT_STORE=inline` 环境变量作线上回滚开关
+ * （承诺一个发布周期，0.9.0 兑现移除）：写路径自此恒为拆行；inline **读取**
+ * 兼容（0.6.x 老库 / 回退期写入的行）由仓储层惰性迁移承担，与开关无关。
+ * 无 checkpointsRepo（部分单测的轻量构造）保持行内快照降级——结构性兜底，
+ * 非 env 可达路径。
  */
-export type CheckpointStoreMode = "split" | "inline";
-
-export function resolveCheckpointStoreMode(env: NodeJS.ProcessEnv = process.env): CheckpointStoreMode {
-  return (env.VUAGENT_CHECKPOINT_STORE || "").trim().toLowerCase() === "inline" ? "inline" : "split";
-}
 
 /**
  * 该轮是否出现过图片输入（TASK-083 历史占位判定，收尾算好落 turn.hasImages）：
@@ -69,7 +66,7 @@ function toMetas(checkpoints: CheckpointEntity[]): CheckpointMeta[] {
  */
 export interface TurnPersistenceOptions {
   sessionRepo: SessionRepository;
-  /** checkpoint 独立仓储（拆行形态）：缺省回落 inline 行为（单测/回退开关） */
+  /** checkpoint 独立仓储（拆行写路径）；缺省=轻量构造降级为行内快照（单测） */
   checkpointsRepo?: CheckpointRepository;
   costRecorder?: CostRecorder;
   ops: OpsReporter;
@@ -117,23 +114,18 @@ export class TurnPersistence {
 
   private progressTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingProgress: { state: TurnProgressState; startAt: number } | null = null;
-  /** checkpoint 存储模式（构造时定死；进程内不变） */
-  private readonly storeMode: CheckpointStoreMode;
 
-  constructor(private opts: TurnPersistenceOptions) {
-    this.storeMode = opts.checkpointsRepo ? resolveCheckpointStoreMode() : "inline";
-  }
+  constructor(private opts: TurnPersistenceOptions) {}
 
   /**
-   * 每步 checkpoint 即时落独立集合（拆行形态；W2 核心写路径）。
+   * 每步 checkpoint 即时落独立集合（拆行写路径）。
    * 快照大对象一次小行 append + turn 元数据同事务维护——进度落盘从此不再背快照。
-   * fail-open：落库失败静默（快照仍随进度/终态的 inline 兜底？否——拆行形态下
-   * 进度行不再带快照，本步快照丢失只影响崩溃恢复窗口的完整性，不阻断主链路，
-   * 与 appendRunningRow 的口径一致）。
-   * inline 模式：no-op（快照随 updateTurn/appendTurn 内联落库，旧行为）。
+   * fail-open：落库失败静默（拆行形态下进度行不再带快照，本步快照丢失只影响
+   * 崩溃恢复窗口的完整性，不阻断主链路，与 appendRunningRow 的口径一致）。
+   * 无 checkpointsRepo（单测轻量构造）：no-op（快照随 updateTurn/appendTurn 行内落库）。
    */
   async appendCheckpoint(cp: CheckpointEntity): Promise<void> {
-    if (this.storeMode !== "split" || !this.opts.checkpointsRepo) return;
+    if (!this.opts.checkpointsRepo) return;
     try {
       await this.opts.checkpointsRepo.appendCheckpoint(this.opts.sessionId, this.opts.turnId, cp);
     } catch {
@@ -141,12 +133,12 @@ export class TurnPersistence {
     }
   }
 
-  /** 进度/终态行的 checkpoint 载荷（按模式）：split = meta + count + hasImages + 标记，inline = 全量（旧行为） */
+  /** 进度/终态行的 checkpoint 载荷：拆行 = meta + count + hasImages + 标记；无 repo = 全量行内（轻量降级） */
   private checkpointPayload(
     state: { checkpoints: CheckpointEntity[] },
     attachments?: TurnFinalState["attachments"],
   ): Pick<TurnEntity, "checkpoints"> & { checkpointCount?: number; hasImages?: boolean; checkpointsSplit?: boolean } {
-    if (this.storeMode !== "split" || !this.opts.checkpointsRepo) {
+    if (!this.opts.checkpointsRepo) {
       return { checkpoints: state.checkpoints };
     }
     const metas = toMetas(state.checkpoints);

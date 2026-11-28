@@ -51,6 +51,8 @@ const props = defineProps<{
   isTestingConnection: boolean;
   /** 列表行快捷探测进行中的档案 id（该行按钮转圈） */
   testingProfileId: string;
+  /** 最近一次行内探测结果（profileId → 结果；进程内存态，面板重开清空） */
+  probeResults?: Map<string, { ok: boolean; latencyMs?: number; error?: string; at: number }>;
   isDiscovering: boolean;
   testStatus: { ok: boolean; message: string } | null;
   discoveredModels: string[];
@@ -120,6 +122,12 @@ const MODALITY_OPTIONS = [
 /** 模型角标：委托给共享 helper，避免与 composable 各写一份 */
 function badges(m: ModelProfileItem): string[] {
   return capabilityBadges({ capabilities: m.capabilities, contextWindow: m.contextWindow });
+}
+
+/** 行内探测错误摘要：一行放不下的完整错误悬浮 title 看（§模板 title 绑定） */
+function clipProbeError(error?: string): string {
+  const msg = (error || "").replace(/\s+/g, " ").trim();
+  return msg.length > 42 ? `${msg.slice(0, 42)}…` : msg || "端点无响应";
 }
 
 function modalityActive(id: string): boolean {
@@ -281,6 +289,17 @@ const editingModelId = computed(() => props.modelDraft?.id || "");
                     <span v-if="m.isDefault" class="va-console__default-chip">默认</span>
                   </span>
                   <span class="va-model-row__id">{{ m.model }}</span>
+                  <!-- 最近一次探测结果内联（0.9：toast 易逝且常被遮挡，行内是稳定呈现） -->
+                  <span
+                    v-if="probeResults?.get(m.id)"
+                    class="va-model-row__probe"
+                    :class="probeResults.get(m.id)!.ok ? 'va-model-row__probe--ok' : 'va-model-row__probe--fail'"
+                    :title="probeResults.get(m.id)!.error || `探测成功 · 首响应 ${probeResults.get(m.id)!.latencyMs}ms`"
+                  >
+                    {{ probeResults.get(m.id)!.ok
+                      ? `✓ 首响应 ${probeResults.get(m.id)!.latencyMs}ms`
+                      : `⚠ ${clipProbeError(probeResults.get(m.id)!.error)}` }}
+                  </span>
                 </div>
                 <div class="va-model-row__badges">
                   <span v-for="b in badges(m)" :key="b" class="va-prov-badge">{{ b }}</span>

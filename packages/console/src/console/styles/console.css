@@ -103,6 +103,39 @@
   align-self: stretch;
 }
 
+/* 无工作区引导条：composer 上方一行，说明「发送会先引导选目录」+ 手动入口 */
+.va-console__ws-guide {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border: 1px dashed var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: 8px;
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+  font-size: 12px;
+  color: var(--va-muted, #6f6d66);
+  text-align: left;
+}
+
+.va-console__ws-guide-btn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--va-edge, rgba(26, 25, 23, 0.12));
+  border-radius: 6px;
+  background: transparent;
+  color: var(--va-accent, #c2410c);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.va-console__ws-guide-btn:hover {
+  border-color: var(--va-accent, #c2410c);
+  background: var(--va-accent-soft, rgba(194, 65, 12, 0.1));
+}
+
 /* 聊天视图 */
 .va-console__chat-view {
   flex: 1;
@@ -2153,6 +2186,18 @@
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
+}
+
+/* 行内探测结果（最近一次）：成功绿 / 失败暖红，完整错误悬浮 title */
+.va-model-row__probe {
+  font-size:10.5px;
+  white-space:nowrap;
+}
+.va-model-row__probe--ok {
+  color:var(--va-success, #1a7f4b);
+}
+.va-model-row__probe--fail {
+  color:var(--va-danger, #d5453c);
 }
 
 .va-model-row__badges {
