@@ -14,8 +14,23 @@ import {
   coerceFormFields,
   deriveFormResultSchema,
   liftFormResultSchema,
+  OptionPickerToolSchema,
+  coerceOptionPickerOptions,
+  deriveOptionPickerResultSchema,
+  liftOptionPickerResultSchema,
+  WizardToolSchema,
+  flattenWizardFields,
+  DataTableToolSchema,
+  coerceDataTableColumns,
+  deriveDataTableResultSchema,
+  liftDataTableResultSchema,
 } from "@vuagent/protocol";
 import type { HarnessTool } from "../../core/types.js";
+
+/** args 安全取对象（execute/deriveResultSchema 的模型入参不可信） */
+function asRecord(args: unknown): Record<string, unknown> | undefined {
+  return args && typeof args === "object" && !Array.isArray(args) ? (args as Record<string, unknown>) : undefined;
+}
 
 /**
  * 契约工具集合：直接复用 @vuagent/protocol 中的 TypeBox 规范
@@ -236,9 +251,105 @@ export const UIAiAnswerTool: HarnessTool = {
   },
 };
 
+/**
+ * 0.9.0 W3（docs/design/v0.9-plan.md §4）：L2 组件家族第二、三、四个落地组件。
+ * 语义与 UIFormTool 完全同构（「L2 挂起≠审批」：无审批挂起由 interaction.level 驱动；
+ * resultSchema 一律派生不允许模型声明；超时=cancel），差异只在入参形状与派生器：
+ * - ui_option_picker：方案拍板（单选/多选），selected 恒为 id 数组（单选长度 1）；
+ * - ui_wizard：多步表单——「一个 L2」语义（单次挂起单次回传），resultSchema 复用
+ *   form 派生器（flatten 全部步字段）；
+ * - ui_data_table：结构化行采集，回传 { values: Row[] }（行对象按 columns 推导）。
+ */
+export const UIOptionPickerTool: HarnessTool = {
+  name: "ui_option_picker",
+  description:
+    "有多个候选方案需要用户拍板时调用（技术选型 / 方向决策）：渲染选项卡片并挂起等待选择",
+  parameters: OptionPickerToolSchema,
+  riskLevel: "low",
+  requiresApproval: false,
+  writesWorkspace: false,
+  interaction: {
+    level: "L2",
+    timeoutMeaning: "cancel",
+    deriveResultSchema: (args) =>
+      liftOptionPickerResultSchema(
+        deriveOptionPickerResultSchema(
+          coerceOptionPickerOptions(asRecord(args)?.options),
+          asRecord(args)?.multiple === true
+        )
+      ),
+  },
+  execute: async (ctx) => {
+    return {
+      rendered: true,
+      component: "ui_option_picker",
+      props: ctx.args,
+    };
+  },
+};
+
+export const UIWizardTool: HarnessTool = {
+  name: "ui_wizard",
+  description:
+    "需要用户分步补充较多结构化信息时调用（配置向导 / 多环节设置）：渲染分步表单，一次提交全部步骤值",
+  parameters: WizardToolSchema,
+  riskLevel: "low",
+  requiresApproval: false,
+  writesWorkspace: false,
+  interaction: {
+    level: "L2",
+    timeoutMeaning: "cancel",
+    // wizard 是「表单的分步 UI」：回传校验复用 form 派生器（flatten 全部步字段）
+    deriveResultSchema: (args) =>
+      liftFormResultSchema(
+        deriveFormResultSchema(coerceFormFields(flattenWizardFields((asRecord(args)?.steps ?? []) as never)))
+      ),
+  },
+  execute: async (ctx) => {
+    return {
+      rendered: true,
+      component: "ui_wizard",
+      props: ctx.args,
+    };
+  },
+};
+
+export const UIDataTableTool: HarnessTool = {
+  name: "ui_data_table",
+  description:
+    "需要用户批量提供结构化行数据时调用（名单 / 映射表 / 配置项清单）：渲染可增删行的表格并挂起等待提交",
+  parameters: DataTableToolSchema,
+  riskLevel: "low",
+  requiresApproval: false,
+  writesWorkspace: false,
+  interaction: {
+    level: "L2",
+    timeoutMeaning: "cancel",
+    deriveResultSchema: (args) => {
+      const record = asRecord(args);
+      return liftDataTableResultSchema(
+        deriveDataTableResultSchema(coerceDataTableColumns(record?.columns), {
+          minRows: typeof record?.minRows === "number" ? record.minRows : undefined,
+          maxRows: typeof record?.maxRows === "number" ? record.maxRows : undefined,
+        })
+      );
+    },
+  },
+  execute: async (ctx) => {
+    return {
+      rendered: true,
+      component: "ui_data_table",
+      props: ctx.args,
+    };
+  },
+};
+
 export const AllBuiltinTools: HarnessTool[] = [
   UIApprovalCardTool,
   UIFormTool,
+  UIOptionPickerTool,
+  UIWizardTool,
+  UIDataTableTool,
   UICodeDiffTool,
   UIMetricChartTool,
   UIAgentPlanTool,

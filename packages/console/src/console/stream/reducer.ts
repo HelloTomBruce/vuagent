@@ -11,6 +11,7 @@ import type {
   UiComponentRenderResult,
 } from "@vuagent/protocol";
 import type { ActionCard, MessageTurn, PlanStep } from "../types";
+import { getAgentComponent } from "@vuagent/ui";
 
 export interface StreamEventContext {
   /** 该事件是否属于当前激活会话 */
@@ -256,7 +257,13 @@ export function applyStreamEvent(
         // 值以 submit/cancel 信封回传（非审批 approve/deny 语义），复用同一挂起流。
         // 透传超时窗（对齐审批卡 expiresAt 机制）：超时由服务端裁决（cancel 语义），
         // resumed 携带 timeout reason 时收口为「已超时关闭」而非无差别 done
-        if (event.toolName === "ui_form") {
+        // L2 值采集走专用表单卡（值以 submit/cancel 信封回传，非审批 approve/deny
+        // 语义），复用同一挂起流。分发按 UI registry 的 interaction.level 声明而非
+        // 工具名硬编码（0.9.0 W3 修正：ui_form 单组件时代的 if(toolName) 分支会把
+        // 新 L2 组件错误渲染成审批卡——抽象泄漏信号按 plan §6.3 回修抽象）。
+        const isL2Suspend =
+          getAgentComponent(event.toolName || "")?.interaction?.level === "L2";
+        if (isL2Suspend) {
           const formCard: ActionCard = {
             id: event.actionId,
             type: "form",

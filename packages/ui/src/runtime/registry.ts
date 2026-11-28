@@ -22,6 +22,13 @@ import { VaForm } from "../components/form/index.js";
 import type { FormFieldItem } from "../components/form/index.js";
 import type { PlanStep } from "../components/agent-plan/index.js";
 import { deriveFormResultSchema } from "./form-result-schema.js";
+import {
+  deriveOptionPickerResultSchema,
+  deriveDataTableResultSchema,
+  flattenWizardFields,
+} from "./l2-result-schema.js";
+import VaOptionPicker from "../components/option-picker/VaOptionPicker.vue";
+import VaDataTable from "../components/data-table/VaDataTable.vue";
 import { formFieldErrors } from "./form-errors.js";
 import { getPlanStepsMirror, setPlanStepsMirror, clearPlanStepsMirror } from "./plan-steps-mirror.js";
 import CardSkeleton from "./skeletons/CardSkeleton.vue";
@@ -448,6 +455,125 @@ export function setupDefaultAgentRegistry(): void {
           if (ctx.status !== "executing" || !ctx.onSubmitAction) return;
           // clientValidated 由 useAgentChat 本地预校验通过后自动补记（TASK-090）
           await ctx.onSubmitAction({ kind: "submit", values, meta: { editedFields } });
+        },
+        onCancel: () => {
+          if (ctx.status !== "executing" || !ctx.onSubmitAction) return;
+          void ctx.onSubmitAction({ kind: "cancel" });
+        },
+      };
+    },
+  });
+
+  // ── 0.9.0 W3：L2 组件家族（契约/派生器见 protocol/l2-components.ts）──
+
+  // ui_option_picker（方案拍板）：selected 恒为 id 数组（单选长度 1，与派生
+  // resultSchema 同口径）；recommended 徽标 + description 展开由组件渲染
+  registerAgentComponent("ui_option_picker", {
+    component: VaOptionPicker,
+    skeleton: CardSkeleton,
+    progressive: true,
+    interaction: {
+      level: "L2",
+      deriveResultSchema: (args) => {
+        const a = asRecord(args);
+        return deriveOptionPickerResultSchema(
+          Array.isArray(a?.options) ? a.options : [],
+          a?.multiple === true
+        );
+      },
+    },
+    propAdapter: (rawArgs, ctx) => {
+      const args = asRecord(rawArgs);
+      return {
+        title: asString(args.title) ?? (ctx.status === "streaming" ? "正在生成选项..." : "请选择"),
+        description: asString(args.description),
+        options: Array.isArray(args.options) ? args.options : [],
+        multiple: args.multiple === true,
+        submitLabel: asString(args.submitLabel) ?? "确认选择",
+        disabled: ctx.status !== "executing",
+        onSubmit: async (selected: string[]) => {
+          if (ctx.status !== "executing" || !ctx.onSubmitAction) return;
+          await ctx.onSubmitAction({ kind: "submit", values: { selected }, meta: {} });
+        },
+        onCancel: () => {
+          if (ctx.status !== "executing" || !ctx.onSubmitAction) return;
+          void ctx.onSubmitAction({ kind: "cancel" });
+        },
+      };
+    },
+  });
+
+  // ui_wizard（多步表单）：v0.9 渲染为「按步骤分组的单表单」（VaForm 摊平，
+  // 步标题以字段 description 前缀携带；分步交互 UI 留 0.10 渐进升级）——
+  // 语义不变：一个 L2，一次提交全部步骤值（回传校验复用 form 派生器）
+  registerAgentComponent("ui_wizard", {
+    component: VaForm,
+    skeleton: CardSkeleton,
+    progressive: true,
+    interaction: {
+      level: "L2",
+      deriveResultSchema: (args) =>
+        deriveFormResultSchema(sanitizeFormFields(flattenWizardFields(asRecord(args).steps))),
+    },
+    propAdapter: (rawArgs, ctx) => {
+      const args = asRecord(rawArgs);
+      const steps = Array.isArray(args.steps) ? args.steps : [];
+      // 摊平：步标题进字段 description 前缀（用户在单表单里看到「① 步骤 — 字段说明」）
+      const fields = steps.flatMap((s: any) =>
+        (Array.isArray(s?.fields) ? s.fields : []).map((f: any) => ({
+          ...f,
+          description: `${s?.title ? `${s.title}${f.description ? `：${f.description}` : ""}` : (f.description ?? "")}`,
+        }))
+      );
+      return {
+        title: asString(args.title) ?? (ctx.status === "streaming" ? "正在生成向导..." : "向导"),
+        description: asString(args.description),
+        fields,
+        submitLabel: asString(args.submitLabel) ?? "提交全部步骤",
+        disabled: ctx.status !== "executing",
+        fieldErrors: formFieldErrors.get(ctx.toolCallId),
+        onSubmit: async (values: Record<string, unknown>, editedFields: string[]) => {
+          if (ctx.status !== "executing" || !ctx.onSubmitAction) return;
+          await ctx.onSubmitAction({ kind: "submit", values, meta: { editedFields } });
+        },
+        onCancel: () => {
+          if (ctx.status !== "executing" || !ctx.onSubmitAction) return;
+          void ctx.onSubmitAction({ kind: "cancel" });
+        },
+      };
+    },
+  });
+
+  // ui_data_table（结构化行采集）：可增删行 + 四型列单元格编辑；
+  // 回传 values = 行对象数组（与派生 resultSchema 的 items 同形状）
+  registerAgentComponent("ui_data_table", {
+    component: VaDataTable,
+    skeleton: CardSkeleton,
+    progressive: true,
+    interaction: {
+      level: "L2",
+      deriveResultSchema: (args) => {
+        const a = asRecord(args);
+        return deriveDataTableResultSchema(Array.isArray(a?.columns) ? a.columns : [], {
+          minRows: typeof a?.minRows === "number" ? a.minRows : undefined,
+          maxRows: typeof a?.maxRows === "number" ? a.maxRows : undefined,
+        });
+      },
+    },
+    propAdapter: (rawArgs, ctx) => {
+      const args = asRecord(rawArgs);
+      return {
+        title: asString(args.title) ?? (ctx.status === "streaming" ? "正在生成表格..." : "请填写表格"),
+        description: asString(args.description),
+        columns: Array.isArray(args.columns) ? args.columns : [],
+        rows: Array.isArray(args.rows) ? args.rows : [],
+        minRows: typeof args.minRows === "number" ? args.minRows : 0,
+        maxRows: typeof args.maxRows === "number" ? args.maxRows : 50,
+        submitLabel: asString(args.submitLabel) ?? "提交",
+        disabled: ctx.status !== "executing",
+        onSubmit: async (values: Record<string, unknown>[]) => {
+          if (ctx.status !== "executing" || !ctx.onSubmitAction) return;
+          await ctx.onSubmitAction({ kind: "submit", values: { values }, meta: {} });
         },
         onCancel: () => {
           if (ctx.status !== "executing" || !ctx.onSubmitAction) return;

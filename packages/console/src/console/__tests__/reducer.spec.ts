@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { applyStreamEvent, applyUiComponentResult, recordSeq, type ReducerSink } from "../stream/reducer";
+import { setupDefaultAgentRegistry } from "@vuagent/ui";
 import type { MessageTurn, PlanStep } from "../types";
+
+// 0.9.0 W3：L2 分发依赖 registry 注册态（ui_option_picker/wizard/data_table）
+setupDefaultAgentRegistry();
 
 function makeTurn(): MessageTurn {
   return { id: "t1", role: "assistant", content: "", thought: "", cards: [], timestamp: 0 };
@@ -114,6 +118,26 @@ describe("applyStreamEvent", () => {
     expect(turn.cards![0].type).toBe("approval");
     expect(turn.cards![0].data.status).toBe("pending");
     expect(turn.cards![0].data.expiresInSec).toBe(60);
+  });
+
+  it("0.9.0 W3：registry 声明 L2 的挂起走表单卡（ui_option_picker 不再硬编码 ui_form）", () => {
+    const turn = makeTurn();
+    const { sink } = makeSink();
+    applyStreamEvent(
+      turn,
+      {
+        type: "suspended",
+        actionId: "act-l2",
+        toolName: "ui_option_picker",
+        args: { title: "选择", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] },
+        timeoutMs: 60000,
+      },
+      { isActiveSession: true },
+      sink
+    );
+    expect(turn.cards).toHaveLength(1);
+    expect(turn.cards![0].type).toBe("form"); // 非 approval
+    expect(turn.cards![0].data.toolName).toBe("ui_option_picker");
   });
 
   it("resumed 以 note/reason 更新审批卡片决策状态", () => {

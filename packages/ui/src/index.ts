@@ -415,6 +415,7 @@ export {
   unregisterAgentComponent,
 } from "./runtime/registry";
 export { useAgentChat } from "./runtime/useAgentChat";
+export { setFormFieldErrors } from "./runtime/form-errors";
 export type { ChatMessage, SendMessageOptions, UseAgentChatOptions } from "./runtime/useAgentChat";
 // TASK-090：交互信封本地预校验（提交前拦截必败请求；server 边界复核仍是权威）
 export { UIActionLocalValidationError } from "./runtime/interaction-validation";

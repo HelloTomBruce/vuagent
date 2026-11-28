@@ -22,6 +22,7 @@ import {
   getCardComponent,
 } from "@vuagent/ui";
 import type { ActionCard } from "../types";
+import { getAgentComponent, setFormFieldErrors } from "@vuagent/ui";
 import type { FormFieldItem } from "@vuagent/ui";
 import { toolCardDefaultOpen } from "../utils/auto-collapse";
 import { useInteractionSettings } from "../composables/useInteractionSettings";
@@ -164,6 +165,56 @@ const onFormCancel = async () => {
     formSubmitting.value = false;
   }
 };
+
+/* ---- 0.9.0 W3：registry 驱动的 L2 挂起卡渲染 ----
+ * form 卡默认回落 VaForm（ui_form 现状，422 回显闭环保留）；registry 里注册了
+ * interaction.level="L2" 组件的新工具（option_picker/data_table/未来组件）按
+ * propAdapter 生成 props 渲染——不按工具名硬编码分支（plan §6.3）。 */
+const l2Entry = computed(() => {
+  const name = String(props.card.data?.toolName || "");
+  if (!name || name === "ui_form") return undefined; // ui_form 走下方 VaForm 专用路径
+  const entry = getAgentComponent(name);
+  return entry?.interaction?.level === "L2" ? entry : undefined;
+});
+const l2Status = computed(() => (props.card.data?.status === "pending" && !formSubmitting.value ? "executing" : "done"));
+const l2Props = computed<Record<string, any> | undefined>(() => {
+  if (!l2Entry.value?.propAdapter) return undefined;
+  const actionId = String(props.card.data.actionId || "");
+  return l2Entry.value.propAdapter(props.card.data.formArgs || {}, {
+    status: l2Status.value,
+    toolCallId: actionId,
+    onSubmitAction: async (envelope: unknown) => {
+      const env = envelope as { kind?: string; values?: Record<string, unknown> };
+      if (env.kind !== "submit") {
+        await submitActionEnvelope(actionId, { kind: "cancel" });
+        if (props.card.data) props.card.data.status = "cancelled";
+        return;
+      }
+      formSubmitting.value = true;
+      try {
+        const res = await submitActionEnvelope(actionId, {
+          kind: "submit",
+          values: env.values || {},
+          meta: { editedFields: [] },
+        });
+        if (res.ok) {
+          if (props.card.data) props.card.data.status = "done";
+        } else if (res.fieldErrors) {
+          // 校验失败非终态：回填 registry propAdapter 引用的响应式错误通道（form-errors.ts）
+          setFormFieldErrors(actionId, res.fieldErrors);
+        } else {
+          vaToaster.add({
+            title: `表单提交失败（HTTP ${res.status}）`,
+            description: "请稍后重试；若持续失败请查看服务端日志",
+          });
+        }
+      } finally {
+        formSubmitting.value = false;
+      }
+    },
+  });
+});
+
 </script>
 
 <template>
@@ -262,6 +313,13 @@ const onFormCancel = async () => {
       :default-collapsed="card.data.status === 'approved' || card.data.status === 'denied'"
       @approve="$emit('approve')"
       @deny="(reason) => $emit('deny', reason)"
+    />
+
+    <!-- 0.9.0 W3：registry 驱动的 L2 挂起卡（option_picker/data_table/未来组件） -->
+    <component
+      v-else-if="card.type === 'form' && l2Entry && l2Props"
+      :is="l2Entry.component"
+      v-bind="l2Props"
     />
 
     <!-- TASK-092：ui_form 表单卡片（L2 值采集，submit/cancel 信封回传） -->

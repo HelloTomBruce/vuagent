@@ -127,6 +127,24 @@ const FUNCTION_CORPUS = [
     vendoredPath: "packages/ui/src/runtime/registry.ts",
     names: ["FORM_FIELD_TYPES"],
   },
+  {
+    label: "deriveOptionPickerResultSchema（L2 option_picker 派生器，0.9.0 W3）",
+    protocolPath: "packages/protocol/src/l2-components.ts",
+    vendoredPath: "packages/ui/src/runtime/l2-result-schema.ts",
+    names: ["OptionSpec", "deriveOptionPickerResultSchema"],
+  },
+  {
+    label: "deriveDataTableResultSchema（L2 data_table 派生器，0.9.0 W3）",
+    protocolPath: "packages/protocol/src/l2-components.ts",
+    vendoredPath: "packages/ui/src/runtime/l2-result-schema.ts",
+    names: ["ColumnSpec", "deriveDataTableResultSchema"],
+  },
+  {
+    label: "flattenWizardFields（L2 wizard 步字段摊平，0.9.0 W3）",
+    protocolPath: "packages/protocol/src/l2-components.ts",
+    vendoredPath: "packages/ui/src/runtime/l2-result-schema.ts",
+    names: ["flattenWizardFields"],
+  },
 ];
 
 function extractNamedBlock(src, name) {

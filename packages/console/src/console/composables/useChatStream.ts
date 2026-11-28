@@ -11,6 +11,11 @@ import type { DeltaBuffer } from "@vuagent/ui";
 import { openChatStream, openSessionStream } from "../api/client";
 import type { ChatRequestBody } from "../api/client";
 import { applyStreamEvent, recordSeq } from "../stream/reducer";
+import { setupDefaultAgentRegistry } from "@vuagent/ui";
+
+// reducer 的 L2 挂起分发按 registry 声明判定（0.9.0 W3）——console 应用不走
+// useAgentChat（其内有兜底注册），这里模块加载即幂等初始化，杜绝空 registry
+setupDefaultAgentRegistry();
 import { consumeSSEStream } from "./hooks/useSSEConnection";
 import {
   appendReactiveTurn,
