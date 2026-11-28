@@ -26,6 +26,8 @@ const props = withDefaults(
     maxRows?: number;
     submitLabel?: string;
     disabled?: boolean;
+    /** 422 fieldErrors（{path,message}[]）：就地回显供重填 */
+    fieldErrors?: Array<{ path: string; message: string }>;
   }>(),
   {
     title: "请填写表格",
@@ -36,8 +38,16 @@ const props = withDefaults(
     maxRows: 50,
     submitLabel: "提交",
     disabled: false,
+    fieldErrors: undefined,
   }
 );
+
+/** /values/0/env → 第 1 行「env」（嵌套路径人类化；其余原样） */
+function humanizePath(path: string): string {
+  const m = path.match(/^\/values\/(\d+)\/(.+)$/);
+  if (m) return `第 ${Number(m[1]) + 1} 行「${m[2]}」`;
+  return path;
+}
 
 const emit = defineEmits<{
   (e: "submit", values: Row[]): void;
@@ -131,6 +141,10 @@ function removeRow(idx: number) {
       </table>
     </div>
 
+    <div v-if="fieldErrors?.length" class="va-data-table__errors" role="alert">
+      <div v-for="(fe, i) in fieldErrors" :key="i" class="va-data-table__error">⚠ {{ humanizePath(fe.path) }}：{{ fe.message }}</div>
+    </div>
+
     <div class="va-data-table__foot">
       <button class="va-data-table__add" type="button" :disabled="disabled || rows.length >= maxRows" @click="addRow">
         + 加一行
@@ -220,6 +234,19 @@ function removeRow(idx: number) {
   text-align: center;
   color: var(--va-muted, #6f6d66);
   padding: 14px 0;
+}
+.va-data-table__errors {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  border: 1px solid var(--va-danger, #d5453c);
+  border-radius: 6px;
+  background: rgba(213, 69, 60, 0.08);
+}
+.va-data-table__error {
+  font-size: 12px;
+  color: var(--va-danger, #d5453c);
 }
 .va-data-table__foot {
   display: flex;

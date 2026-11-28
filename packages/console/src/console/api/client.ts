@@ -528,7 +528,7 @@ export async function submitAction(
 export async function submitActionEnvelope(
   actionId: string,
   envelope: unknown
-): Promise<{ ok: boolean; status: number; fieldErrors?: Record<string, string> }> {
+): Promise<{ ok: boolean; status: number; fieldErrors?: Record<string, string> | Array<{ path: string; message: string }> }> {
   const res = await fetch(`/api/action/${actionId}`, {
     method: "POST",
     headers: { ...authHeaders(), ...JSON_HEADERS },
@@ -536,7 +536,7 @@ export async function submitActionEnvelope(
   });
   if (res.status === 422) {
     const body = (await res.json().catch(() => null)) as {
-      fieldErrors?: Record<string, string>;
+      fieldErrors?: Record<string, string> | Array<{ path: string; message: string }>;
     } | null;
     if (body?.fieldErrors && Object.keys(body.fieldErrors).length > 0) {
       return { ok: false, status: 422, fieldErrors: body.fieldErrors };

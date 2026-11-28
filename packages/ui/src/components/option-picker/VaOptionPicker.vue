@@ -21,6 +21,8 @@ const props = withDefaults(
     multiple?: boolean;
     submitLabel?: string;
     disabled?: boolean;
+    /** 422 fieldErrors（{path,message}[]）：就地回显供重填 */
+    fieldErrors?: Array<{ path: string; message: string }>;
   }>(),
   {
     title: "请选择",
@@ -29,6 +31,7 @@ const props = withDefaults(
     multiple: false,
     submitLabel: "确认选择",
     disabled: false,
+    fieldErrors: undefined,
   }
 );
 
@@ -86,6 +89,10 @@ function toggle(id: string) {
           <span v-if="opt.description" class="va-option-picker__opt-desc">{{ opt.description }}</span>
         </span>
       </button>
+    </div>
+
+    <div v-if="fieldErrors?.length" class="va-option-picker__errors" role="alert">
+      <div v-for="(fe, i) in fieldErrors" :key="i" class="va-option-picker__error">⚠ {{ fe.path }}：{{ fe.message }}</div>
     </div>
 
     <div class="va-option-picker__foot">
@@ -177,6 +184,19 @@ function toggle(id: string) {
 .va-option-picker__opt-desc {
   font-size: 12px;
   color: var(--va-muted, #6f6d66);
+}
+.va-option-picker__errors {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  border: 1px solid var(--va-danger, #d5453c);
+  border-radius: 6px;
+  background: rgba(213, 69, 60, 0.08);
+}
+.va-option-picker__error {
+  font-size: 12px;
+  color: var(--va-danger, #d5453c);
 }
 .va-option-picker__foot {
   display: flex;

@@ -22,7 +22,7 @@ import {
   getCardComponent,
 } from "@vuagent/ui";
 import type { ActionCard } from "../types";
-import { getAgentComponent, setFormFieldErrors } from "@vuagent/ui";
+import { getAgentComponent } from "@vuagent/ui";
 import type { FormFieldItem } from "@vuagent/ui";
 import { toolCardDefaultOpen } from "../utils/auto-collapse";
 import { useInteractionSettings } from "../composables/useInteractionSettings";
@@ -123,7 +123,7 @@ const onFormSubmit = async (values: Record<string, unknown>, editedFields: strin
       props.card.data.status = "done";
     } else if (res.fieldErrors) {
       // 校验失败不是终态：保持 pending，就地回显错误供重填
-      formFieldErrors.value = res.fieldErrors;
+      formFieldErrors.value = res.fieldErrors as Record<string, string>;
     } else {
       // 非 422 失败（400/404/409/5xx）：必须给用户可见反馈，不能静默死端
       vaToaster.add({
@@ -177,6 +177,8 @@ const l2Entry = computed(() => {
   return entry?.interaction?.level === "L2" ? entry : undefined;
 });
 const l2Status = computed(() => (props.card.data?.status === "pending" && !formSubmitting.value ? "executing" : "done"));
+// 422 fieldErrors（数组形态 {path,message}[]）：422 非终态，就地回显供重填
+const l2FieldErrors = ref<Array<{ path: string; message: string }> | undefined>(undefined);
 const l2Props = computed<Record<string, any> | undefined>(() => {
   if (!l2Entry.value?.propAdapter) return undefined;
   const actionId = String(props.card.data.actionId || "");
@@ -199,9 +201,10 @@ const l2Props = computed<Record<string, any> | undefined>(() => {
         });
         if (res.ok) {
           if (props.card.data) props.card.data.status = "done";
+          l2FieldErrors.value = undefined;
         } else if (res.fieldErrors) {
-          // 校验失败非终态：回填 registry propAdapter 引用的响应式错误通道（form-errors.ts）
-          setFormFieldErrors(actionId, res.fieldErrors);
+          // 校验失败非终态：422 fieldErrors（{path,message}[]）就地回显供重填
+          l2FieldErrors.value = Array.isArray(res.fieldErrors) ? res.fieldErrors : undefined;
         } else {
           vaToaster.add({
             title: `表单提交失败（HTTP ${res.status}）`,
@@ -320,6 +323,7 @@ const l2Props = computed<Record<string, any> | undefined>(() => {
       v-else-if="card.type === 'form' && l2Entry && l2Props"
       :is="l2Entry.component"
       v-bind="l2Props"
+      :field-errors="l2FieldErrors"
     />
 
     <!-- TASK-092：ui_form 表单卡片（L2 值采集，submit/cancel 信封回传） -->
