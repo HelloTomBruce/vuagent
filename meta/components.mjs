@@ -878,4 +878,29 @@ export const components = [
       { name: "@cancel", type: "()", default: "-", desc: "取消（cancel 信封：一等公民而非错误）" },
     ],
   },
+  {
+    dir: "option-picker", slug: "option-picker", title: "Option Picker", category: "Agent-Ops", components: ["VaOptionPicker"], deps: ["button"],
+    desc: "L2 方案拍板卡（ui_option_picker，0.9.0）：单选/多选选项卡片，recommended 推荐徽标与逐项 description 展开；selected 恒为 id 数组（单选长度 1，语义归一）。resultSchema 由 options 派生（anyOf 枚举与 label 回映同体，模型不允许自行声明）。422 fieldErrors 就地回显。",
+    props: [
+      { name: "title / description", type: "string / string", default: "-", desc: "选择器标题 / 决策背景说明" },
+      { name: "options", type: "{id,label,description?,recommended?}[]", default: "[]", desc: "选项列表（2-12 个）" },
+      { name: "multiple", type: "boolean", default: "false", desc: "多选开关" },
+      { name: "fieldErrors", type: "{path,message}[]", default: "-", desc: "server 422 回显" },
+      { name: "@submit", type: "(selected: string[]) => void", default: "-", desc: "提交选中的选项 id 数组" },
+      { name: "@cancel", type: "() => void", default: "-", desc: "取消" },
+    ],
+  },
+  {
+    dir: "data-table", slug: "data-table", title: "Data Table", category: "Agent-Ops", components: ["VaDataTable"], deps: ["button"],
+    desc: "L2 结构化行采集卡（ui_data_table，0.9.0）：可增删行表格，四型列（text/number/boolean/select），预填初始行与行数边界（minRows/maxRows）。resultSchema 的 values=行对象数组按 columns 派生；422 fieldErrors 就地回显（humanizePath 行级定位）。",
+    props: [
+      { name: "title / description", type: "string / string", default: "-", desc: "表格标题 / 采集背景说明" },
+      { name: "columns", type: "{key,label,type?,required?,options?}[]", default: "[]", desc: "列定义（1-12 列）" },
+      { name: "rows", type: "Row[]", default: "[]", desc: "预填初始行" },
+      { name: "minRows / maxRows", type: "number", default: "0 / 50", desc: "行数边界" },
+      { name: "fieldErrors", type: "{path,message}[]", default: "-", desc: "server 422 回显（行级定位）" },
+      { name: "@submit", type: "(values: Row[]) => void", default: "-", desc: "提交行对象数组" },
+      { name: "@cancel", type: "() => void", default: "-", desc: "取消" },
+    ],
+  },
 ];

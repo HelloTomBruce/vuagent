@@ -506,6 +506,18 @@
       "title": "Form",
       "description": "L2 值采集表单卡（ui_form）：六型字段（text/textarea/number/boolean/select/date）、必填星标、敏感字段密码态与显隐切换、单位后缀、server 422 fieldErrors 就地回显（用户修正后重提，§4.2 重填闭环）。resultSchema 由 fields 派生（deriveFormResultSchema，模型不允许自行声明）。",
       "type": "registry:ui"
+    },
+    {
+      "name": "option-picker",
+      "title": "Option Picker",
+      "description": "L2 方案拍板卡（ui_option_picker，0.9.0）：单选/多选选项卡片，recommended 推荐徽标与逐项 description 展开；selected 恒为 id 数组（单选长度 1，语义归一）。resultSchema 由 options 派生（anyOf 枚举与 label 回映同体，模型不允许自行声明）。422 fieldErrors 就地回显。",
+      "type": "registry:ui"
+    },
+    {
+      "name": "data-table",
+      "title": "Data Table",
+      "description": "L2 结构化行采集卡（ui_data_table，0.9.0）：可增删行表格，四型列（text/number/boolean/select），预填初始行与行数边界（minRows/maxRows）。resultSchema 的 values=行对象数组按 columns 派生；422 fieldErrors 就地回显（humanizePath 行级定位）。",
+      "type": "registry:ui"
     }
   ]
 }
