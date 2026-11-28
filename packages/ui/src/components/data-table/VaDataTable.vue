@@ -6,6 +6,7 @@
  */
 import { computed, ref } from "vue";
 import { VaButton } from "../button";
+import { VaSelect } from "../select";
 
 interface ColumnItem {
   key: string;
@@ -100,15 +101,18 @@ function removeRow(idx: number) {
         <tbody>
           <tr v-for="(row, idx) in rows" :key="idx">
             <td v-for="col in validColumns" :key="col.key">
-              <select
+              <!-- select 列走组合库 VaSelect（对齐 VaForm TASK-092 方案 A：可搜索弹层与
+                   全库交互一致）；「—」空值由 placeholder 表达，空串值仍可回传触发 422 -->
+              <VaSelect
                 v-if="col.type === 'select'"
-                v-model="row[col.key]"
+                class="va-data-table__cell-select"
+                size="sm"
+                :model-value="(row[col.key] as string) || ''"
+                :options="(col.options || []).map((o) => ({ value: o.value, label: o.label }))"
                 :disabled="disabled"
-                class="va-data-table__cell"
-              >
-                <option value="">—</option>
-                <option v-for="o in col.options || []" :key="o.value" :value="o.value">{{ o.label }}</option>
-              </select>
+                :placeholder="'—'"
+                @update:model-value="(v) => (row[col.key] = typeof v === 'string' ? v : v[0])"
+              />
               <input
                 v-else-if="col.type === 'boolean'"
                 v-model="row[col.key]"
